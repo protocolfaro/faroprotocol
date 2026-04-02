@@ -135,7 +135,7 @@ def main(area=None):
     # Redimensionar SAR al tamaño del NDVI si es necesario
     if sar_raw.shape != ndvi_raw.shape:
         from skimage.transform import resize
-        print(f"  Redimensionando SAR {sar_raw.shape} → {ndvi_raw.shape}")
+        print(f"  Redimensionando SAR {sar_raw.shape} -> {ndvi_raw.shape}")
         sar_raw = resize(sar_raw, ndvi_raw.shape, anti_aliasing=True)
 
     sar_norm = normalizar(sar_raw)

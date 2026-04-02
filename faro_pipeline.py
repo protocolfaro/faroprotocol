@@ -1,21 +1,19 @@
 """
 FARO PROTOCOL — Pipeline unificado
 
-Ejecuta el pipeline completo para un area:
-  georef SAR -> fusion SAR + NDVI -> vision computacional -> reporte PNG + SHA-256 -> data.json
+Para la mayoria de los casos usar faro_engine.py (punto de entrada principal):
+    python faro_engine.py --area cordoba
+
+faro_pipeline.py sigue disponible para operaciones tecnicas especificas:
+  - Solo georef SAR
+  - Solo fusion
+  - Solo busqueda SAR
+  - Modo paso a paso sin modelo economico
 
 Uso:
     python faro_pipeline.py --area cordoba --sar-file ruta/al/archivo.tiff
-    python faro_pipeline.py --area vaca_muerta --sar-file ruta/al/archivo.tiff
-    python faro_pipeline.py --area balcarce --sar-file ruta/al/archivo.tiff
-
-    # Solo fusion (si el SAR ya fue georreferenciado):
     python faro_pipeline.py --area cordoba --skip-georef
-
-    # Solo busqueda SAR (sin procesar):
     python faro_pipeline.py --area cordoba --only-search
-
-    # Omitir vision computacional (Fase 6):
     python faro_pipeline.py --area cordoba --skip-vision
 """
 
@@ -139,16 +137,7 @@ def main():
         if ndvi_path and Path(ndvi_path).exists():
             print("[3/5] Clasificacion de vigor + deteccion de anomalias...")
             import faro_vision
-            import sys as _sys
-            # Ejecutar main() directamente con los argumentos correctos
-            _orig_argv = _sys.argv
-            _sys.argv  = ['faro_vision.py', '--area', area['name']]
-            try:
-                faro_vision.main()
-            except SystemExit:
-                pass
-            finally:
-                _sys.argv = _orig_argv
+            vstats      = faro_vision.run(area['name'])
             vision_json = f"faro_vision_{area['name']}.json"
         else:
             print("[3/5] Vision omitida: NDVI no disponible para esta area")
@@ -161,21 +150,40 @@ def main():
     hash_path = Path(reporte_png).with_suffix('.sha256')
     hash_path.write_text(f"{digest}  {Path(reporte_png).name}\n", encoding='utf-8')
 
-    # ── Paso 5: Actualizar data.json ────────────────────────────
-    print("[5/5] Actualizando data.json...")
-    # Agregar stats de vision si existen
+    # ── Paso 5: Modelo económico + data.json via faro_engine ────
+    print("[5/5] Aplicando modelo economico (faro_engine)...")
+    from faro_engine import FaroEngine, DatosCrudos, _sha256
+    from faro_engine import InsightEconomico
+
+    crudos = DatosCrudos(
+        area_name            = area['name'],
+        sar_medio_db         = stats.get('sar_medio_db'),
+        ndvi_medio           = stats.get('ndvi_medio'),
+        indice_fusion_medio  = stats.get('indice_fusion_medio'),
+        pixeles_analizados   = stats.get('pixeles_analizados'),
+        pct_anomalia         = 0.0,
+        reporte_png          = reporte_png,
+        sha256_completo      = digest,
+        tiene_sar            = Path(area.get('sar_output', '')).exists(),
+        tiene_ndvi           = stats.get('ndvi_medio') is not None,
+        tiene_vision         = vision_json is not None,
+    )
     if vision_json and Path(vision_json).exists():
         with open(vision_json, encoding='utf-8') as f:
-            vstats = json.load(f)
-        stats['ndvi_global_medio'] = vstats.get('ndvi_global_medio')
-        stats['pct_anomalia']      = vstats.get('pct_anomalia')
-    actualizar_data_json(area['name'], stats, digest)
+            vstats_d = json.load(f)
+        crudos.pct_anomalia = vstats_d.get('pct_anomalia', 0.0)
+        crudos.ndvi_medio   = vstats_d.get('ndvi_global_medio', crudos.ndvi_medio)
+
+    engine  = FaroEngine()
+    insight = engine._generar_insight(area, crudos)
+    engine._publicar(crudos, insight)
 
     print("\n" + "=" * 60)
     print(f"  Pipeline completado")
-    print(f"  Reporte fusión : {reporte_png}")
+    print(f"  Reporte fusion : {reporte_png}")
     if vision_json:
         print(f"  Clasificacion  : faro_clasificacion_{area['name']}.png")
+    print(f"  Score Faro     : {insight.score_faro} / 100")
     print(f"  SHA-256        : {digest}")
     print(f"  data.json      : {DATA_JSON}")
     print("=" * 60 + "\n")

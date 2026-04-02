@@ -290,78 +290,82 @@ def generar_reporte(ndvi: np.ndarray, mapa_vigor: np.ndarray,
     print(f"  Reporte guardado: {output_png}")
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        description="Faro Protocol — Visión computacional sobre NDVI"
-    )
-    parser.add_argument('--area', required=True,
-                        help=f"Área a procesar. Disponibles: {', '.join(list_areas())}")
-    parser.add_argument('--ndvi-file', default=None,
-                        help="Ruta al NDVI .tif (opcional — por defecto usa la config del área)")
-    parser.add_argument('--umbral-z', type=float, default=-2.0,
-                        help="Z-score para detección de anomalías (default: -2.0)")
-    parser.add_argument('--output-json', default=None,
-                        help="Ruta del JSON de salida (opcional)")
-    args = parser.parse_args()
+def run(area_name: str, ndvi_file: str = None, umbral_z: float = -2.0,
+        output_json: str = None) -> dict:
+    """
+    API programática de faro_vision — llamable desde faro_engine u otros módulos.
 
-    area = load_area(args.area)
+    Retorna el dict de estadísticas (mismo contenido que el JSON guardado).
+    """
+    area = load_area(area_name)
     if area.get('vertical') == 'energia':
-        print(f"[AVISO] El área '{args.area}' es vertical energía. "
-              "La clasificación NDVI aplica igualmente para detectar actividad vegetal.")
+        print(f"[INFO] Area energia: clasificacion NDVI detecta actividad vegetal.")
 
-    ndvi_path   = args.ndvi_file or area.get('ndvi_tif', 'FaroProtocol_NDVI_limpio_Cordoba.tif')
+    ndvi_path   = ndvi_file or area.get('ndvi_tif', '')
     output_png  = f"faro_clasificacion_{area['name']}.png"
-    output_json = args.output_json or f"faro_vision_{area['name']}.json"
+    output_json = output_json or f"faro_vision_{area['name']}.json"
     zona        = area['label']
     fecha       = datetime.now().strftime("%Y-%m-%d %H:%M")
 
     print("=" * 55)
-    print(f"  FARO PROTOCOL — Visión Computacional (Fase 6)")
-    print(f"  Área: {zona}")
+    print(f"  FARO PROTOCOL — Vision Computacional (Fase 6)")
+    print(f"  Area: {zona}")
     print(f"  NDVI: {ndvi_path}")
     print("=" * 55)
 
-    # 1. Cargar NDVI
     ndvi, meta = cargar_ndvi(ndvi_path)
     print(f"  NDVI cargado | Shape: {ndvi.shape} | "
           f"Min: {np.nanmin(ndvi):.3f} Max: {np.nanmax(ndvi):.3f}")
 
-    # 2. Clasificar vigor
     print("  Clasificando vigor vegetativo...")
     mapa_vigor = clasificar_vigor(ndvi)
 
-    # 3. Detectar anomalías
-    print(f"  Detectando anomalías (z < {args.umbral_z})...")
-    anomalias = detectar_anomalias(ndvi, mapa_vigor, umbral_z=args.umbral_z)
+    print(f"  Detectando anomalias (z < {umbral_z})...")
+    anomalias = detectar_anomalias(ndvi, mapa_vigor, umbral_z=umbral_z)
 
-    # 4. Estadísticas
     stats = calcular_estadisticas(ndvi, mapa_vigor, anomalias)
 
     print(f"\n  Resultados:")
     print(f"    NDVI medio global:  {stats['ndvi_global_medio']:.4f}")
-    print(f"    Anomalías (% área): {stats['pct_anomalia']:.2f}%")
+    print(f"    Anomalias (% area): {stats['pct_anomalia']:.2f}%")
     for label, d in stats['clases_vigor'].items():
         if d['pixeles'] > 0:
             print(f"    [{d['codigo']}] {label[:28]:28s} {d['porcentaje']:5.1f}%")
 
-    # 5. Reporte visual
     generar_reporte(ndvi, mapa_vigor, anomalias, stats, zona, fecha, output_png)
 
-    # 6. Guardar JSON
-    output = {
+    result = {
         "_meta": {
             "area":        area['name'],
             "zona":        zona,
             "fecha":       fecha,
             "ndvi_fuente": ndvi_path,
-            "umbral_z":    args.umbral_z,
+            "umbral_z":    umbral_z,
         },
         **stats,
     }
     with open(output_json, 'w', encoding='utf-8') as f:
-        json.dump(output, f, indent=2, ensure_ascii=False)
+        json.dump(result, f, indent=2, ensure_ascii=False)
     print(f"  JSON guardado: {output_json}")
     print("\n  [OK] Fase 6 completada.\n")
+    return result
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Faro Protocol — Vision computacional sobre NDVI"
+    )
+    parser.add_argument('--area', required=True,
+                        help=f"Area a procesar. Disponibles: {', '.join(list_areas())}")
+    parser.add_argument('--ndvi-file', default=None,
+                        help="Ruta al NDVI .tif (opcional — por defecto usa la config del area)")
+    parser.add_argument('--umbral-z', type=float, default=-2.0,
+                        help="Z-score para deteccion de anomalias (default: -2.0)")
+    parser.add_argument('--output-json', default=None,
+                        help="Ruta del JSON de salida (opcional)")
+    args = parser.parse_args()
+    run(args.area, ndvi_file=args.ndvi_file,
+        umbral_z=args.umbral_z, output_json=args.output_json)
 
 
 if __name__ == '__main__':

@@ -1,8 +1,9 @@
 {
   "_meta": {
-    "nota": "Actualizado automaticamente por faro_pipeline.py. No editar manualmente.",
-    "generado_en": "2026-04-01 15:04",
-    "generado_por": "faro_pipeline.py"
+    "nota": "Generado automaticamente por faro_engine.py",
+    "generado_en": "2026-04-02 15:32",
+    "generado_por": "faro_engine.py",
+    "protocolo": "Cero Footprint v1"
   },
   "accuracy_pct": 98.2,
   "readings_verified": 247,
@@ -17,15 +18,19 @@
   },
   "faro_arg_score": "72 / 100",
   "pipeline": {
-    "ultimo_run": "2026-04-01 15:04",
+    "ultimo_run": "2026-04-02 15:32",
     "cordoba": {
       "estado": "OK",
-      "ndvi_medio": 0.45,
-      "sar_medio_db": -12.3,
-      "indice_fusion_medio": 0.63,
-      "sha256": "abc123def456...",
-      "ultimo_run": "2026-04-01 15:04",
-      "pixeles_analizados": 50000
+      "ndvi_medio": 4444.1774,
+      "sar_medio_db": 0.6399,
+      "indice_fusion_medio": 0.69,
+      "sha256": "b8fd64a01a49739b...",
+      "ultimo_run": "2026-04-02 15:32",
+      "pixeles_analizados": 124066152,
+      "score_faro": 71.4,
+      "rinde_estimado_tha": 5.2,
+      "indice_actividad": null,
+      "pct_anomalia": 0.0
     },
     "vaca_muerta": {
       "estado": null,
@@ -41,5 +46,42 @@
       "indice_fusion_medio": null,
       "sha256": null
     }
+  },
+  "_interno": {
+    "cordoba": {
+      "sar_medio_db": 0.6399,
+      "ndvi_medio": 4444.1774,
+      "indice_fusion_medio": 0.69,
+      "pixeles_analizados": 124066152,
+      "pct_anomalia": 0.0,
+      "reporte_png": "faro_reporte_fusion_cordoba.png",
+      "sha256_completo": "b8fd64a01a49739b68e97410e29ec847b9f54e14c0190b1c552c99f6feea4882",
+      "tiene_sar": true,
+      "tiene_ndvi": true,
+      "tiene_vision": false,
+      "ultimo_run": "2026-04-02 15:32"
+    }
+  },
+  "insights": {
+    "cordoba": {
+      "zona": "Marcos Juárez, Córdoba, Argentina",
+      "vertical": "agro",
+      "fecha": "2026-04-02 15:32",
+      "rinde_estimado_tha": 5.2,
+      "indice_actividad": null,
+      "score_faro": 71.4,
+      "confianza": "Alta",
+      "estado": "OK",
+      "alerta": null,
+      "pct_anomalia": 0.0,
+      "sha256_reporte": "b8fd64a01a49739b..."
+    }
+  },
+  "resumen": {
+    "ultimo_run": "2026-04-02 15:32",
+    "areas_activas": 1,
+    "score_promedio": 71.4,
+    "estado_global": "OK",
+    "areas_en_alerta": []
   }
 }
