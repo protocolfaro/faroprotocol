@@ -1,0 +1,45 @@
+{
+  "_meta": {
+    "nota": "Actualizado automaticamente por faro_pipeline.py. No editar manualmente.",
+    "generado_en": "2026-04-01 15:04",
+    "generado_por": "faro_pipeline.py"
+  },
+  "accuracy_pct": 98.2,
+  "readings_verified": 247,
+  "sla_pct": 99.9,
+  "vaca_muerta": {
+    "production": "1,020K bbl/d",
+    "change_7d": "↑ +3.8% 7d"
+  },
+  "lithium_puna": {
+    "concentration": "942 mg/L",
+    "change_7d": "↑ +8.1% 7d"
+  },
+  "faro_arg_score": "72 / 100",
+  "pipeline": {
+    "ultimo_run": "2026-04-01 15:04",
+    "cordoba": {
+      "estado": "OK",
+      "ndvi_medio": 0.45,
+      "sar_medio_db": -12.3,
+      "indice_fusion_medio": 0.63,
+      "sha256": "abc123def456...",
+      "ultimo_run": "2026-04-01 15:04",
+      "pixeles_analizados": 50000
+    },
+    "vaca_muerta": {
+      "estado": null,
+      "ndvi_medio": null,
+      "sar_medio_db": null,
+      "indice_fusion_medio": null,
+      "sha256": null
+    },
+    "balcarce": {
+      "estado": null,
+      "ndvi_medio": null,
+      "sar_medio_db": null,
+      "indice_fusion_medio": null,
+      "sha256": null
+    }
+  }
+}

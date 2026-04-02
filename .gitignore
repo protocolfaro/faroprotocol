@@ -1,0 +1,32 @@
+# Credenciales — NUNCA commitear
+.env
+faro_accesos.txt
+
+# Datos satelitales (archivos grandes)
+*.tif
+*.tiff
+*.zip
+sar_downloads/
+sar_temp/
+datos/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# IDE / OS
+.vscode/
+.idea/
+*.DS_Store
+Thumbs.db
+
+# Claude interno
+.claude/

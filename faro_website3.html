@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>FARO PROTOCOL | Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: sans-serif; background: #121212; color: white; padding: 30px; }
+        .header { border-bottom: 2px solid #2ecc71; margin-bottom: 30px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .card { background: #1e1e1e; padding: 20px; border-radius: 8px; border: 1px solid #333; }
+        h1 { color: #2ecc71; margin-bottom: 5px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 10px; border-bottom: 1px solid #333; text-align: left; }
+        th { color: #2ecc71; }
+        .badge { background: #2ecc71; color: black; padding: 2px 6px; border-radius: 4px; font-size: 0.8em; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>🛰️ FARO PROTOCOL</h1>
+    <p>Inteligencia Satelital | Mar del Plata - Balcarce</p>
+</div>
+
+<div class="grid">
+    <div class="card">
+        <h3>📋 Reporte de Lotes</h3>
+        <table>
+            <thead>
+                <tr><th>Lote</th><th>Cultivo</th><th>Rinde (tn)</th><th>Score</th></tr>
+            </thead>
+            <tbody id="tabla-body"></tbody>
+        </table>
+    </div>
+    <div class="card">
+        <h3>📊 Eficiencia Satelital</h3>
+        <canvas id="graficoFaro"></canvas>
+    </div>
+</div>
+
+<script>
+    // Los datos se quedan aquí adentro, donde el navegador los entiende
+    const datosFaro = [
+        {"lote": "Mogotes A1", "cultivo": "soja", "rinde": 3.5, "score": 0.43},
+        {"lote": "Balcarce N2", "cultivo": "maiz", "rinde": 8.2, "score": 0.77},
+        {"lote": "Loberia Sur", "cultivo": "trigo", "rinde": 4.1, "score": 0.49}
+    ];
+
+    const tbody = document.getElementById('tabla-body');
+    const etiquetas = [];
+    const valores = [];
+
+    datosFaro.forEach(dato => {
+        // Llenar la tabla
+        tbody.innerHTML += `<tr>
+            <td>${dato.lote}</td>
+            <td><span class="badge">${dato.cultivo}</span></td>
+            <td>${dato.rinde}</td>
+            <td style="color:${dato.score > 0.5 ? '#2ecc71' : '#ff4444'}"><strong>${dato.score}</strong></td>
+        </tr>`;
+        
+        // Preparar el gráfico
+        etiquetas.push(dato.lote);
+        valores.push(dato.score);
+    });
+
+    // Crear el gráfico de barras
+    new Chart(document.getElementById('graficoFaro'), {
+        type: 'bar',
+        data: {
+            labels: etiquetas,
+            datasets: [{
+                label: 'Score FARO',
+                data: valores,
+                backgroundColor: '#2ecc71'
+            }]
+        },
+        options: {
+            scales: { y: { beginAtZero: true, max: 1 } }
+        }
+    });
+</script>
+
+</body>
+</html>

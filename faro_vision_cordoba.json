@@ -1,0 +1,58 @@
+{
+  "_meta": {
+    "area": "cordoba",
+    "zona": "Marcos Juárez, Córdoba, Argentina",
+    "fecha": "2026-04-02 14:47",
+    "ndvi_fuente": "FaroProtocol_NDVI_limpio_Cordoba.tif",
+    "umbral_z": -2.0
+  },
+  "total_pixeles": 3996000,
+  "pixeles_anomalia": 2351,
+  "pct_anomalia": 0.06,
+  "ndvi_global_medio": 0.4444,
+  "ndvi_global_max": 0.9147,
+  "clases_vigor": {
+    "Suelo / Sin cultivo": {
+      "codigo": 0,
+      "pixeles": 13609,
+      "porcentaje": 0.34,
+      "ndvi_medio": -0.0148,
+      "ndvi_max": 0.1
+    },
+    "Vegetación muy escasa": {
+      "codigo": 1,
+      "pixeles": 384917,
+      "porcentaje": 9.63,
+      "ndvi_medio": 0.2157,
+      "ndvi_max": 0.25
+    },
+    "Vigor bajo": {
+      "codigo": 2,
+      "pixeles": 1208844,
+      "porcentaje": 30.25,
+      "ndvi_medio": 0.3294,
+      "ndvi_max": 0.4
+    },
+    "Vigor moderado": {
+      "codigo": 3,
+      "pixeles": 1394502,
+      "porcentaje": 34.9,
+      "ndvi_medio": 0.4733,
+      "ndvi_max": 0.55
+    },
+    "Buen vigor": {
+      "codigo": 4,
+      "pixeles": 810232,
+      "porcentaje": 20.28,
+      "ndvi_medio": 0.6126,
+      "ndvi_max": 0.7
+    },
+    "Vigor alto (óptimo)": {
+      "codigo": 5,
+      "pixeles": 183896,
+      "porcentaje": 4.6,
+      "ndvi_medio": 0.7529,
+      "ndvi_max": 0.9147
+    }
+  }
+}

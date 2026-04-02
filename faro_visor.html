@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FARO PROTOCOL — Visor 3D</title>
+
+<style>
+  :root {
+    --bg:    #06080b;
+    --bg2:   #0d1117;
+    --bg3:   #111820;
+    --gold:  #c9a84c;
+    --gl:    #e2c97e;
+    --w:     #f2ede4;
+    --w3:    rgba(242,237,228,0.6);
+    --green: #2d8c5e;
+    --red:   #b03030;
+    --serif: 'Cormorant Garamond', Georgia, serif;
+    --sans:  'Epilogue', 'Inter', sans-serif;
+    --mono:  'JetBrains Mono', 'Fira Mono', monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--w);
+    font-family: var(--sans);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  /* ── Canvas ── */
+  #canvas3d {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+  }
+
+  /* ── Header ── */
+  #header {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    padding: 14px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(to bottom, rgba(6,8,11,0.96) 70%, transparent);
+    z-index: 100;
+    pointer-events: none;
+  }
+
+  .logo-block { display: flex; align-items: center; gap: 14px; }
+  .logo-text {
+    font-family: var(--serif);
+    font-size: 22px;
+    color: var(--gold);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+  .logo-sub {
+    font-size: 11px;
+    color: var(--w3);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-family: var(--mono);
+  }
+  .dot-live {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #2d8c5e;
+    box-shadow: 0 0 8px #2d8c5e;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.3; }
+  }
+
+  #clock {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--w3);
+    pointer-events: none;
+  }
+
+  /* ── Panel lateral ── */
+  #sidebar {
+    position: fixed;
+    top: 70px; right: 0;
+    width: 300px;
+    height: calc(100vh - 70px);
+    background: rgba(13,17,23,0.92);
+    border-left: 1px solid rgba(201,168,76,0.15);
+    padding: 20px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    z-index: 90;
+    backdrop-filter: blur(12px);
+    overflow-y: auto;
+  }
+
+  .panel-title {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--gold);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(201,168,76,0.2);
+  }
+
+  /* ── Selector de área ── */
+  #area-select {
+    background: var(--bg3);
+    border: 1px solid rgba(201,168,76,0.3);
+    color: var(--w);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 8px 10px;
+    border-radius: 4px;
+    width: 100%;
+    cursor: pointer;
+    outline: none;
+  }
+  #area-select option { background: var(--bg2); }
+
+  /* ── Toggles de capa ── */
+  .layer-list { display: flex; flex-direction: column; gap: 8px; }
+
+  .layer-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 9px 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    border: 1px solid rgba(255,255,255,0.06);
+    transition: border-color 0.2s, background 0.2s;
+    user-select: none;
+  }
+  .layer-toggle:hover { background: rgba(255,255,255,0.04); }
+  .layer-toggle.active { border-color: var(--gold); background: rgba(201,168,76,0.07); }
+
+  .layer-name {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; color: var(--w);
+  }
+  .layer-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .layer-badge {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--w3);
+    background: rgba(255,255,255,0.06);
+    padding: 2px 6px;
+    border-radius: 3px;
+  }
+
+  /* ── Switch toggle ── */
+  .switch {
+    position: relative;
+    width: 34px; height: 18px;
+    flex-shrink: 0;
+  }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider {
+    position: absolute;
+    inset: 0;
+    background: #333;
+    border-radius: 18px;
+    transition: 0.3s;
+    cursor: pointer;
+  }
+  .slider::before {
+    content: '';
+    position: absolute;
+    width: 12px; height: 12px;
+    left: 3px; bottom: 3px;
+    background: white;
+    border-radius: 50%;
+    transition: 0.3s;
+  }
+  input:checked + .slider { background: var(--green); }
+  input:checked + .slider::before { transform: translateX(16px); }
+
+  /* ── Métricas ── */
+  .metric-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .metric-card {
+    background: var(--bg3);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 5px;
+    padding: 10px 10px;
+  }
+  .metric-label {
+    font-size: 9px;
+    color: var(--w3);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-family: var(--mono);
+  }
+  .metric-value {
+    font-family: var(--mono);
+    font-size: 17px;
+    color: var(--gl);
+    margin-top: 3px;
+    font-weight: 600;
+  }
+  .metric-value.ok   { color: #4CAF50; }
+  .metric-value.warn { color: #FFA500; }
+
+  /* ── Hash block ── */
+  .hash-block {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--w3);
+    background: var(--bg3);
+    padding: 8px 10px;
+    border-radius: 4px;
+    word-break: break-all;
+    border: 1px solid rgba(255,255,255,0.04);
+    line-height: 1.5;
+  }
+  .hash-label { color: var(--gold); font-size: 9px; display: block; margin-bottom: 3px; }
+
+  /* ── Controles 3D ── */
+  .controls-info {
+    font-size: 11px;
+    color: var(--w3);
+    line-height: 1.8;
+    font-family: var(--mono);
+  }
+  .key {
+    display: inline-block;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-size: 10px;
+  }
+
+  /* ── Demo button ── */
+  #demo-btn {
+    padding: 10px 0;
+    background: linear-gradient(135deg, #c9a84c 0%, #8b6914 100%);
+    color: #06080b;
+    border: none;
+    border-radius: 5px;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    width: 100%;
+  }
+  #demo-btn:hover { opacity: 0.85; }
+  #demo-btn.running { background: linear-gradient(135deg, #333 0%, #222 100%); color: #aaa; }
+
+  /* ── Barra de demo ── */
+  #demo-bar {
+    display: none;
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(13,17,23,0.93);
+    border: 1px solid rgba(201,168,76,0.3);
+    border-radius: 8px;
+    padding: 14px 24px;
+    z-index: 200;
+    text-align: center;
+    min-width: 380px;
+    backdrop-filter: blur(12px);
+  }
+  #demo-step {
+    font-family: var(--serif);
+    font-size: 16px;
+    color: var(--gl);
+    margin-bottom: 8px;
+  }
+  #demo-progress {
+    width: 100%;
+    height: 3px;
+    background: #222;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  #demo-fill {
+    height: 100%;
+    background: var(--gold);
+    width: 0%;
+    transition: width 0.3s linear;
+  }
+  #demo-counter {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--w3);
+    margin-top: 6px;
+  }
+
+  /* ── Tooltip 3D ── */
+  #tooltip {
+    display: none;
+    position: fixed;
+    pointer-events: none;
+    background: rgba(13,17,23,0.92);
+    border: 1px solid rgba(201,168,76,0.3);
+    border-radius: 5px;
+    padding: 8px 12px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--w);
+    z-index: 300;
+    line-height: 1.7;
+  }
+
+  /* Scrollbar */
+  #sidebar::-webkit-scrollbar { width: 4px; }
+  #sidebar::-webkit-scrollbar-track { background: transparent; }
+  #sidebar::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.3); border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<canvas id="canvas3d"></canvas>
+
+<!-- Header -->
+<div id="header">
+  <div class="logo-block">
+    <div class="dot-live"></div>
+    <div>
+      <div class="logo-text">Faro Protocol</div>
+      <div class="logo-sub">Visor 3D · Inteligencia Satelital</div>
+    </div>
+  </div>
+  <div id="clock">--:--:-- UTC</div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar">
+
+  <!-- Área -->
+  <div>
+    <div class="panel-title">Área de análisis</div>
+    <select id="area-select" onchange="cambiarArea(this.value)">
+      <option value="cordoba">Marcos Juárez, Córdoba</option>
+      <option value="vaca_muerta">Vaca Muerta, Neuquén</option>
+      <option value="balcarce">Balcarce, Buenos Aires</option>
+    </select>
+  </div>
+
+  <!-- Capas -->
+  <div>
+    <div class="panel-title">Capas activas</div>
+    <div class="layer-list" id="layer-list">
+
+      <div class="layer-toggle active" data-layer="ndvi" onclick="toggleLayer('ndvi')">
+        <div class="layer-name">
+          <div class="layer-dot" style="background:#32CD32"></div>
+          NDVI (Óptico)
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="layer-badge">S-2</span>
+          <label class="switch">
+            <input type="checkbox" id="sw-ndvi" checked onchange="toggleLayer('ndvi')">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="layer-toggle" data-layer="sar" onclick="toggleLayer('sar')">
+        <div class="layer-name">
+          <div class="layer-dot" style="background:#607D8B"></div>
+          SAR (Radar)
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="layer-badge">S-1</span>
+          <label class="switch">
+            <input type="checkbox" id="sw-sar" onchange="toggleLayer('sar')">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="layer-toggle" data-layer="fusion" onclick="toggleLayer('fusion')">
+        <div class="layer-name">
+          <div class="layer-dot" style="background:#c9a84c"></div>
+          Índice Fusión Faro
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="layer-badge">SAR+Ópt</span>
+          <label class="switch">
+            <input type="checkbox" id="sw-fusion" onchange="toggleLayer('fusion')">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="layer-toggle" data-layer="anomalias" onclick="toggleLayer('anomalias')">
+        <div class="layer-name">
+          <div class="layer-dot" style="background:#FF00FF"></div>
+          Anomalías / Malezas
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="layer-badge">F6</span>
+          <label class="switch">
+            <input type="checkbox" id="sw-anomalias" onchange="toggleLayer('anomalias')">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Métricas -->
+  <div>
+    <div class="panel-title">Métricas del área</div>
+    <div class="metric-grid">
+      <div class="metric-card">
+        <div class="metric-label">NDVI Medio</div>
+        <div class="metric-value" id="m-ndvi">—</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">SAR (dB)</div>
+        <div class="metric-value" id="m-sar">—</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Índice Fusión</div>
+        <div class="metric-value" id="m-fusion">—</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Estado</div>
+        <div class="metric-value ok" id="m-estado">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hash -->
+  <div>
+    <div class="panel-title">Verificación blockchain</div>
+    <div class="hash-block">
+      <span class="hash-label">SHA-256 (OpenTimestamps)</span>
+      <span id="hash-value">—</span>
+    </div>
+  </div>
+
+  <!-- Controles 3D -->
+  <div>
+    <div class="panel-title">Navegación 3D</div>
+    <div class="controls-info">
+      <span class="key">Drag</span> Rotar &nbsp;
+      <span class="key">Scroll</span> Zoom<br>
+      <span class="key">Shift+Drag</span> Pan<br>
+      <span class="key">R</span> Reset cámara &nbsp;
+      <span class="key">Space</span> Auto-rotar<br>
+      <span class="key">1–4</span> Cambiar capa activa
+    </div>
+  </div>
+
+  <!-- Demo -->
+  <div>
+    <div class="panel-title">Presentación</div>
+    <button id="demo-btn" onclick="iniciarDemo()">▶ Demo 60 segundos</button>
+  </div>
+
+</div>
+
+<!-- Barra demo -->
+<div id="demo-bar">
+  <div id="demo-step">Iniciando demo...</div>
+  <div id="demo-progress"><div id="demo-fill"></div></div>
+  <div id="demo-counter">0 / 60 s</div>
+</div>
+
+<!-- Tooltip -->
+<div id="tooltip"></div>
+
+
+<!-- three.js r158 via CDN (importmap) -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.158.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ─── Estado global ─────────────────────────────────────────────────────────────
+let renderer, scene, camera, controls;
+let terrain, particleSystem;
+let autoRotate = false;
+let currentArea = 'cordoba';
+let dataJson    = {};
+
+// Capas visibles
+const layerState = {
+  ndvi:      true,
+  sar:       false,
+  fusion:    false,
+  anomalias: false,
+};
+
+// Configuración por área (complementa data.json)
+const AREA_CONFIG = {
+  cordoba:     { label: 'Marcos Juárez, Córdoba',  vertical: 'agro',    seed: 1 },
+  vaca_muerta: { label: 'Vaca Muerta, Neuquén',    vertical: 'energia', seed: 2 },
+  balcarce:    { label: 'Balcarce, Buenos Aires',  vertical: 'agro',    seed: 3 },
+};
+
+
+// ─── Inicialización ────────────────────────────────────────────────────────────
+async function init() {
+  // Cargar data.json
+  try {
+    const res = await fetch('data.json');
+    dataJson  = await res.json();
+  } catch (e) {
+    console.warn('data.json no disponible — usando valores demo');
+  }
+
+  setupRenderer();
+  setupScene();
+  buildTerrain(currentArea);
+  buildParticles();
+  actualizarMetricas(currentArea);
+  animate();
+  startClock();
+}
+
+
+function setupRenderer() {
+  const canvas = document.getElementById('canvas3d');
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type    = THREE.PCFSoftShadowMap;
+  renderer.toneMapping       = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.2;
+
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+}
+
+
+function setupScene() {
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x06080b);
+  scene.fog = new THREE.FogExp2(0x06080b, 0.018);
+
+  camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 200);
+  camera.position.set(0, 18, 26);
+  camera.lookAt(0, 0, 0);
+
+  controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping  = true;
+  controls.dampingFactor  = 0.06;
+  controls.minDistance    = 5;
+  controls.maxDistance    = 80;
+  controls.maxPolarAngle  = Math.PI / 2.1;
+  controls.target.set(0, 0, 0);
+
+  // Iluminación
+  const ambient = new THREE.AmbientLight(0x223355, 0.6);
+  scene.add(ambient);
+
+  const sun = new THREE.DirectionalLight(0xffeedd, 1.4);
+  sun.position.set(30, 50, 20);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.camera.near = 1;
+  sun.shadow.camera.far  = 150;
+  sun.shadow.camera.left = sun.shadow.camera.bottom = -40;
+  sun.shadow.camera.right = sun.shadow.camera.top = 40;
+  scene.add(sun);
+
+  const fill = new THREE.DirectionalLight(0x334466, 0.4);
+  fill.position.set(-20, 10, -10);
+  scene.add(fill);
+
+  // Grid helper sutil
+  const grid = new THREE.GridHelper(80, 40, 0x1a2030, 0x111820);
+  grid.position.y = -0.05;
+  scene.add(grid);
+}
+
+
+// ─── Terreno 3D ────────────────────────────────────────────────────────────────
+const W = 120, H = 120;  // subdivisiones del plano
+
+function buildTerrain(areaName) {
+  if (terrain) { scene.remove(terrain); terrain.geometry.dispose(); terrain.material.dispose(); }
+
+  const cfg  = AREA_CONFIG[areaName] || AREA_CONFIG.cordoba;
+  const data = dataJson?.pipeline?.[areaName] || {};
+  const ndviMed = data.ndvi_medio ?? 0.45;
+
+  const geo = new THREE.PlaneGeometry(30, 30, W - 1, H - 1);
+  geo.rotateX(-Math.PI / 2);
+
+  // Elevar vértices con simplex-like noise (seeded)
+  const pos = geo.attributes.position;
+  const rng  = seededRng(cfg.seed);
+  const heights = [];
+
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const z = pos.getZ(i);
+    const h = fbm(x * 0.18, z * 0.18, rng, 4) * 4.5 + ndviMed * 1.5;
+    pos.setY(i, h);
+    heights.push(h);
+  }
+  geo.computeVertexNormals();
+
+  // Color procedural por altura/capa
+  const colors = new Float32Array(pos.count * 3);
+  const minH = Math.min(...heights), maxH = Math.max(...heights);
+
+  for (let i = 0; i < pos.count; i++) {
+    const t   = (heights[i] - minH) / (maxH - minH + 0.001);
+    const col = layerColorAt(t, areaName, heights[i], i);
+    colors[i * 3]     = col.r;
+    colors[i * 3 + 1] = col.g;
+    colors[i * 3 + 2] = col.b;
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+  const mat = new THREE.MeshLambertMaterial({
+    vertexColors: true,
+    side: THREE.FrontSide,
+    wireframe: false,
+  });
+
+  terrain = new THREE.Mesh(geo, mat);
+  terrain.receiveShadow = true;
+  terrain.castShadow    = false;
+  scene.add(terrain);
+
+  // Guardar heights para interacción
+  terrain.userData.heights = heights;
+  terrain.userData.minH    = minH;
+  terrain.userData.maxH    = maxH;
+  terrain.userData.area    = areaName;
+}
+
+
+function layerColorAt(t, areaName, height, idx) {
+  const cfg = AREA_CONFIG[areaName];
+  const c   = new THREE.Color();
+
+  const activeLayer = Object.keys(layerState).find(k => layerState[k]) || 'ndvi';
+
+  if (activeLayer === 'ndvi') {
+    // NDVI: verde para alto vigor, rojo/marrón para bajo
+    if (t < 0.15)      c.setHex(0x6B4226);   // suelo desnudo
+    else if (t < 0.30) c.setHex(0xA0722A);   // vegetación escasa
+    else if (t < 0.50) c.setHex(0x9ACD32);   // vigor moderado
+    else if (t < 0.75) c.setHex(0x32CD32);   // buen vigor
+    else               c.setHex(0x006400);   // vigor alto
+
+  } else if (activeLayer === 'sar') {
+    // SAR: escala de grises / azul profundo
+    const v = t * 0.8 + 0.1;
+    c.setRGB(v * 0.5, v * 0.6, v * 0.85);
+
+  } else if (activeLayer === 'fusion') {
+    // Fusión: plasma (púrpura → naranja → amarillo)
+    if (t < 0.25)      c.setHex(0x3b0f70);
+    else if (t < 0.5)  c.setHex(0x8c2981);
+    else if (t < 0.75) c.setHex(0xde5f5a);
+    else               c.setHex(0xfde725);
+
+  } else if (activeLayer === 'anomalias') {
+    // Anomalías: magenta sobre terreno gris
+    const isAnomaly = t > 0.35 && t < 0.55 && (idx % 17 === 0 || idx % 23 === 0);
+    if (isAnomaly) {
+      c.setHex(0xFF00FF);
+    } else {
+      const v = t * 0.5 + 0.25;
+      c.setRGB(v * 0.7, v * 0.7, v * 0.7);
+    }
+  }
+
+  if (cfg.vertical === 'energia' && activeLayer === 'ndvi') {
+    // Vaca Muerta: tonos más áridos
+    c.multiplyScalar(0.7);
+    c.r += 0.2;
+    c.g += 0.15;
+  }
+
+  return c;
+}
+
+
+// ─── Partículas (datos satelitales "en vuelo") ─────────────────────────────────
+function buildParticles() {
+  if (particleSystem) { scene.remove(particleSystem); }
+
+  const N   = 400;
+  const geo = new THREE.BufferGeometry();
+  const pos = new Float32Array(N * 3);
+  const col = new Float32Array(N * 3);
+
+  for (let i = 0; i < N; i++) {
+    pos[i * 3]     = (Math.random() - 0.5) * 35;
+    pos[i * 3 + 1] = Math.random() * 15 + 2;
+    pos[i * 3 + 2] = (Math.random() - 0.5) * 35;
+    // Dorado suave
+    col[i * 3]     = 0.78 + Math.random() * 0.12;
+    col[i * 3 + 1] = 0.65 + Math.random() * 0.10;
+    col[i * 3 + 2] = 0.15 + Math.random() * 0.10;
+  }
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('color',    new THREE.BufferAttribute(col, 3));
+
+  const mat = new THREE.PointsMaterial({
+    size: 0.12,
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.55,
+  });
+  particleSystem = new THREE.Points(geo, mat);
+  scene.add(particleSystem);
+}
+
+
+// ─── Loop de animación ─────────────────────────────────────────────────────────
+let t0 = 0;
+function animate(time = 0) {
+  requestAnimationFrame(animate);
+  const dt = (time - t0) * 0.001;
+  t0 = time;
+
+  controls.update();
+
+  // Partículas: movimiento suave
+  if (particleSystem) {
+    const pos = particleSystem.geometry.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      pos.setY(i, pos.getY(i) + Math.sin(time * 0.0003 + i) * 0.004);
+    }
+    pos.needsUpdate = true;
+    particleSystem.rotation.y += 0.0003;
+  }
+
+  if (autoRotate) controls.autoRotate = true;
+  else            controls.autoRotate = false;
+
+  renderer.render(scene, camera);
+}
+
+
+// ─── Interacción ───────────────────────────────────────────────────────────────
+window.toggleLayer = function(name) {
+  // Solo una capa activa a la vez en el terreno
+  Object.keys(layerState).forEach(k => { layerState[k] = false; });
+  layerState[name] = true;
+
+  // Sincronizar switches
+  Object.keys(layerState).forEach(k => {
+    const sw = document.getElementById(`sw-${k}`);
+    if (sw) sw.checked = layerState[k];
+    const tog = document.querySelector(`[data-layer="${k}"]`);
+    if (tog) tog.classList.toggle('active', layerState[k]);
+  });
+
+  buildTerrain(currentArea);
+};
+
+window.cambiarArea = function(area) {
+  currentArea = area;
+  buildTerrain(area);
+  actualizarMetricas(area);
+};
+
+// Teclado
+window.addEventListener('keydown', e => {
+  if (e.key === 'r' || e.key === 'R') {
+    camera.position.set(0, 18, 26);
+    controls.target.set(0, 0, 0);
+  }
+  if (e.key === ' ') { e.preventDefault(); autoRotate = !autoRotate; }
+  if (e.key === '1') toggleLayer('ndvi');
+  if (e.key === '2') toggleLayer('sar');
+  if (e.key === '3') toggleLayer('fusion');
+  if (e.key === '4') toggleLayer('anomalias');
+});
+
+
+// ─── Métricas desde data.json ──────────────────────────────────────────────────
+function actualizarMetricas(area) {
+  const d     = dataJson?.pipeline?.[area] || {};
+  const ndvi  = d.ndvi_medio   != null ? d.ndvi_medio.toFixed(4)   : '—';
+  const sar   = d.sar_medio_db != null ? d.sar_medio_db.toFixed(1) : '—';
+  const fus   = d.indice_fusion_medio != null ? d.indice_fusion_medio.toFixed(4) : '—';
+  const est   = d.estado || '—';
+  const hash  = d.sha256 || '—';
+
+  document.getElementById('m-ndvi').textContent    = ndvi;
+  document.getElementById('m-sar').textContent     = sar !== '—' ? sar + ' dB' : '—';
+  document.getElementById('m-fusion').textContent  = fus;
+  document.getElementById('m-estado').textContent  = est;
+  document.getElementById('m-estado').className    = 'metric-value' + (est === 'OK' ? ' ok' : '');
+  document.getElementById('hash-value').textContent = hash;
+}
+
+
+// ─── Demo 60 segundos ─────────────────────────────────────────────────────────
+const DEMO_STEPS = [
+  { t:  0, dur: 10, accion: () => { cambiarArea('cordoba'); toggleLayer('ndvi'); },
+    texto: "Área piloto: Marcos Juárez, Córdoba — Mapa de vigor NDVI (Sentinel-2)" },
+
+  { t: 10, dur: 10, accion: () => { toggleLayer('sar'); },
+    texto: "Capa SAR — Sentinel-1A IW GRD — penetra nubes y detecta humedad de suelo" },
+
+  { t: 20, dur: 10, accion: () => { toggleLayer('fusion'); },
+    texto: "Índice Fusión Faro — SAR + Óptico combinados — verificado en blockchain" },
+
+  { t: 30, dur: 10, accion: () => { toggleLayer('anomalias'); },
+    texto: "Detección de anomalías — Fase 6 — zonas de estrés o presencia de malezas" },
+
+  { t: 40, dur: 10, accion: () => { cambiarArea('vaca_muerta'); toggleLayer('sar'); },
+    texto: "Vertical Energía — Vaca Muerta, Neuquén — actividad industrial y extracción" },
+
+  { t: 50, dur: 10, accion: () => { cambiarArea('cordoba'); toggleLayer('ndvi'); autoRotate = true; },
+    texto: "Mismo pipeline — parámetro de área — escala ilimitada" },
+];
+
+let demoInterval = null;
+let demoStart    = 0;
+
+window.iniciarDemo = function() {
+  if (demoInterval) {
+    clearInterval(demoInterval);
+    demoInterval = null;
+    document.getElementById('demo-bar').style.display = 'none';
+    document.getElementById('demo-btn').textContent   = '▶ Demo 60 segundos';
+    document.getElementById('demo-btn').classList.remove('running');
+    autoRotate = false;
+    return;
+  }
+
+  demoStart = Date.now();
+  document.getElementById('demo-bar').style.display = 'block';
+  document.getElementById('demo-btn').textContent   = '■ Detener demo';
+  document.getElementById('demo-btn').classList.add('running');
+  autoRotate = true;
+
+  let lastStep = -1;
+  demoInterval = setInterval(() => {
+    const elapsed = (Date.now() - demoStart) / 1000;
+
+    if (elapsed >= 60) {
+      clearInterval(demoInterval);
+      demoInterval = null;
+      document.getElementById('demo-bar').style.display = 'none';
+      document.getElementById('demo-btn').textContent   = '▶ Demo 60 segundos';
+      document.getElementById('demo-btn').classList.remove('running');
+      autoRotate = false;
+      return;
+    }
+
+    // Progreso
+    document.getElementById('demo-fill').style.width    = (elapsed / 60 * 100) + '%';
+    document.getElementById('demo-counter').textContent = `${Math.floor(elapsed)} / 60 s`;
+
+    // Determinar paso actual
+    let stepIdx = DEMO_STEPS.length - 1;
+    for (let i = 0; i < DEMO_STEPS.length; i++) {
+      if (elapsed < DEMO_STEPS[i].t + DEMO_STEPS[i].dur) { stepIdx = i; break; }
+    }
+
+    if (stepIdx !== lastStep) {
+      lastStep = stepIdx;
+      const step = DEMO_STEPS[stepIdx];
+      step.accion();
+      document.getElementById('demo-step').textContent = step.texto;
+    }
+  }, 250);
+};
+
+
+// ─── Reloj UTC ─────────────────────────────────────────────────────────────────
+function startClock() {
+  setInterval(() => {
+    const now = new Date();
+    const hh  = String(now.getUTCHours()).padStart(2, '0');
+    const mm  = String(now.getUTCMinutes()).padStart(2, '0');
+    const ss  = String(now.getUTCSeconds()).padStart(2, '0');
+    document.getElementById('clock').textContent = `${hh}:${mm}:${ss} UTC`;
+  }, 1000);
+}
+
+
+// ─── Utilidades matemáticas ────────────────────────────────────────────────────
+
+// Generador pseudoaleatorio seeded (LCG simple)
+function seededRng(seed) {
+  let s = seed * 1664525 + 1013904223;
+  return function() {
+    s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
+    return s / 4294967296;
+  };
+}
+
+// Noise 2D suave con interpolación cúbica
+function fade(t) { return t * t * t * (t * (t * 6 - 15) + 10); }
+function lerp(a, b, t) { return a + t * (b - a); }
+
+function noise2d(x, z, rng) {
+  const xi = Math.floor(x), zi = Math.floor(z);
+  const xf = x - xi,       zf = z - zi;
+  const u  = fade(xf),     v  = fade(zf);
+  const h00 = hash2(xi,   zi,   rng);
+  const h10 = hash2(xi+1, zi,   rng);
+  const h01 = hash2(xi,   zi+1, rng);
+  const h11 = hash2(xi+1, zi+1, rng);
+  return lerp(lerp(h00, h10, u), lerp(h01, h11, u), v);
+}
+
+function hash2(xi, zi, _) {
+  // Determinista sin closure sobre rng (para terreno estable)
+  let h = xi * 374761393 + zi * 668265263;
+  h = (h ^ (h >> 13)) * 1274126177;
+  return ((h ^ (h >> 16)) & 0x7FFFFFFF) / 0x7FFFFFFF;
+}
+
+function fbm(x, z, rng, octaves) {
+  let val = 0, amp = 1, freq = 1, max = 0;
+  for (let i = 0; i < octaves; i++) {
+    val += noise2d(x * freq, z * freq, rng) * amp;
+    max += amp;
+    amp  *= 0.5;
+    freq *= 2.1;
+  }
+  return val / max;
+}
+
+
+// ─── Arranque ──────────────────────────────────────────────────────────────────
+init();
+
+</script>
+
+</body>
+</html>

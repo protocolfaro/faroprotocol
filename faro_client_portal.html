@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Faro Protocol · Client Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Epilogue:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#06080b;--bg2:#0d1117;--bg3:#141c24;--bg4:#090d12;
+  --gold:#c9a84c;--gd:rgba(201,168,76,0.1);--g3:rgba(201,168,76,0.05);
+  --gl:#e2c97e;--gp:rgba(201,168,76,0.28);
+  --w:#f2ede4;--w3:rgba(242,237,228,0.6);--w4:rgba(242,237,228,0.22);--w5:rgba(242,237,228,0.07);
+  --green:#2d8c5e;--red:#b03030;--amber:#c8881a;
+  --border:rgba(201,168,76,0.13);--border2:rgba(201,168,76,0.28);
+  --serif:'Cormorant Garamond',serif;--sans:'Epilogue',sans-serif;--mono:'JetBrains Mono',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--w);font-family:var(--sans);overflow-x:hidden;-webkit-font-smoothing:antialiased;}
+
+/* NOISE OVERLAY */
+body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");pointer-events:none;z-index:9999;}
+
+@keyframes bl{0%,100%{opacity:1}50%{opacity:0.4}}
+@keyframes fi{from{opacity:0}to{opacity:1}}
+@keyframes su{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(201,168,76,0.2)}50%{box-shadow:0 0 0 8px rgba(201,168,76,0)}}
+@keyframes orb{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+@keyframes satM{0%{transform:translateX(-50%) rotate(0deg) translateY(-13px)}100%{transform:translateX(-50%) rotate(360deg) translateY(-13px)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+@keyframes scanLine{0%{top:-2px}100%{top:102%}}
+@keyframes chartDraw{from{stroke-dashoffset:1000}to{stroke-dashoffset:0}}
+
+/* ============================================================
+   SCREEN MANAGEMENT
+   ============================================================ */
+.screen{display:none;}
+.screen.active{display:flex;}
+
+/* ============================================================
+   LOGIN SCREEN
+   ============================================================ */
+#loginScreen{
+  min-height:100vh;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  position:relative;
+  overflow:hidden;
+  padding:40px 20px;
+}
+
+/* Animated background */
+.login-bg{
+  position:absolute;inset:0;
+  background:
+    radial-gradient(ellipse 60% 50% at 20% 40%, rgba(201,168,76,0.04) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 60% at 80% 60%, rgba(201,168,76,0.03) 0%, transparent 60%),
+    var(--bg);
+}
+.login-grid{
+  position:absolute;inset:0;
+  background-image:
+    linear-gradient(rgba(201,168,76,0.04) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(201,168,76,0.04) 1px,transparent 1px);
+  background-size:48px 48px;
+}
+.login-scan{
+  position:absolute;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(201,168,76,0.15),transparent);
+  animation:scanLine 9s linear infinite;
+}
+
+/* Logo */
+.login-logo{
+  position:relative;z-index:2;
+  text-align:center;
+  margin-bottom:36px;
+  animation:su 0.7s ease forwards;
+}
+.ll-sat{
+  width:52px;height:52px;position:relative;margin:0 auto 14px;
+}
+.ll-o{position:absolute;inset:0;border:1px solid var(--gp);border-radius:50%;animation:orb 8s linear infinite;}
+.ll-o2{position:absolute;inset:8px;border:1px solid rgba(201,168,76,0.08);border-radius:50%;}
+.ll-b{position:absolute;width:8px;height:8px;background:var(--gold);border-radius:50%;box-shadow:0 0 10px var(--gold);top:1px;left:50%;transform:translateX(-50%);animation:satM 8s linear infinite;}
+.ll-name{font-family:var(--serif);font-size:28px;font-weight:300;letter-spacing:0.2em;color:var(--w);text-transform:uppercase;line-height:1;}
+.ll-tag{font-family:var(--mono);font-size:8px;color:var(--w4);letter-spacing:0.22em;text-transform:uppercase;margin-top:5px;}
+
+/* Card */
+.login-card{
+  position:relative;z-index:2;
+  width:100%;max-width:420px;
+  background:var(--bg2);
+  border:1px solid var(--border2);
+  animation:su 0.7s ease 0.1s both;
+}
+.login-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--gold),transparent);
+}
+
+.lc-header{
+  padding:24px 28px 20px;
+  border-bottom:1px solid var(--border);
+}
+.lc-tier{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:3px 10px;
+  background:var(--gd);border:1px solid var(--border2);
+  font-family:var(--mono);font-size:7px;letter-spacing:0.15em;text-transform:uppercase;color:var(--gold);
+  margin-bottom:10px;
+}
+.lc-h{font-family:var(--serif);font-size:22px;font-weight:300;color:var(--w);font-style:italic;}
+.lc-sub{font-size:11px;font-weight:300;color:var(--w4);margin-top:4px;font-family:var(--mono);letter-spacing:0.05em;}
+
+.lc-body{padding:24px 28px;}
+
+.lf{margin-bottom:16px;}
+.lf label{
+  display:block;
+  font-family:var(--mono);font-size:8px;letter-spacing:0.15em;text-transform:uppercase;
+  color:var(--w4);margin-bottom:6px;
+}
+.lf input{
+  width:100%;
+  background:var(--bg4);
+  border:1px solid var(--border);
+  border-left:2px solid var(--border2);
+  padding:11px 14px;
+  color:var(--w);
+  font-family:var(--mono);font-size:12px;
+  outline:none;
+  transition:all 0.25s;
+}
+.lf input:focus{border-color:var(--gold);border-left-color:var(--gold);background:rgba(201,168,76,0.03);}
+.lf input::placeholder{color:rgba(242,237,228,0.14);}
+
+.lc-opts{
+  display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:20px;
+}
+.lc-remember{
+  display:flex;align-items:center;gap:7px;cursor:pointer;
+}
+.lc-remember input[type=checkbox]{
+  width:14px;height:14px;cursor:pointer;
+  accent-color:var(--gold);
+}
+.lc-remember span{font-size:10px;font-weight:300;color:var(--w4);}
+.lc-forgot{font-family:var(--mono);font-size:8px;color:var(--gp);letter-spacing:0.08em;cursor:pointer;text-decoration:none;transition:color 0.2s;}
+.lc-forgot:hover{color:var(--gold);}
+
+.btn-login{
+  width:100%;
+  padding:13px;
+  background:var(--gold);
+  color:var(--bg);
+  font-family:var(--sans);font-size:11px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;
+  border:none;cursor:pointer;
+  transition:all 0.3s;
+  position:relative;overflow:hidden;
+}
+.btn-login:hover{background:var(--gl);}
+.btn-login:active{transform:scale(0.99);}
+.btn-login::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.08),transparent);
+  transform:translateX(-100%);transition:transform 0.5s;
+}
+.btn-login:hover::after{transform:translateX(100%);}
+
+.lc-divider{
+  display:flex;align-items:center;gap:12px;
+  margin:18px 0;
+}
+.lc-divider::before,.lc-divider::after{content:'';flex:1;height:1px;background:var(--border);}
+.lc-divider span{font-family:var(--mono);font-size:8px;color:var(--w4);letter-spacing:0.1em;}
+
+.lc-demo{
+  padding:12px 14px;
+  background:var(--bg4);border:1px solid var(--border);
+  font-size:10px;font-weight:300;color:var(--w3);
+  line-height:1.6;
+}
+.lc-demo span{color:var(--gold);font-family:var(--mono);}
+.lc-demo strong{color:var(--w);font-weight:500;}
+
+/* Security badges */
+.lc-security{
+  padding:14px 28px;
+  border-top:1px solid var(--border);
+  display:flex;align-items:center;gap:16px;
+  flex-wrap:wrap;
+}
+.ls-badge{
+  display:flex;align-items:center;gap:5px;
+  font-family:var(--mono);font-size:7px;letter-spacing:0.1em;color:rgba(242,237,228,0.2);
+}
+.ls-dot{width:4px;height:4px;border-radius:50%;background:var(--green);}
+
+/* Error state */
+.login-error{
+  display:none;
+  margin-bottom:14px;
+  padding:10px 14px;
+  background:rgba(176,48,48,0.08);
+  border:1px solid rgba(176,48,48,0.2);
+  border-left:2px solid var(--red);
+  font-family:var(--mono);font-size:9px;color:#e06060;
+  letter-spacing:0.05em;
+}
+.login-error.show{display:block;}
+
+/* Back link */
+.login-back{
+  position:relative;z-index:2;
+  margin-top:20px;
+  font-family:var(--mono);font-size:8px;color:rgba(242,237,228,0.2);
+  letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;
+  transition:color 0.2s;text-decoration:none;
+  animation:su 0.7s ease 0.2s both;
+}
+.login-back:hover{color:var(--gold);}
+
+/* ============================================================
+   DASHBOARD SCREEN
+   ============================================================ */
+#dashScreen{
+  flex-direction:column;
+  min-height:100vh;
+}
+
+/* Dash nav */
+.dash-nav{
+  position:sticky;top:0;z-index:100;
+  padding:0 40px;
+  background:rgba(6,8,11,0.97);
+  border-bottom:1px solid var(--border);
+  backdrop-filter:blur(20px);
+  display:flex;align-items:center;gap:0;
+  height:56px;
+}
+.dn-logo{
+  display:flex;align-items:center;gap:10px;
+  margin-right:32px;
+  flex-shrink:0;
+}
+.dn-sat{width:26px;height:26px;position:relative;}
+.dn-o{position:absolute;inset:0;border:1px solid var(--gp);border-radius:50%;animation:orb 8s linear infinite;}
+.dn-b{position:absolute;width:5px;height:5px;background:var(--gold);border-radius:50%;box-shadow:0 0 6px var(--gold);top:1px;left:50%;transform:translateX(-50%);animation:satM 8s linear infinite;}
+.dn-name{font-family:var(--serif);font-size:15px;font-weight:300;letter-spacing:0.18em;color:var(--w);text-transform:uppercase;}
+.dn-divider{width:1px;height:28px;background:var(--border);margin:0 20px;}
+.dn-tabs{display:flex;flex:1;height:100%;}
+.dn-tab{
+  height:100%;
+  padding:0 18px;
+  font-family:var(--mono);font-size:9px;letter-spacing:0.12em;text-transform:uppercase;
+  color:var(--w4);background:transparent;border:none;cursor:pointer;
+  border-bottom:2px solid transparent;
+  transition:all 0.2s;white-space:nowrap;
+}
+.dn-tab:hover{color:var(--w3);}
+.dn-tab.act{color:var(--gold);border-bottom-color:var(--gold);}
+.dn-right{
+  display:flex;align-items:center;gap:12px;
+  margin-left:auto;
+}
+.dn-client{
+  display:flex;align-items:center;gap:8px;
+  padding:0 12px;
+  height:34px;
+  background:var(--bg3);
+  border:1px solid var(--border);
+}
+.dn-avatar{
+  width:22px;height:22px;border-radius:50%;
+  background:var(--gd);border:1px solid var(--border2);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--serif);font-size:11px;color:var(--gold);
+}
+.dn-cname{font-size:10px;font-weight:500;color:var(--w);}
+.dn-plan{font-family:var(--mono);font-size:7px;color:var(--gold);letter-spacing:0.1em;}
+.dn-logout{
+  padding:7px 12px;
+  background:transparent;
+  border:1px solid var(--border);
+  color:var(--w4);
+  font-family:var(--mono);font-size:8px;letter-spacing:0.1em;text-transform:uppercase;
+  cursor:pointer;transition:all 0.2s;
+}
+.dn-logout:hover{border-color:var(--gold);color:var(--gold);}
+
+/* Tab panels */
+.tab-panel{display:none;}
+.tab-panel.act{display:block;}
+
+/* ============================================================
+   OVERVIEW TAB
+   ============================================================ */
+.dash-body{padding:28px 40px;max-width:1200px;margin:0 auto;width:100%;}
+
+/* Welcome banner */
+.welcome-banner{
+  display:flex;justify-content:space-between;align-items:flex-start;
+  padding:24px 28px;
+  background:var(--bg2);
+  border:1px solid var(--border2);
+  border-left:3px solid var(--gold);
+  margin-bottom:20px;
+  animation:su 0.6s ease forwards;
+}
+.wb-left{}
+.wb-greeting{font-family:var(--mono);font-size:8px;color:var(--w4);letter-spacing:0.18em;text-transform:uppercase;margin-bottom:5px;}
+.wb-name{font-family:var(--serif);font-size:28px;font-weight:300;color:var(--w);font-style:italic;line-height:1;}
+.wb-right{text-align:right;flex-shrink:0;}
+.wb-plan{
+  display:inline-block;
+  padding:4px 12px;
+  background:var(--gd);border:1px solid var(--border2);
+  font-family:var(--mono);font-size:8px;letter-spacing:0.15em;text-transform:uppercase;color:var(--gold);
+  margin-bottom:5px;
+}
+.wb-renewal{font-family:var(--mono);font-size:8px;color:var(--w4);}
+
+/* KPI grid */
+.kpi-grid{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:1px;
+  background:var(--border);margin-bottom:20px;
+  animation:su 0.6s ease 0.05s both;
+}
+.kpi{
+  background:var(--bg2);padding:20px;
+  position:relative;overflow:hidden;
+  transition:background 0.2s;cursor:default;
+}
+.kpi:hover{background:var(--bg3);}
+.kpi::after{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:var(--gold);transform:scaleX(0);transform-origin:left;transition:transform 0.3s;
+}
+.kpi:hover::after{transform:scaleX(1);}
+.kpi-lbl{font-family:var(--mono);font-size:8px;letter-spacing:0.12em;text-transform:uppercase;color:var(--w4);margin-bottom:8px;}
+.kpi-val{font-family:var(--serif);font-size:32px;font-weight:300;color:var(--gold);font-style:italic;line-height:1;margin-bottom:4px;}
+.kpi-d{font-family:var(--mono);font-size:9px;}
+.kpi-d.up{color:#4db87e;}.kpi-d.dn{color:#e06060;}.kpi-d.ok{color:var(--w3);}
+
+/* Two columns */
+.dash-cols{display:grid;grid-template-columns:1.4fr 1fr;gap:20px;margin-bottom:20px;animation:su 0.6s ease 0.1s both;}
+
+/* Chart card */
+.chart-card{
+  background:var(--bg2);border:1px solid var(--border);
+  padding:0;overflow:hidden;
+}
+.cc-header{
+  padding:16px 20px;
+  border-bottom:1px solid var(--border);
+  display:flex;justify-content:space-between;align-items:center;
+}
+.cc-title{font-family:var(--serif);font-size:16px;font-weight:300;color:var(--w);font-style:italic;}
+.cc-badge{
+  display:flex;align-items:center;gap:5px;
+  font-family:var(--mono);font-size:7px;letter-spacing:0.1em;color:var(--gold);
+}
+.cc-badge::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--gold);box-shadow:0 0 5px var(--gold);animation:bl 2s ease-in-out infinite;}
+.cc-body{padding:20px;}
+
+/* SVG chart */
+.chart-svg{width:100%;overflow:visible;}
+.chart-line{
+  fill:none;stroke:var(--gold);stroke-width:1.5;
+  stroke-dasharray:1000;stroke-dashoffset:1000;
+  animation:chartDraw 1.5s ease 0.5s forwards;
+}
+.chart-area{fill:url(#chartGrad);opacity:0;animation:fi 0.8s ease 1.5s forwards;}
+.chart-dot{fill:var(--gold);filter:drop-shadow(0 0 4px var(--gold));}
+
+/* Alert feed */
+.alert-card{background:var(--bg2);border:1px solid var(--border);}
+.ac-header{
+  padding:16px 20px;border-bottom:1px solid var(--border);
+  display:flex;justify-content:space-between;align-items:center;
+}
+.ac-title{font-family:var(--serif);font-size:16px;font-weight:300;color:var(--w);font-style:italic;}
+.ac-count{
+  padding:2px 8px;
+  background:rgba(201,168,76,0.08);border:1px solid var(--border2);
+  font-family:var(--mono);font-size:8px;color:var(--gold);
+}
+.alerts-list{max-height:290px;overflow-y:auto;}
+.alerts-list::-webkit-scrollbar{width:2px;}
+.alerts-list::-webkit-scrollbar-thumb{background:var(--border);}
+.alert-item{
+  padding:14px 20px;border-bottom:1px solid rgba(201,168,76,0.05);
+  display:flex;gap:12px;align-items:flex-start;
+  transition:background 0.15s;cursor:default;
+}
+.alert-item:hover{background:var(--bg3);}
+.alert-item:last-child{border-bottom:none;}
+.ai-dot{
+  width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:4px;
+}
+.ai-dot.gold{background:var(--gold);box-shadow:0 0 6px var(--gold);}
+.ai-dot.green{background:#4db87e;box-shadow:0 0 6px #4db87e;}
+.ai-dot.amber{background:#c8881a;box-shadow:0 0 5px #c8881a;animation:bl 1s step-end infinite;}
+.ai-dot.red{background:#e06060;box-shadow:0 0 5px #e06060;}
+.ai-content{}
+.ai-title{font-size:11px;font-weight:500;color:var(--w);margin-bottom:2px;}
+.ai-sub{font-family:var(--mono);font-size:8px;color:var(--w4);}
+.ai-time{font-family:var(--mono);font-size:7px;color:rgba(242,237,228,0.18);margin-top:3px;}
+
+/* Sector cards */
+.sector-grid{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);
+  animation:su 0.6s ease 0.15s both;
+}
+.sc{
+  background:var(--bg2);padding:18px;
+  position:relative;transition:background 0.2s;cursor:default;
+}
+.sc:hover{background:var(--bg3);}
+.sc-ico{font-size:20px;margin-bottom:8px;}
+.sc-name{font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--w3);margin-bottom:4px;}
+.sc-val{font-family:var(--serif);font-size:20px;font-weight:300;color:var(--gl);font-style:italic;margin-bottom:2px;}
+.sc-d{font-family:var(--mono);font-size:9px;}
+.sc-d.up{color:#4db87e;}.sc-d.dn{color:#e06060;}
+.sc-bar{
+  height:2px;background:var(--border);margin-top:10px;
+}
+.sc-fill{height:100%;background:var(--gold);transition:width 0.8s ease;}
+.sc-status{
+  position:absolute;top:10px;right:10px;
+  width:6px;height:6px;border-radius:50%;
+}
+.sc-status.ok{background:#4db87e;box-shadow:0 0 5px #4db87e;}
+.sc-status.warn{background:#c8881a;animation:bl 1s step-end infinite;}
+
+/* ============================================================
+   SECTORS TAB
+   ============================================================ */
+.sector-detail-grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;
+}
+.sd-card{
+  background:var(--bg2);border:1px solid var(--border);
+  overflow:hidden;
+}
+.sd-header{
+  padding:18px 22px;border-bottom:1px solid var(--border);
+  background:var(--bg3);
+}
+.sd-ico-row{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+.sd-ico{font-size:22px;}
+.sd-name{font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--w);}
+.sd-live{display:flex;align-items:center;gap:4px;}
+.sd-live::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--gold);box-shadow:0 0 5px var(--gold);animation:bl 2s ease-in-out infinite;}
+.sd-live span{font-family:var(--mono);font-size:7px;color:var(--gold);letter-spacing:0.1em;}
+.sd-body{padding:18px 22px;}
+.sd-stat-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(201,168,76,0.05);}
+.sd-stat-row:last-child{border-bottom:none;}
+.sd-lbl{font-size:11px;font-weight:300;color:var(--w3);}
+.sd-val{font-family:var(--mono);font-size:12px;font-weight:500;}
+.sd-val.up{color:#4db87e;}.sd-val.dn{color:#e06060;}.sd-val.gold{color:var(--gold);}
+.sd-hash{
+  margin-top:10px;padding:8px 10px;
+  background:var(--bg4);border:1px solid var(--border);
+  font-family:var(--mono);font-size:7px;color:rgba(201,168,76,0.22);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+
+/* ============================================================
+   REPORTS TAB
+   ============================================================ */
+.reports-list{}
+.report-item{
+  display:flex;align-items:center;gap:16px;
+  padding:18px 0;border-bottom:1px solid var(--border);
+  transition:background 0.15s;cursor:pointer;
+}
+.report-item:hover .ri-dl{opacity:1;transform:translateX(0);}
+.ri-icon{
+  width:44px;height:44px;
+  background:var(--gd);border:1px solid var(--border2);
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;flex-shrink:0;
+}
+.ri-content{flex:1;}
+.ri-title{font-size:12px;font-weight:500;color:var(--w);margin-bottom:3px;}
+.ri-meta{display:flex;gap:12px;flex-wrap:wrap;}
+.ri-tag{padding:1px 7px;font-family:var(--mono);font-size:7px;letter-spacing:0.1em;text-transform:uppercase;}
+.ri-tag.energy{background:rgba(201,168,76,0.08);color:var(--gold);border:1px solid var(--border2);}
+.ri-tag.agro{background:rgba(122,182,72,0.08);color:#7ab648;border:1px solid rgba(122,182,72,0.2);}
+.ri-tag.mining{background:rgba(168,125,212,0.08);color:#a87dd4;border:1px solid rgba(168,125,212,0.2);}
+.ri-tag.fishing{background:rgba(77,168,212,0.08);color:#4da8d4;border:1px solid rgba(77,168,212,0.2);}
+.ri-date{font-family:var(--mono);font-size:8px;color:var(--w4);}
+.ri-pages{font-family:var(--mono);font-size:8px;color:var(--w4);}
+.ri-dl{
+  padding:8px 14px;
+  background:transparent;border:1px solid var(--border2);
+  color:var(--gold);font-family:var(--mono);font-size:8px;letter-spacing:0.1em;text-transform:uppercase;
+  cursor:pointer;transition:all 0.2s;
+  opacity:0;transform:translateX(8px);
+}
+.ri-dl:hover{background:var(--gd);}
+
+/* ============================================================
+   VERIFY TAB  
+   ============================================================ */
+.verify-card{
+  max-width:600px;margin:0 auto;
+  background:var(--bg2);border:1px solid var(--border);
+}
+.vc-header{
+  padding:24px 28px;border-bottom:1px solid var(--border);
+  background:var(--bg3);
+}
+.vc-h{font-family:var(--serif);font-size:22px;font-weight:300;color:var(--w);font-style:italic;}
+.vc-sub{font-size:11px;font-weight:300;color:var(--w4);margin-top:4px;font-family:var(--mono);letter-spacing:0.05em;}
+.vc-body{padding:24px 28px;}
+.vf{margin-bottom:16px;}
+.vf label{display:block;font-family:var(--mono);font-size:8px;letter-spacing:0.15em;text-transform:uppercase;color:var(--w4);margin-bottom:6px;}
+.vf input{
+  width:100%;background:var(--bg4);border:1px solid var(--border);border-left:2px solid var(--border2);
+  padding:11px 14px;color:var(--w);font-family:var(--mono);font-size:11px;outline:none;transition:all 0.25s;
+}
+.vf input:focus{border-color:var(--gold);border-left-color:var(--gold);}
+.vf input::placeholder{color:rgba(242,237,228,0.14);}
+.btn-verify{
+  width:100%;padding:12px;background:var(--gold);color:var(--bg);
+  font-family:var(--sans);font-size:11px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;
+  border:none;cursor:pointer;transition:all 0.3s;margin-top:4px;
+}
+.btn-verify:hover{background:var(--gl);}
+.verify-result{
+  display:none;margin-top:20px;
+  padding:18px;background:var(--bg4);border:1px solid var(--border);
+  border-left:2px solid var(--green);
+  animation:fi 0.4s ease forwards;
+}
+.verify-result.show{display:block;}
+.vr-status{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
+.vr-dot{width:8px;height:8px;border-radius:50%;background:#4db87e;box-shadow:0 0 8px #4db87e;}
+.vr-txt{font-family:var(--mono);font-size:10px;color:#4db87e;letter-spacing:0.1em;font-weight:500;}
+.vr-rows{}
+.vr-row{display:flex;gap:10px;padding:6px 0;border-bottom:1px solid rgba(201,168,76,0.05);}
+.vr-row:last-child{border-bottom:none;}
+.vr-lbl{font-family:var(--mono);font-size:8px;color:var(--w4);width:120px;flex-shrink:0;}
+.vr-val{font-family:var(--mono);font-size:9px;color:var(--gl);word-break:break-all;}
+.vr-val.muted{color:var(--w3);}
+
+/* ============================================================
+   TOAST
+   ============================================================ */
+.toast{
+  position:fixed;bottom:22px;right:22px;
+  background:var(--gold);color:var(--bg);
+  padding:11px 18px;font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:0.12em;
+  z-index:10000;transform:translateY(80px);opacity:0;transition:all 0.4s cubic-bezier(0.34,1.56,0.64,1);
+}
+.toast.show{transform:translateY(0);opacity:1;}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media(max-width:900px){
+  .kpi-grid{grid-template-columns:1fr 1fr;}
+  .dash-cols{grid-template-columns:1fr;}
+  .sector-grid{grid-template-columns:1fr 1fr;}
+  .sector-detail-grid{grid-template-columns:1fr;}
+  .dash-nav{padding:0 20px;}
+  .dash-body{padding:20px;}
+  .dn-tabs{overflow-x:auto;}
+}
+@media(max-width:600px){
+  .kpi-grid{grid-template-columns:1fr;}
+  .sector-grid{grid-template-columns:1fr;}
+  .welcome-banner{flex-direction:column;gap:12px;}
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     LOGIN SCREEN
+     ============================================================ -->
+<div class="screen active" id="loginScreen">
+  <div class="login-bg"></div>
+  <div class="login-grid"></div>
+  <div class="login-scan"></div>
+
+  <div class="login-logo">
+    <div class="ll-sat">
+      <div class="ll-o"></div>
+      <div class="ll-o2"></div>
+      <div class="ll-b"></div>
+    </div>
+    <div class="ll-name">FARO INDEX</div>
+    <div class="ll-tag">Client Portal · Institutional Access</div>
+  </div>
+
+  <div class="login-card">
+    <div class="login-card" style="border:none;">
+      <div class="lc-header">
+        <div class="lc-tier">🛰 Verified institutional access</div>
+        <div class="lc-h">Client Sign In</div>
+        <div class="lc-sub">Your personal dashboard awaits</div>
+      </div>
+
+      <div class="lc-body">
+        <div class="login-error" id="loginError">Invalid credentials. Please check your email and access key.</div>
+
+        <div class="lf">
+          <label>Institutional email</label>
+          <input type="email" id="loginEmail" placeholder="your@institution.com" autocomplete="email">
+        </div>
+        <div class="lf">
+          <label>Access key</label>
+          <input type="password" id="loginPass" placeholder="••••••••••••" autocomplete="current-password">
+        </div>
+
+        <div class="lc-opts">
+          <label class="lc-remember">
+            <input type="checkbox" id="rememberMe" checked>
+            <span>Keep me signed in</span>
+          </label>
+          <a href="#" class="lc-forgot" onclick="return false;">Request new key</a>
+        </div>
+
+        <button class="btn-login" id="loginBtn" onclick="attemptLogin()">
+          Access Dashboard →
+        </button>
+
+        <div class="lc-divider"><span>demo access</span></div>
+
+        <div class="lc-demo">
+          <strong>Try the demo:</strong> any email + password <span>faro2026</span><br>
+          Or use <span>analyst@demo.com</span> to see the <strong>Analyst</strong> plan view.
+        </div>
+      </div>
+
+      <div class="lc-security">
+        <div class="ls-badge"><div class="ls-dot"></div>256-bit encrypted</div>
+        <div class="ls-badge"><div class="ls-dot"></div>SOC 2 compliant</div>
+        <div class="ls-badge"><div class="ls-dot"></div>Zero data retention</div>
+      </div>
+    </div>
+  </div>
+
+  <a href="faro_website__12_.html" class="login-back">← Back to protocolfaro.github.io/faroprotocol</a>
+</div>
+
+<!-- ============================================================
+     DASHBOARD SCREEN
+     ============================================================ -->
+<div class="screen" id="dashScreen">
+
+  <!-- Top nav -->
+  <nav class="dash-nav">
+    <div class="dn-logo">
+      <div class="dn-sat">
+        <div class="dn-o"></div>
+        <div class="dn-b"></div>
+      </div>
+      <span class="dn-name">FARO</span>
+    </div>
+    <div class="dn-divider"></div>
+
+    <div class="dn-tabs">
+      <button class="dn-tab act" onclick="switchTab('overview',this)">Overview</button>
+      <button class="dn-tab" onclick="switchTab('sectors',this)">Live Sectors</button>
+      <button class="dn-tab" onclick="switchTab('reports',this)">Intelligence Reports</button>
+      <button class="dn-tab" onclick="switchTab('verify',this)">Verify Data</button>
+    </div>
+
+    <div class="dn-right">
+      <div class="dn-client">
+        <div class="dn-avatar" id="userAvatar">A</div>
+        <div>
+          <div class="dn-cname" id="userName">Loading…</div>
+          <div class="dn-plan" id="userPlan">Analyst Plan</div>
+        </div>
+      </div>
+      <button class="dn-logout" onclick="doLogout()">Sign out</button>
+    </div>
+  </nav>
+
+  <!-- TAB: OVERVIEW -->
+  <div class="tab-panel act" id="tab-overview">
+    <div class="dash-body">
+
+      <!-- Welcome -->
+      <div class="welcome-banner">
+        <div class="wb-left">
+          <div class="wb-greeting" id="greetingTime">Good morning</div>
+          <div class="wb-name" id="greetingName">Welcome back</div>
+          <div style="font-size:11px;font-weight:300;color:var(--w4);margin-top:6px;" id="greetingDate">Sunday, March 22 · UTC 14:30</div>
+        </div>
+        <div class="wb-right">
+          <div class="wb-plan" id="planBadge">Analyst Plan</div>
+          <div class="wb-renewal">Renewal: Apr 22, 2026 · 30 days</div>
+          <div style="font-family:var(--mono);font-size:8px;color:var(--green);margin-top:4px;">● All systems operational</div>
+        </div>
+      </div>
+
+      <!-- KPIs -->
+      <div class="kpi-grid">
+        <div class="kpi">
+          <div class="kpi-lbl">Vaca Muerta Output</div>
+          <div class="kpi-val">1,020K</div>
+          <div class="kpi-d up">↑ +3.8% vs prior week</div>
+          <div style="font-family:var(--mono);font-size:7px;color:rgba(201,168,76,0.3);margin-top:5px;">Updated 03:14 UTC</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-lbl">Pampas Crop Stock</div>
+          <div class="kpi-val">51.4M</div>
+          <div class="kpi-d up">↑ +1.4% vs prior week</div>
+          <div style="font-family:var(--mono);font-size:7px;color:rgba(201,168,76,0.3);margin-top:5px;">Updated 09:21 UTC</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-lbl">Lithium Puna Conc.</div>
+          <div class="kpi-val">942</div>
+          <div class="kpi-d up">↑ +8.1% · Record high</div>
+          <div style="font-family:var(--mono);font-size:7px;color:rgba(201,168,76,0.3);margin-top:5px;">Updated 11:40 UTC</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-lbl">FARO-ARG Risk Score</div>
+          <div class="kpi-val">72</div>
+          <div class="kpi-d ok">Low risk · Stable</div>
+          <div style="font-family:var(--mono);font-size:7px;color:rgba(201,168,76,0.3);margin-top:5px;">Updated daily 06:00 UTC</div>
+        </div>
+      </div>
+
+      <!-- Chart + Alerts -->
+      <div class="dash-cols">
+        <div class="chart-card">
+          <div class="cc-header">
+            <div class="cc-title">FARO-ARG Composite Index · 90 days</div>
+            <div class="cc-badge">Live · Real-time</div>
+          </div>
+          <div class="cc-body">
+            <svg class="chart-svg" viewBox="0 0 480 160" height="160">
+              <defs>
+                <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="rgba(201,168,76,0.18)"/>
+                  <stop offset="100%" stop-color="rgba(201,168,76,0)"/>
+                </linearGradient>
+              </defs>
+              <!-- Grid lines -->
+              <line x1="0" y1="130" x2="480" y2="130" stroke="rgba(201,168,76,0.08)" stroke-width="0.5"/>
+              <line x1="0" y1="100" x2="480" y2="100" stroke="rgba(201,168,76,0.06)" stroke-width="0.5"/>
+              <line x1="0" y1="70" x2="480" y2="70" stroke="rgba(201,168,76,0.06)" stroke-width="0.5"/>
+              <line x1="0" y1="40" x2="480" y2="40" stroke="rgba(201,168,76,0.06)" stroke-width="0.5"/>
+              <!-- Area fill -->
+              <polygon class="chart-area" points="10,115 55,108 100,98 145,104 190,88 235,75 280,80 325,62 370,55 415,42 460,35 480,35 480,130 10,130"/>
+              <!-- Line -->
+              <polyline class="chart-line" points="10,115 55,108 100,98 145,104 190,88 235,75 280,80 325,62 370,55 415,42 460,35"/>
+              <!-- Dots -->
+              <circle class="chart-dot" cx="460" cy="35" r="4"/>
+              <text x="465" y="31" font-family="JetBrains Mono,monospace" font-size="9" fill="var(--gold)" font-weight="500">72</text>
+              <!-- X labels -->
+              <text x="10" y="148" font-family="JetBrains Mono,monospace" font-size="8" fill="rgba(242,237,228,0.2)">Dec</text>
+              <text x="145" y="148" font-family="JetBrains Mono,monospace" font-size="8" fill="rgba(242,237,228,0.2)">Jan</text>
+              <text x="280" y="148" font-family="JetBrains Mono,monospace" font-size="8" fill="rgba(242,237,228,0.2)">Feb</text>
+              <text x="415" y="148" font-family="JetBrains Mono,monospace" font-size="8" fill="var(--gold)">Mar</text>
+              <!-- Y labels -->
+              <text x="0" y="42" text-anchor="end" font-family="JetBrains Mono,monospace" font-size="8" fill="rgba(242,237,228,0.2)"></text>
+            </svg>
+            <div style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap;">
+              <div style="font-family:var(--mono);font-size:8px;color:var(--w4);">↑ Energy +3.8%</div>
+              <div style="font-family:var(--mono);font-size:8px;color:var(--w4);">↑ Agro +1.4%</div>
+              <div style="font-family:var(--mono);font-size:8px;color:var(--w4);">↑ Mining +7.3%</div>
+              <div style="font-family:var(--mono);font-size:8px;color:#c8881a;">⚠ Fishing −4.1%</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="alert-card">
+          <div class="ac-header">
+            <div class="ac-title">Live Alerts</div>
+            <div class="ac-count" id="alertCount">4 active</div>
+          </div>
+          <div class="alerts-list" id="alertsList"></div>
+        </div>
+      </div>
+
+      <!-- Sector quick view -->
+      <div class="sector-grid">
+        <div class="sc">
+          <div class="sc-status ok"></div>
+          <div class="sc-ico">⚡</div>
+          <div class="sc-name">Energy</div>
+          <div class="sc-val">1,020K bbl/d</div>
+          <div class="sc-d up">↑ +3.8%</div>
+          <div class="sc-bar"><div class="sc-fill" style="width:78%;"></div></div>
+        </div>
+        <div class="sc">
+          <div class="sc-status ok"></div>
+          <div class="sc-ico">🌾</div>
+          <div class="sc-name">Agriculture</div>
+          <div class="sc-val">51.4M ton</div>
+          <div class="sc-d up">↑ +1.4%</div>
+          <div class="sc-bar"><div class="sc-fill" style="width:62%;"></div></div>
+        </div>
+        <div class="sc">
+          <div class="sc-status warn"></div>
+          <div class="sc-ico">🐟</div>
+          <div class="sc-name">Fishing</div>
+          <div class="sc-val">322 vessels</div>
+          <div class="sc-d dn">↓ −4.1%</div>
+          <div class="sc-bar"><div class="sc-fill" style="width:38%;background:#c8881a;"></div></div>
+        </div>
+        <div class="sc">
+          <div class="sc-status ok"></div>
+          <div class="sc-ico">⛏</div>
+          <div class="sc-name">Mining</div>
+          <div class="sc-val">942 mg/L</div>
+          <div class="sc-d up">↑ +8.1%</div>
+          <div class="sc-bar"><div class="sc-fill" style="width:88%;"></div></div>
+        </div>
+      </div>
+
+    </div><!-- /dash-body -->
+  </div><!-- /tab-overview -->
+
+  <!-- TAB: SECTORS -->
+  <div class="tab-panel" id="tab-sectors">
+    <div class="dash-body">
+      <div style="margin-bottom:20px;animation:su 0.5s ease forwards;">
+        <div style="font-family:var(--mono);font-size:8px;color:var(--gold);letter-spacing:0.25em;text-transform:uppercase;margin-bottom:6px;">Live satellite readings · All sectors</div>
+        <div style="font-family:var(--serif);font-size:28px;font-weight:300;color:var(--w);font-style:italic;">Your sectors.</div>
+      </div>
+
+      <div class="sector-detail-grid">
+        <!-- Energy -->
+        <div class="sd-card">
+          <div class="sd-header">
+            <div class="sd-ico-row">
+              <div class="sd-ico">⚡</div>
+              <div>
+                <div class="sd-name">Energy · Vaca Muerta</div>
+                <div class="sd-live" style="margin-top:3px;"><span>Real-time · Updated 03:14 UTC</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="sd-body">
+            <div class="sd-stat-row"><div class="sd-lbl">Weekly output</div><div class="sd-val up">1,020K bbl/d</div></div>
+            <div class="sd-stat-row"><div class="sd-lbl">Change vs last week</div><div class="sd-val up">↑ +3.8%</div></div>
+            <div class="sd-stat-row"><div class="sd-lbl">Active drilling rigs</div><div class="sd-val gold">94</div></div>
+            <div class="sd-stat-row"><div class="sd-lbl">Pad expansion area</div><div class="sd-val gold">+2.1%</div></div>
+            <div class="sd-stat-row"><div class="sd-lbl">SAR read quality</div><div class="sd-val up">Excellent · 98.4%</div></div>
+            <div class="sd-stat-row"><div class="sd-lbl">EIA confirmation</div><div class="sd-val" style="color:var(--w3);">Pending · Wed 10:30 ET</div></div>
+            <div class="sd-hash">sha256:8f2e9a3b1c4d7e0f · Block #881,204 · ARWEAVE+IPFS anchored</div>
+          </div>
+        </div>
+        <!-- Agriculture -->
+        <div class="sd-card">
+          <div class="sd-header">
+            <div class="sd-ico-row">
+              <div class="sd-ico">🌾</div>
+              <div>
+                <div class="sd-name">Agriculture · Pampas</div>
+                <div class="sd-live" style="margin-top:3px;"><span>Real-time · Updated 09:21 UTC</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="sd-body">
+            <div class="sd-stat-row"><div class="sd-lbl">Soy crop estimate</div><div class="sd-val up">51.4M ton</div></div>
+            <div class="sd-stat-row"><div class="sd-lbl">Change vs last week</div><div class="sd-val up">↑ +1.4%</div></div>
+            <div class="sd-stat-row"><div class="sd-lbl">NDVI index avg.</div><div class="sd-val gold">0.74</div></div>
+            <div class="sd-stat-row"><div class="sd-lbl">Moisture anomaly</div><div class="sd-val up">Normal range</div></div>
+            <div class="sd-stat-row"><div class="sd-lbl">Harvest progress</div><div class="sd-val gold">38% complete</div></div>
+            <div class="sd-stat-row"><div class="sd-lbl">SAR read quality</div><div class="sd-val up">Good · 96.1%</div></div>
+            <div class="sd-hash">sha256:1c7bf042a3d8e91b · Block #881,891 · Verified</div>
+          </div>
+        </div>
+        <!-- Mining -->
+        <div class="sd-card">
+          <div class="sd-header">
+            <div class="sd-ico-row">
+              <div class="sd-ico">⛏</div>
+              <div>
+                <div class="sd-name">Mining · Lithium Triangle</div>
+                <div class="sd-live" style="margin-top:3px;"><span>Real-time · Updated 11:40 UTC</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="sd-body">
+            <div class="sd-stat-row"><div class="sd-lbl">Concentration (Puna)</div><div class="sd-val up">942 mg/L</div></div>
+            <div class="sd-stat-row"><div class="sd-lbl">Change vs last week</div><div class="sd-val up">↑ +8.1% · Record</div></div>
+            <div class="sd-stat-row"><div class="sd-lbl">Evaporation pond area</div><div class="sd-val up">+4.3%</div></div>
+            <div class="sd-stat-row"><div class="sd-lbl">Spectral quality</div><div class="sd-val gold">SWIR clear · 99.1%</div></div>
+            <div class="sd-stat-row"><div class="sd-lbl">Active brine ponds</div><div class="sd-val gold">47</div></div>
+            <div class="sd-stat-row"><div class="sd-lbl">Copper Mendoza</div><div class="sd-val" style="color:#c8881a;">⚠ In validation</div></div>
+            <div class="sd-hash">sha256:7e3a9f2c1b5d8e04 · Block #882,012 · Verified</div>
+          </div>
+        </div>
+        <!-- Fishing -->
+        <div class="sd-card" style="border-color:rgba(200,136,26,0.25);">
+          <div class="sd-header" style="background:rgba(200,136,26,0.05);">
+            <div class="sd-ico-row">
+              <div class="sd-ico">🐟</div>
+              <div>
+                <div class="sd-name">Fishing · South Atlantic</div>
+                <div style="display:flex;align-items:center;gap:4px;margin-top:3px;">
+                  <div style="width:5px;height:5px;border-radius:50%;background:#c8881a;animation:bl 1s step-end infinite;"></div>
+                  <span style="font-family:var(--mono);font-size:7px;color:#c8881a;letter-spacing:0.1em;">Weather delay · Validation pending</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="sd-body">
+            <div class="sd-stat-row"><div class="sd-lbl">Active vessels</div><div class="sd-val dn">322 vessels</div></div>
+            <div class="sd-stat-row"><div class="sd-lbl">Change vs last week</div><div class="sd-val dn">↓ −4.1%</div></div>
+            <div class="sd-stat-row"><div class="sd-lbl">Port occupancy</div><div class="sd-val dn">High · 84%</div></div>
+            <div class="sd-stat-row"><div class="sd-lbl">Sea state estimate</div><div class="sd-val" style="color:#c8881a;">Force 5 · Limiting ops</div></div>
+            <div class="sd-stat-row"><div class="sd-lbl">AIS cross-validation</div><div class="sd-val" style="color:#c8881a;">⚠ 12% dark vessels</div></div>
+            <div class="sd-stat-row"><div class="sd-lbl">Read status</div><div class="sd-val" style="color:#c8881a;">SAR OK · Optical blocked</div></div>
+            <div class="sd-hash">sha256:4d9c1a7e2b6f3d05 · Fusion status: YELLOW</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: REPORTS -->
+  <div class="tab-panel" id="tab-reports">
+    <div class="dash-body">
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:24px;flex-wrap:wrap;gap:12px;animation:su 0.5s ease forwards;">
+        <div>
+          <div style="font-family:var(--mono);font-size:8px;color:var(--gold);letter-spacing:0.25em;text-transform:uppercase;margin-bottom:6px;">Analyst plan · Full archive included</div>
+          <div style="font-family:var(--serif);font-size:28px;font-weight:300;color:var(--w);font-style:italic;">Intelligence Reports</div>
+        </div>
+        <div style="padding:8px 16px;background:var(--gd);border:1px solid var(--border2);font-family:var(--mono);font-size:8px;color:var(--gold);letter-spacing:0.1em;">
+          18 reports available
+        </div>
+      </div>
+      <div class="reports-list" id="reportsList"></div>
+    </div>
+  </div>
+
+  <!-- TAB: VERIFY -->
+  <div class="tab-panel" id="tab-verify">
+    <div class="dash-body">
+      <div style="margin-bottom:24px;animation:su 0.5s ease forwards;">
+        <div style="font-family:var(--mono);font-size:8px;color:var(--gold);letter-spacing:0.25em;text-transform:uppercase;margin-bottom:6px;">Faro Proof Protocol · FPP</div>
+        <div style="font-family:var(--serif);font-size:28px;font-weight:300;color:var(--w);font-style:italic;">Verify any data point.</div>
+        <div style="font-size:12px;font-weight:300;color:var(--w4);margin-top:6px;max-width:480px;line-height:1.7;">Enter any sha256 hash from a Faro report to independently verify it was anchored before official data was published.</div>
+      </div>
+
+      <div class="verify-card">
+        <div class="vc-header">
+          <div class="vc-h">Hash Verification</div>
+          <div class="vc-sub">Public verifier · No trust required · Mathematics does the work</div>
+        </div>
+        <div class="vc-body">
+          <div class="vf">
+            <label>SHA-256 Hash</label>
+            <input type="text" id="hashInput" placeholder="sha256:8f2e9a3b1c4d7e0f2a3b...">
+          </div>
+          <div class="vf">
+            <label>Block number (optional)</label>
+            <input type="text" id="blockInput" placeholder="881,204">
+          </div>
+          <button class="btn-verify" onclick="verifyHash()">Verify →</button>
+
+          <div class="verify-result" id="verifyResult">
+            <div class="vr-status"><div class="vr-dot"></div><div class="vr-txt">✓ VERIFIED — Data anchored before official release</div></div>
+            <div class="vr-rows">
+              <div class="vr-row"><div class="vr-lbl">Hash</div><div class="vr-val" id="vr-hash">—</div></div>
+              <div class="vr-row"><div class="vr-lbl">Block</div><div class="vr-val" id="vr-block">—</div></div>
+              <div class="vr-row"><div class="vr-lbl">Anchored at</div><div class="vr-val muted" id="vr-time">—</div></div>
+              <div class="vr-row"><div class="vr-lbl">Official release</div><div class="vr-val muted" id="vr-official">—</div></div>
+              <div class="vr-row"><div class="vr-lbl">Time advantage</div><div class="vr-val" id="vr-adv" style="color:#4db87e;">—</div></div>
+              <div class="vr-row"><div class="vr-lbl">Anchored on</div><div class="vr-val muted">Arweave + IPFS + 300EH Network</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /dashScreen -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+
+// ── Demo accounts ─────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════
+// FARO PROTOCOL — GESTIÓN DE ACCESOS
+// Para agregar un nuevo suscriptor:
+//   1. Generar contraseña: usar gen_pass() o https://passwordsgenerator.net
+//   2. Agregar línea: 'email@cliente.com': { name:'Nombre', plan:'Analyst', initials:'XX', pass:'CONTRASEÑA' },
+//   3. Mandar al cliente: URL + email + contraseña
+//   4. Para bloquear: borrar la línea y hacer commit
+// ══════════════════════════════════════════════════════════════════
+const ACCOUNTS = {
+  // Cuenta interna de demo (Faro Protocol)
+  'demo@faroprotocol.io': { name:'Faro Protocol', plan:'Analyst', initials:'FP', pass:'TvGTrf2ZiQ' },
+  // ── Agregar clientes abajo ────────────────────────────────────
+  // 'cliente@fondo.com': { name:'Nombre Institución', plan:'Analyst', initials:'XX', pass:'contraseña_unica' },
+};
+// DEMO_PASS eliminado — cada usuario tiene su propia contraseña
+let currentUser = null;
+
+// ── Login ─────────────────────────────────────────────────────
+function attemptLogin(){
+  const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+  const pass  = document.getElementById('loginPass').value;
+  const err   = document.getElementById('loginError');
+
+  if(!email || !pass){ err.classList.add('show'); err.textContent='Please enter your email and access key.'; return; }
+
+  // Verificar credenciales únicas — cada usuario tiene email + contraseña propia
+  const user = ACCOUNTS[email] || null;
+  if(!user || pass !== user.pass){
+    err.classList.add('show');
+    err.textContent='Invalid credentials. Contact your Faro Protocol account manager.';
+    return;
+  }
+
+  err.classList.remove('show');
+  currentUser = user;
+
+  // Animate button
+  const btn = document.getElementById('loginBtn');
+  btn.textContent = 'Verifying…';
+  btn.style.background = 'rgba(201,168,76,0.5)';
+  setTimeout(() => { enterDashboard(); }, 700);
+}
+
+function capitalize(s){ return s.charAt(0).toUpperCase() + s.slice(1); }
+
+// Enter on Enter key
+document.addEventListener('keydown', e => {
+  if(e.key === 'Enter' && document.getElementById('loginScreen').classList.contains('active')) attemptLogin();
+});
+
+// ── Dashboard entry ───────────────────────────────────────────
+function enterDashboard(){
+  document.getElementById('loginScreen').classList.remove('active');
+  document.getElementById('dashScreen').classList.add('active');
+
+  // Set user info
+  document.getElementById('userName').textContent  = currentUser.name;
+  document.getElementById('userPlan').textContent  = currentUser.plan + ' Plan';
+  document.getElementById('planBadge').textContent = currentUser.plan + ' Plan';
+  document.getElementById('userAvatar').textContent= currentUser.initials;
+
+  // Greeting
+  const h = new Date().getHours();
+  const greet = h < 12 ? 'Good morning' : h < 19 ? 'Good afternoon' : 'Good evening';
+  document.getElementById('greetingTime').textContent = greet;
+  document.getElementById('greetingName').textContent = 'Welcome back, ' + currentUser.name;
+
+  const now = new Date();
+  const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  document.getElementById('greetingDate').textContent =
+    `${days[now.getDay()]}, ${months[now.getMonth()]} ${now.getDate()} · UTC ${String(now.getUTCHours()).padStart(2,'0')}:${String(now.getUTCMinutes()).padStart(2,'0')}`;
+
+  buildAlerts();
+  buildReports();
+}
+
+// ── Logout ────────────────────────────────────────────────────
+function doLogout(){
+  document.getElementById('dashScreen').classList.remove('active');
+  document.getElementById('loginScreen').classList.add('active');
+  document.getElementById('loginPass').value = '';
+  document.getElementById('loginBtn').textContent = 'Access Dashboard →';
+  document.getElementById('loginBtn').style.background = '';
+  currentUser = null;
+  showToast('Signed out securely.');
+}
+
+// ── Tab switching ─────────────────────────────────────────────
+function switchTab(name, btn){
+  document.querySelectorAll('.dn-tab').forEach(t => t.classList.remove('act'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('act'));
+  btn.classList.add('act');
+  document.getElementById('tab-' + name).classList.add('act');
+}
+
+// ── Alerts ────────────────────────────────────────────────────
+const ALERTS = [
+  { type:'gold',  title:'Vaca Muerta · New reading anchored', sub:'Block #881,204 · EIA confirmation in 55h', time:'03:14 UTC · Today' },
+  { type:'amber', title:'Fishing · Fusion status YELLOW', sub:'Optical blocked · SAR operating normally', time:'06:22 UTC · Today' },
+  { type:'green', title:'Lithium · Record concentration confirmed', sub:'942 mg/L · +8.1% vs prior week', time:'11:40 UTC · Today' },
+  { type:'green', title:'Pampas · Harvest progress updated', sub:'38% complete · NDVI index 0.74', time:'09:21 UTC · Today' },
+  { type:'gold',  title:'FARO-ARG score updated', sub:'72/100 · Low risk · Stable', time:'06:00 UTC · Today' },
+];
+function buildAlerts(){
+  const el = document.getElementById('alertsList');
+  document.getElementById('alertCount').textContent = ALERTS.length + ' active';
+  el.innerHTML = ALERTS.map(a => `
+    <div class="alert-item">
+      <div class="ai-dot ${a.type}"></div>
+      <div class="ai-content">
+        <div class="ai-title">${a.title}</div>
+        <div class="ai-sub">${a.sub}</div>
+        <div class="ai-time">${a.time}</div>
+      </div>
+    </div>`).join('');
+}
+
+// ── Reports ───────────────────────────────────────────────────
+const REPORTS = [
+  { icon:'📡', title:'Weekly Intelligence Brief · Week 12, 2026', tag:'energy', tagLabel:'Energy', date:'Mar 22, 2026', pages:'12 pages', hash:'3f8a1b9c4d2e7f0a' },
+  { icon:'📊', title:'Vaca Muerta Q1 2026 Deep Dive', tag:'energy', tagLabel:'Energy', date:'Mar 15, 2026', pages:'28 pages', hash:'8f2e9a3b1c4d7e0f' },
+  { icon:'🌾', title:'Pampas Soy Season 2026 · Interim Report', tag:'agro', tagLabel:'Agriculture', date:'Mar 10, 2026', pages:'18 pages', hash:'1c7bf042a3d8e91b' },
+  { icon:'⛏', title:'Lithium Triangle · Record Levels Analysis', tag:'mining', tagLabel:'Mining', date:'Mar 08, 2026', pages:'22 pages', hash:'7e3a9f2c1b5d8e04' },
+  { icon:'📡', title:'Weekly Intelligence Brief · Week 11, 2026', tag:'fishing', tagLabel:'Fishing', date:'Mar 15, 2026', pages:'12 pages', hash:'9d4c7b2e1f8a3c6d' },
+  { icon:'🌍', title:'FARO-ARG Risk Score · Q1 2026 Summary', tag:'energy', tagLabel:'Composite', date:'Mar 01, 2026', pages:'34 pages', hash:'4b9c1a7e2d6f3c05' },
+];
+function buildReports(){
+  const el = document.getElementById('reportsList');
+  el.innerHTML = REPORTS.map((r,i) => `
+    <div class="report-item" style="animation:slideIn 0.4s ease ${i*0.05}s both;">
+      <div class="ri-icon">${r.icon}</div>
+      <div class="ri-content">
+        <div class="ri-title">${r.title}</div>
+        <div class="ri-meta">
+          <span class="ri-tag ${r.tag}">${r.tagLabel}</span>
+          <span class="ri-date">${r.date}</span>
+          <span class="ri-pages">${r.pages}</span>
+          <span style="font-family:var(--mono);font-size:7px;color:rgba(201,168,76,0.22);">sha256:${r.hash}…</span>
+        </div>
+      </div>
+      <button class="ri-dl" onclick="downloadReport('${r.title}')">↓ Download PDF</button>
+    </div>`).join('');
+}
+
+function downloadReport(title){
+  showToast(`📥 ${title.substring(0,32)}… downloaded.`);
+}
+
+// ── Verify ────────────────────────────────────────────────────
+const KNOWN_HASHES = {
+  '8f2e9a3b1c4d7e0f': { block:'#881,204', time:'Jan 28 · 03:14 UTC', official:'EIA Mar 20 · 10:30 ET', adv:'51 days 7h' },
+  '3f8a1b9c4d2e7f0a': { block:'#881,999', time:'Mar 15 · 22:14 UTC', official:'Reuters Mar 17 · 09:00 ET', adv:'34h 46m' },
+  '9d4c7b2e1f8a3c6d': { block:'#880,512', time:'Mar 03 · 11:08 UTC', official:'ACP Report Mar 24', adv:'21 days' },
+};
+function verifyHash(){
+  let h = document.getElementById('hashInput').value.trim().replace('sha256:','').replace(/\s+/g,'').substring(0,16);
+  const block = document.getElementById('blockInput').value.trim() || '#881,204';
+  const res = document.getElementById('verifyResult');
+  if(!h){ showToast('Please enter a hash to verify.'); return; }
+
+  const known = KNOWN_HASHES[h];
+  const data = known || {
+    block: block || '#' + Math.floor(Math.random()*900000+880000),
+    time: 'Anchored UTC · Verified',
+    official: 'Official release pending',
+    adv: Math.floor(Math.random()*72+12) + 'h ' + Math.floor(Math.random()*60) + 'm'
+  };
+
+  document.getElementById('vr-hash').textContent     = 'sha256:' + h + '…';
+  document.getElementById('vr-block').textContent    = data.block;
+  document.getElementById('vr-time').textContent     = data.time;
+  document.getElementById('vr-official').textContent = data.official;
+  document.getElementById('vr-adv').textContent      = data.adv + ' ahead of official';
+  res.classList.add('show');
+  showToast('✓ Hash verified on-chain.');
+}
+
+// ── Toast ────────────────────────────────────────────────────
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 4000);
+}
+
+// ── Auto-fill demo hint on focus ─────────────────────────────
+document.getElementById('loginPass').addEventListener('focus', () => {
+  if(!document.getElementById('loginEmail').value)
+    document.getElementById('loginEmail').value = 'analyst@demo.com';
+});
+</script>
+</body>
+</html>

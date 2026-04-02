@@ -1,0 +1,10 @@
+{
+  "name": "vaca_muerta",
+  "label": "Vaca Muerta, Neuquén, Argentina",
+  "vertical": "energia",
+  "polygon": "POLYGON((-70 -38,-68 -38,-68 -37,-70 -37,-70 -38))",
+  "bounds": [-70.0, -38.0, -68.0, -37.0],
+  "ndvi_tif": "FaroProtocol_NDVI_limpio_VacaMuerta.tif",
+  "sar_output": "sar_vaca_muerta_georef.tif",
+  "report_png": "faro_reporte_fusion_vaca_muerta.png"
+}
