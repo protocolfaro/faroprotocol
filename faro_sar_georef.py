@@ -7,10 +7,16 @@ Uso:
 """
 
 import argparse
+import sys
 import rasterio
 import numpy as np
 from rasterio.transform import from_bounds
 from rasterio.crs import CRS
+
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8')
 
 from faro_areas import load_area, list_areas
 

@@ -256,35 +256,135 @@ Mantener en cualquier componente nuevo (agentes, reportes, dashboard).
 
 ---
 
-## Roadmap priorizado
+## Estado real del proyecto — Auditoría 2026-04-04
 
-### 🔴 Fase 1 — Bugs críticos (hacer antes que cualquier otra cosa)
-- [ ] Corregir bug SAR_ZIP en faro_fusion.py
-- [ ] Corregir doble colorbar en faro_fusion.py
-- [ ] Corregir SAR negro (no normalizar en georef.py)
-- [ ] Envolver faro_sar_georef.py en main() para poder importarlo
-- [ ] Crear .gitignore y mover faro_accesos.txt a .env
+> Cada módulo fue importado y ejecutado. Los estados son verificados, no supuestos.
 
-### 🟠 Fase 2 — Hacer el sistema genérico
-- [ ] Crear faro_areas/ con sistema de configuración JSON por zona
-- [ ] Refactorizar faro_sar_pipeline.py para recibir área como parámetro
-- [ ] Refactorizar faro_sar_georef.py para recibir bounds como parámetro
-- [ ] Refactorizar faro_fusion.py para recibir paths y zona como parámetro
-- [ ] Crear faro_pipeline.py unificado con --area argumento
+---
+
+### Módulos Python
+
+| Archivo | Estado | Notas |
+|---------|--------|-------|
+| `faro_areas.py` | ✅ COMPLETO | `load_area()` y `list_areas()` funcionan. Áreas: cordoba, balcarce, vaca_muerta. |
+| `faro_sar_georef.py` | ✅ COMPLETO | Importable, tiene `main(area, sar_input)`, convierte a dB. |
+| `faro_sar_pipeline.py` | ✅ COMPLETO | Importable, busca SAR por área. Requiere `COPERNICUS_USER/PASS` en env para correr. |
+| `faro_fusion.py` | 🔴 ROTO (parcial) | Corre y genera PNG, pero **no aplica corrección int16 (÷10000)** en `cargar_ndvi()`. `ndvi_medio` en stats queda en 4444 en vez de 0.44. El rinde sin vision resulta incorrecto (5.2 t/ha en vez de 2.69). faro_vision sobreescribe este valor si se corre el pipeline completo. |
+| `faro_vision.py` | ✅ COMPLETO | Corre completo sobre Córdoba. Aplica corrección int16, downsampling, Z-score, genera PNG y JSON. |
+| `faro_engine.py` | ✅ COMPLETO | Motor centralizado funciona. `--skip-vision` produce ndvi incorrecto (bug de fusion). Con vision completa, corrige y produce datos válidos (Score: 60.8, rinde: 2.69 t/ha, confianza Alta). |
+| `faro_pipeline.py` | ✅ COMPLETO | Pipeline unificado funciona end-to-end con `--skip-georef`. Produce SHA-256, data.json correcto. |
+| `faro_rinde_import.py` | ✅ COMPLETO | `--demo` corre perfectamente: 200 registros, stats, CSV modelo-ready. Sin datos reales de Basso todavía. |
+| `faro_closdi_pipeline.py` | ✅ COMPLETO | Importable. Provee funciones matemáticas (CLOSDI, EVI2, NDVI, máscaras). No integrado en el pipeline principal. |
+| `MachinaOS/hermes_agent.py` | 🟡 PARCIAL | Importa y corre. Sin `ANTHROPIC_API_KEY`: veredicto local (modo fallback). Con API key: usa Claude. Detecta correctamente SAR fuera de rango dB y NDVI escala errónea. |
+| `MachinaOS/paperclip_agent.py` | 🟡 PARCIAL | Importa y corre. `--raw` funciona sin API key. Con API key: resumen LLM. Balcarce y Vaca Muerta reportan SIN_DATOS (sin archivos satelitales). |
+| `MachinaOS/phone_gateway.py` | 🟡 PARCIAL | Importa y corre. `--test` funciona. Envío real requiere `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID`, `WHATSAPP_DEST` en .env. |
+
+---
+
+### Datos satelitales
+
+| Área | NDVI.tif | SAR georef.tif | Estado |
+|------|----------|----------------|--------|
+| cordoba | ✅ existe (263 MB) | ⚠️ existe pero en escala 0-1, no dB | Pipeline corre, SAR incorrecto |
+| balcarce | ❌ no existe | ❌ no existe | SIN_DATOS — no se puede procesar |
+| vaca_muerta | ❌ no existe | ❌ no existe | SIN_DATOS — no se puede procesar |
+
+**Nota SAR Córdoba**: `sar_cordoba_georef.tif` fue generado con código viejo que normalizaba a 0-1. El código actual de `faro_sar_georef.py` produce dB correctamente. Hermes reporta NO-GO por este archivo. Para corregir: re-correr georef con el SAR crudo original.
+
+---
+
+### Configuración e infraestructura
+
+| Item | Estado | Notas |
+|------|--------|-------|
+| `.gitignore` | ✅ COMPLETO | Excluye .env, *.tif, *.zip, __pycache__, etc. |
+| `.env` | ❌ NO EXISTE | Crear con ANTHROPIC_API_KEY, COPERNICUS_USER/PASS, WHATSAPP_* |
+| `faro_accesos.txt` | ⚠️ RIESGO | Contiene credenciales demo en texto plano. Está en .gitignore, pero sigue en disco. |
+| `data.json` | ✅ COMPLETO | Generado con protocolo Cero Footprint. Estructura: _meta, _interno, insights, resumen, pipeline. |
+| `faro_areas/*.json` | ✅ COMPLETO | cordoba, balcarce, vaca_muerta con todos los campos requeridos. |
+
+---
+
+### HTML / Web
+
+| Archivo | Estado | Notas |
+|---------|--------|-------|
+| `faro_visor.html` | ✅ COMPLETO | Visor three.js 3D, lee data.json, funcional en browser sin servidor. |
+| `faro_website.html` | ⚠️ PARCIAL | Bilingüe, diseño completo. Datos hardcodeados (métricas, testimonios). "As featured in" FT/Reuters/WSJ — riesgo legal si no es real. |
+| `faro_client_portal.html` | ⚠️ RIESGO | Login del lado cliente en JS — credenciales visibles en código fuente. |
+| `faro_website3.html` | ❓ REDUNDANTE | Versión reducida del website. No está claro si reemplaza o complementa. |
+| `faro_website_v3 (2).html` | ❓ REDUNDANTE | Versión alternativa más antigua. |
+
+---
+
+### Bugs activos (verificados con ejecución real)
+
+#### 🔴 BUG ACTIVO — faro_fusion.py no corrige escala int16 NDVI
+```python
+# cargar_ndvi() no detecta GEE int16 ×10000
+# ndvi_medio retornado en stats = 4444.18 (debería ser 0.4444)
+# Impacto: rinde estimado sin vision = 5.20 t/ha (incorrecto)
+# Workaround actual: correr pipeline completo (con vision); 
+#   faro_vision sobreescribe ndvi_medio con el valor correcto
+# Fix: agregar el mismo bloque de detección que tiene faro_vision.py
+```
+
+#### ⚠️ PENDIENTE — sar_cordoba_georef.tif en escala 0-1 (no dB)
+```
+El archivo fue creado con código viejo. 
+El código actual de faro_sar_georef.py SÍ convierte a dB.
+Para corregir: re-ejecutar georef con el SAR crudo original.
+Hermes detecta esto como NO-GO (media_db: 0.64 fuera del rango esperado -25 a -2).
+```
+
+#### ⚠️ PENDIENTE — Encoding UTF-8 en Windows
+```
+faro_fusion.py y faro_engine.py NO tienen sys.stdout.reconfigure(encoding='utf-8').
+En terminal cp1252 de Windows, caracteres como → y ✓ causan UnicodeEncodeError.
+Los agentes MachinaOS sí tienen la corrección. faro_rinde_import.py también.
+Fix: agregar al inicio de faro_fusion.py y faro_engine.py:
+  if hasattr(sys.stdout, 'reconfigure'):
+      sys.stdout.reconfigure(encoding='utf-8')
+```
+
+---
+
+## Roadmap priorizado (actualizado 2026-04-04)
+
+### 🔴 Fase 1 — Bugs críticos
+- [x] ~~Corregir bug SAR_ZIP en faro_fusion.py~~ — COMPLETO
+- [x] ~~Corregir doble colorbar en faro_fusion.py~~ — COMPLETO
+- [x] ~~Corregir SAR negro (no normalizar en georef.py)~~ — COMPLETO (el código está bien; el .tif de Córdoba es viejo)
+- [x] ~~Envolver faro_sar_georef.py en main() para poder importarlo~~ — COMPLETO
+- [x] ~~Crear .gitignore~~ — COMPLETO
+- [ ] **Corregir corrección int16 en faro_fusion.py** (bug activo verificado)
+- [ ] **Agregar sys.stdout.reconfigure en faro_fusion.py y faro_engine.py**
+- [ ] **Crear .env** con ANTHROPIC_API_KEY y credenciales Copernicus
+- [ ] **Re-generar sar_cordoba_georef.tif** en dB con el SAR crudo original
+
+### 🟠 Fase 2 — Sistema genérico
+- [x] ~~Crear faro_areas/ con sistema de configuración JSON por zona~~ — COMPLETO
+- [x] ~~Refactorizar faro_sar_pipeline.py para recibir área como parámetro~~ — COMPLETO
+- [x] ~~Refactorizar faro_sar_georef.py para recibir bounds como parámetro~~ — COMPLETO
+- [x] ~~Refactorizar faro_fusion.py para recibir paths y zona como parámetro~~ — COMPLETO
+- [x] ~~Crear faro_pipeline.py unificado con --area argumento~~ — COMPLETO
+- [ ] Descargar NDVI y SAR para balcarce y vaca_muerta (sin datos satelitales)
 
 ### 🟡 Fase 3 — MachinaOS (agentes)
-- [ ] paperclip_agent.py — verificar que pipeline corrió y reportar
-- [ ] hermes_agent.py — validar calidad de outputs (SAR no negro, NDVI válido)
-- [ ] phone_gateway.py — alertas WhatsApp para decisiones críticas
+- [x] ~~paperclip_agent.py~~ — COMPLETO (requiere API key para LLM, funciona sin ella en modo raw)
+- [x] ~~hermes_agent.py~~ — COMPLETO (idem)
+- [x] ~~phone_gateway.py~~ — COMPLETO (requiere WHATSAPP_* en .env para envío real)
+- [ ] Configurar .env con ANTHROPIC_API_KEY para activar LLM en agentes
 
 ### 🟢 Fase 4 — Web y datos reales
 - [ ] Reemplazar datos hardcodeados del website por JSON dinámico del pipeline
 - [ ] Reemplazar "As featured in" por referencias científicas verificables
-- [ ] Mejorar seguridad del portal de clientes
+- [ ] Mejorar seguridad del portal de clientes (autenticación server-side)
 
 ### 🔵 Fase 5 — Calibración agro
-- [ ] Importar 12.000 datos de rinde de Basso
-- [ ] Modelo de predicción: NDVI + SAR + historial → rinde estimado
+- [x] ~~faro_rinde_import.py: importador de datos de rinde~~ — COMPLETO (estructura lista, demo funciona)
+- [ ] Importar 12.000 datos reales de rinde de Basso (correr con --csv datos_reales.csv)
+- [ ] Modelo de predicción ML: NDVI + SAR + historial → rinde estimado
 - [ ] Integrar algoritmos INTA D'Amico
 
 ### ✅ Fase 6 — Visión computacional (COMPLETADA 2026-04-02)
@@ -307,6 +407,14 @@ Mantener en cualquier componente nuevo (agentes, reportes, dashboard).
 - [x] Controles teclado: R (reset), Space (auto-rotar), 1-4 (capas)
 - [x] Diseño dark-premium (paleta Faro, Cormorant Garamond, JetBrains Mono)
 - **Archivo**: `faro_visor.html` — abrir en browser, sin servidor requerido
+
+### ✅ Fase 8 — Motor centralizado faro_engine.py (COMPLETADA 2026-04-04)
+- [x] Modelo económico agro: NDVI + SAR → rinde estimado (t/ha)
+- [x] Modelo económico energía: SAR → Índice de Actividad Industrial (0-100)
+- [x] Score Faro (0-100), confianza (Alta/Media/Baja), estado (OK/ALERTA/SIN_DATOS)
+- [x] Protocolo Cero Footprint: data.json con capas _interno / insights / resumen
+- [x] SHA-256 del reporte integrado al flujo
+- **Archivo**: `faro_engine.py --area <zona>`
 
 ---
 

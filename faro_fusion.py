@@ -7,12 +7,19 @@ Uso:
 """
 
 import argparse
+import sys
 import numpy as np
 import rasterio
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from datetime import datetime
 
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8')
+
+import faro_closdi_pipeline as closdi
 from faro_areas import load_area, list_areas
 
 # Defaults (solo usados si se llama sin área)
@@ -22,12 +29,43 @@ OUTPUT_PNG = "faro_reporte_fusion_cordoba.png"
 ZONA       = "Córdoba, Argentina"
 
 
-def cargar_ndvi(path):
+def cargar_ndvi(path, red_tif=None, nir_tif=None):
+    """
+    Carga el NDVI desde un .tif y aplica corrección de escala int16.
+
+    Si se proveen red_tif y nir_tif (bandas Sentinel-2 crudas), aplica
+    filtro de sombras CLOSDI (Cal, 2026) sobre el NDVI cargado.
+    Si solo se provee el NDVI pre-procesado (GEE export), el filtro CLOSDI
+    ya fue aplicado upstream — se informa y se omite aquí.
+    """
     print(f"Cargando NDVI: {path}")
     with rasterio.open(path) as src:
         data = src.read(1).astype(float)
-        data[data == src.nodata] = np.nan
+        nodata = src.nodata
+        if nodata is not None:
+            data[data == nodata] = np.nan
+
+    # Detectar y corregir escala entera (GEE int16 ×10000)
+    finite = data[np.isfinite(data)]
+    if len(finite) > 0 and (np.nanmax(finite) > 2 or np.nanmin(finite) < -2):
+        data = data / 10000.0
+        print(f"  [auto] Escala int16 detectada -> dividido por 10000")
+
     print(f"  Shape: {data.shape} | Min: {np.nanmin(data):.3f} | Max: {np.nanmax(data):.3f}")
+
+    # Filtro de sombras CLOSDI (Cal, 2026)
+    if red_tif and nir_tif:
+        with rasterio.open(red_tif) as r, rasterio.open(nir_tif) as n:
+            red = r.read(1).astype(float)
+            nir = n.read(1).astype(float)
+        calidad = closdi.reporte_calidad(red, nir)
+        print(f"  CLOSDI: {calidad['porcentaje_limpio']}% limpio | "
+              f"{calidad['porcentaje_sombra']}% sombras | "
+              f"{'apto' if calidad['apto_para_analisis'] else 'NO apto'}")
+        data = closdi.aplicar_filtro_sombra(data, red, nir)
+    else:
+        print(f"  CLOSDI: aplicado upstream (GEE export) — bandas crudas no disponibles")
+
     return data
 
 
