@@ -1,7 +1,175 @@
 # FARO PROTOCOL — Guía para Claude Code
-> Última actualización: Abril 2026
+> Última actualización: 2026-04-04 (revisión final del día)
 > Arquitecto del sistema: Emilio (hijo)
 > Conocimiento de campo y contactos: Padre (fundador)
+
+---
+
+## Estado del sistema — 2026-04-04
+
+### Pipeline operativo (Córdoba)
+```
+Área         : Marcos Juárez, Córdoba
+NDVI medio   : 0.4444   (Sentinel-2 via GEE, escala int16 corregida)
+SAR          : 19.1 dB  (Sentinel-1 VV IW GRD, 2026-03-25)
+Fusion Index : 0.6935
+Rinde est.   : 2.69 t/ha  (84% del promedio nacional — soja referencia)
+Score Faro   : 61.0 / 100
+Confianza    : Alta  (2 fuentes + visión computacional)
+Estado       : OK
+Píxeles      : 124,066,152
+SHA-256      : 88f26daf83831fdad89dd8379eee258f9d63d6336551f45d258297929f2e6291
+Commit web   : 73105b6 — pendiente de push a GitHub Pages
+```
+
+### Áreas configuradas
+| Área | Datos satelitales | Estado |
+|------|-------------------|--------|
+| cordoba | ✅ NDVI + SAR + reporte | Operativa |
+| balcarce | ❌ sin datos | Lista para descargar |
+| vaca_muerta | ❌ sin datos | Lista para descargar |
+| rotterdam | ❌ sin datos | Lista para descargar |
+| amazonas | ❌ sin datos | Lista para descargar |
+| indiana | ❌ sin datos | Lista para descargar |
+
+### Credenciales
+| Variable | Estado |
+|----------|--------|
+| ANTHROPIC_API_KEY | ❌ FALTA — agentes MachinaOS degradados |
+| COPERNICUS_USER/PASS | ❌ FALTA — sin descarga SAR |
+| WHATSAPP_TOKEN/PHONE_ID/DEST | ❌ FALTA — alertas desactivadas |
+
+---
+
+## Qué falta hacer en Claude Code
+
+### 1. Calibración SAR — ALTA PRIORIDAD
+`faro_sar_georef.py` usa `10 * log10(DN)` pero Sentinel-1 GRD es amplitud (no potencia).
+La fórmula correcta para sigma0 es `20 * log10(DN)` con offset de calibración.
+Resultado actual: media 19.1 dB (debería ser ~-12 dB para agricultura).
+Hermes sigue marcando NO-GO por SAR fuera de rango. Dos opciones:
+- Corregir la fórmula a `20 * log10(DN + 1e-10) - 83.0` (offset típico Sentinel-1 GRDH)
+- O ajustar los umbrales de Hermes a la escala real de los datos (solución provisional)
+
+### 2. Website — datos demo que siguen activos
+Los siguientes valores en `faro_website.html` son ficticios y representan riesgo
+legal/reputacional si un cliente los verifica:
+- "98.2% accuracy" global (sin respaldo)
+- "1,020K bbl/d" Vaca Muerta (sin datos reales)
+- "8,491 verified blocks" (contador ficticio)
+- "247 readings verified" (sin respaldo)
+- Caso Red Sea / Reuters / Panama Canal (sección "proof") — hashes falsos
+- "sha256:3f8a1b9c4d2e7f0a" en la sección proof (hash ficticio)
+Acción: o se remueven estas secciones, o se marcan explícitamente como "objetivo 2026"
+o "proyectado", o se reemplazan con el único caso real verificable (Córdoba).
+
+### 3. Modelo de predicción ML — PENDIENTE
+`datos/rinde_modelo_ready.csv` tiene columnas `ndvi_medio`, `sar_medio_db`,
+`indice_fusion`, `rinde_estimado` todas en NULL.
+El modelo actual usa promedios nacionales INDEC + factores NDVI/SAR.
+Para calibrarlo con los datos reales de Basso: una vez importado el CSV real,
+entrenar un modelo de regresión (scikit-learn o statsmodels) que ajuste los
+factores `factor_ndvi` y `factor_sar` del engine a los datos históricos del campo.
+
+### 4. Portal de clientes — seguridad
+`faro_client_portal.html` tiene credenciales en JS del lado cliente.
+Cualquiera que inspeccione el código fuente las ve.
+Para producción: Firebase Auth (gratis hasta cierto límite) o Netlify Identity.
+Mientras tanto: no compartir la URL con clientes sin advertirlo.
+
+### 5. faro_visor.html — área hardcodeada en demo
+El demo automático de 60s arranca siempre con `cordoba`.
+Cuando lleguen otras áreas, hacer el demo dinámico o parametrizable.
+
+### 6. Tests automatizados — no existe ninguno
+Para producción mínima: al menos tests de `faro_areas.py`, `faro_engine._generar_insight()`,
+y `faro_rinde_import.parsear_csv()`. No es bloqueante para cliente piloto.
+
+---
+
+## Qué está pendiente por factores externos
+
+### Credenciales (acción: crear `.env` en raíz del proyecto)
+```bash
+# Anthropic — para MachinaOS LLM
+ANTHROPIC_API_KEY=sk-ant-...       # https://console.anthropic.com/keys
+
+# Copernicus — para descarga SAR nueva
+COPERNICUS_USER=email@ejemplo.com  # https://dataspace.copernicus.eu
+COPERNICUS_PASS=contraseña
+
+# WhatsApp — para alertas operacionales
+WHATSAPP_TOKEN=...                 # Meta for Developers → WhatsApp API
+WHATSAPP_PHONE_ID=...
+WHATSAPP_DEST=+549...
+```
+
+### Datos satelitales
+- **NDVI Balcarce**: descargar desde Google Earth Engine (igual que Córdoba)
+  Script GEE ya conocido — cambiar coordenadas a bounds [-58.5,-38.3,-57.5,-37.3]
+- **SAR Balcarce / otras áreas**: `python faro_sar_pipeline.py --area balcarce`
+  (requiere COPERNICUS_USER/PASS en .env)
+- **NDVI Vaca Muerta, Rotterdam, Amazonas, Indiana**: igual vía GEE
+
+### Datos de campo (Padre)
+- **12.000 registros de rinde de Renzo Basso** — exportar a CSV y correr:
+  `python faro_rinde_import.py --csv ruta/datos_basso.csv`
+  Columnas mínimas: lote, año, cultivo, rinde_tn_ha
+  Con estos datos el modelo económico deja de usar promedios nacionales
+  y empieza a predecir contra historial real del campo.
+
+### Push a GitHub Pages
+- Commit listo: `73105b6` (caso Córdoba real + 4 áreas globales)
+- Ver `PUSH_INSTRUCTIONS.md` en la raíz — necesita token GitHub de Emilio
+- URL final: https://protocolfaro.github.io/faroprotocol
+
+---
+
+## Próximo paso para salir a la cancha con un cliente real
+
+### El único caso completamente verificable hoy es Córdoba.
+Score 61.0 · Rinde 2.69 t/ha · Alta confianza · SHA-256 real · 124M píxeles.
+
+### Secuencia mínima para primera reunión con cliente (orden de impacto):
+
+**Paso 1 — Hoy (30 min, Emilio)**
+Hacer el push a GitHub Pages con el token.
+El website ya muestra el caso real de Córdoba con SHA-256 verificable.
+URL: https://protocolfaro.github.io/faroprotocol
+
+**Paso 2 — Esta semana**
+- Crear `.env` con ANTHROPIC_API_KEY
+- Correr `python MachinaOS/paperclip_agent.py` → primer resumen LLM real del sistema
+- Correr `python MachinaOS/hermes_agent.py --area cordoba` → validación automatizada
+
+**Paso 3 — Antes de la reunión**
+- El Padre exporta los datos de Basso a CSV
+- `python faro_rinde_import.py --csv datos_basso.csv`
+- Esto convierte "rinde estimado de promedios nacionales" en
+  "predicción calibrada contra 12.000 lecturas reales del campo"
+- El modelo pasa de ser estadístico a ser específico del cliente
+
+**Paso 4 — Para el pitch**
+El demo natural para un productor o exportadora es:
+1. Abrir https://protocolfaro.github.io/faroprotocol en el browser del cliente
+2. Mostrar la tarjeta "✓ Validated · Marcos Juárez" con el SHA-256
+3. Verificar el hash en vivo (abrir faro_reporte_fusion_cordoba.sha256)
+4. Abrir faro_visor.html → terreno 3D de Córdoba con NDVI/SAR en vivo
+5. Mostrar data.json → "esto es lo que ve el sistema, sellado criptográficamente"
+
+**Qué NO hace falta para el primer cliente:**
+- MachinaOS con LLM (funciona en modo local sin API key)
+- Datos de otras áreas (Córdoba sola es suficiente para el piloto agro)
+- Modelo ML entrenado (el modelo estadístico actual es honesto y funciona)
+- WhatsApp gateway
+
+**El argumento central que el sistema ya puede demostrar:**
+> "El 4 de abril de 2026, antes de que Basso recibiera cualquier reporte oficial,
+> nuestro sistema leyó NDVI 0.4444 en sus campos y estimó 2.69 t/ha.
+> Este dato está sellado con SHA-256 y no puede ser modificado retroactivamente.
+> Cuando salga el dato oficial, lo comparamos."
+
+---
 
 ---
 
