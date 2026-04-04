@@ -10,6 +10,8 @@ El repositorio ya tiene los commits listos. Solo falta autenticarte en GitHub y 
 Rama    : master
 Remote  : https://github.com/protocolfaro/faroprotocol.git
 Commits pendientes de push:
+  8d189cf  fix: limpiar datos ficticios del website
+  f5f6e7c  docs: estado final del dia + roadmap cliente real en CLAUDE.md
   73105b6  feat: caso real Córdoba en web + 4 áreas globales preparadas
   b76359c  fix: bugs auditoria + limpieza archivos redundantes
 ```
