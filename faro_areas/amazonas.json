@@ -1,0 +1,10 @@
+{
+  "name": "amazonas",
+  "label": "Pará, Brasil",
+  "vertical": "agro",
+  "polygon": "POLYGON((-52.5 -4.0,-51.5 -4.0,-51.5 -3.0,-52.5 -3.0,-52.5 -4.0))",
+  "bounds": [-52.5, -4.0, -51.5, -3.0],
+  "ndvi_tif": "FaroProtocol_NDVI_limpio_Amazonas.tif",
+  "sar_output": "sar_amazonas_georef.tif",
+  "report_png": "faro_reporte_fusion_amazonas.png"
+}

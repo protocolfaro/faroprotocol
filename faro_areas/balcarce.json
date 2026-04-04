@@ -2,8 +2,8 @@
   "name": "balcarce",
   "label": "Balcarce, Buenos Aires, Argentina",
   "vertical": "agro",
-  "polygon": "POLYGON((-58.5 -38.5,-57.5 -38.5,-57.5 -37.5,-58.5 -37.5,-58.5 -38.5))",
-  "bounds": [-58.5, -38.5, -57.5, -37.5],
+  "polygon": "POLYGON((-58.5 -38.3,-57.5 -38.3,-57.5 -37.3,-58.5 -37.3,-58.5 -38.3))",
+  "bounds": [-58.5, -38.3, -57.5, -37.3],
   "ndvi_tif": "FaroProtocol_NDVI_limpio_Balcarce.tif",
   "sar_output": "sar_balcarce_georef.tif",
   "report_png": "faro_reporte_fusion_balcarce.png"

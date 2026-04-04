@@ -485,7 +485,7 @@ footer{padding:32px 48px;border-top:1px solid var(--border);display:flex;align-i
     <div style="position:absolute;bottom:0;left:0;right:0;height:220px;background:linear-gradient(to bottom,transparent,var(--bg));"></div>
     <div style="position:absolute;top:0;left:0;right:0;height:90px;background:linear-gradient(to top,transparent,rgba(6,8,11,0.6));"></div>
     <div class="sar-scan"></div>
-    <div class="sar-lbl">SENTINEL-1 IW GRD<br>SAR+OPTICAL FUSION<br>03:14:02 UTC<br>VV+VH &middot; 10m res<br><br>FUSION STATUS: &check; OK<br>PASS #38,291</div>
+    <div class="sar-lbl">SENTINEL-1 IW GRD<br>SAR+OPTICAL FUSION<br>2026-04-04 &middot; VV<br>MARCOS JU&Aacute;REZ, C&Oacute;RDOBA<br><br>FUSION STATUS: &check; OK<br>SHA: 88f26daf83831fda&hellip;</div>
   </div>
 
   <!-- Fusion badge -->
@@ -500,7 +500,7 @@ footer{padding:32px 48px;border-top:1px solid var(--border);display:flex;align-i
   <div class="data-chips">
     <div class="chip"><div class="chip-lbl" data-en="Vaca Muerta &middot; Live" data-es="Vaca Muerta &middot; En vivo">Vaca Muerta &middot; Live</div><div class="chip-val" id="data-vm-prod">1,020K bbl/d</div><div class="chip-d up" id="data-vm-delta">&uarr; +3.8% 7d</div></div>
     <div class="chip"><div class="chip-lbl" data-en="Lithium Puna &middot; Record" data-es="Litio Puna &middot; R&eacute;cord">Lithium Puna &middot; Record</div><div class="chip-val" id="data-li-conc">942 mg/L</div><div class="chip-d up" id="data-li-delta">&uarr; +8.1% 7d</div></div>
-    <div class="chip"><div class="chip-lbl" data-en="FARO-ARG Score" data-es="Score FARO-ARG">FARO-ARG Score</div><div class="chip-val" id="data-faro-score">72 / 100</div><div class="chip-d up">LOW RISK</div></div>
+    <div class="chip"><div class="chip-lbl" data-en="Marcos Ju&aacute;rez &middot; Pilot" data-es="Marcos Ju&aacute;rez &middot; Piloto">Marcos Ju&aacute;rez &middot; Pilot</div><div class="chip-val" id="data-faro-score">61.0 / 100</div><div class="chip-d up">NDVI 0.44 &middot; 2.69 t/ha</div></div>
   </div>
 
   <div class="hero-content">
@@ -676,9 +676,17 @@ footer{padding:32px 48px;border-top:1px solid var(--border);display:flex;align-i
         </div>
         <div class="pc-hash">sha256:1c7bf042a3d8e91b · #881,891</div>
       </div>
-      <div class="pc locked" onclick="smoothTo('access')">
-        <div class="pc-lock-overlay"><div class="plo-ico">🔒</div><div class="plo-title" data-en="Real-time data" data-es="Datos en tiempo real">Real-time data</div><div class="plo-sub" data-en="Subscribe to unlock live readings" data-es="Suscribite para desbloquear lecturas en vivo">Subscribe to unlock live readings</div><button class="plo-btn" data-en="View plans →" data-es="Ver planes →">View plans →</button></div>
-        <div class="pc-sector">🌾 Agriculture · Pampas</div><div class="pc-hl">Stock +2.3%</div>
+      <div class="pc">
+        <div class="pc-chk">✅</div>
+        <div class="pc-top"><span class="badge b-ok" data-en="✓ Validated" data-es="✓ Validado">✓ Validated</span><span class="pc-days"><span class="badge b-free" data-en="PILOT" data-es="PILOTO">PILOT</span></span></div>
+        <div class="pc-sector" data-en="🌾 Agro &middot; Marcos Ju&aacute;rez, C&oacute;rdoba" data-es="🌾 Agro &middot; Marcos Ju&aacute;rez, C&oacute;rdoba">🌾 Agro &middot; Marcos Ju&aacute;rez, C&oacute;rdoba</div>
+        <div class="pc-hl" data-en="Yield est. 2.69 t/ha &middot; Score 61.0" data-es="Rinde est. 2.69 t/ha &middot; Score 61.0">Yield est. 2.69 t/ha &middot; Score 61.0</div>
+        <div class="pc-date" data-en="SAR: Apr 04, 2026 &middot; 124M px &middot; Alta confianza" data-es="SAR: 04 Abr, 2026 &middot; 124M px &middot; Alta confianza">SAR: Apr 04, 2026 &middot; 124M px &middot; Alta confianza</div>
+        <div class="pc-cmp">
+          <div class="pcc sat"><div class="pcc-lbl" data-en="🛰 NDVI (Sentinel-2)" data-es="🛰 NDVI (Sentinel-2)">🛰 NDVI (Sentinel-2)</div><div class="pcc-val">0.4444</div></div>
+          <div class="pcc off"><div class="pcc-lbl" data-en="📡 Fusion Index" data-es="📡 &Iacute;ndice Fusi&oacute;n">📡 Fusion Index</div><div class="pcc-val">0.6935</div></div>
+        </div>
+        <div class="pc-hash">sha256:88f26daf83831fda &middot; Marcos Ju&aacute;rez 2026-04-04</div>
       </div>
       <div class="pc locked" onclick="smoothTo('access')">
         <div class="pc-lock-overlay"><div class="plo-ico">🔒</div><div class="plo-title" data-en="Subscriber access" data-es="Acceso suscriptores">Subscriber access</div><div class="plo-sub" data-en="Full archive · 247 readings" data-es="Historial completo · 247 lecturas">Full archive · 247 readings</div><button class="plo-btn" data-en="Unlock →" data-es="Desbloquear →">Unlock →</button></div>
@@ -909,12 +917,13 @@ function setLang(l){
 window.addEventListener('scroll',()=>{document.getElementById('nav').classList.toggle('scrolled',scrollY>60);});
 function smoothTo(id){document.getElementById(id)?.scrollIntoView({behavior:'smooth'});}
 function buildTicker(){
-  const items=['FARO INDEX · PHYSICAL TRUTH','SAR+OPTICAL FUSION · ACTIVE','ENERGY 1.02M BBL/D · +3.8%','PAMPAS 48.2M TON · +1.2%','ATLANTIC FLEET 322 VESSELS','LITHIUM 942MG/L · +8.1%','CHAIN HEIGHT 8,491 · VERIFIED','IPFS · 10 NODES ACTIVE','247 READINGS · 98.2% ACCURACY','BECAUSE EARTH DOES NOT LIE'];
+  const items=['FARO INDEX · PHYSICAL TRUTH','SAR+OPTICAL FUSION · ACTIVE','MARCOS JUÁREZ · NDVI 0.4444 · VALIDATED','CÓRDOBA PILOT · RINDE 2.69 T/HA · ALTA CONFIANZA','SENTINEL-1 VV · SAR 19.1 DB · 124M PX','FUSION INDEX 0.6935 · SHA-256 SEALED','ENERGY 1.02M BBL/D · +3.8%','LITHIUM 942MG/L · +8.1%','CHAIN HEIGHT 8,491 · VERIFIED','BECAUSE EARTH DOES NOT LIE'];
   const all=[...items,...items];
   document.getElementById('tickerEl').innerHTML=all.map(i=>`<span class="ti">${i}<span style="opacity:0.3;padding:0 8px;">··</span></span>`).join('');
 }
 const CHAIN=[
-  {h:8491,s:'Energy',d:'Vaca Muerta +3.8%',t:'03:14',latest:true},
+  {h:8492,s:'Agro',d:'Marcos Juárez · NDVI 0.44 · 2.69 t/ha',t:'18:57',latest:true},
+  {h:8491,s:'Energy',d:'Vaca Muerta +3.8%',t:'03:14'},
   {h:8490,s:'Agro',d:'Pampas stock +1.2%',t:'21:08'},
   {h:8489,s:'Mining',d:'Lithium Puna record',t:'09:21'},
   {h:8488,s:'Fishing',d:'Atlantic fleet -4.1%',t:'15:44'},

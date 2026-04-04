@@ -1,0 +1,10 @@
+{
+  "name": "indiana",
+  "label": "Corn Belt, Indiana, EE.UU.",
+  "vertical": "agro",
+  "polygon": "POLYGON((-87.0 39.7,-86.0 39.7,-86.0 40.7,-87.0 40.7,-87.0 39.7))",
+  "bounds": [-87.0, 39.7, -86.0, 40.7],
+  "ndvi_tif": "FaroProtocol_NDVI_limpio_Indiana.tif",
+  "sar_output": "sar_indiana_georef.tif",
+  "report_png": "faro_reporte_fusion_indiana.png"
+}

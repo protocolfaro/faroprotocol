@@ -1,0 +1,10 @@
+{
+  "name": "rotterdam",
+  "label": "Puerto Rotterdam, Países Bajos",
+  "vertical": "energia",
+  "polygon": "POLYGON((4.1 51.8,4.7 51.8,4.7 52.0,4.1 52.0,4.1 51.8))",
+  "bounds": [4.1, 51.8, 4.7, 52.0],
+  "ndvi_tif": "FaroProtocol_NDVI_limpio_Rotterdam.tif",
+  "sar_output": "sar_rotterdam_georef.tif",
+  "report_png": "faro_reporte_fusion_rotterdam.png"
+}
