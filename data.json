@@ -1,7 +1,7 @@
 {
   "_meta": {
     "nota": "Generado automaticamente por faro_engine.py",
-    "generado_en": "2026-04-04 18:59",
+    "generado_en": "2026-04-04 23:31",
     "generado_por": "faro_engine.py",
     "protocolo": "Cero Footprint v1"
   },
@@ -18,14 +18,14 @@
   },
   "faro_arg_score": "72 / 100",
   "pipeline": {
-    "ultimo_run": "2026-04-04 18:59",
+    "ultimo_run": "2026-04-04 23:31",
     "cordoba": {
       "estado": "OK",
       "ndvi_medio": 0.4444,
       "sar_medio_db": 19.149,
       "indice_fusion_medio": 0.6935,
-      "sha256": "88f26daf83831fda...",
-      "ultimo_run": "2026-04-04 18:59",
+      "sha256": "0cee2545dd3eac40...",
+      "ultimo_run": "2026-04-04 23:31",
       "pixeles_analizados": 124066152,
       "score_faro": 61.0,
       "rinde_estimado_tha": 2.69,
@@ -33,18 +33,32 @@
       "pct_anomalia": 0.0
     },
     "vaca_muerta": {
-      "estado": null,
+      "estado": "PENDIENTE_DATOS",
       "ndvi_medio": null,
       "sar_medio_db": null,
       "indice_fusion_medio": null,
-      "sha256": null
+      "sha256": null,
+      "ultimo_run": "2026-04-04 23:20"
     },
     "balcarce": {
-      "estado": null,
+      "estado": "PENDIENTE_DATOS",
       "ndvi_medio": null,
       "sar_medio_db": null,
       "indice_fusion_medio": null,
-      "sha256": null
+      "sha256": null,
+      "ultimo_run": "2026-04-04 23:20"
+    },
+    "amazonas": {
+      "estado": "PENDIENTE_DATOS",
+      "ultimo_run": "2026-04-04 23:20"
+    },
+    "indiana": {
+      "estado": "PENDIENTE_DATOS",
+      "ultimo_run": "2026-04-04 23:20"
+    },
+    "rotterdam": {
+      "estado": "PENDIENTE_DATOS",
+      "ultimo_run": "2026-04-04 23:20"
     }
   },
   "_interno": {
@@ -55,18 +69,18 @@
       "pixeles_analizados": 124066152,
       "pct_anomalia": 0.0,
       "reporte_png": "faro_reporte_fusion_cordoba.png",
-      "sha256_completo": "88f26daf83831fdad89dd8379eee258f9d63d6336551f45d258297929f2e6291",
+      "sha256_completo": "0cee2545dd3eac40491a280005f2cdb5ee61b93e81ef73df8d1604e236fd03cd",
       "tiene_sar": true,
       "tiene_ndvi": true,
       "tiene_vision": false,
-      "ultimo_run": "2026-04-04 18:59"
+      "ultimo_run": "2026-04-04 23:31"
     }
   },
   "insights": {
     "cordoba": {
       "zona": "Marcos Juárez, Córdoba, Argentina",
       "vertical": "agro",
-      "fecha": "2026-04-04 18:59",
+      "fecha": "2026-04-04 23:31",
       "rinde_estimado_tha": 2.69,
       "indice_actividad": null,
       "score_faro": 61.0,
@@ -74,12 +88,124 @@
       "estado": "OK",
       "alerta": null,
       "pct_anomalia": 0.0,
-      "sha256_reporte": "88f26daf83831fda..."
+      "sha256_reporte": "0cee2545dd3eac40..."
+    },
+    "amazonas": {
+      "zona": "Cuiabá / Sorriso, Mato Grosso, Brasil",
+      "vertical": "deforestacion",
+      "fecha": "2026-04-04 23:20",
+      "rinde_estimado_tha": null,
+      "indice_actividad": null,
+      "score_faro": null,
+      "confianza": "—",
+      "estado": "PENDIENTE_DATOS",
+      "alerta": null,
+      "pct_anomalia": null,
+      "sha256_reporte": "—",
+      "center": [
+        -3.5,
+        -52.0
+      ],
+      "bounds": [
+        -52.5,
+        -4.0,
+        -51.5,
+        -3.0
+      ]
+    },
+    "balcarce": {
+      "zona": "Balcarce, Buenos Aires, Argentina",
+      "vertical": "agro",
+      "fecha": "2026-04-04 23:20",
+      "rinde_estimado_tha": null,
+      "indice_actividad": null,
+      "score_faro": null,
+      "confianza": "—",
+      "estado": "PENDIENTE_DATOS",
+      "alerta": null,
+      "pct_anomalia": null,
+      "sha256_reporte": "—",
+      "center": [
+        -37.8,
+        -58.0
+      ],
+      "bounds": [
+        -58.5,
+        -38.3,
+        -57.5,
+        -37.3
+      ]
+    },
+    "indiana": {
+      "zona": "Corn Belt, Indiana, EE.UU.",
+      "vertical": "agro",
+      "fecha": "2026-04-04 23:20",
+      "rinde_estimado_tha": null,
+      "indice_actividad": null,
+      "score_faro": null,
+      "confianza": "—",
+      "estado": "PENDIENTE_DATOS",
+      "alerta": null,
+      "pct_anomalia": null,
+      "sha256_reporte": "—",
+      "center": [
+        40.2,
+        -86.5
+      ],
+      "bounds": [
+        -87.0,
+        39.7,
+        -86.0,
+        40.7
+      ]
+    },
+    "rotterdam": {
+      "zona": "Puerto Rotterdam, Países Bajos",
+      "vertical": "energia",
+      "fecha": "2026-04-04 23:20",
+      "rinde_estimado_tha": null,
+      "indice_actividad": null,
+      "score_faro": null,
+      "confianza": "—",
+      "estado": "PENDIENTE_DATOS",
+      "alerta": null,
+      "pct_anomalia": null,
+      "sha256_reporte": "—",
+      "center": [
+        51.9,
+        4.4
+      ],
+      "bounds": [
+        4.1,
+        51.8,
+        4.7,
+        52.0
+      ]
+    },
+    "vaca_muerta": {
+      "zona": "Vaca Muerta, Neuquén, Argentina",
+      "vertical": "energia",
+      "fecha": "2026-04-04 23:20",
+      "rinde_estimado_tha": null,
+      "indice_actividad": null,
+      "score_faro": null,
+      "confianza": "—",
+      "estado": "PENDIENTE_DATOS",
+      "alerta": null,
+      "pct_anomalia": null,
+      "sha256_reporte": "—",
+      "center": null,
+      "bounds": [
+        -70.0,
+        -38.0,
+        -68.0,
+        -37.0
+      ]
     }
   },
   "resumen": {
-    "ultimo_run": "2026-04-04 18:59",
-    "areas_activas": 1,
+    "ultimo_run": "2026-04-04 23:31",
+    "areas_activas": 6,
     "score_promedio": 61.0,
     "estado_global": "OK",
     "areas_en_alerta": []

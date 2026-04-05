@@ -2,6 +2,8 @@
   "name": "balcarce",
   "label": "Balcarce, Buenos Aires, Argentina",
   "vertical": "agro",
+  "cultivo": "soja",
+  "center": [-37.8, -58.0],
   "polygon": "POLYGON((-58.5 -38.3,-57.5 -38.3,-57.5 -37.3,-58.5 -37.3,-58.5 -38.3))",
   "bounds": [-58.5, -38.3, -57.5, -37.3],
   "ndvi_tif": "FaroProtocol_NDVI_limpio_Balcarce.tif",

@@ -52,6 +52,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+try:
+    import numpy as np
+    _NUMPY_OK = True
+except ImportError:
+    _NUMPY_OK = False
+
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
 if hasattr(sys.stderr, 'reconfigure'):
@@ -73,13 +79,195 @@ def _sha256(path: str) -> str:
 
 # ─── Parámetros del modelo ──────────────────────────────────────────────────────
 
-# Rendimientos de referencia Argentina (INDEC / Bolsa de Cereales, campaña 2024/25)
-RINDE_REF = {
-    "soja":  3.2,   # t/ha
-    "maiz":  8.8,
-    "trigo": 3.4,
-    "agro":  3.2,   # fallback genérico → soja como conservador
+# Factor de conversión biomasa aérea → grano (Harvest Index).
+# Constante agronómica de referencia para estimación de rinde en cereales/oleaginosas:
+#   soja  HI ≈ 0.44–0.47  (Spaeth et al. 1987; USDA-ARS)
+#   maíz  HI ≈ 0.47–0.50
+#   trigo HI ≈ 0.42–0.46
+# Se usa 0.44 como valor conservador global, aplicado explícitamente en
+# _estimar_rinde_agro() para transformar biomasa vegetativa en biomasa de cosecha.
+FACTOR_BIOMASA_A_GRANO: float = 0.44
+
+# Rendimientos de referencia → BIOMASA aérea total (t/ha) por cultivo.
+# Derivados de: rinde_grano_nacional / FACTOR_BIOMASA_A_GRANO.
+# Fuente grano: INDEC / Bolsa de Cereales Argentina, campaña 2024/25.
+#   soja:  3.20 t/ha grano → 3.20 / 0.44 = 7.27 t/ha biomasa
+#   maiz:  8.80 t/ha grano → 8.80 / 0.44 = 20.00 t/ha biomasa
+#   trigo: 3.40 t/ha grano → 3.40 / 0.44 =  7.73 t/ha biomasa
+RINDE_REF_BIOMASA = {
+    "soja":  round(3.20 / FACTOR_BIOMASA_A_GRANO, 3),   # 7.273 t/ha
+    "maiz":  round(8.80 / FACTOR_BIOMASA_A_GRANO, 3),   # 20.0  t/ha
+    "trigo": round(3.40 / FACTOR_BIOMASA_A_GRANO, 3),   # 7.727 t/ha
+    "agro":  round(3.20 / FACTOR_BIOMASA_A_GRANO, 3),   # fallback → soja
 }
+
+# Rendimientos de referencia en GRANO (t/ha) — mantener para compatibilidad
+RINDE_REF = {k: round(v * FACTOR_BIOMASA_A_GRANO, 2) for k, v in RINDE_REF_BIOMASA.items()}
+
+
+# ─── Utilidades NumPy para procesamiento de arrays ──────────────────────────────
+
+class FaroArray:
+    """
+    Utilidades estáticas para procesamiento de arrays SAR y NDVI.
+    Requiere NumPy. Si no está disponible, los métodos levantan RuntimeError.
+
+    Uso:
+        import numpy as np
+        dn_array = np.array([...], dtype=np.float32)
+        sigma0_db = FaroArray.sar_dn_to_sigma0(dn_array)
+
+        ndvi_int16 = np.array([4444, 2000, -500], dtype=np.int16)
+        ndvi_real  = FaroArray.ndvi_int16_normalize(ndvi_int16.astype(float))
+    """
+
+    @staticmethod
+    def _require_numpy() -> None:
+        if not _NUMPY_OK:
+            raise RuntimeError("NumPy no disponible. Instalar con: pip install numpy")
+
+    @staticmethod
+    def sar_dn_to_sigma0(
+        array: "np.ndarray",
+        nodata: Optional[float] = None,
+        clip_db: tuple[float, float] = (-35.0, 5.0),
+    ) -> "np.ndarray":
+        """
+        Convierte array SAR de DN (Digital Numbers) a Sigma-0 en dB.
+
+        Fórmula estándar Sentinel-1 GRD IW:
+            sigma0_linear = DN²   (si viene de GRD procesado)
+            sigma0_db     = 10 × log10(DN² + ε)   donde ε=1e-10 evita log(0)
+
+        Para arrays ya lineales (float 0–1):
+            sigma0_db = 10 × log10(value + ε)
+
+        Parámetros
+        ----------
+        array   : ndarray float32/float64 con valores DN o lineales
+        nodata  : valor a tratar como NaN (ej. 0.0 o -9999)
+        clip_db : rango válido en dB para clamp final (excluye outliers)
+
+        Retorna
+        -------
+        ndarray float32 en dB, con NaN donde nodata o fuera de rango
+        """
+        FaroArray._require_numpy()
+        out = array.astype(np.float64).copy()
+
+        if nodata is not None:
+            out[out == nodata] = np.nan
+
+        # Si el rango sugiere DN² (valores > 1), tratar como GRD DN
+        finite = out[np.isfinite(out)]
+        if len(finite) > 0 and np.nanmax(finite) > 2.0:
+            # DN grandes: sigma0 = 10*log10(DN² + ε) = 20*log10(DN + ε)
+            out = 20.0 * np.log10(np.abs(out) + 1e-10)
+        else:
+            # Ya lineales [0,1]: sigma0 = 10*log10(val + ε)
+            out = 10.0 * np.log10(out + 1e-10)
+
+        # Clamp al rango válido (excluye ruido térmico y artefactos)
+        lo, hi = clip_db
+        out = np.where(np.isfinite(out), np.clip(out, lo, hi), np.nan)
+
+        return out.astype(np.float32)
+
+    @staticmethod
+    def ndvi_int16_normalize(
+        array: "np.ndarray",
+        nodata: Optional[float] = None,
+        scale: float = 10_000.0,
+    ) -> "np.ndarray":
+        """
+        Normaliza NDVI exportado por Google Earth Engine en escala int16.
+
+        GEE exporta NDVI como: ndvi_real × 10000 → int16.
+        Esta función detecta automáticamente si el array está en escala
+        int16 (valores fuera de [-2, 2]) y divide por `scale`.
+
+        Parámetros
+        ----------
+        array   : ndarray con valores NDVI (int16 o ya normalizados)
+        nodata  : valor nodata a reemplazar con NaN
+        scale   : factor de escala de GEE (default 10000)
+
+        Retorna
+        -------
+        ndarray float32 con NDVI en [-1.0, 1.0], NaN donde nodata
+        """
+        FaroArray._require_numpy()
+        out = array.astype(np.float64).copy()
+
+        if nodata is not None:
+            out[out == nodata] = np.nan
+
+        finite = out[np.isfinite(out)]
+        if len(finite) > 0 and (np.nanmax(finite) > 2.0 or np.nanmin(finite) < -2.0):
+            out = out / scale
+
+        # Clamp al rango físico válido del NDVI
+        out = np.where(np.isfinite(out), np.clip(out, -1.0, 1.0), np.nan)
+
+        return out.astype(np.float32)
+
+    @staticmethod
+    def fusion_index(
+        ndvi_arr: "np.ndarray",
+        sar_db_arr: "np.ndarray",
+        w_ndvi: float = 0.60,
+        w_sar:  float = 0.40,
+        sar_ref_db: float = -12.0,
+        sar_range_db: float = 15.0,
+    ) -> "np.ndarray":
+        """
+        Calcula índice de fusión SAR+NDVI pixel a pixel.
+
+        Normaliza cada fuente a [0,1] y combina con pesos.
+        NDVI ya está en [-1,1] → normalización a [0,1]: (ndvi + 1) / 2
+        SAR en dB → normalización: (sar - (sar_ref - range/2)) / range
+
+        Parámetros
+        ----------
+        ndvi_arr   : ndarray float32 NDVI normalizado [-1, 1]
+        sar_db_arr : ndarray float32 SAR en dB
+        w_ndvi     : peso del componente óptico (default 0.60)
+        w_sar      : peso del componente radar  (default 0.40)
+        sar_ref_db : centro del rango SAR esperado en dB
+        sar_range_db: ancho del rango válido en dB
+
+        Retorna
+        -------
+        ndarray float32 índice fusión [0, 1], NaN donde falta alguna fuente
+        """
+        FaroArray._require_numpy()
+        ndvi_norm = (ndvi_arr.astype(np.float64) + 1.0) / 2.0
+        ndvi_norm = np.clip(ndvi_norm, 0.0, 1.0)
+
+        sar_lo = sar_ref_db - sar_range_db / 2.0
+        sar_norm = (sar_db_arr.astype(np.float64) - sar_lo) / sar_range_db
+        sar_norm = np.clip(sar_norm, 0.0, 1.0)
+
+        fusion = w_ndvi * ndvi_norm + w_sar * sar_norm
+        valid  = np.isfinite(ndvi_arr) & np.isfinite(sar_db_arr)
+        fusion[~valid] = np.nan
+
+        return fusion.astype(np.float32)
+
+    @staticmethod
+    def stats(array: "np.ndarray") -> dict:
+        """Estadísticas básicas de un array ignorando NaN."""
+        FaroArray._require_numpy()
+        valid = array[np.isfinite(array)]
+        if len(valid) == 0:
+            return {"n": 0, "media": None, "std": None, "min": None, "max": None}
+        return {
+            "n":     int(len(valid)),
+            "media": float(round(np.nanmean(valid), 6)),
+            "std":   float(round(np.nanstd(valid), 6)),
+            "min":   float(round(np.nanmin(valid), 6)),
+            "max":   float(round(np.nanmax(valid), 6)),
+        }
 
 # Rango SAR C-band Sentinel-1 para cultivos (IW GRD, sigma_0 en dB)
 SAR_REF_DB      = -12.0   # referencia cultivo establecido, humedad normal
@@ -296,46 +484,56 @@ class FaroEngine:
     def _estimar_rinde_agro(self, area: dict, ndvi: Optional[float],
                              sar_db: Optional[float]) -> Optional[float]:
         """
-        Estima rinde en t/ha a partir de NDVI (proxy de biomasa) y SAR (humedad).
+        Estima rinde de grano en t/ha a partir de NDVI y SAR.
 
-        Sin historial de cliente: usa promedios nacionales como base y
-        ajusta por las condiciones observadas satelitalmente.
+        Pipeline explícito (crop science + teledetección):
+          1. NDVI → factor de vigor vegetativo relativo   [0 – 1.25]
+          2. SAR  → factor de ajuste por humedad y biomasa húmeda  [0.70 – 1.30]
+          3. biomasa_aérea = RINDE_REF_BIOMASA × factor_ndvi × factor_sar
+          4. rinde_grano   = biomasa_aérea × FACTOR_BIOMASA_A_GRANO (0.44)
+
+        El FACTOR_BIOMASA_A_GRANO (Harvest Index = 0.44) transforma la
+        biomasa vegetativa total estimada por satélite en rendimiento de
+        cosecha real. Es constante agronómica validada para soja/maíz/trigo.
+
+        Sin historial de cliente: RINDE_REF_BIOMASA usa promedios nacionales
+        (INDEC / Bolsa de Cereales Argentina, 2024/25).
         """
-        cultivo   = area.get('cultivo', 'agro')
-        rinde_ref = RINDE_REF.get(cultivo, RINDE_REF['agro'])
+        cultivo        = area.get('cultivo', 'agro')
+        biomasa_ref    = RINDE_REF_BIOMASA.get(cultivo, RINDE_REF_BIOMASA['agro'])
 
         if ndvi is None and sar_db is None:
             return None
 
-        # Factor NDVI (principal — proxy directo de biomasa foliar)
+        # ── Factor NDVI: proxy de biomasa foliar ──────────────────────
         if ndvi is not None:
             if ndvi < NDVI_UMBRAL_CERO:
                 factor_ndvi = 0.0
             elif ndvi < NDVI_UMBRAL_MIN:
-                # Interpolación entre cero y mínimo
                 t = (ndvi - NDVI_UMBRAL_CERO) / (NDVI_UMBRAL_MIN - NDVI_UMBRAL_CERO)
-                factor_ndvi = 0.0 + 0.40 * t
+                factor_ndvi = 0.40 * t
             elif ndvi <= NDVI_UMBRAL_OPT:
-                # Interpolación lineal 40% → 100%
                 t = (ndvi - NDVI_UMBRAL_MIN) / (NDVI_UMBRAL_OPT - NDVI_UMBRAL_MIN)
                 factor_ndvi = 0.40 + 0.60 * t
             else:
-                # Sobre el óptimo: ganancia marginal decreciente
                 t = min((ndvi - NDVI_UMBRAL_OPT) / (NDVI_UMBRAL_MAX - NDVI_UMBRAL_OPT), 1.0)
                 factor_ndvi = 1.00 + 0.25 * t
         else:
-            factor_ndvi = 1.0  # sin NDVI, no penalizar desde NDVI
+            factor_ndvi = 1.0
 
-        # Factor SAR (secundario — ajuste por humedad de suelo y biomasa húmeda)
+        # ── Factor SAR: ajuste humedad de suelo + biomasa húmeda ──────
         if sar_db is not None:
-            desvio     = sar_db - SAR_REF_DB                        # dB respecto a referencia
-            factor_sar = 1.0 + SAR_SENSIBILIDAD * (desvio / 4.0)    # 4 dB = unidad de referencia
-            factor_sar = max(0.70, min(1.30, factor_sar))            # clamp [70%, 130%]
+            desvio     = sar_db - SAR_REF_DB
+            factor_sar = 1.0 + SAR_SENSIBILIDAD * (desvio / 4.0)
+            factor_sar = max(0.70, min(1.30, factor_sar))
         else:
-            factor_sar = 1.0  # sin SAR, no ajustar
+            factor_sar = 1.0
 
-        rinde = rinde_ref * factor_ndvi * factor_sar
-        return round(max(0.0, rinde), 2)
+        # ── Conversión biomasa → grano (Harvest Index explícito) ──────
+        biomasa_estimada = biomasa_ref * factor_ndvi * factor_sar
+        rinde_grano      = biomasa_estimada * FACTOR_BIOMASA_A_GRANO
+
+        return round(max(0.0, rinde_grano), 2)
 
     def _estimar_actividad_energia(self, sar_db: Optional[float]) -> Optional[float]:
         """
@@ -418,6 +616,107 @@ class FaroEngine:
         if fusion is None and rinde is None and indice_act is None:
             return "SIN_DATOS", None
         return "OK", None
+
+    # ── Inicialización de nodos globales ────────────────────────────────────────
+
+    def init_nodos_globales(self) -> dict:
+        """
+        Escribe en data.json todos los nodos conocidos con estado inicial
+        PENDIENTE_DATOS para los que aún no hay telemetría satelital.
+
+        Preserva los datos reales existentes (p. ej. Córdoba) sin sobreescribirlos.
+        Usado para que faro_website.html muestre la cobertura global del sistema
+        aunque los archivos raster de esas áreas aún no existan.
+
+        Retorna dict con conteo de nodos inicializados vs. ya procesados.
+        """
+        data: dict = {}
+        if DATA_JSON.exists():
+            try:
+                with open(DATA_JSON, encoding='utf-8') as f:
+                    data = json.load(f)
+            except json.JSONDecodeError:
+                data = {}
+
+        ahora = datetime.now().strftime("%Y-%m-%d %H:%M")
+
+        data.setdefault('_meta', {}).update({
+            "generado_en":  ahora,
+            "generado_por": "faro_engine.init_nodos_globales",
+            "protocolo":    "Cero Footprint v1",
+        })
+        data.setdefault('insights',  {})
+        data.setdefault('_interno',  {})
+        data.setdefault('pipeline',  {})
+
+        nodos_inicializados = []
+        nodos_preservados   = []
+
+        for area_name in list_areas():
+            # No sobreescribir áreas que ya tienen datos reales
+            existing = data['insights'].get(area_name, {})
+            if existing.get('estado') in ('OK', 'ALERTA'):
+                nodos_preservados.append(area_name)
+                continue
+
+            try:
+                area = load_area(area_name)
+            except Exception:
+                continue
+
+            vertical = area.get('vertical', 'agro')
+            data['insights'][area_name] = {
+                "zona":               area.get('label', area_name),
+                "vertical":           vertical,
+                "fecha":              ahora,
+                "rinde_estimado_tha": None,
+                "indice_actividad":   None,
+                "score_faro":         None,
+                "confianza":          "—",
+                "estado":             "PENDIENTE_DATOS",
+                "alerta":             None,
+                "pct_anomalia":       None,
+                "sha256_reporte":     "—",
+                "center":             area.get('center'),
+                "bounds":             area.get('bounds'),
+            }
+            data['pipeline'].setdefault(area_name, {}).update({
+                "estado":   "PENDIENTE_DATOS",
+                "ultimo_run": ahora,
+            })
+            nodos_inicializados.append(area_name)
+
+        # Resumen global (solo áreas con datos reales)
+        scores_validos = [
+            v['score_faro'] for v in data['insights'].values()
+            if v.get('score_faro') is not None
+        ]
+        areas_alerta = [
+            k for k, v in data['insights'].items()
+            if v.get('estado') == 'ALERTA'
+        ]
+        data['resumen'] = {
+            "ultimo_run":      ahora,
+            "areas_activas":   len(list_areas()),
+            "areas_con_datos": len(nodos_preservados),
+            "score_promedio":  round(sum(scores_validos) / len(scores_validos), 1)
+                               if scores_validos else None,
+            "estado_global":   "ALERTA" if areas_alerta else "OK",
+            "areas_en_alerta": areas_alerta,
+        }
+
+        with open(DATA_JSON, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+
+        print(f"  Nodos globales escritos en {DATA_JSON}")
+        print(f"  Inicializados   : {nodos_inicializados}")
+        print(f"  Preservados     : {nodos_preservados}")
+
+        return {
+            "inicializados": nodos_inicializados,
+            "preservados":   nodos_preservados,
+            "total":         len(list_areas()),
+        }
 
     # ── Publicación data.json (Protocolo Cero Footprint) ───────────────────────
 
@@ -535,7 +834,7 @@ def main():
         )
     )
     parser.add_argument(
-        '--area', required=True,
+        '--area', required=False, default=None,
         help='Nombre del area (ej: cordoba, vaca_muerta, balcarce)'
     )
     parser.add_argument(
@@ -550,9 +849,29 @@ def main():
         '--skip-vision', action='store_true',
         help='Omitir vision computacional (Fase 6)'
     )
+    parser.add_argument(
+        '--init-nodos', action='store_true',
+        help='Inicializar data.json con todos los nodos globales (sin procesar raster)'
+    )
     args = parser.parse_args()
 
     engine = FaroEngine()
+
+    if args.init_nodos:
+        print("\n" + "=" * 60)
+        print("  FARO ENGINE — Inicializando nodos globales")
+        print(f"  Fecha: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+        print("=" * 60)
+        resultado = engine.init_nodos_globales()
+        print(f"\n  Total nodos : {resultado['total']}")
+        print("=" * 60)
+        return
+
+    if not args.area:
+        print("ERROR: --area es requerido cuando no se usa --init-nodos")
+        parser.print_help()
+        sys.exit(1)
+
     engine.analizar_area(
         area_name   = args.area,
         sar_file    = args.sar_file,

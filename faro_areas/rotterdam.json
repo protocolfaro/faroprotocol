@@ -2,6 +2,7 @@
   "name": "rotterdam",
   "label": "Puerto Rotterdam, Países Bajos",
   "vertical": "energia",
+  "center": [51.9, 4.4],
   "polygon": "POLYGON((4.1 51.8,4.7 51.8,4.7 52.0,4.1 52.0,4.1 51.8))",
   "bounds": [4.1, 51.8, 4.7, 52.0],
   "ndvi_tif": "FaroProtocol_NDVI_limpio_Rotterdam.tif",
