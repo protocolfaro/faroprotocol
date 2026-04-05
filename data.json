@@ -211,7 +211,7 @@
     "areas_en_alerta": []
   },
   "finance": {
-    "ultimo_update": "2026-04-05T00:09:56-03:00",
+    "ultimo_update": "2026-04-05T11:06:48-03:00",
     "precios": {
       "urea_usd_tn": 420.5,
       "brent_usd_bbl": 109.05,
@@ -226,16 +226,27 @@
     },
     "business_cases": {
       "cordoba": {
+        "country_code": "AR",
+        "country_name": "Argentina",
         "score_faro": 61.0,
-        "hectareas": 5000,
+        "hectareas": 5000.0,
         "ahorro_urea_ha": 5.6,
         "ahorro_combustible_ha": 7.29,
         "ahorro_multas_ha": 0.0,
         "ahorro_total_ha": 12.89,
         "ahorro_total_usd": 64450.0,
         "roi_x": 5.2,
-        "sha256_informe": "de6cac644a102a33004e432ed8665d97d85a46defa3138bf4a1393c34befa048",
-        "generado_en": "2026-04-05 00:09"
+        "sha256": "8db8e7ea6c8c153c23ac0c8fdbf191bfc1bdeb0496a6047c38493dc896f3982b",
+        "fecha": "2026-04-05T11:06:48-03:00"
+      }
+    },
+    "precios_globales": {
+      "urea_usd_tn": 420.5,
+      "brent_usd_bbl": 109.05,
+      "diesel_intl_usd_l": 0.8231,
+      "fuentes": {
+        "urea": "IndexMundi/Jun-2025",
+        "brent": "Yahoo/BZ=F"
       }
     }
   }

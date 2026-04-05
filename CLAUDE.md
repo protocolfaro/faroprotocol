@@ -1,13 +1,21 @@
 # FARO PROTOCOL — Guía para Claude Code
-> Última actualización: 2026-04-04 — V4 Estabilización en disco
+> Última actualización: 2026-04-05 — V5 Price Updater operativo
 > Arquitecto del sistema: Emilio (hijo)
 > Conocimiento de campo y contactos: Padre (fundador)
 
 ---
 
-## Estado del sistema — V4 (2026-04-04)
+## Estado del sistema — V5 (2026-04-05)
 
 ### Módulos nuevos / actualizados hoy
+| Módulo | Estado | Descripción |
+|--------|--------|-------------|
+| `faro_price_updater.py` | ✅ NUEVO | Precios reales de mercado (urea/Brent/USD-ARS) → `datos/faro_prices.json` → regenera BC |
+| `datos/faro_prices.json` | ✅ GENERADO | Urea 420.5/tn · Brent 109.05/bbl · USD/ARS 1415 · Diesel 0.823/L (2026-04-05) |
+| `datos/faro_prices_log.json` | ✅ ACTIVO | Historial semanal de precios (lunes 08:00 ART via `--daemon`) |
+| `data.json` | ✅ ACTUALIZADO | Sección `finance` con BC real Córdoba: ROI 5.2x · ahorro 12.89 USD/ha |
+
+### Módulos actualizados sesión anterior (V4 — 2026-04-04)
 | Módulo | Estado | Descripción |
 |--------|--------|-------------|
 | `faro_engine.py` | ✅ ACTUALIZADO | `FaroArray` NumPy, `FACTOR_BIOMASA_A_GRANO=0.44`, `init_nodos_globales()`, `--init-nodos` CLI |
@@ -24,14 +32,19 @@ RINDE_REF_BIOMASA soja  = 7.273 t/ha biomasa → × 0.44 = 3.2 t/ha grano
 rinde Córdoba (NDVI 0.4444, SAR 19.1 dB): 2.69 t/ha  ← preservado sin regresión
 ```
 
-### Business Case (faro_finance.py — Score 61 · 5000 ha · agro)
+### Business Case (faro_price_updater.py — Score 61 · 5000 ha · agro · precios reales 2026-04-05)
 ```
-Ahorro Urea         : USD   7.99 /ha/año
-Ahorro Combustible  : USD   7.69 /ha/año
-TOTAL               : USD  15.68 /ha/año  → USD 78.400/año para 5000 ha
+Urea mercado real   : USD 420.5/tn  (IndexMundi Jun-2025)
+Brent real          : USD 109.05/bbl  (Yahoo Finance BZ=F)
+Diesel proxy        : USD 0.823/L  (calculado)
+Combustible/ha real : USD 71.16/ha  (calculado)
+USD/ARS oficial     : 1415  (dolarapi)
+─────────────────────────────────────────────────────────
+Ahorro total        : USD  12.89 /ha/año  → USD 64.450/año para 5000 ha
 Costo servicio      : USD   2.50 /ha/año
-ROI                 : 6.3x
+ROI                 : 5.2x
 SHA-256 informe     : sellado en cada generación
+Próxima actualización: lunes 08:00 ART  (python faro_price_updater.py --daemon)
 ```
 
 ### Pipeline operativo (Córdoba)
