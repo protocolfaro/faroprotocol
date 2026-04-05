@@ -511,8 +511,7 @@ footer{padding:32px 48px;border-top:1px solid var(--border);display:flex;align-i
 
   <!-- Data chips -->
   <div class="data-chips">
-    <div class="chip"><div class="chip-lbl" data-en="Vaca Muerta &middot; Live" data-es="Vaca Muerta &middot; En vivo">Vaca Muerta &middot; Live</div><div class="chip-val" id="data-vm-prod">1,020K bbl/d</div><div class="chip-d up" id="data-vm-delta">&uarr; +3.8% 7d</div></div>
-    <div class="chip"><div class="chip-lbl" data-en="Lithium Puna &middot; Record" data-es="Litio Puna &middot; R&eacute;cord">Lithium Puna &middot; Record</div><div class="chip-val" id="data-li-conc">942 mg/L</div><div class="chip-d up" id="data-li-delta">&uarr; +8.1% 7d</div></div>
+    <div class="chip"><div class="chip-lbl" data-en="Balcarce &middot; Agro Pilot" data-es="Balcarce &middot; Piloto Agro">Balcarce &middot; Agro Pilot</div><div class="chip-val">NDVI 0.5328</div><div class="chip-d up">&uarr; Score 69.5</div></div>
     <div class="chip"><div class="chip-lbl" data-en="Marcos Ju&aacute;rez &middot; Pilot" data-es="Marcos Ju&aacute;rez &middot; Piloto">Marcos Ju&aacute;rez &middot; Pilot</div><div class="chip-val" id="data-faro-score">61.0 / 100</div><div class="chip-d up">NDVI 0.44 &middot; 2.69 t/ha</div></div>
   </div>
 
@@ -667,30 +666,6 @@ footer{padding:32px 48px;border-top:1px solid var(--border);display:flex;align-i
     <div class="pred-grid">
       <div class="pc">
         <div class="pc-chk">✅</div>
-        <div class="pc-top"><span class="badge b-ok" data-en="✓ Confirmed" data-es="✓ Confirmado">✓ Confirmed</span><span class="pc-days"><span class="badge b-free" data-en="FREE" data-es="GRATIS">FREE</span></span></div>
-        <div class="pc-sector" data-en="⚡ Energy · Vaca Muerta" data-es="⚡ Energía · Vaca Muerta">⚡ Energy · Vaca Muerta</div>
-        <div class="pc-hl" data-en="Production up +3.8%" data-es="Producción +3.8%">Production up +3.8%</div>
-        <div class="pc-date" data-en="Satellite: Jan 28 · Official: Mar 20" data-es="Satélite: 28 Ene · Oficial: 20 Mar">Satellite: Jan 28 · Official: Mar 20</div>
-        <div class="pc-cmp">
-          <div class="pcc sat"><div class="pcc-lbl" data-en="🛰 Our reading" data-es="🛰 Nuestra lectura">🛰 Our reading</div><div class="pcc-val">1,020K bbl/d</div></div>
-          <div class="pcc off"><div class="pcc-lbl" data-en="📄 Official" data-es="📄 Oficial">📄 Official</div><div class="pcc-val">1,018K bbl/d</div></div>
-        </div>
-        <div class="pc-hash">sha256:8f2e9a3b1c4d7e0f · #881,204</div>
-      </div>
-      <div class="pc">
-        <div class="pc-chk">✅</div>
-        <div class="pc-top"><span class="badge b-ok" data-en="✓ Confirmed" data-es="✓ Confirmado">✓ Confirmed</span><span class="pc-days"><span class="badge b-free" data-en="FREE" data-es="GRATIS">FREE</span></span></div>
-        <div class="pc-sector" data-en="⛏ Mining · Lithium Puna" data-es="⛏ Minería · Litio Puna">⛏ Mining · Lithium Puna</div>
-        <div class="pc-hl" data-en="Record concentration" data-es="Concentración récord">Record concentration</div>
-        <div class="pc-date" data-en="Satellite: Feb 01 · Official: Mar 20" data-es="Satélite: 01 Feb · Oficial: 20 Mar">Satellite: Feb 01 · Official: Mar 20</div>
-        <div class="pc-cmp">
-          <div class="pcc sat"><div class="pcc-lbl" data-en="🛰 Our reading" data-es="🛰 Nuestra lectura">🛰 Our reading</div><div class="pcc-val">942 mg/L</div></div>
-          <div class="pcc off"><div class="pcc-lbl" data-en="📄 Official" data-es="📄 Oficial">📄 Official</div><div class="pcc-val">938 mg/L</div></div>
-        </div>
-        <div class="pc-hash">sha256:1c7bf042a3d8e91b · #881,891</div>
-      </div>
-      <div class="pc">
-        <div class="pc-chk">✅</div>
         <div class="pc-top"><span class="badge b-ok" data-en="✓ Validated" data-es="✓ Validado">✓ Validated</span><span class="pc-days"><span class="badge b-free" data-en="PILOT" data-es="PILOTO">PILOT</span></span></div>
         <div class="pc-sector" data-en="🌾 Agro &middot; Marcos Ju&aacute;rez, C&oacute;rdoba" data-es="🌾 Agro &middot; Marcos Ju&aacute;rez, C&oacute;rdoba">🌾 Agro &middot; Marcos Ju&aacute;rez, C&oacute;rdoba</div>
         <div class="pc-hl" data-en="Yield est. 2.69 t/ha &middot; Score 61.0" data-es="Rinde est. 2.69 t/ha &middot; Score 61.0">Yield est. 2.69 t/ha &middot; Score 61.0</div>
@@ -699,7 +674,19 @@ footer{padding:32px 48px;border-top:1px solid var(--border);display:flex;align-i
           <div class="pcc sat"><div class="pcc-lbl" data-en="🛰 NDVI (Sentinel-2)" data-es="🛰 NDVI (Sentinel-2)">🛰 NDVI (Sentinel-2)</div><div class="pcc-val">0.4444</div></div>
           <div class="pcc off"><div class="pcc-lbl" data-en="📡 Fusion Index" data-es="📡 &Iacute;ndice Fusi&oacute;n">📡 Fusion Index</div><div class="pcc-val">0.6935</div></div>
         </div>
-        <div class="pc-hash">sha256:0cee2545dd3eac40 &middot; Marcos Ju&aacute;rez 2026-04-04</div>
+        <div class="pc-hash">sha256:88f26daf83831fda · Marcos Ju&aacute;rez 2026-04-04</div>
+      </div>
+      <div class="pc">
+        <div class="pc-chk">✅</div>
+        <div class="pc-top"><span class="badge b-ok" data-en="✓ Validated" data-es="✓ Validado">✓ Validated</span><span class="pc-days"><span class="badge b-free" data-en="PILOT" data-es="PILOTO">PILOT</span></span></div>
+        <div class="pc-sector" data-en="🌾 Agro &middot; Balcarce, Buenos Aires" data-es="🌾 Agro &middot; Balcarce, Buenos Aires">🌾 Agro &middot; Balcarce, Buenos Aires</div>
+        <div class="pc-hl" data-en="Yield est. 3.32 t/ha &middot; Score 69.5" data-es="Rinde est. 3.32 t/ha &middot; Score 69.5">Yield est. 3.32 t/ha &middot; Score 69.5</div>
+        <div class="pc-date" data-en="SAR: Mar 31, 2026 &middot; NDVI: Apr 05, 2026 &middot; Alta confianza" data-es="SAR: 31 Mar, 2026 &middot; NDVI: 05 Abr, 2026 &middot; Alta confianza">SAR: Mar 31, 2026 &middot; NDVI: Apr 05, 2026 &middot; Alta confianza</div>
+        <div class="pc-cmp">
+          <div class="pcc sat"><div class="pcc-lbl" data-en="🛰 NDVI (Sentinel-2)" data-es="🛰 NDVI (Sentinel-2)">🛰 NDVI (Sentinel-2)</div><div class="pcc-val">0.5328</div></div>
+          <div class="pcc off"><div class="pcc-lbl" data-en="📡 Fusion Index" data-es="📡 &Iacute;ndice Fusi&oacute;n">📡 Fusion Index</div><div class="pcc-val">0.7599</div></div>
+        </div>
+        <div class="pc-hash">sha256:c8d0f74837a5b79d · Balcarce 2026-04-05</div>
       </div>
       <div class="pc locked" onclick="smoothTo('access')">
         <div class="pc-lock-overlay"><div class="plo-ico">🔒</div><div class="plo-title" data-en="Coming soon" data-es="Pr&oacute;ximamente">Coming soon</div><div class="plo-sub" data-en="Vaca Muerta &middot; Energy pilot" data-es="Vaca Muerta &middot; Piloto energ&iacute;a">Vaca Muerta &middot; Energy pilot</div><button class="plo-btn" onclick="smoothTo('access')" data-en="Request access &rarr;" data-es="Solicitar acceso &rarr;">Request access &rarr;</button></div>
@@ -715,10 +702,10 @@ footer{padding:32px 48px;border-top:1px solid var(--border);display:flex;align-i
       </div>
     </div>
     <div class="accuracy">
-      <div class="acc-num" id="data-accuracy">61.0</div>
-      <div style="flex:1;"><div style="font-family:var(--mono);font-size:7px;color:var(--w4);letter-spacing:0.15em;text-transform:uppercase;margin-bottom:7px;" data-en="Faro Score &middot; Marcos Ju&aacute;rez, C&oacute;rdoba &middot; April 04, 2026" data-es="Score Faro &middot; Marcos Ju&aacute;rez, C&oacute;rdoba &middot; 04 de abril, 2026">Faro Score &middot; Marcos Ju&aacute;rez, C&oacute;rdoba &middot; April 04, 2026</div><div class="acc-tr"><div class="acc-fill" id="data-acc-fill" style="width:61%"></div></div></div>
-      <div class="acc-note" data-en="Reading anchored before official data. SHA-256 sealed. Cannot be edited retroactively. Independently verifiable." data-es="Lectura anclada antes del dato oficial. Sellado SHA-256. No puede editarse retroactivamente. Verificable de forma independiente.">Reading anchored before official data. SHA-256 sealed. Cannot be edited retroactively. Independently verifiable.</div>
-      <div class="acc-ct"><div class="acc-ct-val" id="pred-count">1</div><div class="acc-ct-lbl" data-en="Validated pilot reading" data-es="Lectura piloto validada">Validated pilot reading</div></div>
+      <div class="acc-num" id="data-accuracy">69.5</div>
+      <div style="flex:1;"><div style="font-family:var(--mono);font-size:7px;color:var(--w4);letter-spacing:0.15em;text-transform:uppercase;margin-bottom:7px;" data-en="Best Score &middot; Balcarce, Buenos Aires &middot; April 05, 2026" data-es="Mejor Score &middot; Balcarce, Buenos Aires &middot; 05 de abril, 2026">Best Score &middot; Balcarce, Buenos Aires &middot; April 05, 2026</div><div class="acc-tr"><div class="acc-fill" id="data-acc-fill" style="width:69.5%"></div></div></div>
+      <div class="acc-note" data-en="Readings anchored before official data. SHA-256 sealed. Cannot be edited retroactively. Independently verifiable." data-es="Lecturas ancladas antes del dato oficial. Sellado SHA-256. No puede editarse retroactivamente. Verificable de forma independiente.">Readings anchored before official data. SHA-256 sealed. Cannot be edited retroactively. Independently verifiable.</div>
+      <div class="acc-ct"><div class="acc-ct-val" id="pred-count">2</div><div class="acc-ct-lbl" data-en="Validated pilot readings" data-es="Lecturas piloto validadas">Validated pilot readings</div></div>
     </div>
   </div>
 </section>
@@ -1072,7 +1059,8 @@ function buildChain(){
   }).join('');
 }
 const EVIDENCE_CASES=[
-  {week:'PILOT · 2026',event:'Marcos Juárez · Córdoba Agro',our_reading:'NDVI 0.4444 · Yield 2.69 t/ha',our_time:'Sat Apr 04 · 18:57 UTC',official:'Pending field validation — Q2 2026',advantage:'Sealed first',hash:'0cee2545dd3eac40491a280005f2cdb5',confirmed:true,sector:'🌾'}
+  {week:'PILOT · 2026',event:'Marcos Juárez · Córdoba Agro',our_reading:'NDVI 0.4444 · Yield 2.69 t/ha',our_time:'Sat Apr 04 · 18:57 UTC',official:'Pending field validation — Q2 2026',advantage:'Sealed first',hash:'88f26daf83831fdad89dd837',confirmed:true,sector:'🌾'},
+  {week:'PILOT · 2026',event:'Balcarce · Buenos Aires Agro',our_reading:'NDVI 0.5328 · Yield 3.32 t/ha',our_time:'Sat Apr 05 · 15:52 UTC',official:'Pending field validation — Q2 2026',advantage:'Sealed first',hash:'c8d0f74837a5b79d1144d1e4',confirmed:true,sector:'🌾'},
 ];
 function buildEvidenceFeed(){
   const el=document.getElementById('evidence-feed');if(!el)return;
