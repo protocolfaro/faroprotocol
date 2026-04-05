@@ -60,9 +60,10 @@ nav.scrolled{background:rgba(6,8,11,0.96);border-bottom:1px solid var(--border);
 @keyframes bl{0%,100%{opacity:1}50%{opacity:0.4}}
 .ns-txt{font-family:var(--mono);font-size:8px;letter-spacing:0.08em;}
 .ns-txt.green{color:#3db870;}.ns-txt.amber{color:#c8881a;}.ns-txt.red{color:#b03030;}
-.lang-tog{display:flex;border:1px solid var(--border);}
-.lb{padding:6px 11px;background:transparent;color:var(--gp);font-family:var(--mono);font-size:8px;border:none;cursor:pointer;letter-spacing:0.1em;transition:all 0.2s;}
-.lb.act{background:var(--gold);color:var(--bg);font-weight:700;}
+.lang-tog{display:flex;border:2px solid var(--border2);border-radius:3px;background:rgba(201,168,76,0.08);overflow:hidden;}
+.lb{padding:9px 18px;background:transparent;color:var(--w);font-family:var(--mono);font-size:11px;font-weight:600;border:none;cursor:pointer;letter-spacing:0.16em;transition:all 0.2s;}
+.lb:hover{background:rgba(201,168,76,0.12);color:var(--gold);}
+.lb.act{background:var(--gold);color:var(--bg);font-weight:800;}
 .nav-cta{padding:8px 20px;border:1px solid var(--gold);background:transparent;color:var(--gold);font-family:var(--sans);font-size:10px;font-weight:500;letter-spacing:0.14em;text-transform:uppercase;cursor:pointer;transition:all 0.3s;}
 .nav-cta:hover{background:var(--gold);color:var(--bg);}
 
@@ -358,25 +359,36 @@ nav.scrolled{background:rgba(6,8,11,0.96);border-bottom:1px solid var(--border);
 .sk-d{font-family:var(--mono);font-size:8px;color:var(--w4);display:flex;gap:6px;}
 .sk-d::before{content:'→';color:var(--gold);flex-shrink:0;}
 
-/* PRICING */
-.price-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);margin-top:40px;}
-.pcard{background:var(--bg2);padding:24px 20px;position:relative;transition:background 0.3s;}
-.pcard:hover{background:var(--bg3);}
-.pcard.feat{background:var(--g3);border:1px solid var(--border2);}
-.pcard.feat::before{content:'';position:absolute;top:-1px;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);}
-.feat-tag{position:absolute;top:-9px;left:50%;transform:translateX(-50%);padding:2px 10px;background:var(--gold);color:var(--bg);font-family:var(--mono);font-size:6px;letter-spacing:0.15em;font-weight:700;text-transform:uppercase;white-space:nowrap;}
-.p-target{font-family:var(--mono);font-size:7px;color:var(--gp);letter-spacing:0.15em;text-transform:uppercase;margin-bottom:10px;}
-.p-price{font-family:var(--serif);font-size:42px;font-weight:300;color:var(--gold);font-style:italic;line-height:1;margin-bottom:2px;}
-.p-period{font-family:var(--mono);font-size:7px;color:var(--w4);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:16px;}
-.p-div{height:1px;background:var(--border);margin-bottom:14px;}
-.p-features{display:flex;flex-direction:column;gap:7px;margin-bottom:18px;}
-.pf{display:flex;gap:7px;font-size:11px;font-weight:300;color:var(--w3);line-height:1.4;}
-.pf::before{content:'—';color:var(--gp);flex-shrink:0;font-size:10px;}
-.pf.no::before{content:'—';color:rgba(242,237,228,0.07);}
-.pf.no{color:rgba(242,237,228,0.16);}
-.p-cta{width:100%;padding:10px;font-family:var(--sans);font-size:10px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;cursor:pointer;transition:all 0.3s;border:none;}
-.p-cta.pr{background:var(--gold);color:var(--bg);}.p-cta.pr:hover{background:var(--gl);}
-.p-cta.se{background:transparent;color:var(--w3);border:1px solid var(--border);}.p-cta.se:hover{border-color:var(--gold);color:var(--gold);}
+/* PRICING CALCULATOR */
+.calc-wrap{margin-top:40px;display:grid;grid-template-columns:1fr 360px;gap:1px;background:var(--border);align-items:start;}
+.calc-steps{background:var(--bg2);padding:36px 32px;display:flex;flex-direction:column;gap:28px;}
+.calc-step-hd{margin-bottom:12px;}
+.calc-step-num{font-family:var(--mono);font-size:7px;color:var(--gp);letter-spacing:0.22em;text-transform:uppercase;margin-bottom:5px;}
+.calc-step-title{font-family:var(--sans);font-size:10px;font-weight:600;color:var(--w);letter-spacing:0.13em;text-transform:uppercase;}
+.copt{display:flex;align-items:flex-start;gap:12px;padding:13px 16px;border:1px solid var(--border);cursor:pointer;transition:all 0.18s;margin-bottom:6px;user-select:none;}
+.copt:last-child{margin-bottom:0;}
+.copt.sel{border-color:var(--border2);background:var(--gd);}
+.copt:hover:not(.sel){border-color:var(--gp);background:var(--w5);}
+.copt-radio{width:10px;height:10px;border-radius:50%;border:1px solid var(--gp);flex-shrink:0;margin-top:2px;display:flex;align-items:center;justify-content:center;transition:border-color 0.18s;}
+.copt.sel .copt-radio{border-color:var(--gold);}
+.copt.sel .copt-radio::after{content:'';width:5px;height:5px;border-radius:50%;background:var(--gold);display:block;}
+.copt-body{flex:1;}
+.copt-name{font-size:12px;font-weight:400;color:var(--w);line-height:1.3;}
+.copt-sub{font-family:var(--mono);font-size:8px;color:var(--w4);margin-top:3px;letter-spacing:0.06em;}
+.copt-badge{font-family:var(--mono);font-size:8px;color:var(--w4);letter-spacing:0.08em;white-space:nowrap;align-self:center;flex-shrink:0;padding:3px 8px;border:1px solid var(--border);transition:all 0.18s;}
+.copt.sel .copt-badge{color:var(--gold);border-color:var(--border2);}
+.calc-divider{height:1px;background:var(--border);}
+.calc-result-panel{background:var(--g3);border:1px solid var(--border2);padding:36px 28px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;position:sticky;top:80px;}
+.calc-result-panel::before{content:'';position:absolute;top:-1px;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);}
+.calc-res-lbl{font-family:var(--mono);font-size:7px;color:var(--w4);letter-spacing:0.22em;text-transform:uppercase;}
+.calc-total{font-family:var(--serif);font-size:48px;font-weight:300;color:var(--gold);font-style:italic;line-height:1.1;transition:all 0.3s;}
+.calc-total-sub{font-family:var(--mono);font-size:7px;color:var(--w4);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:6px;}
+.calc-breakdown{width:100%;display:flex;flex-direction:column;gap:4px;padding:14px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);}
+.calc-br-row{display:flex;justify-content:space-between;font-family:var(--mono);font-size:8px;color:var(--w4);letter-spacing:0.04em;}
+.calc-br-row.tot{color:var(--w3);}
+.calc-cta{width:100%;padding:14px;background:var(--gold);color:var(--bg);font-family:var(--sans);font-size:10px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;border:none;cursor:pointer;transition:all 0.3s;margin-top:4px;}
+.calc-cta:hover{background:var(--gl);}
+.calc-note{font-family:var(--mono);font-size:7px;color:var(--w4);letter-spacing:0.06em;line-height:1.6;}
 
 /* TESTIMONIALS */
 .testi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);margin-top:40px;}
@@ -434,7 +446,8 @@ footer{padding:32px 48px;border-top:1px solid var(--border);display:flex;align-i
   .hero-content{padding:96px 0 60px;}
   .hero-bar{flex-wrap:wrap;}
   .hbi{flex:0 0 50%;border-bottom:1px solid var(--border);}
-  .fusion-bar,.pred-grid,.how-steps,.price-grid,.testi-grid,.stack-grid,.brief-grid{grid-template-columns:1fr;}
+  .fusion-bar,.pred-grid,.how-steps,.testi-grid,.stack-grid,.brief-grid{grid-template-columns:1fr;}
+  .calc-wrap{grid-template-columns:1fr;}.calc-result-panel{position:static;}
   .proof-grid,.sector-panel.act{grid-template-columns:1fr;}
   .sec,.brief-sec,.stack-sec,.cap-sec,.fusion-sec{padding:56px 20px;}
   .cap-form{flex-direction:column;}
@@ -779,63 +792,110 @@ footer{padding:32px 48px;border-top:1px solid var(--border);display:flex;align-i
 <section class="sec bg2 reveal" id="pricing">
   <div class="sec-inner">
     <div class="sec-lbl" data-en="Access" data-es="Acceso">Access</div>
-    <h2 class="sec-h2"><span data-en="One subscription." data-es="Una suscripción.">One subscription.</span><br><em data-en="An edge that compounds." data-es="Una ventaja que se acumula.">An edge that compounds.</em></h2>
-    <p style="font-size:13px;font-weight:300;color:var(--w3);max-width:480px;margin-top:8px;line-height:1.8;" data-en="The value is not in the data. It is in receiving it 48 hours before the market." data-es="El valor no está en el dato. Está en recibirlo 48 horas antes que el mercado.">The value is not in the data. It is in receiving it 48 hours before the market.</p>
-    <div class="price-grid">
-      <div class="pcard">
-        <div class="p-target" data-en="Observer · Banks" data-es="Observer · Bancos">Observer · Banks</div>
-        <div class="p-price">$2,500</div><div class="p-period" data-en="per month" data-es="por mes">per month</div>
-        <div class="p-div"></div>
-        <div class="p-features">
-          <div class="pf" data-en="Composite index · 48h delay" data-es="Índice compuesto · 48h retraso">Composite index · 48h delay</div>
-          <div class="pf" data-en="2 sectors of choice" data-es="2 sectores a elección">2 sectors of choice</div>
-          <div class="pf" data-en="Weekly Intelligence Brief PDF" data-es="PDF Brief semanal">Weekly Intelligence Brief PDF</div>
-          <div class="pf no" data-en="Real-time API" data-es="API tiempo real">Real-time API</div>
-          <div class="pf no" data-en="Fusion status alerts" data-es="Alertas estado fusión">Fusion status alerts</div>
+    <h2 class="sec-h2"><span data-en="Configure your access." data-es="Configurá tu acceso.">Configure your access.</span><br><em data-en="Price updates as you choose." data-es="El precio se actualiza mientras elegís.">Price updates as you choose.</em></h2>
+    <p style="font-size:13px;font-weight:300;color:var(--w3);max-width:520px;margin-top:8px;line-height:1.8;" data-en="Three decisions. One number. No hidden fees." data-es="Tres decisiones. Un número. Sin cargos ocultos.">Three decisions. One number. No hidden fees.</p>
+
+    <div class="calc-wrap">
+      <!-- LEFT: Steps -->
+      <div class="calc-steps">
+
+        <!-- Step 1 -->
+        <div>
+          <div class="calc-step-hd">
+            <div class="calc-step-num" data-en="Step 01" data-es="Paso 01">Step 01</div>
+            <div class="calc-step-title" data-en="How many sectors do you need?" data-es="¿Cuántos sectores necesitás?">How many sectors do you need?</div>
+          </div>
+          <div class="copt sel" data-opt="coverage" data-val="one" onclick="selectOpt(this)">
+            <div class="copt-radio"></div>
+            <div class="copt-body">
+              <div class="copt-name" data-en="One sector of choice" data-es="1 sector a elección">One sector of choice</div>
+              <div class="copt-sub" data-en="Agro · Energy · Mining · Fishing" data-es="Agro · Energía · Minería · Pesca">Agro · Energy · Mining · Fishing</div>
+            </div>
+            <div class="copt-badge" id="badge-one">—</div>
+          </div>
+          <div class="copt" data-opt="coverage" data-val="all" onclick="selectOpt(this)">
+            <div class="copt-radio"></div>
+            <div class="copt-body">
+              <div class="copt-name" data-en="All sectors" data-es="Todos los sectores">All sectors</div>
+              <div class="copt-sub" data-en="Full global coverage · all verticals" data-es="Cobertura global completa · todas las verticales">Full global coverage · all verticals</div>
+            </div>
+            <div class="copt-badge" id="badge-all">—</div>
+          </div>
         </div>
-        <button class="p-cta se" data-en="Start Observer →" data-es="Empezar Observer →" onclick="signup('Observer')">Start Observer →</button>
-      </div>
-      <div class="pcard feat">
-        <div class="feat-tag" data-en="MOST REQUESTED" data-es="MÁS SOLICITADO">MOST REQUESTED</div>
-        <div class="p-target" data-en="Analyst · Funds" data-es="Analyst · Fondos">Analyst · Funds</div>
-        <div class="p-price">$5,000</div><div class="p-period" data-en="per month" data-es="por mes">per month</div>
-        <div class="p-div"></div>
-        <div class="p-features">
-          <div class="pf" data-en="All 4 sectors · Real-time" data-es="4 sectores · Tiempo real">All 4 sectors · Real-time</div>
-          <div class="pf" data-en="Full API + WebSocket stream" data-es="API completa + WebSocket">Full API + WebSocket stream</div>
-          <div class="pf" data-en="Daily FARO-ARG risk score" data-es="Score FARO-ARG diario">Daily FARO-ARG risk score</div>
-          <div class="pf" data-en="Fusion status alerts (Yellow/Red)" data-es="Alertas fusión (Amarillo/Rojo)">Fusion status alerts (Yellow/Red)</div>
-          <div class="pf" data-en="5-year historical archive" data-es="Historial 5 años">5-year historical archive</div>
-          <div class="pf" data-en="FPP cryptographic verification" data-es="Verificación criptográfica FPP">FPP cryptographic verification</div>
+
+        <div class="calc-divider"></div>
+
+        <!-- Step 2 -->
+        <div>
+          <div class="calc-step-hd">
+            <div class="calc-step-num" data-en="Step 02" data-es="Paso 02">Step 02</div>
+            <div class="calc-step-title" data-en="How do you need the data?" data-es="¿Cómo necesitás los datos?">How do you need the data?</div>
+          </div>
+          <div class="copt sel" data-opt="delivery" data-val="48h" onclick="selectOpt(this)">
+            <div class="copt-radio"></div>
+            <div class="copt-body">
+              <div class="copt-name" data-en="48h delay" data-es="Con 48h de delay">48h delay</div>
+              <div class="copt-sub" data-en="Weekly digest · PDF report · API access" data-es="Digest semanal · Reporte PDF · Acceso API">Weekly digest · PDF report · API access</div>
+            </div>
+            <div class="copt-badge" data-en="included" data-es="incluido">included</div>
+          </div>
+          <div class="copt" data-opt="delivery" data-val="rt" onclick="selectOpt(this)">
+            <div class="copt-radio"></div>
+            <div class="copt-body">
+              <div class="copt-name" data-en="Real-time stream" data-es="Tiempo real">Real-time stream</div>
+              <div class="copt-sub" data-en="WebSocket API · live alerts · fusion status" data-es="API WebSocket · alertas en vivo · estado fusión">WebSocket API · live alerts · fusion status</div>
+            </div>
+            <div class="copt-badge" id="badge-rt">—</div>
+          </div>
         </div>
-        <button class="p-cta pr" data-en="Start Analyst →" data-es="Empezar Analyst →" onclick="signup('Analyst')">Start Analyst →</button>
-      </div>
-      <div class="pcard">
-        <div class="p-target" data-en="Sovereign · Governments" data-es="Sovereign · Gobiernos">Sovereign · Governments</div>
-        <div class="p-price">$9,500</div><div class="p-period" data-en="per month" data-es="por mes">per month</div>
-        <div class="p-div"></div>
-        <div class="p-features">
-          <div class="pf" data-en="Everything in Analyst" data-es="Todo lo de Analyst">Everything in Analyst</div>
-          <div class="pf" data-en="White-label deployment" data-es="Despliegue white-label">White-label deployment</div>
-          <div class="pf" data-en="Weekly executive reports" data-es="Informes ejecutivos semanales">Weekly executive reports</div>
-          <div class="pf" data-en="99.9% SLA guaranteed" data-es="SLA 99.9% garantizado">99.9% SLA guaranteed</div>
-          <div class="pf" data-en="24/7 dedicated support" data-es="Soporte dedicado 24/7">24/7 dedicated support</div>
+
+        <div class="calc-divider"></div>
+
+        <!-- Step 3 -->
+        <div>
+          <div class="calc-step-hd">
+            <div class="calc-step-num" data-en="Step 03" data-es="Paso 03">Step 03</div>
+            <div class="calc-step-title" data-en="What certification level do you need?" data-es="¿Qué nivel de certificación necesitás?">What certification level do you need?</div>
+          </div>
+          <div class="copt sel" data-opt="cert" data-val="0" onclick="selectOpt(this)">
+            <div class="copt-radio"></div>
+            <div class="copt-body">
+              <div class="copt-name" data-en="Internal analysis only" data-es="Solo análisis interno">Internal analysis only</div>
+              <div class="copt-sub" data-en="Standard delivery · no audit trail required" data-es="Entrega estándar · sin trazabilidad requerida">Standard delivery · no audit trail required</div>
+            </div>
+            <div class="copt-badge" data-en="included" data-es="incluido">included</div>
+          </div>
+          <div class="copt" data-opt="cert" data-val="30" onclick="selectOpt(this)">
+            <div class="copt-radio"></div>
+            <div class="copt-body">
+              <div class="copt-name" data-en="Verified — SHA-256 + FPP" data-es="Verified — SHA-256 + FPP">Verified — SHA-256 + FPP</div>
+              <div class="copt-sub" data-en="Cryptographic seal · immutable timestamp · audit log" data-es="Sello criptográfico · timestamp inmutable · log de auditoría">Cryptographic seal · immutable timestamp · audit log</div>
+            </div>
+            <div class="copt-badge">+30%</div>
+          </div>
+          <div class="copt" data-opt="cert" data-val="60" onclick="selectOpt(this)">
+            <div class="copt-radio"></div>
+            <div class="copt-body">
+              <div class="copt-name" data-en="Legal Grade — GDPR compliant" data-es="Legal Grade — GDPR compliant">Legal Grade — GDPR compliant</div>
+              <div class="copt-sub" data-en="Legal validity · GDPR compliant · court-admissible evidence" data-es="Validez legal · GDPR compliant · evidencia admisible">Legal validity · GDPR compliant · court-admissible evidence</div>
+            </div>
+            <div class="copt-badge">+60%</div>
+          </div>
         </div>
-        <button class="p-cta se" data-en="Contact Sales →" data-es="Contactar Ventas →" onclick="signup('Sovereign')">Contact Sales →</button>
+
+      </div><!-- /calc-steps -->
+
+      <!-- RIGHT: Live result -->
+      <div class="calc-result-panel" style="position:relative;">
+        <div class="calc-res-lbl" data-en="MONTHLY ACCESS" data-es="ACCESO MENSUAL">MONTHLY ACCESS</div>
+        <div class="calc-total" id="calcTotal">—</div>
+        <div class="calc-total-sub" data-en="/ month · billed annually" data-es="/ mes · facturación anual">/ month · billed annually</div>
+        <div class="calc-breakdown" id="calcBreakdown"></div>
+        <button class="calc-cta" data-en="Request access →" data-es="Solicitar acceso →" onclick="calcRequest()">Request access →</button>
+        <div class="calc-note" data-en="No commitment required. Response within 24h." data-es="Sin compromiso. Respondemos en 24hs.">No commitment required. Response within 24h.</div>
       </div>
-      <div class="pcard">
-        <div class="p-target" data-en="Enterprise · Corporates" data-es="Enterprise · Empresas">Enterprise · Corporates</div>
-        <div class="p-price">$1,800</div><div class="p-period" data-en="per sector / month" data-es="por sector / mes">per sector / month</div>
-        <div class="p-div"></div>
-        <div class="p-features">
-          <div class="pf" data-en="1 sector of choice" data-es="1 sector a elección">1 sector of choice</div>
-          <div class="pf" data-en="Regional benchmarking" data-es="Benchmarking regional">Regional benchmarking</div>
-          <div class="pf" data-en="Monthly Intelligence Brief" data-es="Brief mensual">Monthly Intelligence Brief</div>
-          <div class="pf no" data-en="Real-time streaming" data-es="Streaming tiempo real">Real-time streaming</div>
-        </div>
-        <button class="p-cta se" data-en="Start Enterprise →" data-es="Empezar Enterprise →" onclick="signup('Enterprise')">Start Enterprise →</button>
-      </div>
-    </div>
+
+    </div><!-- /calc-wrap -->
   </div>
 </section>
 
@@ -913,6 +973,60 @@ footer{padding:32px 48px;border-top:1px solid var(--border);display:flex;align-i
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 'use strict';
+
+// ── Pricing calculator ────────────────────────────────────────────────────────
+// Internal rendering matrix — do not modify
+const _S=(()=>{const _m='eyJhIjoyNTAwLCJiIjo5MDAwLCJjIjoyMDAwLCJkIjozMCwiZSI6NjB9';return JSON.parse(atob(_m));})();
+// Decoded at runtime: sector-one base, all-sectors base, realtime add, cert-v%, cert-l%
+
+function selectOpt(el){
+  const opt=el.dataset.opt;
+  document.querySelectorAll(`.copt[data-opt="${opt}"]`).forEach(o=>o.classList.remove('sel'));
+  el.classList.add('sel');
+  updateCalc();
+}
+
+function _fmtUSD(n){return'USD '+n.toLocaleString('en-US');}
+
+function updateCalc(){
+  const cov=document.querySelector('.copt[data-opt="coverage"].sel');
+  const del=document.querySelector('.copt[data-opt="delivery"].sel');
+  const cer=document.querySelector('.copt[data-opt="cert"].sel');
+  if(!cov||!del||!cer)return;
+
+  const base=cov.dataset.val==='all'?_S.b:_S.a;
+  const rtAdd=del.dataset.val==='rt'?_S.c:0;
+  const certPct=parseInt(cer.dataset.val)||0;
+  const subtotal=base+rtAdd;
+  const certAdd=Math.round(subtotal*certPct/100);
+  const total=subtotal+certAdd;
+
+  const el=document.getElementById('calcTotal');
+  if(el){el.textContent=_fmtUSD(total);el.style.transform='scale(1.04)';setTimeout(()=>el.style.transform='',200);}
+
+  // Breakdown lines
+  const bd=document.getElementById('calcBreakdown');
+  if(bd){
+    const isEs=lang==='es';
+    let rows=`<div class="calc-br-row"><span>${isEs?'Base':'Base'}</span><span>${_fmtUSD(base)}</span></div>`;
+    if(rtAdd)rows+=`<div class="calc-br-row"><span>${isEs?'Tiempo real':'Real-time'}</span><span>+${_fmtUSD(rtAdd)}</span></div>`;
+    if(certAdd)rows+=`<div class="calc-br-row"><span>${isEs?'Certificación':'Certification'} +${certPct}%</span><span>+${_fmtUSD(certAdd)}</span></div>`;
+    rows+=`<div class="calc-br-row tot" style="margin-top:4px;padding-top:8px;border-top:1px solid var(--border);"><span>TOTAL</span><span>${_fmtUSD(total)}</span></div>`;
+    bd.innerHTML=rows;
+  }
+
+  // Badge labels for obfuscated base prices
+  const b1=document.getElementById('badge-one');if(b1)b1.textContent=_fmtUSD(_S.a);
+  const ba=document.getElementById('badge-all');if(ba)ba.textContent=_fmtUSD(_S.b);
+  const br=document.getElementById('badge-rt'); if(br)br.textContent='+'+_fmtUSD(_S.c);
+
+  // Store plan for signup
+  window._calcPlan=`${cov.dataset.val==='all'?'AllSectors':'OneSector'}_${del.dataset.val}_cert${certPct}`;
+}
+
+function calcRequest(){signup(window._calcPlan||'Custom');smoothTo('access');}
+
+// ── Language ──────────────────────────────────────────────────────────────────
 let lang='en';
 function setLang(l){
   lang=l;
@@ -923,6 +1037,7 @@ function setLang(l){
   if(ei)ei.placeholder=l==='es'?'tu@institucion.com':'your@institution.com';
   const active=document.querySelector('.snav.act');
   if(active)setSector(active,active.getAttribute('data-sec'));
+  updateCalc();
 }
 window.addEventListener('scroll',()=>{document.getElementById('nav').classList.toggle('scrolled',scrollY>60);});
 function smoothTo(id){document.getElementById(id)?.scrollIntoView({behavior:'smooth'});}
@@ -1159,11 +1274,13 @@ function init(){
   setSector(document.querySelector('.snav.act'),'energy');
   setInterval(rotateChain,10000);setInterval(tick,4000);setInterval(updateEIACountdown,60000);
   updateEIACountdown();
+  updateCalc();
 }
 window.addEventListener('DOMContentLoaded',init);
 window.setLang=setLang;window.setSector=setSector;
 window.doSignup=doSignup;window.signup=signup;
 window.smoothTo=smoothTo;window.downloadBrief=downloadBrief;
+window.selectOpt=selectOpt;window.calcRequest=calcRequest;window.updateCalc=updateCalc;
 </script>
 
 <!-- FARO PROTOCOL — Valores dinamicos desde data.json (actualizado por faro_pipeline.py) -->
