@@ -66,10 +66,38 @@ if hasattr(sys.stderr, 'reconfigure'):
 # ─── Rutas ────────────────────────────────────────────────────────────────────
 PROJECT_ROOT = Path(__file__).parent
 DATOS_DIR    = PROJECT_ROOT / 'datos'
+LOGS_DIR     = PROJECT_ROOT / 'logs'
 PRICES_FILE  = DATOS_DIR / 'faro_prices.json'
 LOG_FILE     = DATOS_DIR / 'faro_prices_log.json'
+RUN_LOG_FILE = LOGS_DIR  / 'price_updater.log'
 DATA_JSON    = PROJECT_ROOT / 'data.json'
 AREAS_DIR    = PROJECT_ROOT / 'faro_areas'
+
+# ─── Logging persistente ──────────────────────────────────────────────────────
+import logging
+
+def _setup_logging() -> None:
+    """Configura logging a archivo + stdout. Rota cuando supera 1 MB."""
+    LOGS_DIR.mkdir(exist_ok=True)
+    from logging.handlers import RotatingFileHandler
+    root = logging.getLogger('faro_price_updater')
+    root.setLevel(logging.INFO)
+    if root.handlers:
+        return  # ya configurado (evita duplicados en APScheduler)
+    fmt = logging.Formatter('%(asctime)s [%(levelname)s] %(message)s',
+                            datefmt='%Y-%m-%d %H:%M:%S')
+    # Handler a archivo (rota a 1 MB, guarda 3 backups)
+    fh = RotatingFileHandler(RUN_LOG_FILE, maxBytes=1_000_000, backupCount=3,
+                             encoding='utf-8')
+    fh.setFormatter(fmt)
+    root.addHandler(fh)
+    # Handler a stdout (para ver en terminal también)
+    sh = logging.StreamHandler(sys.stdout)
+    sh.setFormatter(fmt)
+    root.addHandler(sh)
+
+_setup_logging()
+_log = logging.getLogger('faro_price_updater')
 
 # ─── Zona horaria ─────────────────────────────────────────────────────────────
 ART = timezone(timedelta(hours=-3))
@@ -1432,6 +1460,8 @@ def run_update() -> None:
       7. Paperclip notifica
     """
     t0 = datetime.now(ART)
+    _log.info("=" * 50)
+    _log.info("run_update iniciado")
     print("\n" + "=" * 62)
     print("  FARO PRICE UPDATER V2 — Global & Genérico")
     print(f"  {t0.strftime('%Y-%m-%d %H:%M:%S ART')}")
@@ -1505,6 +1535,13 @@ def run_update() -> None:
     duracion = (datetime.now(ART) - t0).total_seconds()
     PaperclipNotifier().notificar(gp, bundles, cases, duracion)
 
+    areas_ok = [n for n, c in cases.items() if c is not None and c.roi_x is not None]
+    _log.info(
+        f"run_update completado en {duracion:.1f}s — "
+        f"Urea {gp.urea_usd_tn} USD/tn · Brent {gp.brent_usd_bbl} USD/bbl · "
+        f"areas OK: {', '.join(areas_ok) if areas_ok else 'ninguna'}"
+    )
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # SCHEDULER  (APScheduler — lunes 08:00 ART)
@@ -1546,10 +1583,13 @@ def iniciar_scheduler() -> None:
     print(f"  Detener     : Ctrl+C")
     print("=" * 62)
 
+    _log.info("Scheduler iniciado — próxima ejecución: "
+              f"{proxima.strftime('%Y-%m-%d %H:%M %Z') if proxima else '?'}")
     try:
         scheduler.start()
     except (KeyboardInterrupt, SystemExit):
         print("\n  Scheduler detenido.")
+        _log.info("Scheduler detenido por usuario (KeyboardInterrupt)")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

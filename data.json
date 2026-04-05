@@ -219,7 +219,7 @@
     "areas_en_alerta": []
   },
   "finance": {
-    "ultimo_update": "2026-04-05T11:06:48-03:00",
+    "ultimo_update": "2026-04-05T16:18:15-03:00",
     "precios": {
       "urea_usd_tn": 420.5,
       "brent_usd_bbl": 109.05,
@@ -233,6 +233,20 @@
       }
     },
     "business_cases": {
+      "balcarce": {
+        "country_code": "AR",
+        "country_name": "Argentina",
+        "score_faro": 69.5,
+        "hectareas": 3000.0,
+        "ahorro_urea_ha": 7.87,
+        "ahorro_combustible_ha": 8.81,
+        "ahorro_multas_ha": 0.0,
+        "ahorro_total_ha": 16.68,
+        "ahorro_total_usd": 50040.0,
+        "roi_x": 6.7,
+        "sha256": "602d53bedaf520ff8a8a35506fa7e1c0b7ce6e7f0ea6f89b8d2d34261643448b",
+        "fecha": "2026-04-05T16:18:15-03:00"
+      },
       "cordoba": {
         "country_code": "AR",
         "country_name": "Argentina",
@@ -244,8 +258,8 @@
         "ahorro_total_ha": 12.89,
         "ahorro_total_usd": 64450.0,
         "roi_x": 5.2,
-        "sha256": "8db8e7ea6c8c153c23ac0c8fdbf191bfc1bdeb0496a6047c38493dc896f3982b",
-        "fecha": "2026-04-05T11:06:48-03:00"
+        "sha256": "eaa6ee2a9d5ed1e6c9e9a80ee88c2247553b7c2453a360f737050da35ae24f75",
+        "fecha": "2026-04-05T16:18:15-03:00"
       }
     },
     "precios_globales": {
