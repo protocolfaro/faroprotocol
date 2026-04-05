@@ -632,11 +632,10 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
           Access Dashboard →
         </button>
 
-        <div class="lc-divider"><span>demo access</span></div>
+        <div class="lc-divider"><span>institutional access only</span></div>
 
         <div class="lc-demo">
-          <strong>Try the demo:</strong> any email + password <span>faro2026</span><br>
-          Or use <span>analyst@demo.com</span> to see the <strong>Analyst</strong> plan view.
+          Don't have credentials? <a href="faro_website.html#access" style="color:var(--gold);text-decoration:none;">Request access →</a>
         </div>
       </div>
 
@@ -988,48 +987,89 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 <script>
 'use strict';
 
-// ── Demo accounts ─────────────────────────────────────────────
+// ── Accounts — PBKDF2-SHA256 (100,000 iterations) ─────────────
 // ══════════════════════════════════════════════════════════════════
 // FARO PROTOCOL — GESTIÓN DE ACCESOS
 // Para agregar un nuevo suscriptor:
-//   1. Generar contraseña: usar gen_pass() o https://passwordsgenerator.net
-//   2. Agregar línea: 'email@cliente.com': { name:'Nombre', plan:'Analyst', initials:'XX', pass:'CONTRASEÑA' },
-//   3. Mandar al cliente: URL + email + contraseña
-//   4. Para bloquear: borrar la línea y hacer commit
+//   1. Correr: python gen_portal_key.py <email> <contraseña>
+//   2. Copiar el bloque salt+hash que genera al dict de abajo
+//   3. NUNCA almacenar contraseñas en texto plano en este archivo
 // ══════════════════════════════════════════════════════════════════
 const ACCOUNTS = {
-  // Cuenta interna de demo (Faro Protocol)
-  'demo@faroprotocol.io': { name:'Faro Protocol', plan:'Analyst', initials:'FP', pass:'TvGTrf2ZiQ' },
-  // ── Agregar clientes abajo ────────────────────────────────────
-  // 'cliente@fondo.com': { name:'Nombre Institución', plan:'Analyst', initials:'XX', pass:'contraseña_unica' },
+  'demo@faroprotocol.io': {
+    name:'Faro Protocol', plan:'Analyst', initials:'FP',
+    salt:'bf1afdf031e7504ab9bcfec32943f2dc',
+    hash:'a2ba68ece61c1d64c8b773eafac74a52deb5e4a17f9aafb576b271485eb7d37c'
+  },
+  // ── Agregar clientes abajo (generados con gen_portal_key.py) ──
+  // 'cliente@fondo.com': { name:'Nombre Institución', plan:'Analyst', initials:'XX',
+  //   salt:'...', hash:'...' },
 };
-// DEMO_PASS eliminado — cada usuario tiene su propia contraseña
 let currentUser = null;
 
-// ── Login ─────────────────────────────────────────────────────
-function attemptLogin(){
-  const email = document.getElementById('loginEmail').value.trim().toLowerCase();
-  const pass  = document.getElementById('loginPass').value;
-  const err   = document.getElementById('loginError');
+// ── Auth helpers ───────────────────────────────────────────────
+const _MAX_ATTEMPTS=5, _LOCKOUT_MS=30*60*1000, _SESSION_MS=4*60*60*1000;
 
-  if(!email || !pass){ err.classList.add('show'); err.textContent='Please enter your email and access key.'; return; }
+function _getFA(){try{const d=JSON.parse(sessionStorage.getItem('_fa')||'{}');return{c:d.c||0,l:d.l||0};}catch(e){return{c:0,l:0};}}
+function _setFA(c,l){sessionStorage.setItem('_fa',JSON.stringify({c,l}));}
+function _h2u(hex){const b=new Uint8Array(hex.length/2);for(let i=0;i<hex.length;i+=2)b[i/2]=parseInt(hex.substr(i,2),16);return b;}
+function _u2h(buf){return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');}
 
-  // Verificar credenciales únicas — cada usuario tiene email + contraseña propia
-  const user = ACCOUNTS[email] || null;
-  if(!user || pass !== user.pass){
-    err.classList.add('show');
-    err.textContent='Invalid credentials. Contact your Faro Protocol account manager.';
-    return;
+async function _pbkdf2(password,saltHex){
+  const enc=new TextEncoder();
+  const km=await crypto.subtle.importKey('raw',enc.encode(password),'PBKDF2',false,['deriveBits']);
+  const bits=await crypto.subtle.deriveBits({name:'PBKDF2',salt:_h2u(saltHex),iterations:100000,hash:'SHA-256'},km,256);
+  return _u2h(bits);
+}
+
+// Session timeout checker (runs every 60s)
+function _checkSession(){
+  const exp=parseInt(sessionStorage.getItem('_fs')||'0');
+  if(exp&&Date.now()>exp&&currentUser){doLogout();showToast('Session expired. Please sign in again.');}
+}
+setInterval(_checkSession,60000);
+
+// ── Login (async PBKDF2) ───────────────────────────────────────
+async function attemptLogin(){
+  const email=document.getElementById('loginEmail').value.trim().toLowerCase();
+  const pass=document.getElementById('loginPass').value;
+  const err=document.getElementById('loginError');
+
+  if(!email||!pass){err.classList.add('show');err.textContent='Please enter your email and access key.';return;}
+
+  // Brute force protection
+  const {c:count,l:lockedUntil}=_getFA();
+  if(Date.now()<lockedUntil){
+    const mins=Math.ceil((lockedUntil-Date.now())/60000);
+    err.classList.add('show');err.textContent=`Too many attempts. Try again in ${mins} minute${mins>1?'s':''}.`;return;
   }
 
-  err.classList.remove('show');
-  currentUser = user;
+  const btn=document.getElementById('loginBtn');
+  btn.textContent='Verifying…';btn.disabled=true;btn.style.opacity='0.7';
 
-  // Animate button
-  const btn = document.getElementById('loginBtn');
-  btn.textContent = 'Verifying…';
-  btn.style.background = 'rgba(201,168,76,0.5)';
-  setTimeout(() => { enterDashboard(); }, 700);
+  const user=ACCOUNTS[email]||null;
+  // Always hash with a dummy salt when user not found (prevents email enumeration via timing)
+  const saltHex=user?user.salt:'a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0';
+  const computed=await _pbkdf2(pass,saltHex);
+
+  if(!user||computed!==user.hash){
+    const newCount=count+1;
+    const locked=newCount>=_MAX_ATTEMPTS?Date.now()+_LOCKOUT_MS:0;
+    _setFA(newCount,locked);
+    btn.textContent='Access Dashboard →';btn.disabled=false;btn.style.opacity='';
+    if(locked){err.textContent='Too many failed attempts. Access locked for 30 minutes.';}
+    else{const rem=_MAX_ATTEMPTS-newCount;err.textContent=`Invalid credentials. ${rem} attempt${rem!==1?'s':''} remaining.`;}
+    err.classList.add('show');return;
+  }
+
+  // Success
+  _setFA(0,0);
+  err.classList.remove('show');
+  currentUser={name:user.name,plan:user.plan,initials:user.initials};
+  sessionStorage.setItem('_fs',String(Date.now()+_SESSION_MS));
+
+  btn.style.background='rgba(201,168,76,0.5)';
+  setTimeout(()=>{btn.textContent='Access Dashboard →';btn.disabled=false;btn.style.opacity='';btn.style.background='';enterDashboard();},700);
 }
 
 function capitalize(s){ return s.charAt(0).toUpperCase() + s.slice(1); }
@@ -1068,6 +1108,7 @@ function enterDashboard(){
 
 // ── Logout ────────────────────────────────────────────────────
 function doLogout(){
+  sessionStorage.removeItem('_fs');
   document.getElementById('dashScreen').classList.remove('active');
   document.getElementById('loginScreen').classList.add('active');
   document.getElementById('loginPass').value = '';
@@ -1175,11 +1216,7 @@ function showToast(msg){
   setTimeout(() => t.classList.remove('show'), 4000);
 }
 
-// ── Auto-fill demo hint on focus ─────────────────────────────
-document.getElementById('loginPass').addEventListener('focus', () => {
-  if(!document.getElementById('loginEmail').value)
-    document.getElementById('loginEmail').value = 'analyst@demo.com';
-});
+// Auto-fill removed — no credentials exposed in client-side code
 </script>
 </body>
 </html>

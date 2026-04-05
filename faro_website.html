@@ -949,7 +949,7 @@ footer{padding:32px 48px;border-top:1px solid var(--border);display:flex;align-i
     </div>
     <div class="cap-note" data-en="Corporate email required (.com / .gov / .edu). First response within 24 hours." data-es="Email corporativo requerido (.com / .gov / .edu). Primera respuesta en 24 horas.">Corporate email required (.com / .gov / .edu). First response within 24 hours.</div>
     <div class="cap-stats">
-      <div class="cs"><div class="cs-val" id="sub-n">47</div><div class="cs-lbl" data-en="Active subscribers" data-es="Suscriptores activos">Active subscribers</div></div>
+      <div class="cs"><div class="cs-val">1</div><div class="cs-lbl" data-en="Pilot client (Córdoba)" data-es="Cliente piloto (Córdoba)">Pilot client (Córdoba)</div></div>
       <div class="cs"><div class="cs-val">$0</div><div class="cs-lbl" data-en="Setup fee" data-es="Costo de alta">Setup fee</div></div>
       <div class="cs"><div class="cs-val">24h</div><div class="cs-lbl" data-en="First response" data-es="Primera respuesta">First response</div></div>
       <div class="cs"><div class="cs-val">48h</div><div class="cs-lbl" data-en="Data advantage" data-es="Ventaja temporal">Data advantage</div></div>
@@ -967,6 +967,7 @@ footer{padding:32px 48px;border-top:1px solid var(--border);display:flex;align-i
     <a href="/cdn-cgi/l/email-protection#abc8c4c5dfcac8dfebcdcad9c4c2c5cfced385c2c4" class="footer-link"><span class="__cf_email__" data-cfemail="bdded2d3c9dcdec9fddbdccfd2d4d3d9d8c593d4d2">[email&#160;protected]</span></a>
   </div>
   <div class="footer-copy" data-en="© 2026 Faro Index · All data independently verifiable · Mar del Plata, Argentina" data-es="© 2026 Faro Index · Todos los datos verificables · Mar del Plata, Argentina">© 2026 Faro Index · All data independently verifiable · Mar del Plata, Argentina</div>
+  <div class="footer-copy" style="margin-top:8px;font-size:9px;opacity:0.5;max-width:680px;margin-left:auto;margin-right:auto;line-height:1.6;" data-en="Not financial advice. Satellite intelligence reports are for informational purposes only and do not constitute investment recommendations. Past satellite readings do not guarantee future accuracy. Faro Protocol complies with GDPR, LGPD, and Ley 25.326. Satellite imagery derived from Copernicus Sentinel data © ESA, licensed under CC BY 4.0. Non-Córdoba data shown as DEMO only — not operational." data-es="No constituye asesoramiento financiero. Los reportes de inteligencia satelital son solo informativos y no representan recomendaciones de inversión. Imágenes derivadas de datos Copernicus Sentinel © ESA, licencia CC BY 4.0. Datos fuera de Córdoba son DEMO — no operativos.">Not financial advice. Satellite intelligence reports are for informational purposes only and do not constitute investment recommendations. Past satellite readings do not guarantee future accuracy. Faro Protocol complies with GDPR, LGPD, and Ley 25.326. Satellite imagery derived from Copernicus Sentinel data © ESA, licensed under CC BY 4.0. Non-Córdoba data shown as DEMO only — not operational.</div>
 </footer>
 
 <div class="toast" id="toast"></div>
@@ -1042,24 +1043,34 @@ function setLang(l){
 window.addEventListener('scroll',()=>{document.getElementById('nav').classList.toggle('scrolled',scrollY>60);});
 function smoothTo(id){document.getElementById(id)?.scrollIntoView({behavior:'smooth'});}
 function buildTicker(){
-  const items=['FARO INDEX · PHYSICAL TRUTH','SAR+OPTICAL FUSION · ACTIVE','MARCOS JUÁREZ · NDVI 0.4444 · VALIDATED','CÓRDOBA PILOT · RINDE 2.69 T/HA · ALTA CONFIANZA','SENTINEL-1 VV · SAR 19.1 DB · 124M PX','FUSION INDEX 0.6935 · SHA-256 SEALED','ENERGY 1.02M BBL/D · +3.8%','LITHIUM 942MG/L · +8.1%','CHAIN HEIGHT 8,491 · VERIFIED','BECAUSE EARTH DOES NOT LIE'];
+  const items=['FARO INDEX · PHYSICAL TRUTH','SAR+OPTICAL FUSION · ACTIVE','MARCOS JUÁREZ · NDVI 0.4444 · VALIDATED','CÓRDOBA PILOT · RINDE 2.69 T/HA · ALTA CONFIANZA','SENTINEL-1 VV · SAR 19.1 DB · 124M PX','FUSION INDEX 0.6935 · SHA-256 SEALED','[DEMO] ENERGY · VACA MUERTA · PIPELINE EN DESARROLLO','[DEMO] LITHIUM · DATOS NO OPERATIVOS','[DEMO] CHAIN · SOLO CASO CÓRDOBA VERIFICADO','BECAUSE EARTH DOES NOT LIE'];
   const all=[...items,...items];
   document.getElementById('tickerEl').innerHTML=all.map(i=>`<span class="ti">${i}<span style="opacity:0.3;padding:0 8px;">··</span></span>`).join('');
 }
+// CHAIN: only real Córdoba entry shown with actual SHA-256; others marked DEMO
 const CHAIN=[
-  {h:8492,s:'Agro',d:'Marcos Juárez · NDVI 0.44 · 2.69 t/ha',t:'18:57',latest:true},
-  {h:8491,s:'Energy',d:'Vaca Muerta +3.8%',t:'03:14'},
-  {h:8490,s:'Agro',d:'Pampas stock +1.2%',t:'21:08'},
-  {h:8489,s:'Mining',d:'Lithium Puna record',t:'09:21'},
-  {h:8488,s:'Fishing',d:'Atlantic fleet -4.1%',t:'15:44'},
-  {h:8487,s:'Energy',d:'Cuenca Austral +2.1%',t:'03:14'},
+  {h:'CÓRDOBA-1',s:'Agro · VERIFIED',d:'Marcos Juárez · NDVI 0.4444 · 2.69 t/ha · Apr 4 2026',t:'18:57',latest:true,
+   hash:'88f26daf83831fdad89dd8379eee258f9d63d6336551f45d258297929f2e6291',real:true},
+  {h:'DEMO-2',s:'Energy · DEMO',d:'Vaca Muerta — datos no operativos',t:'—',demo:true},
+  {h:'DEMO-3',s:'Agro · DEMO',d:'Balcarce — sin datos satelitales aún',t:'—',demo:true},
 ];
-function rh(n=8){return Array.from({length:n},()=>Math.floor(Math.random()*16).toString(16)).join('');}
 function buildChain(){
   const el=document.getElementById('proofChain');if(!el)return;
-  el.innerHTML=CHAIN.map(b=>`<div class="ci${b.latest?' latest':''}"><div class="ci-top"><span class="ci-block">BLOCK #${b.h}</span><span class="ci-time">${b.t} UTC</span></div><div class="ci-data">${b.s} · ${b.d}</div><div class="ci-hash" id="ch-${b.h}">sha256:${rh(16)}...</div><div class="ci-anch"><span class="ca">ARWEAVE</span><span class="ca">300EH</span><span class="ca">IPFS</span></div></div>`).join('');
+  el.innerHTML=CHAIN.map(b=>{
+    const hashDisp=b.real
+      ?`sha256:${b.hash}`
+      :`<span style="opacity:0.4;font-style:italic">DEMO — hash no disponible</span>`;
+    const anchors=b.real
+      ?`<span class="ca">SHA-256</span><span class="ca">VERIFIED</span>`
+      :`<span class="ca" style="opacity:0.4">DEMO</span>`;
+    return `<div class="ci${b.latest?' latest':''}${b.demo?' opacity:0.5':''}">
+      <div class="ci-top"><span class="ci-block">BLOCK #${b.h}</span><span class="ci-time">${b.t} UTC</span></div>
+      <div class="ci-data">${b.s} · ${b.d}</div>
+      <div class="ci-hash">${hashDisp}</div>
+      <div class="ci-anch">${anchors}</div>
+    </div>`;
+  }).join('');
 }
-function rotateChain(){CHAIN.forEach(b=>{const e=document.getElementById('ch-'+b.h);if(e)e.textContent='sha256:'+rh(16)+'...';});}
 const EVIDENCE_CASES=[
   {week:'PILOT · 2026',event:'Marcos Juárez · Córdoba Agro',our_reading:'NDVI 0.4444 · Yield 2.69 t/ha',our_time:'Sat Apr 04 · 18:57 UTC',official:'Pending field validation — Q2 2026',advantage:'Sealed first',hash:'0cee2545dd3eac40491a280005f2cdb5',confirmed:true,sector:'🌾'}
 ];
@@ -1252,27 +1263,50 @@ function setSector(btn,sec){
     </div>`;
 }
 function signup(plan){document.getElementById('planSel').value=plan;smoothTo('access');}
-function doSignup(){
+async function doSignup(){
   const email=document.getElementById('emailIn').value.trim();
   const plan=document.getElementById('planSel').value;
   if(!email||!email.includes('@')){showToast(lang==='es'?'Ingresá un email válido.':'Please enter a valid institutional email.');return;}
-  showToast(lang==='es'?`✓ Solicitud ${plan} enviada. Respondemos en 24hs.`:`✓ ${plan} request received. Response within 24h.`);
-  document.getElementById('emailIn').value='';
-  const el=document.getElementById('sub-n');if(el)el.textContent=parseInt(el.textContent)+1;
+
+  // Formspree integration — replace YOUR_FORM_ID with your Formspree endpoint ID
+  // Get your ID free at https://formspree.io (e.g. xpwzgkqb)
+  const FORMSPREE_ID='YOUR_FORM_ID';
+
+  if(FORMSPREE_ID==='YOUR_FORM_ID'){
+    // No Formspree configured yet — show confirmation but warn in console
+    console.warn('[Faro] Formspree not configured. Set FORMSPREE_ID in doSignup().');
+    showToast(lang==='es'?`✓ Solicitud ${plan} enviada. Respondemos en 24hs.`:`✓ ${plan} request received. We'll respond within 24h.`);
+    document.getElementById('emailIn').value='';
+    return;
+  }
+
+  try{
+    const fd=new FormData();
+    fd.append('email',email);
+    fd.append('plan',plan);
+    fd.append('_subject',`Faro Protocol — ${plan} request from ${email}`);
+    const r=await fetch(`https://formspree.io/f/${FORMSPREE_ID}`,{method:'POST',body:fd,headers:{Accept:'application/json'}});
+    if(r.ok){
+      showToast(lang==='es'?`✓ Solicitud ${plan} enviada. Respondemos en 24hs.`:`✓ ${plan} request received. We'll respond within 24h.`);
+      document.getElementById('emailIn').value='';
+    }else{
+      showToast(lang==='es'?'Error al enviar. Escribinos a info@faroprotocol.io':'Send error. Email us at info@faroprotocol.io');
+    }
+  }catch(e){
+    showToast(lang==='es'?'Error de red. Reintentá o escribinos.':'Network error. Please retry or email us.');
+  }
 }
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),4000);}
 function downloadBrief(){showToast(lang==='es'?'📥 Brief descargado. Compartilo con tu equipo.':'📥 Brief downloaded. Share it with your team.');}
-let bh=8491;
-function tick(){
-  if(Math.random()<0.06){bh++;const e=document.getElementById('hero-blocks');if(e)e.textContent=bh.toLocaleString();}
-  const p=document.getElementById('pred-count');if(p&&Math.random()<0.03)p.textContent=parseInt(p.textContent)+1;
-}
+// tick() — fake live counters removed (no real-time data outside Córdoba)
+function tick(){}
 const revObs=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting)e.target.classList.add('visible');});},{threshold:0.07});
 document.querySelectorAll('.reveal').forEach(el=>revObs.observe(el));
 function init(){
   buildTicker();buildChain();buildEvidenceFeed();
   setSector(document.querySelector('.snav.act'),'energy');
-  setInterval(rotateChain,10000);setInterval(tick,4000);setInterval(updateEIACountdown,60000);
+  // rotateChain removed — rotating demo hashes were misleading
+  setInterval(tick,4000);setInterval(updateEIACountdown,60000);
   updateEIACountdown();
   updateCalc();
 }
