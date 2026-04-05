@@ -209,5 +209,34 @@
     "score_promedio": 61.0,
     "estado_global": "OK",
     "areas_en_alerta": []
+  },
+  "finance": {
+    "ultimo_update": "2026-04-05T00:09:56-03:00",
+    "precios": {
+      "urea_usd_tn": 420.5,
+      "brent_usd_bbl": 109.05,
+      "diesel_usd_l": 0.8231,
+      "combustible_ha_usd": 71.16,
+      "usdars_oficial": 1415.0,
+      "fuentes": {
+        "urea": "IndexMundi/Jun-2025",
+        "brent": "Yahoo/BZ=F",
+        "usdars": "dolarapi/oficial"
+      }
+    },
+    "business_cases": {
+      "cordoba": {
+        "score_faro": 61.0,
+        "hectareas": 5000,
+        "ahorro_urea_ha": 5.6,
+        "ahorro_combustible_ha": 7.29,
+        "ahorro_multas_ha": 0.0,
+        "ahorro_total_ha": 12.89,
+        "ahorro_total_usd": 64450.0,
+        "roi_x": 5.2,
+        "sha256_informe": "de6cac644a102a33004e432ed8665d97d85a46defa3138bf4a1393c34befa048",
+        "generado_en": "2026-04-05 00:09"
+      }
+    }
   }
 }

@@ -43,16 +43,18 @@ if hasattr(sys.stderr, 'reconfigure'):
 
 PROJECT_ROOT = Path(__file__).parent
 DATA_JSON    = PROJECT_ROOT / 'data.json'
+_PRICES_FILE = PROJECT_ROOT / 'datos' / 'faro_prices.json'
 
 
-# ─── Constantes económicas de referencia ──────────────────────────────────────
+# ─── Constantes económicas de referencia (defaults hardcoded) ─────────────────
+# Actualizadas automáticamente por faro_price_updater.py via datos/faro_prices.json
+# Fuente defaults: CBOT/CME soja 2024, Bolsa Rosario, INDEC
 
-# AGRO
-# Fuente: CBOT/CME soja 2024, Bolsa Rosario, INDEC
-PRECIO_UREA_USD_TN         = 600.0    # urea granulada spot 2024
-UREA_KG_N_POR_TN           = 460.0    # 46% N por tn urea
+PRECIO_UREA_USD_TN         = 600.0    # urea granulada spot — actualizable
+UREA_KG_N_POR_TN           = 460.0    # 46% N por tn urea (constante química)
 DOSIS_N_REFERENCIA_KG_HA   = 50.0     # aplicación estándar sin info satelital
-COSTO_COMBUSTIBLE_HA       = 75.0     # USD/ha labores totales (semb + fert + cosecha)
+COSTO_COMBUSTIBLE_HA       = 75.0     # USD/ha labores totales — actualizable
+PRECIO_DIESEL_USD_L        = 0.90     # precio diesel internacional de referencia
 PRECIO_SOJA_USD_TN         = 390.0    # precio FOB Rosario referencia
 PRECIO_MAIZ_USD_TN         = 220.0    # precio FOB Rosario referencia
 PRECIO_TRIGO_USD_TN        = 250.0    # precio FOB referencia
@@ -68,6 +70,32 @@ MULTA_IBAMA_USD_HA          = 1_400.0  # USD/ha deforestation fine (BRL 7000 × 
 SCORE_MINIMO_EFECTO         = 20.0
 # Score máximo de referencia (todo el ahorro potencial)
 SCORE_REFERENCIA_MAX        = 100.0
+
+
+def _cargar_precios_externos() -> None:
+    """
+    Carga precios actualizados desde datos/faro_prices.json si el archivo existe.
+    Llamado automáticamente al importar el módulo.
+    Escrito por faro_price_updater.py — no editar manualmente.
+    """
+    global PRECIO_UREA_USD_TN, COSTO_COMBUSTIBLE_HA, PRECIO_DIESEL_USD_L
+    global PRECIO_SOJA_USD_TN, PRECIO_MAIZ_USD_TN, PRECIO_TRIGO_USD_TN
+    if not _PRICES_FILE.exists():
+        return
+    try:
+        with open(_PRICES_FILE, encoding='utf-8') as f:
+            p = json.load(f)
+        if 'PRECIO_UREA_USD_TN' in p:
+            PRECIO_UREA_USD_TN   = float(p['PRECIO_UREA_USD_TN'])
+        if 'COSTO_COMBUSTIBLE_HA' in p:
+            COSTO_COMBUSTIBLE_HA = float(p['COSTO_COMBUSTIBLE_HA'])
+        if 'PRECIO_DIESEL_USD_L' in p:
+            PRECIO_DIESEL_USD_L  = float(p['PRECIO_DIESEL_USD_L'])
+    except Exception:
+        pass  # keeps defaults if file is malformed
+
+
+_cargar_precios_externos()
 
 
 # ─── Modelo de ahorros ─────────────────────────────────────────────────────────
