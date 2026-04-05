@@ -59,6 +59,18 @@ def main(area=None, sar_input=None):
     data = np.where(data > 0, 10 * np.log10(data + 1e-10), -30.0)
     print(f"  Media en dB: {data.mean():.4f}")
 
+    # Downsampling — Sentinel-1 GRD cubre ~250×170 km; reducir a máx 4000px por lado
+    # para que la fusión sea manejable sin perder precisión estadística
+    MAX_PX = 4000
+    if max(height, width) > MAX_PX:
+        factor = max(height, width) / MAX_PX
+        new_h = max(1, int(height / factor))
+        new_w = max(1, int(width / factor))
+        from skimage.transform import resize as sk_resize
+        data = sk_resize(data, (new_h, new_w), anti_aliasing=True).astype(np.float32)
+        height, width = new_h, new_w
+        print(f"  Downsampling aplicado: {new_h} x {new_w} px (factor {factor:.1f}x)")
+
     # Georreferenciar
     transform = from_bounds(west, south, east, north, width, height)
     crs = CRS.from_epsg(4326)

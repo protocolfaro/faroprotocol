@@ -16,11 +16,24 @@ Usá variables de entorno o el archivo .env
 
 import requests
 import os
+import sys
 import argparse
 from datetime import datetime, timedelta
 from pathlib import Path
 
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8')
+
 from faro_areas import load_area, list_areas
+
+# Cargar .env si existe (python-dotenv)
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).parent / '.env')
+except ImportError:
+    pass
 
 # ─────────────────────────────────────────────────────────────
 # CONFIGURACIÓN
@@ -178,14 +191,16 @@ def main(area_name: str) -> list:
     )
     mostrar_resultados(productos, area['label'])
 
-    # ── DESCOMENTAR PARA DESCARGAR ──
-    # if productos:
-    #     primer_producto = productos[0]
-    #     descargar_imagen(
-    #         producto_id = primer_producto['Id'],
-    #         nombre      = primer_producto['Name'],
-    #         token       = token,
-    #     )
+    if productos:
+        # Seleccionar el producto más liviano (menor tamaño) — menos tiempo de descarga
+        mejor = min(productos, key=lambda p: p.get('ContentLength', float('inf')))
+        print(f"\n  Descargando: {mejor['Name']}")
+        print(f"  Tamaño     : {mejor['ContentLength']/1e6:.1f} MB")
+        descargar_imagen(
+            producto_id = mejor['Id'],
+            nombre      = mejor['Name'],
+            token       = token,
+        )
 
     print("=" * 60)
     print("  Pipeline SAR completado")

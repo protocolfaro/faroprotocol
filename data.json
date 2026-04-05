@@ -1,7 +1,7 @@
 {
   "_meta": {
     "nota": "Generado automaticamente por faro_engine.py",
-    "generado_en": "2026-04-04 23:31",
+    "generado_en": "2026-04-05 15:54",
     "generado_por": "faro_engine.py",
     "protocolo": "Cero Footprint v1"
   },
@@ -18,7 +18,7 @@
   },
   "faro_arg_score": "72 / 100",
   "pipeline": {
-    "ultimo_run": "2026-04-04 23:31",
+    "ultimo_run": "2026-04-05 15:54",
     "cordoba": {
       "estado": "OK",
       "ndvi_medio": 0.4444,
@@ -41,12 +41,17 @@
       "ultimo_run": "2026-04-04 23:20"
     },
     "balcarce": {
-      "estado": "PENDIENTE_DATOS",
-      "ndvi_medio": null,
-      "sar_medio_db": null,
-      "indice_fusion_medio": null,
-      "sha256": null,
-      "ultimo_run": "2026-04-04 23:20"
+      "estado": "OK",
+      "ndvi_medio": 0.5328,
+      "sar_medio_db": 15.4836,
+      "indice_fusion_medio": 0.7599,
+      "sha256": "c8d0f74837a5b79d...",
+      "ultimo_run": "2026-04-05 15:54",
+      "pixeles_analizados": 124077285,
+      "score_faro": 69.5,
+      "rinde_estimado_tha": 3.32,
+      "indice_actividad": null,
+      "pct_anomalia": 0.0
     },
     "amazonas": {
       "estado": "PENDIENTE_DATOS",
@@ -74,6 +79,19 @@
       "tiene_ndvi": true,
       "tiene_vision": false,
       "ultimo_run": "2026-04-04 23:31"
+    },
+    "balcarce": {
+      "sar_medio_db": 15.4836,
+      "ndvi_medio": 0.5328,
+      "indice_fusion_medio": 0.7599,
+      "pixeles_analizados": 124077285,
+      "pct_anomalia": 0.0,
+      "reporte_png": "faro_reporte_fusion_balcarce.png",
+      "sha256_completo": "c8d0f74837a5b79d1144d1e4367a9cb4892eee054908893994505bc04d19849b",
+      "tiene_sar": true,
+      "tiene_ndvi": true,
+      "tiene_vision": false,
+      "ultimo_run": "2026-04-05 15:54"
     }
   },
   "insights": {
@@ -116,25 +134,15 @@
     "balcarce": {
       "zona": "Balcarce, Buenos Aires, Argentina",
       "vertical": "agro",
-      "fecha": "2026-04-04 23:20",
-      "rinde_estimado_tha": null,
+      "fecha": "2026-04-05 15:54",
+      "rinde_estimado_tha": 3.32,
       "indice_actividad": null,
-      "score_faro": null,
-      "confianza": "—",
-      "estado": "PENDIENTE_DATOS",
+      "score_faro": 69.5,
+      "confianza": "Alta",
+      "estado": "OK",
       "alerta": null,
-      "pct_anomalia": null,
-      "sha256_reporte": "—",
-      "center": [
-        -37.8,
-        -58.0
-      ],
-      "bounds": [
-        -58.5,
-        -38.3,
-        -57.5,
-        -37.3
-      ]
+      "pct_anomalia": 0.0,
+      "sha256_reporte": "c8d0f74837a5b79d..."
     },
     "indiana": {
       "zona": "Corn Belt, Indiana, EE.UU.",
@@ -204,9 +212,9 @@
     }
   },
   "resumen": {
-    "ultimo_run": "2026-04-04 23:31",
+    "ultimo_run": "2026-04-05 15:54",
     "areas_activas": 6,
-    "score_promedio": 61.0,
+    "score_promedio": 65.2,
     "estado_global": "OK",
     "areas_en_alerta": []
   },

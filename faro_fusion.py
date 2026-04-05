@@ -13,6 +13,7 @@ import rasterio
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from datetime import datetime
+from pathlib import Path
 
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
@@ -163,20 +164,27 @@ def main(area=None):
     print(f"  Área: {zona}")
     print("=" * 55)
 
-    # Cargar NDVI
-    ndvi_raw  = cargar_ndvi(ndvi_tif)
-    ndvi_norm = normalizar(ndvi_raw)
-
-    # Cargar SAR (ya en dB desde georef.py) y normalizar para visualización
+    # Cargar SAR (ya en dB desde georef.py)
     sar_raw = cargar_sar(sar_tif)
+    sar_norm = normalizar(sar_raw)
+
+    # Cargar NDVI — opcional: si no existe, modo SAR-only
+    ndvi_disponible = Path(ndvi_tif).exists()
+    if not ndvi_disponible:
+        print(f"  AVISO: NDVI no encontrado ({ndvi_tif})")
+        print(f"  Modo SAR-only — exportar NDVI desde GEE para análisis completo")
+        ndvi_raw  = np.full_like(sar_raw, np.nan)
+        ndvi_norm = sar_norm.copy()  # placeholder para el reporte
+    else:
+        ndvi_raw = cargar_ndvi(ndvi_tif)
+        ndvi_norm = normalizar(ndvi_raw)
 
     # Redimensionar SAR al tamaño del NDVI si es necesario
-    if sar_raw.shape != ndvi_raw.shape:
+    if ndvi_disponible and sar_raw.shape != ndvi_raw.shape:
         from skimage.transform import resize
         print(f"  Redimensionando SAR {sar_raw.shape} -> {ndvi_raw.shape}")
         sar_raw = resize(sar_raw, ndvi_raw.shape, anti_aliasing=True)
-
-    sar_norm = normalizar(sar_raw)
+        sar_norm = normalizar(sar_raw)
 
     # Calcular fusión
     fusion = calcular_indice_fusion(ndvi_norm, sar_norm)
@@ -184,11 +192,13 @@ def main(area=None):
     # Generar reporte
     output = generar_reporte(ndvi_norm, sar_norm, fusion, zona, fecha, output_png)
 
+    ndvi_medio = round(float(np.nanmean(ndvi_raw)), 4) if ndvi_disponible else None
     stats = {
-        "ndvi_medio":          round(float(np.nanmean(ndvi_raw)), 4),
+        "ndvi_medio":          ndvi_medio,
         "sar_medio_db":        round(float(np.nanmean(sar_raw)), 4),
         "indice_fusion_medio": round(float(np.nanmean(fusion)), 4),
-        "pixeles_analizados":  int((~np.isnan(ndvi_raw)).sum()),
+        "pixeles_analizados":  int((~np.isnan(sar_raw)).sum()),
+        "ndvi_disponible":     ndvi_disponible,
     }
 
     print("=" * 55)
