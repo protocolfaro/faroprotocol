@@ -34,7 +34,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from faro_areas import load_area, list_areas
 
-MODEL = "claude-sonnet-4-20250514"
+MODEL = "llama-3.3-70b-versatile"
 
 # Umbrales de calidad
 UMBRAL_SAR_MEDIA_DB_MIN   = -25.0   # dB — más bajo = imagen negra/vacía
@@ -129,6 +129,11 @@ def validar_ndvi(ndvi_tif: Path) -> dict:
         if nodata is not None:
             data[data == nodata] = float('nan')
 
+        # Corregir escala int16 GEE (×10000) igual que faro_fusion.py
+        finite = data[np.isfinite(data)]
+        if len(finite) > 0 and (np.nanmax(finite) > 2 or np.nanmin(finite) < -2):
+            data = data / 10000.0
+
         total   = data.size
         validos = int((~np.isnan(data)).sum())
         pct_val = validos / total
@@ -178,8 +183,7 @@ def validar_reporte_png(report_png: Path) -> dict:
 # ── Veredicto LLM ─────────────────────────────────────────────────────────────
 
 def veredicto_hermes(resultados: dict) -> str:
-    import anthropic
-    api_key = os.environ.get('ANTHROPIC_API_KEY', '')
+    api_key = os.environ.get('GROQ_API_KEY', '')
     if not api_key:
         # Veredicto local sin LLM
         fallos = [k for k, v in resultados['validaciones'].items()
@@ -188,8 +192,10 @@ def veredicto_hermes(resultados: dict) -> str:
             return "GO -- Todas las validaciones pasaron. Reporte listo para publicar."
         return f"NO-GO -- Fallos detectados en: {', '.join(fallos)}. Revisar antes de publicar."
 
-    cliente = anthropic.Anthropic(api_key=api_key)
-    prompt = f"""Sos Hermes, el agente de validacion de calidad de FARO PROTOCOL.
+    try:
+        from groq import Groq
+        cliente = Groq(api_key=api_key)
+        prompt = f"""Sos Hermes, el agente de validacion de calidad de FARO PROTOCOL.
 Tu rol: emitir un veredicto GO o NO-GO sobre la calidad de los outputs del pipeline.
 Sos riguroso pero practico. Un GO significa que el dato es publicable. Un NO-GO requiere accion.
 
@@ -204,12 +210,17 @@ NO-GO -- [razon + accion requerida en una linea]
 Seguido de 2-3 lineas de detalle tecnico relevante.
 Sin markdown, sin titulos, sin emojis."""
 
-    msg = cliente.messages.create(
-        model=MODEL,
-        max_tokens=256,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    return msg.content[0].text
+        chat = cliente.chat.completions.create(
+            model=MODEL,
+            max_tokens=256,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return chat.choices[0].message.content
+    except Exception as e:
+        fallos = [k for k, v in resultados['validaciones'].items()
+                  if isinstance(v, dict) and v.get('ok') is False]
+        return (f"NO-GO -- Error LLM ({e}). Fallos: {', '.join(fallos)}"
+                if fallos else f"GO -- Validaciones OK (LLM error: {e})")
 
 
 # ── Main ─────────────────────────────────────────────────────────────────────

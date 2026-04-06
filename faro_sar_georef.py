@@ -54,10 +54,15 @@ def main(area=None, sar_input=None):
         print(f"  Shape: {height} x {width}")
         print(f"  Media original: {data.mean():.4f}")
 
-    # Convertir a dB — NO normalizar aquí
-    # La normalización (0-1) se hace en faro_fusion.py justo antes de graficar
-    data = np.where(data > 0, 10 * np.log10(data + 1e-10), -30.0)
-    print(f"  Media en dB: {data.mean():.4f}")
+    # Convertir amplitud a sigma0 en dB — Sentinel-1 GRD almacena amplitud, no potencia.
+    # Fórmula: sigma0_dB = 20*log10(DN) - offset
+    # El offset correcto depende del calibration LUT del SAFE (varía por escena).
+    # Offset empírico -52 dB da resultados físicamente coherentes (~-12 dB agro VV)
+    # para los archivos Copernicus Data Space usados en este proyecto.
+    # TODO producción: leer gain del calibration LUT en /annotation/calibration/*.xml
+    # NO normalizar aquí — la normalización se hace en faro_fusion.py antes de graficar
+    data = np.where(data > 0, 20 * np.log10(data + 1e-10) - 52.0, -30.0)
+    print(f"  Media en dB (sigma0): {data.mean():.4f}")
 
     # Downsampling — Sentinel-1 GRD cubre ~250×170 km; reducir a máx 4000px por lado
     # para que la fusión sea manejable sin perder precisión estadística
