@@ -1,7 +1,7 @@
 {
   "_meta": {
     "nota": "Generado automaticamente por faro_engine.py",
-    "generado_en": "2026-04-05 15:54",
+    "generado_en": "2026-04-06 13:58",
     "generado_por": "faro_engine.py",
     "protocolo": "Cero Footprint v1"
   },
@@ -18,19 +18,19 @@
   },
   "faro_arg_score": "72 / 100",
   "pipeline": {
-    "ultimo_run": "2026-04-05 15:54",
+    "ultimo_run": "2026-04-06 13:58",
     "cordoba": {
-      "estado": "OK",
+      "estado": "ALERTA",
       "ndvi_medio": 0.4444,
-      "sar_medio_db": 19.149,
-      "indice_fusion_medio": 0.6935,
-      "sha256": "0cee2545dd3eac40...",
-      "ultimo_run": "2026-04-04 23:31",
+      "sar_medio_db": -13.8681,
+      "indice_fusion_medio": 0.5904,
+      "sha256": "404a159a0cea3c72...",
+      "ultimo_run": "2026-04-06 13:58",
       "pixeles_analizados": 124066152,
-      "score_faro": 61.0,
-      "rinde_estimado_tha": 2.69,
+      "score_faro": 49.0,
+      "rinde_estimado_tha": 1.88,
       "indice_actividad": null,
-      "pct_anomalia": 0.0
+      "pct_anomalia": 0.06
     },
     "vaca_muerta": {
       "estado": "PENDIENTE_DATOS",
@@ -68,17 +68,17 @@
   },
   "_interno": {
     "cordoba": {
-      "sar_medio_db": 19.149,
+      "sar_medio_db": -13.8681,
       "ndvi_medio": 0.4444,
-      "indice_fusion_medio": 0.6935,
+      "indice_fusion_medio": 0.5904,
       "pixeles_analizados": 124066152,
-      "pct_anomalia": 0.0,
+      "pct_anomalia": 0.06,
       "reporte_png": "faro_reporte_fusion_cordoba.png",
-      "sha256_completo": "0cee2545dd3eac40491a280005f2cdb5ee61b93e81ef73df8d1604e236fd03cd",
+      "sha256_completo": "404a159a0cea3c723b6d55ad4ce6fea0618fbe5de9ebb3721da7b9c58411b3b2",
       "tiene_sar": true,
       "tiene_ndvi": true,
-      "tiene_vision": false,
-      "ultimo_run": "2026-04-04 23:31"
+      "tiene_vision": true,
+      "ultimo_run": "2026-04-06 13:58"
     },
     "balcarce": {
       "sar_medio_db": 15.4836,
@@ -98,15 +98,15 @@
     "cordoba": {
       "zona": "Marcos Juárez, Córdoba, Argentina",
       "vertical": "agro",
-      "fecha": "2026-04-04 23:31",
-      "rinde_estimado_tha": 2.69,
+      "fecha": "2026-04-06 13:58",
+      "rinde_estimado_tha": 1.88,
       "indice_actividad": null,
-      "score_faro": 61.0,
+      "score_faro": 49.0,
       "confianza": "Alta",
-      "estado": "OK",
-      "alerta": null,
-      "pct_anomalia": 0.0,
-      "sha256_reporte": "0cee2545dd3eac40..."
+      "estado": "ALERTA",
+      "alerta": "Rinde estimado 1.9 t/ha por debajo del promedio regional (3.2 t/ha)",
+      "pct_anomalia": 0.06,
+      "sha256_reporte": "404a159a0cea3c72..."
     },
     "amazonas": {
       "zona": "Cuiabá / Sorriso, Mato Grosso, Brasil",
@@ -212,11 +212,13 @@
     }
   },
   "resumen": {
-    "ultimo_run": "2026-04-05 15:54",
+    "ultimo_run": "2026-04-06 13:58",
     "areas_activas": 6,
-    "score_promedio": 65.2,
-    "estado_global": "OK",
-    "areas_en_alerta": []
+    "score_promedio": 59.2,
+    "estado_global": "ALERTA",
+    "areas_en_alerta": [
+      "cordoba"
+    ]
   },
   "finance": {
     "ultimo_update": "2026-04-05T16:18:15-03:00",

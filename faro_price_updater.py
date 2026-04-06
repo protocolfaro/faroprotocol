@@ -1286,7 +1286,7 @@ class PriceLogger:
 class PaperclipNotifier:
     """
     Notifica el resultado del ciclo via Paperclip.
-    Con ANTHROPIC_API_KEY: resumen ejecutivo generado por Claude.
+    Con GROQ_API_KEY: resumen ejecutivo generado por llama-3.3-70b (costo $0).
     Sin API key: resumen formateado directo a terminal.
     """
 
@@ -1327,8 +1327,8 @@ class PaperclipNotifier:
 
     def _notificar_llm(self, api_key: str, datos: dict) -> str:
         try:
-            import anthropic
-            cliente = anthropic.Anthropic(api_key=api_key)
+            from groq import Groq
+            cliente = Groq(api_key=api_key)
             prompt = (
                 "Sos Paperclip, el agente monitor de FARO PROTOCOL.\n"
                 "Recibiste la actualización semanal de precios por área geográfica.\n"
@@ -1339,12 +1339,12 @@ class PaperclipNotifier:
                 "del precio internacional Brent-derivado.\n\n"
                 f"{json.dumps(datos, indent=2, ensure_ascii=False)}"
             )
-            msg = cliente.messages.create(
-                model="claude-sonnet-4-6",
+            chat = cliente.chat.completions.create(
+                model="llama-3.3-70b-versatile",
                 max_tokens=400,
                 messages=[{"role": "user", "content": prompt}],
             )
-            texto = msg.content[0].text
+            texto = chat.choices[0].message.content
             print("\n" + "─" * 60)
             print(texto)
             print("─" * 60)
@@ -1411,15 +1411,15 @@ def _last_log_value(section: str, key: str) -> Optional[float]:
     return None
 
 def _cargar_env_key() -> str:
-    """Carga ANTHROPIC_API_KEY del entorno o del .env en la raíz del proyecto."""
-    key = os.environ.get('ANTHROPIC_API_KEY', '')
+    """Carga GROQ_API_KEY del entorno o del .env en la raíz del proyecto."""
+    key = os.environ.get('GROQ_API_KEY', '')
     if key:
         return key
     env_file = PROJECT_ROOT / '.env'
     if env_file.exists():
         for linea in env_file.read_text(encoding='utf-8').splitlines():
             linea = linea.strip()
-            if linea.startswith('ANTHROPIC_API_KEY='):
+            if linea.startswith('GROQ_API_KEY='):
                 return linea.split('=', 1)[1].strip()
     return ''
 

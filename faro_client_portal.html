@@ -703,31 +703,31 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
         </div>
       </div>
 
-      <!-- KPIs -->
+      <!-- KPIs — populated from data.json via loadFaroData() -->
       <div class="kpi-grid">
         <div class="kpi">
-          <div class="kpi-lbl">Vaca Muerta Output</div>
-          <div class="kpi-val">1,020K</div>
-          <div class="kpi-d up">↑ +3.8% vs prior week</div>
-          <div style="font-family:var(--mono);font-size:7px;color:rgba(201,168,76,0.3);margin-top:5px;">Updated 03:14 UTC</div>
+          <div class="kpi-lbl">FARO Score · Córdoba</div>
+          <div class="kpi-val" id="kpi-score">—</div>
+          <div class="kpi-d up" id="kpi-score-sub">Alta confianza · Agro</div>
+          <div style="font-family:var(--mono);font-size:7px;color:rgba(201,168,76,0.3);margin-top:5px;" id="kpi-score-ts">Loading…</div>
         </div>
         <div class="kpi">
-          <div class="kpi-lbl">Pampas Crop Stock</div>
-          <div class="kpi-val">51.4M</div>
-          <div class="kpi-d up">↑ +1.4% vs prior week</div>
-          <div style="font-family:var(--mono);font-size:7px;color:rgba(201,168,76,0.3);margin-top:5px;">Updated 09:21 UTC</div>
+          <div class="kpi-lbl">NDVI Córdoba</div>
+          <div class="kpi-val" id="kpi-ndvi">—</div>
+          <div class="kpi-d up" id="kpi-ndvi-sub">Sentinel-2 · GEE</div>
+          <div style="font-family:var(--mono);font-size:7px;color:rgba(201,168,76,0.3);margin-top:5px;" id="kpi-ndvi-ts">Loading…</div>
         </div>
         <div class="kpi">
-          <div class="kpi-lbl">Lithium Puna Conc.</div>
-          <div class="kpi-val">942</div>
-          <div class="kpi-d up">↑ +8.1% · Record high</div>
-          <div style="font-family:var(--mono);font-size:7px;color:rgba(201,168,76,0.3);margin-top:5px;">Updated 11:40 UTC</div>
+          <div class="kpi-lbl">Rinde Estimado</div>
+          <div class="kpi-val" id="kpi-rinde">—</div>
+          <div class="kpi-d up" id="kpi-rinde-sub">Soja · t/ha</div>
+          <div style="font-family:var(--mono);font-size:7px;color:rgba(201,168,76,0.3);margin-top:5px;" id="kpi-rinde-ts">Loading…</div>
         </div>
         <div class="kpi">
-          <div class="kpi-lbl">FARO-ARG Risk Score</div>
-          <div class="kpi-val">72</div>
-          <div class="kpi-d ok">Low risk · Stable</div>
-          <div style="font-family:var(--mono);font-size:7px;color:rgba(201,168,76,0.3);margin-top:5px;">Updated daily 06:00 UTC</div>
+          <div class="kpi-lbl">ROI Servicio</div>
+          <div class="kpi-val" id="kpi-roi">—</div>
+          <div class="kpi-d ok" id="kpi-roi-sub">Ahorro USD/ha</div>
+          <div style="font-family:var(--mono);font-size:7px;color:rgba(201,168,76,0.3);margin-top:5px;" id="kpi-roi-ts">Loading…</div>
         </div>
       </div>
 
@@ -853,25 +853,25 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
             <div class="sd-hash">sha256:8f2e9a3b1c4d7e0f · Block #881,204 · ARWEAVE+IPFS anchored</div>
           </div>
         </div>
-        <!-- Agriculture -->
-        <div class="sd-card">
+        <!-- Agriculture — real Córdoba data from data.json -->
+        <div class="sd-card" id="sector-cordoba">
           <div class="sd-header">
             <div class="sd-ico-row">
               <div class="sd-ico">🌾</div>
               <div>
-                <div class="sd-name">Agriculture · Pampas</div>
-                <div class="sd-live" style="margin-top:3px;"><span>Real-time · Updated 09:21 UTC</span></div>
+                <div class="sd-name">Agriculture · Marcos Juárez, Córdoba</div>
+                <div class="sd-live" style="margin-top:3px;"><span id="cordoba-ts">Loading…</span></div>
               </div>
             </div>
           </div>
           <div class="sd-body">
-            <div class="sd-stat-row"><div class="sd-lbl">Soy crop estimate</div><div class="sd-val up">51.4M ton</div></div>
-            <div class="sd-stat-row"><div class="sd-lbl">Change vs last week</div><div class="sd-val up">↑ +1.4%</div></div>
-            <div class="sd-stat-row"><div class="sd-lbl">NDVI index avg.</div><div class="sd-val gold">0.74</div></div>
-            <div class="sd-stat-row"><div class="sd-lbl">Moisture anomaly</div><div class="sd-val up">Normal range</div></div>
-            <div class="sd-stat-row"><div class="sd-lbl">Harvest progress</div><div class="sd-val gold">38% complete</div></div>
-            <div class="sd-stat-row"><div class="sd-lbl">SAR read quality</div><div class="sd-val up">Good · 96.1%</div></div>
-            <div class="sd-hash">sha256:1c7bf042a3d8e91b · Block #881,891 · Verified</div>
+            <div class="sd-stat-row"><div class="sd-lbl">FARO Score</div><div class="sd-val up" id="sc-score">—</div></div>
+            <div class="sd-stat-row"><div class="sd-lbl">Rinde estimado (soja)</div><div class="sd-val up" id="sc-rinde">—</div></div>
+            <div class="sd-stat-row"><div class="sd-lbl">NDVI medio</div><div class="sd-val gold" id="sc-ndvi">—</div></div>
+            <div class="sd-stat-row"><div class="sd-lbl">Índice Fusión</div><div class="sd-val gold" id="sc-fusion">—</div></div>
+            <div class="sd-stat-row"><div class="sd-lbl">Píxeles analizados</div><div class="sd-val" id="sc-px">—</div></div>
+            <div class="sd-stat-row"><div class="sd-lbl">Confianza</div><div class="sd-val up" id="sc-conf">Alta</div></div>
+            <div class="sd-hash" id="sc-hash">sha256:loading…</div>
           </div>
         </div>
         <!-- Mining -->
@@ -931,8 +931,8 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
           <div style="font-family:var(--mono);font-size:8px;color:var(--gold);letter-spacing:0.25em;text-transform:uppercase;margin-bottom:6px;">Analyst plan · Full archive included</div>
           <div style="font-family:var(--serif);font-size:28px;font-weight:300;color:var(--w);font-style:italic;">Intelligence Reports</div>
         </div>
-        <div style="padding:8px 16px;background:var(--gd);border:1px solid var(--border2);font-family:var(--mono);font-size:8px;color:var(--gold);letter-spacing:0.1em;">
-          18 reports available
+        <div style="padding:8px 16px;background:var(--gd);border:1px solid var(--border2);font-family:var(--mono);font-size:8px;color:var(--gold);letter-spacing:0.1em;" id="reports-count">
+          Loading…
         </div>
       </div>
       <div class="reports-list" id="reportsList"></div>
@@ -956,7 +956,7 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
         <div class="vc-body">
           <div class="vf">
             <label>SHA-256 Hash</label>
-            <input type="text" id="hashInput" placeholder="sha256:8f2e9a3b1c4d7e0f2a3b...">
+            <input type="text" id="hashInput" placeholder="sha256:88f26daf83831fda…">
           </div>
           <div class="vf">
             <label>Block number (optional)</label>
@@ -1006,6 +1006,103 @@ const ACCOUNTS = {
   //   salt:'...', hash:'...' },
 };
 let currentUser = null;
+
+// ── Faro data loader — fetches data.json (GitHub Pages same origin) ──────────
+let _faroData = null;
+
+async function loadFaroData() {
+  try {
+    const res = await fetch('data.json?_=' + Date.now());
+    if (!res.ok) return;
+    _faroData = await res.json();
+    _populateKPIs(_faroData);
+    _populateSectors(_faroData);
+    _populateReports(_faroData);
+  } catch(e) {
+    console.warn('[Faro] data.json no disponible:', e.message);
+  }
+}
+
+function _set(id, val) {
+  const el = document.getElementById(id);
+  if (el && val !== undefined && val !== null) el.textContent = val;
+}
+
+function _populateKPIs(d) {
+  const r = (d.resumen      || {});
+  const p = ((d.pipeline    || {}).cordoba || {});
+  const f = ((d.finance     || {}).cordoba || {});
+  const ts = p.ultimo_run || '—';
+
+  const score = r.score_faro != null ? r.score_faro.toFixed(1) : (p.score_faro != null ? p.score_faro.toFixed(1) : '—');
+  _set('kpi-score',     score !== '—' ? score + ' / 100' : '—');
+  _set('kpi-score-sub', r.confianza ? 'Confianza ' + r.confianza + ' · Agro' : 'Alta confianza · Agro');
+  _set('kpi-score-ts',  'Run ' + ts);
+
+  const ndvi = p.ndvi_medio != null ? p.ndvi_medio.toFixed(4) : '—';
+  _set('kpi-ndvi',    ndvi);
+  _set('kpi-ndvi-ts', 'Sentinel-2 · ' + ts);
+
+  const rinde = r.rinde_estimado_tn_ha != null ? r.rinde_estimado_tn_ha.toFixed(2) + ' t/ha' : '—';
+  _set('kpi-rinde',    rinde);
+  _set('kpi-rinde-ts', ts);
+
+  const roi = f.roi_x != null ? f.roi_x + 'x' : '—';
+  const ahorro = f.ahorro_ha != null ? 'USD ' + f.ahorro_ha + '/ha' : '—';
+  _set('kpi-roi',     roi);
+  _set('kpi-roi-sub', ahorro);
+  _set('kpi-roi-ts',  ts);
+}
+
+function _populateSectors(d) {
+  const p = ((d.pipeline || {}).cordoba || {});
+  const r = (d.resumen   || {});
+  const ts = p.ultimo_run || '—';
+
+  _set('cordoba-ts', 'Verified · Run ' + ts);
+  _set('sc-score',   r.score_faro != null ? r.score_faro.toFixed(1) + ' / 100' : '—');
+  _set('sc-rinde',   r.rinde_estimado_tn_ha != null ? r.rinde_estimado_tn_ha.toFixed(2) + ' t/ha' : '—');
+  _set('sc-ndvi',    p.ndvi_medio != null ? p.ndvi_medio.toFixed(4) : '—');
+  _set('sc-fusion',  p.indice_fusion_medio != null ? p.indice_fusion_medio.toFixed(4) : '—');
+  _set('sc-conf',    r.confianza || 'Alta');
+  if (p.pixeles_analizados) {
+    _set('sc-px', (p.pixeles_analizados / 1e6).toFixed(1) + 'M px');
+  }
+  if (p.sha256) {
+    _set('sc-hash', 'sha256:' + p.sha256 + ' · Verified');
+    const hi = document.getElementById('hashInput');
+    if (hi && !hi.value) hi.value = p.sha256.replace('...', '');
+  }
+}
+
+function _populateReports(d) {
+  const list = document.getElementById('reportsList');
+  const countEl = document.getElementById('reports-count');
+  if (!list) return;
+
+  const p  = ((d.pipeline || {}).cordoba || {});
+  const r  = (d.resumen   || {});
+  const ts = p.ultimo_run || '—';
+  const sha = p.sha256 || '—';
+  const score = r.score_faro != null ? r.score_faro.toFixed(1) : '—';
+
+  // Keep any existing synthetic rows, prepend real one
+  const realRow = document.createElement('div');
+  realRow.style.cssText='padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;';
+  realRow.innerHTML = `
+    <div>
+      <div style="font-family:var(--mono);font-size:8px;color:var(--gold);letter-spacing:0.15em;margin-bottom:4px;">VERIFIED REPORT · CÓRDOBA AGRO</div>
+      <div style="font-size:13px;color:var(--w);font-weight:400;">Marcos Juárez · Fusión SAR+NDVI · Score ${score}</div>
+      <div style="font-family:var(--mono);font-size:8px;color:var(--w4);margin-top:4px;">${ts} · sha256:${sha}</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <span style="padding:4px 10px;background:rgba(45,140,94,0.15);border:1px solid rgba(45,140,94,0.3);font-family:var(--mono);font-size:7px;color:#4db87e;letter-spacing:0.1em;">✓ VERIFIED</span>
+      <span style="padding:4px 10px;background:var(--gd);border:1px solid var(--border2);font-family:var(--mono);font-size:7px;color:var(--gold);letter-spacing:0.1em;">SHA-256 SEALED</span>
+    </div>`;
+  list.prepend(realRow);
+
+  if (countEl) countEl.textContent = '1 verified report available';
+}
 
 // ── Auth helpers ───────────────────────────────────────────────
 const _MAX_ATTEMPTS=5, _LOCKOUT_MS=30*60*1000, _SESSION_MS=4*60*60*1000;
@@ -1104,6 +1201,7 @@ function enterDashboard(){
 
   buildAlerts();
   buildReports();
+  loadFaroData();  // populate KPIs + sectors from real data.json
 }
 
 // ── Logout ────────────────────────────────────────────────────

@@ -23,14 +23,12 @@ if hasattr(sys.stdout, 'reconfigure'):
 if hasattr(sys.stderr, 'reconfigure'):
     sys.stderr.reconfigure(encoding='utf-8')
 
-import anthropic
-
 # ── Paths ───────────────────────────────────────────────────────────────────
 # El agente vive en MachinaOS/ pero los archivos del pipeline están un nivel arriba
 PROJECT_ROOT = Path(__file__).parent.parent
 AREAS_DIR    = PROJECT_ROOT / 'faro_areas'
 
-MODEL = "claude-sonnet-4-20250514"
+MODEL = "llama-3.3-70b-versatile"
 VENTANA_HORAS = 24  # un archivo "de hoy" si fue modificado en las últimas N horas
 
 
@@ -159,19 +157,23 @@ def _imprimir_area_verbose(r: dict):
 
 def generar_resumen_llm(telemetria: dict) -> str:
     """
-    Envía la telemetría a Claude y obtiene un resumen ejecutivo.
+    Envía la telemetría a Groq (llama-3.3-70b) y obtiene un resumen ejecutivo.
+    Costo: $0 (plan gratuito de Groq).
     """
-    api_key = os.environ.get('ANTHROPIC_API_KEY', '')
+    api_key = os.environ.get('GROQ_API_KEY', '')
     if not api_key:
         return (
-            "[Paperclip] ANTHROPIC_API_KEY no configurada.\n"
-            "Agregá al .env: ANTHROPIC_API_KEY=sk-ant-...\n"
-            f"Estado raw: {json.dumps(telemetria, indent=2, ensure_ascii=False)}"
+            "[Paperclip] GROQ_API_KEY no configurada.\n"
+            "Obtenela gratis en console.groq.com -> API Keys\n"
+            "Agregá al .env: GROQ_API_KEY=gsk_...\n"
+            f"Estado raw:\n{json.dumps(telemetria, indent=2, ensure_ascii=False)}"
         )
 
-    cliente = anthropic.Anthropic(api_key=api_key)
+    try:
+        from groq import Groq
+        cliente = Groq(api_key=api_key)
 
-    prompt = f"""Sos Paperclip, el agente monitor de FARO PROTOCOL.
+        prompt = f"""Sos Paperclip, el agente monitor de FARO PROTOCOL.
 Tu rol: resumen diario de latido del pipeline. Sin accion si todo esta OK, alerta clara si hay problemas.
 Estilo: terminal premium oscuro, conciso, datos primero. Sin emojis decorativos, solo indicadores funcionales ([OK] [!!] [--]).
 
@@ -187,13 +189,18 @@ Generá un reporte de latido con:
 
 Máximo 20 líneas. Sin markdown. Sin títulos con #."""
 
-    mensaje = cliente.messages.create(
-        model=MODEL,
-        max_tokens=512,
-        messages=[{"role": "user", "content": prompt}],
-    )
+        chat = cliente.chat.completions.create(
+            model=MODEL,
+            max_tokens=512,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return chat.choices[0].message.content
 
-    return mensaje.content[0].text
+    except Exception as e:
+        return (
+            f"[Paperclip] Error LLM: {e}\n"
+            f"Estado raw:\n{json.dumps(telemetria, indent=2, ensure_ascii=False)}"
+        )
 
 
 # ── Main ─────────────────────────────────────────────────────────────────────

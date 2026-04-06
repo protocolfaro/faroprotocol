@@ -1,16 +1,26 @@
 # FARO PROTOCOL — Guía para Claude Code
-> Última actualización: 2026-04-05 — V5 Price Updater operativo
+> Última actualización: 2026-04-05 — V6 Auto-runner + Email delivery + Portal dinámico
 > Arquitecto del sistema: Emilio (hijo)
 > Conocimiento de campo y contactos: Padre (fundador)
 
 ---
 
-## Estado del sistema — V5 (2026-04-05)
+## Estado del sistema — V6 (2026-04-05)
 
 ### Módulos nuevos / actualizados hoy
 | Módulo | Estado | Descripción |
 |--------|--------|-------------|
-| `faro_price_updater.py` | ✅ NUEVO | Precios reales de mercado (urea/Brent/USD-ARS) → `datos/faro_prices.json` → regenera BC |
+| `faro_auto.py` | ✅ NUEVO | Auto-runner semanal: pipeline + Hermes + entrega para todas las áreas activas |
+| `faro_deliver.py` | ✅ NUEVO | Entrega de reportes PNG por email (Gmail SMTP + App Password) |
+| `faro_clientes.json` | ✅ NUEVO | Lista de emails de clientes por área (editar para agregar clientes) |
+| `faro_sar_georef.py` | ✅ FIX | SAR formula corregida: `20*log10(DN) - 83.0` (Sentinel-1 GRDH amplitude → sigma0 dB) |
+| `faro_client_portal.html` | ✅ ACTUALIZADO | KPIs + Sectors + Reports ahora cargan datos reales de `data.json` via fetch() |
+| `MachinaOS/*.py` + `faro_price_updater.py` | ✅ MIGRADO | Anthropic → Groq (llama-3.3-70b, costo $0) |
+
+### Módulos V5 (price updater)
+| Módulo | Estado | Descripción |
+|--------|--------|-------------|
+| `faro_price_updater.py` | ✅ OPERATIVO | Precios reales de mercado (urea/Brent/USD-ARS) → `datos/faro_prices.json` → regenera BC |
 | `datos/faro_prices.json` | ✅ GENERADO | Urea 420.5/tn · Brent 109.05/bbl · USD/ARS 1415 · Diesel 0.823/L (2026-04-05) |
 | `datos/faro_prices_log.json` | ✅ ACTIVO | Historial semanal de precios (lunes 08:00 ART via `--daemon`) |
 | `data.json` | ✅ ACTUALIZADO | Sección `finance` con BC real Córdoba: ROI 5.2x · ahorro 12.89 USD/ha |
@@ -75,9 +85,43 @@ Commit web   : 73105b6 — pendiente de push a GitHub Pages
 ### Credenciales
 | Variable | Estado |
 |----------|--------|
-| ANTHROPIC_API_KEY | ❌ FALTA — agentes MachinaOS degradados |
+| GROQ_API_KEY | ❌ FALTA — agentes MachinaOS degradados (gratis en console.groq.com) |
 | COPERNICUS_USER/PASS | ❌ FALTA — sin descarga SAR |
 | WHATSAPP_TOKEN/PHONE_ID/DEST | ❌ FALTA — alertas desactivadas |
+
+---
+
+## Automatización — Estado actual (V6)
+
+| Tarea | Scheduleado | Comando |
+|-------|-------------|---------|
+| Precios semanales (urea/Brent/diesel) | ✅ Lunes 08:00 ART | `FaroProtocol_PriceUpdate` en Task Scheduler |
+| Pipeline completo + Hermes + entrega | ⬜ Pendiente instalar | `python faro_auto.py --instalar` (como Admin) |
+
+**Para instalar el auto-runner:**
+```bash
+# Abrir CMD como Administrador, luego:
+cd C:\Users\Usuario\Desktop\Faro-index
+python faro_auto.py --instalar
+python faro_auto.py --status
+```
+
+**Para agregar un cliente:**
+```bash
+# 1. Agregar email en faro_clientes.json
+# 2. Generar credenciales del portal:
+python gen_portal_key.py cliente@empresa.com su_contraseña
+# 3. Agregar el bloque salt+hash al dict ACCOUNTS en faro_client_portal.html
+```
+
+**Para configurar entrega por email:**
+```bash
+# En .env agregar:
+GMAIL_USER=protocolfaro@gmail.com
+GMAIL_APP_PASS=xxxx xxxx xxxx xxxx   # Google App Password
+# Test sin enviar:
+python faro_deliver.py --area cordoba --test
+```
 
 ---
 
@@ -129,10 +173,10 @@ y `faro_rinde_import.parsear_csv()`. No es bloqueante para cliente piloto.
 
 ## Qué está pendiente por factores externos
 
-### Credenciales (acción: crear `.env` en raíz del proyecto)
+### Credenciales (acción: crear `.env` en raíz del proyecto — ver `.env.example`)
 ```bash
-# Anthropic — para MachinaOS LLM
-ANTHROPIC_API_KEY=sk-ant-...       # https://console.anthropic.com/keys
+# Groq — para MachinaOS LLM (costo $0)
+GROQ_API_KEY=gsk_...               # https://console.groq.com → API Keys
 
 # Copernicus — para descarga SAR nueva
 COPERNICUS_USER=email@ejemplo.com  # https://dataspace.copernicus.eu
@@ -178,7 +222,7 @@ El website ya muestra el caso real de Córdoba con SHA-256 verificable.
 URL: https://protocolfaro.github.io/faroprotocol
 
 **Paso 2 — Esta semana**
-- Crear `.env` con ANTHROPIC_API_KEY
+- Crear `.env` con GROQ_API_KEY (gratis en console.groq.com)
 - Correr `python MachinaOS/paperclip_agent.py` → primer resumen LLM real del sistema
 - Correr `python MachinaOS/hermes_agent.py --area cordoba` → validación automatizada
 
@@ -289,7 +333,7 @@ Cuando salga el dato INDEC/Bolsa de Cereales, se compara contra este registro.
 1. **Dato oficial de campaña 2026** → el primer contraste real (no controlable, solo esperar)
 2. **Datos de Basso** → calibración del modelo con 12.000 lecturas reales
 3. **Segunda área piloto** → Balcarce procesada = dos puntos ya es tendencia
-4. **ANTHROPIC_API_KEY** → Paperclip + Hermes con LLM = resúmenes automáticos en lenguaje natural
+4. **GROQ_API_KEY** → Paperclip + Hermes con LLM = resúmenes automáticos en lenguaje natural (gratis)
 
 ---
 
@@ -336,7 +380,8 @@ verificada criptográficamente antes que las fuentes oficiales.
 | `Paperclip` | Monitor de latido — resumen diario, sin acción si todo OK |
 | `Phone Gateway` | WhatsApp solo para decisiones críticas |
 
-Modelo: `claude-sonnet-4-20250514` vía Anthropic API.
+Modelo: `llama-3.3-70b-versatile` vía Groq API (costo $0 — plan gratuito).
+API key: `GROQ_API_KEY=gsk_...` — obtener en console.groq.com.
 
 ### Pilar 3 — IA de Localización
 - Clasificación de cultivos por lote (soja / trigo / maíz)
@@ -565,7 +610,7 @@ Mantener en cualquier componente nuevo (agentes, reportes, dashboard).
 | `faro_pipeline.py` | ✅ COMPLETO | Pipeline unificado funciona end-to-end con `--skip-georef`. Produce SHA-256, data.json correcto. |
 | `faro_rinde_import.py` | ✅ COMPLETO | `--demo` corre perfectamente: 200 registros, stats, CSV modelo-ready. Sin datos reales de Basso todavía. |
 | `faro_closdi_pipeline.py` | ✅ COMPLETO | Importable. Provee funciones matemáticas (CLOSDI, EVI2, NDVI, máscaras). No integrado en el pipeline principal. |
-| `MachinaOS/hermes_agent.py` | 🟡 PARCIAL | Importa y corre. Sin `ANTHROPIC_API_KEY`: veredicto local (modo fallback). Con API key: usa Claude. Detecta correctamente SAR fuera de rango dB y NDVI escala errónea. |
+| `MachinaOS/hermes_agent.py` | 🟡 PARCIAL | Importa y corre. Sin `GROQ_API_KEY`: veredicto local (modo fallback). Con API key: usa llama-3.3-70b (Groq, gratis). Detecta correctamente SAR fuera de rango dB y NDVI escala errónea. |
 | `MachinaOS/paperclip_agent.py` | 🟡 PARCIAL | Importa y corre. `--raw` funciona sin API key. Con API key: resumen LLM. Balcarce y Vaca Muerta reportan SIN_DATOS (sin archivos satelitales). |
 | `MachinaOS/phone_gateway.py` | 🟡 PARCIAL | Importa y corre. `--test` funciona. Envío real requiere `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID`, `WHATSAPP_DEST` en .env. |
 
@@ -588,7 +633,7 @@ Mantener en cualquier componente nuevo (agentes, reportes, dashboard).
 | Item | Estado | Notas |
 |------|--------|-------|
 | `.gitignore` | ✅ COMPLETO | Excluye .env, *.tif, *.zip, __pycache__, etc. |
-| `.env` | ❌ NO EXISTE | Crear con ANTHROPIC_API_KEY, COPERNICUS_USER/PASS, WHATSAPP_* |
+| `.env` | ❌ NO EXISTE | Crear con GROQ_API_KEY, COPERNICUS_USER/PASS, WHATSAPP_* (ver .env.example) |
 | `faro_accesos.txt` | ⚠️ RIESGO | Contiene credenciales demo en texto plano. Está en .gitignore, pero sigue en disco. |
 | `data.json` | ✅ COMPLETO | Generado con protocolo Cero Footprint. Estructura: _meta, _interno, insights, resumen, pipeline. |
 | `faro_areas/*.json` | ✅ COMPLETO | cordoba, balcarce, vaca_muerta con todos los campos requeridos. |
@@ -649,7 +694,7 @@ Fix: agregar al inicio de faro_fusion.py y faro_engine.py:
 - [x] ~~Crear .gitignore~~ — COMPLETO
 - [ ] **Corregir corrección int16 en faro_fusion.py** (bug activo verificado)
 - [ ] **Agregar sys.stdout.reconfigure en faro_fusion.py y faro_engine.py**
-- [ ] **Crear .env** con ANTHROPIC_API_KEY y credenciales Copernicus
+- [ ] **Crear .env** con GROQ_API_KEY y credenciales Copernicus (ver .env.example)
 - [ ] **Re-generar sar_cordoba_georef.tif** en dB con el SAR crudo original
 
 ### 🟠 Fase 2 — Sistema genérico
@@ -664,7 +709,7 @@ Fix: agregar al inicio de faro_fusion.py y faro_engine.py:
 - [x] ~~paperclip_agent.py~~ — COMPLETO (requiere API key para LLM, funciona sin ella en modo raw)
 - [x] ~~hermes_agent.py~~ — COMPLETO (idem)
 - [x] ~~phone_gateway.py~~ — COMPLETO (requiere WHATSAPP_* en .env para envío real)
-- [ ] Configurar .env con ANTHROPIC_API_KEY para activar LLM en agentes
+- [ ] Configurar .env con GROQ_API_KEY para activar LLM en agentes (gratis en console.groq.com)
 
 ### 🟢 Fase 4 — Web y datos reales
 - [ ] Reemplazar datos hardcodeados del website por JSON dinámico del pipeline
@@ -710,13 +755,15 @@ Fix: agregar al inicio de faro_fusion.py y faro_engine.py:
 
 ## Variables de entorno (.env — nunca commitear)
 
+Ver `.env.example` para la plantilla completa.
+
 ```bash
 # Copernicus Data Space (SAR)
 COPERNICUS_USER=tu_email@ejemplo.com
 COPERNICUS_PASS=tu_contraseña
 
-# Anthropic (MachinaOS)
-ANTHROPIC_API_KEY=sk-ant-...
+# Groq — MachinaOS LLM (costo $0 — plan gratuito)
+GROQ_API_KEY=gsk_...
 
 # WhatsApp Gateway (Fase 3)
 WHATSAPP_TOKEN=...
