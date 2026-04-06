@@ -3,6 +3,8 @@
   "label": "Marcos Juárez, Córdoba, Argentina",
   "vertical": "agro",
   "cultivo": "soja",
+  "provincia": "Córdoba",
+  "departamento": "Marcos Juárez",
   "country_code": "AR",
   "country_name": "Argentina",
   "hectareas_ref": 5000,
