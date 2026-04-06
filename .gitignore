@@ -2,6 +2,7 @@
 .env
 faro_accesos.txt
 faro_clientes.json
+accounts.json
 
 # Datos satelitales (archivos grandes)
 *.tif

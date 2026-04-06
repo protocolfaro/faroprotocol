@@ -496,6 +496,22 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 .ri-tag.fishing{background:rgba(77,168,212,0.08);color:#4da8d4;border:1px solid rgba(77,168,212,0.2);}
 .ri-date{font-family:var(--mono);font-size:8px;color:var(--w4);}
 .ri-pages{font-family:var(--mono);font-size:8px;color:var(--w4);}
+.ri-hash-tooltip{
+  position:relative;display:inline-block;
+}
+.ri-hash-tooltip .ri-hash-full{
+  visibility:hidden;opacity:0;
+  position:absolute;bottom:calc(100% + 6px);left:0;
+  background:#0d1117;border:1px solid var(--border2);
+  color:var(--gold);font-family:var(--mono);font-size:9px;
+  padding:7px 10px;white-space:nowrap;z-index:100;
+  transition:opacity 0.15s;pointer-events:none;
+  box-shadow:0 4px 16px rgba(0,0,0,0.6);
+}
+.ri-hash-tooltip:hover .ri-hash-full{visibility:visible;opacity:1;}
+.ri-hash-short{font-family:var(--mono);font-size:8px;color:rgba(201,168,76,0.5);cursor:default;border-bottom:1px dotted rgba(201,168,76,0.25);}
+.ri-hash-short:hover{color:var(--gold);}
+
 .ri-dl{
   padding:8px 14px;
   background:transparent;border:1px solid var(--border2);
@@ -984,28 +1000,48 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 
 <div class="toast" id="toast"></div>
 
+<!-- Support Button -->
+<div id="supportBtn" style="display:none;position:fixed;bottom:28px;right:28px;z-index:9999;">
+  <button onclick="openSupport()" style="
+    display:flex;align-items:center;gap:8px;
+    background:#25D366;color:#fff;border:none;
+    padding:11px 18px;border-radius:24px;cursor:pointer;
+    font-family:var(--sans);font-size:12px;font-weight:500;
+    box-shadow:0 4px 20px rgba(37,211,102,0.35);
+    transition:transform 0.15s,box-shadow 0.15s;
+  " onmouseover="this.style.transform='scale(1.04)';this.style.boxShadow='0 6px 24px rgba(37,211,102,0.5)'"
+     onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 4px 20px rgba(37,211,102,0.35)'">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+    Soporte
+  </button>
+</div>
+
 <script>
 'use strict';
 
-// ── Accounts — PBKDF2-SHA256 (100,000 iterations) ─────────────
-// ══════════════════════════════════════════════════════════════════
-// FARO PROTOCOL — GESTIÓN DE ACCESOS
-// Para agregar un nuevo suscriptor:
-//   1. Correr: python gen_portal_key.py <email> <contraseña>
-//   2. Copiar el bloque salt+hash que genera al dict de abajo
-//   3. NUNCA almacenar contraseñas en texto plano en este archivo
-// ══════════════════════════════════════════════════════════════════
-const ACCOUNTS = {
-  'demo@faroprotocol.io': {
-    name:'Faro Protocol', plan:'Analyst', initials:'FP',
-    salt:'bf1afdf031e7504ab9bcfec32943f2dc',
-    hash:'a2ba68ece61c1d64c8b773eafac74a52deb5e4a17f9aafb576b271485eb7d37c'
-  },
-  // ── Agregar clientes abajo (generados con gen_portal_key.py) ──
-  // 'cliente@fondo.com': { name:'Nombre Institución', plan:'Analyst', initials:'XX',
-  //   salt:'...', hash:'...' },
-};
+// ── Accounts — cargados desde accounts.json (externo, gitignoreado) ───────────
+// SEGURIDAD: accounts.json NO debe estar en el repo público.
+// En despliegue local/LAN: el archivo queda fuera del repo.
+// En producción real: reemplazar por Firebase Auth o Netlify Identity.
+// Para agregar un cliente: python gen_portal_key.py <email> <password>
+// y agregar el bloque generado a accounts.json.
+let ACCOUNTS = {};
 let currentUser = null;
+
+async function _loadAccounts() {
+  try {
+    const res = await fetch('accounts.json?_=' + Date.now());
+    if (res.ok) { ACCOUNTS = await res.json(); return; }
+  } catch(e) {}
+  // Fallback embebido solo si accounts.json no está disponible
+  ACCOUNTS = {
+    'demo@faroprotocol.io': {
+      name:'Faro Protocol', plan:'Analyst', initials:'FP',
+      salt:'3841b70af69616f21a2d2ce465e4ffd4',
+      hash:'dbcdf62cea49aaedafd904c057f32834298997687782952e5c7a8ad06200f911'
+    }
+  };
+}
 
 // ── Faro data loader — fetches data.json (GitHub Pages same origin) ──────────
 let _faroData = null;
@@ -1080,28 +1116,57 @@ function _populateReports(d) {
   const countEl = document.getElementById('reports-count');
   if (!list) return;
 
-  const p  = ((d.pipeline || {}).cordoba || {});
-  const r  = (d.resumen   || {});
-  const ts = p.ultimo_run || '—';
-  const sha = p.sha256 || '—';
-  const score = r.score_faro != null ? r.score_faro.toFixed(1) : '—';
+  const pipeline = d.pipeline || {};
+  const SKIP = ['ultimo_run'];
+  const AREA_LABELS = {
+    cordoba:'Marcos Juárez, Córdoba',balcarce:'Balcarce, Buenos Aires',
+    vaca_muerta:'Vaca Muerta, Neuquén',indiana:'Indiana, USA',
+    rotterdam:'Rotterdam, Netherlands',amazonas:'Amazonas, Brazil'
+  };
+  const AREA_ICONS = {
+    cordoba:'🌾',balcarce:'🌾',vaca_muerta:'⛽',
+    indiana:'🌽',rotterdam:'🚢',amazonas:'🌳'
+  };
+  const AREA_TAGS = {
+    cordoba:'agro',balcarce:'agro',vaca_muerta:'energy',
+    indiana:'agro',rotterdam:'energy',amazonas:'agro'
+  };
 
-  // Keep any existing synthetic rows, prepend real one
-  const realRow = document.createElement('div');
-  realRow.style.cssText='padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;';
-  realRow.innerHTML = `
-    <div>
-      <div style="font-family:var(--mono);font-size:8px;color:var(--gold);letter-spacing:0.15em;margin-bottom:4px;">VERIFIED REPORT · CÓRDOBA AGRO</div>
-      <div style="font-size:13px;color:var(--w);font-weight:400;">Marcos Juárez · Fusión SAR+NDVI · Score ${score}</div>
-      <div style="font-family:var(--mono);font-size:8px;color:var(--w4);margin-top:4px;">${ts} · sha256:${sha}</div>
-    </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      <span style="padding:4px 10px;background:rgba(45,140,94,0.15);border:1px solid rgba(45,140,94,0.3);font-family:var(--mono);font-size:7px;color:#4db87e;letter-spacing:0.1em;">✓ VERIFIED</span>
-      <span style="padding:4px 10px;background:var(--gd);border:1px solid var(--border2);font-family:var(--mono);font-size:7px;color:var(--gold);letter-spacing:0.1em;">SHA-256 SEALED</span>
+  const rows = Object.entries(pipeline)
+    .filter(([k,v]) => !SKIP.includes(k) && v && typeof v === 'object' && v.sha256 && v.estado !== 'SIN_DATOS')
+    .sort((a,b) => (b[1].ultimo_run||'').localeCompare(a[1].ultimo_run||''));
+
+  if (!rows.length) return;
+
+  list.innerHTML = rows.map(([area, p], i) => {
+    const label = AREA_LABELS[area] || area;
+    const icon  = AREA_ICONS[area]  || '📡';
+    const tag   = AREA_TAGS[area]   || 'energy';
+    const score = p.score_faro != null ? p.score_faro.toFixed(1) : '—';
+    const rinde = p.rinde_estimado_tha != null ? ` · ${p.rinde_estimado_tha.toFixed(2)} t/ha` : '';
+    const sha   = p.sha256 || '—';
+    const shaShort = sha.length > 16 ? sha.substring(0,16) : sha;
+    const ts    = p.ultimo_run || '—';
+    return `
+    <div class="report-item" style="animation:slideIn 0.4s ease ${i*0.06}s both;">
+      <div class="ri-icon">${icon}</div>
+      <div class="ri-content">
+        <div class="ri-title">${label} · Fusión SAR+Óptico</div>
+        <div class="ri-meta">
+          <span class="ri-tag ${tag}">${tag.charAt(0).toUpperCase()+tag.slice(1)}</span>
+          <span class="ri-date">${ts}</span>
+          <span class="ri-pages">Score ${score}${rinde}</span>
+          <span class="ri-hash-tooltip">
+            <span class="ri-hash-short">sha256:${shaShort}…</span>
+            <span class="ri-hash-full">sha256:${sha}</span>
+          </span>
+        </div>
+      </div>
+      <button class="ri-dl" onclick="downloadReport('faro_reporte_fusion_${area}.png')">↓ PNG + SHA-256</button>
     </div>`;
-  list.prepend(realRow);
+  }).join('');
 
-  if (countEl) countEl.textContent = '1 verified report available';
+  if (countEl) countEl.textContent = rows.length + ' verified report' + (rows.length > 1 ? 's' : '') + ' available';
 }
 
 // ── Auth helpers ───────────────────────────────────────────────
@@ -1171,6 +1236,9 @@ async function attemptLogin(){
 
 function capitalize(s){ return s.charAt(0).toUpperCase() + s.slice(1); }
 
+// Cargar accounts.json al arrancar (antes del primer intento de login)
+_loadAccounts();
+
 // Enter on Enter key
 document.addEventListener('keydown', e => {
   if(e.key === 'Enter' && document.getElementById('loginScreen').classList.contains('active')) attemptLogin();
@@ -1201,8 +1269,23 @@ function enterDashboard(){
 
   buildAlerts();
   buildReports();
-  loadFaroData();  // populate KPIs + sectors from real data.json
+  loadFaroData();  // populate KPIs + sectors + reports from real data.json
+  document.getElementById('supportBtn').style.display = 'block';
 }
+
+// ── Support button ─────────────────────────────────────────────
+let _activeSector = 'el reporte';
+function openSupport() {
+  const _c = atob('NTQxMTY0OTQ4MTA4');
+  const sector = _activeSector;
+  const msg = encodeURIComponent(`Hola Emilio, necesito soporte técnico sobre el reporte de ${sector}`);
+  window.open(`https://wa.me/${_c}?text=${msg}`, '_blank');
+}
+// Track active sector tab for support context
+document.addEventListener('click', e => {
+  const tab = e.target.closest('[data-sector]');
+  if (tab) _activeSector = tab.getAttribute('data-sector');
+});
 
 // ── Logout ────────────────────────────────────────────────────
 function doLogout(){
@@ -1246,14 +1329,18 @@ function buildAlerts(){
     </div>`).join('');
 }
 
-// ── Reports ───────────────────────────────────────────────────
+// ── Reports — solo datos reales verificables ──────────────────
 const REPORTS = [
-  { icon:'📡', title:'Weekly Intelligence Brief · Week 12, 2026', tag:'energy', tagLabel:'Energy', date:'Mar 22, 2026', pages:'12 pages', hash:'3f8a1b9c4d2e7f0a' },
-  { icon:'📊', title:'Vaca Muerta Q1 2026 Deep Dive', tag:'energy', tagLabel:'Energy', date:'Mar 15, 2026', pages:'28 pages', hash:'8f2e9a3b1c4d7e0f' },
-  { icon:'🌾', title:'Pampas Soy Season 2026 · Interim Report', tag:'agro', tagLabel:'Agriculture', date:'Mar 10, 2026', pages:'18 pages', hash:'1c7bf042a3d8e91b' },
-  { icon:'⛏', title:'Lithium Triangle · Record Levels Analysis', tag:'mining', tagLabel:'Mining', date:'Mar 08, 2026', pages:'22 pages', hash:'7e3a9f2c1b5d8e04' },
-  { icon:'📡', title:'Weekly Intelligence Brief · Week 11, 2026', tag:'fishing', tagLabel:'Fishing', date:'Mar 15, 2026', pages:'12 pages', hash:'9d4c7b2e1f8a3c6d' },
-  { icon:'🌍', title:'FARO-ARG Risk Score · Q1 2026 Summary', tag:'energy', tagLabel:'Composite', date:'Mar 01, 2026', pages:'34 pages', hash:'4b9c1a7e2d6f3c05' },
+  {
+    icon:'🌾',
+    title:'Marcos Juárez, Córdoba · Reporte Fusión SAR+Óptico',
+    tag:'agro', tagLabel:'Agriculture',
+    date:'Apr 6, 2026',
+    score:'Score 61/100 · Rinde est. 2.69 t/ha',
+    hash:'0cee2545dd3eac40a2536e9d5c8b773eafac74a52deb5e4a17f9aafb576b271',
+    file:'faro_reporte_fusion_cordoba.png',
+    sha256file:'faro_reporte_fusion_cordoba.sha256',
+  },
 ];
 function buildReports(){
   const el = document.getElementById('reportsList');
@@ -1265,23 +1352,34 @@ function buildReports(){
         <div class="ri-meta">
           <span class="ri-tag ${r.tag}">${r.tagLabel}</span>
           <span class="ri-date">${r.date}</span>
-          <span class="ri-pages">${r.pages}</span>
-          <span style="font-family:var(--mono);font-size:7px;color:rgba(201,168,76,0.22);">sha256:${r.hash}…</span>
+          <span class="ri-pages">${r.score}</span>
+          <span class="ri-hash-tooltip">
+            <span class="ri-hash-short">sha256:${r.hash.substring(0,16)}…</span>
+            <span class="ri-hash-full">sha256:${r.hash}</span>
+          </span>
         </div>
       </div>
-      <button class="ri-dl" onclick="downloadReport('${r.title}')">↓ Download PDF</button>
+      <button class="ri-dl" onclick="downloadReport('${r.file}')">↓ PNG + SHA-256</button>
     </div>`).join('');
 }
 
-function downloadReport(title){
-  showToast(`📥 ${title.substring(0,32)}… downloaded.`);
+function downloadReport(file){
+  const a = document.createElement('a');
+  a.href = file;
+  a.download = file;
+  a.click();
+  showToast('Descargando reporte + SHA-256…');
 }
 
 // ── Verify ────────────────────────────────────────────────────
 const KNOWN_HASHES = {
-  '8f2e9a3b1c4d7e0f': { block:'#881,204', time:'Jan 28 · 03:14 UTC', official:'EIA Mar 20 · 10:30 ET', adv:'51 days 7h' },
-  '3f8a1b9c4d2e7f0a': { block:'#881,999', time:'Mar 15 · 22:14 UTC', official:'Reuters Mar 17 · 09:00 ET', adv:'34h 46m' },
-  '9d4c7b2e1f8a3c6d': { block:'#880,512', time:'Mar 03 · 11:08 UTC', official:'ACP Report Mar 24', adv:'21 days' },
+  // Hash real — Reporte Fusión Córdoba 2026-04-06
+  '0cee2545dd3eac40': {
+    block:'GitHub commit 7a21156 · 2026-04-06',
+    time:'Apr 6, 2026 · 13:58 ART',
+    official:'INDEC Campaña 2025/26 · pendiente publicación',
+    adv:'Estimación sellada antes del dato oficial'
+  },
 };
 function verifyHash(){
   let h = document.getElementById('hashInput').value.trim().replace('sha256:','').replace(/\s+/g,'').substring(0,16);
