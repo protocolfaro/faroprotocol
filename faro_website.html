@@ -924,20 +924,13 @@ footer{padding:32px 48px;border-top:1px solid var(--border);display:flex;align-i
     <div class="cap-kicker" data-en="Institutional access" data-es="Acceso institucional">Institutional access</div>
     <h2 class="cap-h2"><span data-en="Access is not sold." data-es="El acceso no se vende.">Access is not sold.</span><br><em data-en="It is granted." data-es="Se otorga.">It is granted.</em></h2>
     <p class="cap-sub" data-en="Submit your institutional email and receive the Due Diligence Pack — full methodology, legal framework, compliance documentation and sample data." data-es="Enviá tu email institucional y recibí el Pack de Due Diligence — metodología completa, marco legal, documentación de cumplimiento y datos de muestra.">Submit your institutional email and receive the Due Diligence Pack — full methodology, legal framework, compliance documentation and sample data.</p>
-    <div class="cap-form">
-      <select class="cap-sel" id="planSel">
-        <option>Observer</option>
-        <option selected>Analyst</option>
-        <option>Sovereign</option>
-        <option>Enterprise</option>
-      </select>
-      <input class="cap-in" type="email" id="emailIn" placeholder="your@institution.com">
-      <button class="cap-btn" data-en="Request Due Diligence Pack →" data-es="Solicitar Pack de Due Diligence →" onclick="doSignup()">Request Due Diligence Pack →</button>
+    <div class="cap-form" style="justify-content:center;">
+      <a href="mailto:protocolfaro@gmail.com?subject=Due%20Diligence%20Pack%20Request&body=Hola%2C%20quiero%20recibir%20el%20Pack%20de%20Due%20Diligence.%0A%0AOrganizaci%C3%B3n%3A%20%5BEscribir%5D%0A%C3%81rea%20de%20inter%C3%A9s%3A%20%5BEscribir%20zona%20o%20sector%5D%0AMensaje%3A%20" class="cap-btn" style="text-decoration:none;display:inline-block;padding:13px 32px;" data-en="Request Due Diligence Pack →" data-es="Solicitar Pack de Due Diligence →">Request Due Diligence Pack →</a>
     </div>
-    <div class="cap-note" data-en="Corporate email required (.com / .gov / .edu). First response within 24 hours." data-es="Email corporativo requerido (.com / .gov / .edu). Primera respuesta en 24 horas.">Corporate email required (.com / .gov / .edu). First response within 24 hours.</div>
+    <div class="cap-note" data-en="First response within 24 hours — protocolfaro@gmail.com" data-es="Primera respuesta en 24 horas — protocolfaro@gmail.com">First response within 24 hours — protocolfaro@gmail.com</div>
 
     <div style="margin-top:18px;text-align:center;">
-      <div style="font-family:var(--mono);font-size:8px;color:var(--w4);letter-spacing:0.12em;margin-bottom:10px;" data-en="OR CONTACT DIRECTLY" data-es="O CONTACTO DIRECTO">OR CONTACT DIRECTLY</div>
+      <div style="font-family:var(--mono);font-size:8px;color:var(--w4);letter-spacing:0.12em;margin-bottom:10px;" data-en="OR CONTACT DIRECTLY VIA WHATSAPP" data-es="O CONTACTO DIRECTO POR WHATSAPP">OR CONTACT DIRECTLY VIA WHATSAPP</div>
       <button onclick="(function(){var z=atob('NTQxMTY0OTQ4MTA4');var t=document.getElementById('emailIn').value;var zona=t?'para '+t:'en mi zona';var m=encodeURIComponent('Hola Emilio, quiero validar mi zona en [Escribir Zona]. Mi código de validación es: FARO-PILOTO');window.open('https://wa.me/'+z+'?text='+m,'_blank');})()" style="
         display:inline-flex;align-items:center;gap:8px;
         background:#25D366;color:#fff;border:none;
@@ -1266,40 +1259,8 @@ function setSector(btn,sec){
       </div>
     </div>`;
 }
-function signup(plan){document.getElementById('planSel').value=plan;smoothTo('access');}
-async function doSignup(){
-  const email=document.getElementById('emailIn').value.trim();
-  const plan=document.getElementById('planSel').value;
-  if(!email||!email.includes('@')){showToast(lang==='es'?'Ingresá un email válido.':'Please enter a valid institutional email.');return;}
-
-  // Formspree integration — replace YOUR_FORM_ID with your Formspree endpoint ID
-  // Get your ID free at https://formspree.io (e.g. xpwzgkqb)
-  const FORMSPREE_ID='YOUR_FORM_ID';
-
-  if(FORMSPREE_ID==='YOUR_FORM_ID'){
-    // No Formspree configured yet — show confirmation but warn in console
-    console.warn('[Faro] Formspree not configured. Set FORMSPREE_ID in doSignup().');
-    showToast(lang==='es'?`✓ Solicitud ${plan} enviada. Respondemos en 24hs.`:`✓ ${plan} request received. We'll respond within 24h.`);
-    document.getElementById('emailIn').value='';
-    return;
-  }
-
-  try{
-    const fd=new FormData();
-    fd.append('email',email);
-    fd.append('plan',plan);
-    fd.append('_subject',`Faro Protocol — ${plan} request from ${email}`);
-    const r=await fetch(`https://formspree.io/f/${FORMSPREE_ID}`,{method:'POST',body:fd,headers:{Accept:'application/json'}});
-    if(r.ok){
-      showToast(lang==='es'?`✓ Solicitud ${plan} enviada. Respondemos en 24hs.`:`✓ ${plan} request received. We'll respond within 24h.`);
-      document.getElementById('emailIn').value='';
-    }else{
-      showToast(lang==='es'?'Error al enviar. Escribinos a info@faroprotocol.io':'Send error. Email us at info@faroprotocol.io');
-    }
-  }catch(e){
-    showToast(lang==='es'?'Error de red. Reintentá o escribinos.':'Network error. Please retry or email us.');
-  }
-}
+function signup(plan){smoothTo('access');}
+function doSignup(){window.location.href='mailto:protocolfaro@gmail.com?subject=Due%20Diligence%20Pack%20Request';}
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),4000);}
 function downloadBrief(){showToast(lang==='es'?'📥 Brief descargado. Compartilo con tu equipo.':'📥 Brief downloaded. Share it with your team.');}
 // tick() — fake live counters removed (no real-time data outside Córdoba)
