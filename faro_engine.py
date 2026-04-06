@@ -616,11 +616,15 @@ class FaroEngine:
             )
 
         if vertical == 'agro' and rinde is not None:
-            ref, _, _ = _get_rinde_ref_zona(area)
+            ref, _, fuente_ref = _get_rinde_ref_zona(area)
             if rinde < ref * SCORE_ALERTA_RINDE:
+                brecha_pct = round((1 - rinde / ref) * 100, 1)
+                cultivo    = area.get('cultivo', 'cultivo')
                 alertas.append(
-                    f"Rinde estimado {rinde:.1f} t/ha por debajo del promedio "
-                    f"regional ({ref:.1f} t/ha)"
+                    f"Rinde estimado {rinde:.2f} t/ha — {brecha_pct}% por debajo "
+                    f"del promedio historico regional {ref:.2f} t/ha ({fuente_ref}). "
+                    f"Recomendacion: verificar condicion hidrica y sanidad del cultivo "
+                    f"de {cultivo} en campo antes de proyectar cosecha."
                 )
 
         if fusion is not None and fusion < 0.30:
@@ -735,12 +739,42 @@ class FaroEngine:
 
     # ── Publicación data.json (Protocolo Cero Footprint) ───────────────────────
 
+    def _sello_datos(self, area_name: str, fecha: str,
+                     ndvi: Optional[float], rinde: Optional[float]) -> str:
+        """
+        SHA-256 determinístico sobre campos clave del análisis.
+        Independiente del PNG — verificable sin necesidad del archivo.
+        Formato: SHA256("area_name|YYYY-MM-DD HH:MM|ndvi:.4f|rinde:.2f")
+        """
+        ndvi_s   = f"{ndvi:.4f}"   if ndvi   is not None else "null"
+        rinde_s  = f"{rinde:.2f}"  if rinde  is not None else "null"
+        cadena   = f"{area_name}|{fecha}|{ndvi_s}|{rinde_s}"
+        return hashlib.sha256(cadena.encode('utf-8')).hexdigest()
+
+    def _audit_log(self, area_name: str, fecha: str, insight: InsightEconomico,
+                   sello_datos: str):
+        """Append a audit_log.jsonl — Proof of Work histórico."""
+        log_path = Path(__file__).parent / 'audit_log.jsonl'
+        entrada  = {
+            "timestamp":   fecha,
+            "area":        area_name,
+            "score":       insight.score_faro,
+            "rinde_tha":   insight.rinde_estimado_tha,
+            "estado":      insight.estado,
+            "sello_datos": sello_datos,
+            "hash_png":    insight.sha256_reporte,
+        }
+        with open(log_path, 'a', encoding='utf-8') as f:
+            f.write(json.dumps(entrada, ensure_ascii=False) + '\n')
+
     def _publicar(self, crudos: DatosCrudos, insight: InsightEconomico):
         """
         Escribe data.json con tres secciones separadas:
           _interno  → datos técnicos (no exponer en web pública)
           insights  → lo que ve el cliente
           resumen   → métricas globales del sistema
+        Solo escribe claves generadas por el pipeline — nunca preserva
+        campos demo/legacy (accuracy_pct, readings_verified, etc.).
         """
         # Leer JSON existente para preservar otras áreas
         data = {}
@@ -750,6 +784,12 @@ class FaroEngine:
                     data = json.load(f)
             except json.JSONDecodeError:
                 data = {}
+
+        # Eliminar campos demo/legacy que no deben estar en producción
+        CAMPOS_LEGACY = {'accuracy_pct', 'readings_verified', 'sla_pct',
+                         'vaca_muerta', 'lithium_puna', 'faro_arg_score'}
+        for campo in CAMPOS_LEGACY:
+            data.pop(campo, None)
 
         ahora = datetime.now().strftime("%Y-%m-%d %H:%M")
 
@@ -777,6 +817,13 @@ class FaroEngine:
             "ultimo_run":          ahora,
         }
 
+        # ── Sello de datos + audit log ────────────────────────────
+        sello = self._sello_datos(
+            crudos.area_name, ahora,
+            crudos.ndvi_medio, insight.rinde_estimado_tha
+        )
+        self._audit_log(crudos.area_name, ahora, insight, sello)
+
         # ── insights (CAPA CLIENTE) ───────────────────────────────
         data.setdefault('insights', {})
         data['insights'][insight.area] = {
@@ -791,6 +838,7 @@ class FaroEngine:
             "alerta":             insight.alerta,
             "pct_anomalia":       insight.pct_anomalia,
             "sha256_reporte":     insight.sha256_reporte,
+            "sello_datos":        sello,
         }
 
         # ── resumen global ────────────────────────────────────────
