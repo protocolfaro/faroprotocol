@@ -1,21 +1,77 @@
 # FARO PROTOCOL — Guía para Claude Code
-> Última actualización: 2026-04-05 — V6 Auto-runner + Email delivery + Portal dinámico
+> Última actualización: 2026-04-06 — V7 Sello datos + Audit log + Card generator + Contacto real
 > Arquitecto del sistema: Emilio (hijo)
 > Conocimiento de campo y contactos: Padre (fundador)
 
 ---
 
-## Estado del sistema — V6 (2026-04-05)
+## HOJA DE RUTA — Sesión con Emilio (2026-04-07)
+
+### 🔴 Prioridad 1 — Datos de Basso (impacto máximo en el pitch)
+El Padre exporta los datos de rinde de Renzo Basso a CSV y se corre:
+```bash
+python faro_rinde_import.py --csv datos_basso.csv
+```
+Columnas mínimas: `lote, año, cultivo, rinde_tn_ha`
+Esto convierte el sistema de "estadística nacional" a "predicción calibrada para ese campo específico". Es el argumento más fuerte ante el cliente.
+
+### 🔴 Prioridad 2 — NDVI Balcarce (segunda área real)
+Balcarce tiene rinde histórico (146 registros SIIA) pero no tiene raster NDVI.
+Usar el script GEE ya conocido, cambiar bounds a `[-58.5,-38.3,-57.5,-37.3]` y exportar igual que Córdoba.
+Con NDVI real → se puede correr el pipeline completo → segunda tarjeta verificable para el pitch.
+
+### 🟡 Prioridad 3 — Score Córdoba (revisión de umbrales)
+Score actual: 49 (ALERTA). Bajó al calibrar SAR correctamente en -13.9 dB.
+Revisar con Emilio si los umbrales del engine reflejan bien la realidad agro o hay que ajustarlos.
+No es un bug — es calibración. La alerta puede ser correcta (rinde 2.02 vs histórico 3.44).
+
+### 🟡 Prioridad 4 — Portal accesible externamente
+Hoy solo funciona via `python -m http.server 8080` (localhost).
+Para mostrarlo a un cliente desde afuera: deploy en Netlify (gratis, 5 min desde GitHub).
+
+### 🟢 Limpieza del repo (30 min)
+Borrar archivos sueltos en la raíz que no pertenecen al proyecto:
+```
+Gemini_Generated_Image_of2zezof2zezof2z.png
+Glaciares_MCRArg_marzo2026.pdf
+Nuevo Documento de texto.txt
+descarga.png
+f267ad3b-3d07-48b1-b595-17470b622deb.jfif
+faro_accesos.txt   ← credenciales demo en texto plano (ya en .gitignore, borrar del disco)
+```
+Agregar a `.gitignore`:
+```
+audit_log.jsonl
+faro_card_*.txt
+```
+
+### 🟢 GROQ_API_KEY en .env
+Gratis en console.groq.com. Sin la key Hermes y Paperclip corren en modo degradado.
+Con la key dan resúmenes en lenguaje natural tras cada pipeline.
+
+---
+
+## Estado del sistema — V7 (2026-04-06)
 
 ### Módulos nuevos / actualizados hoy
 | Módulo | Estado | Descripción |
 |--------|--------|-------------|
-| `faro_auto.py` | ✅ NUEVO | Auto-runner semanal: pipeline + Hermes + entrega para todas las áreas activas |
-| `faro_deliver.py` | ✅ NUEVO | Entrega de reportes PNG por email (Gmail SMTP + App Password) |
-| `faro_clientes.json` | ✅ NUEVO | Lista de emails de clientes por área (editar para agregar clientes) |
-| `faro_sar_georef.py` | ✅ FIX | SAR formula corregida: `20*log10(DN) - 83.0` (Sentinel-1 GRDH amplitude → sigma0 dB) |
-| `faro_client_portal.html` | ✅ ACTUALIZADO | KPIs + Sectors + Reports ahora cargan datos reales de `data.json` via fetch() |
-| `MachinaOS/*.py` + `faro_price_updater.py` | ✅ MIGRADO | Anthropic → Groq (llama-3.3-70b, costo $0) |
+| `faro_engine.py` | ✅ ACTUALIZADO | `_sello_datos()` SHA-256 determinístico · `_audit_log()` append-only · alerta con brecha % y recomendación |
+| `faro_card.py` | ✅ NUEVO | Generador de cards LinkedIn/WhatsApp desde `data.json` |
+| `faro_website.html` | ✅ FIX | Formulario roto reemplazado por `mailto:protocolfaro@gmail.com` real · botón WhatsApp |
+| `audit_log.jsonl` | ✅ GENERADO | Primera entrada real: 2026-04-06 19:55 · Score 49 · ALERTA |
+| `faro_rinde_import.py` | ✅ ACTUALIZADO | Soporta CSV MAGyP nacional → `datos/baseline_nacional.json` + `datos/baseline_departamental.json` |
+| `faro_engine.py` | ✅ ACTUALIZADO | `_get_rinde_ref_zona()` — lookup jerárquico departamento > provincia > nacional > fallback |
+
+### Módulos V6 (2026-04-05)
+| Módulo | Estado | Descripción |
+|--------|--------|-------------|
+| `faro_auto.py` | ✅ OPERATIVO | Auto-runner semanal: pipeline + Hermes + entrega · Task Scheduler lunes 10:00 ART instalado |
+| `faro_deliver.py` | ✅ OPERATIVO | Entrega por Gmail SMTP · requiere `GMAIL_APP_PASS` en `.env` |
+| `faro_client_portal.html` | ✅ OPERATIVO | Login PBKDF2 · datos dinámicos desde `data.json` · WhatsApp support · accounts.json externo |
+| `MachinaOS/hermes_agent.py` | ✅ OPERATIVO | Groq llama-3.3-70b · NDVI int16 corregido · SAR dB validado |
+| `MachinaOS/paperclip_agent.py` | ✅ OPERATIVO | Groq llama-3.3-70b · resumen diario del sistema |
+| `faro_sar_georef.py` | ✅ FIX | Fórmula `20*log10(DN) - 52.0` (offset empírico Copernicus Data Space) |
 
 ### Módulos V5 (price updater)
 | Módulo | Estado | Descripción |
@@ -57,117 +113,121 @@ SHA-256 informe     : sellado en cada generación
 Próxima actualización: lunes 08:00 ART  (python faro_price_updater.py --daemon)
 ```
 
-### Pipeline operativo (Córdoba)
+### Pipeline operativo (Córdoba) — estado 2026-04-06
 ```
 Área         : Marcos Juárez, Córdoba
 NDVI medio   : 0.4444   (Sentinel-2 via GEE, escala int16 corregida)
-SAR          : 19.1 dB  (Sentinel-1 VV IW GRD, 2026-03-25)
-Fusion Index : 0.6935
-Rinde est.   : 2.69 t/ha  (84% del promedio nacional — soja referencia)
-Score Faro   : 61.0 / 100
-Confianza    : Alta  (2 fuentes + visión computacional)
-Estado       : OK
-Píxeles      : 124,066,152
-SHA-256      : 88f26daf83831fdad89dd8379eee258f9d63d6336551f45d258297929f2e6291
-Commit web   : 73105b6 — pendiente de push a GitHub Pages
+SAR          : -13.9 dB  (Sentinel-1 VV IW GRD, escena 2026-03-31, fórmula 20*log10(DN)-52)
+Fusion Index : 0.5904
+Rinde est.   : 2.02 t/ha  (ref. departamental Marcos Juárez: 3.436 t/ha MAGyP)
+Score Faro   : 49.0 / 100
+Confianza    : Alta
+Estado       : ALERTA — 41.2% bajo promedio histórico departamental
+Sello datos  : 52f6a524240a60d2aad843c01029b4c5829d6c606aa1cfea5828d140b46b6769
+SHA-256 PNG  : bcae6407224c90b2... (reporte visual)
+Última vez   : 2026-04-06 19:55
+Commit web   : 66cbf12 — en GitHub Pages (master + main)
 ```
 
-### Áreas configuradas (6 nodos en data.json)
-| Área | Vertical | Center | Datos satelitales | Rinde histórico |
+**Nota sobre el score:** bajó de 61 a 49 porque el SAR ahora está calibrado correctamente
+(-13.9 dB vs el viejo 19.1 dB que era incorrecto). La alerta puede ser válida agronómicamente.
+Revisar umbrales con Emilio antes del pitch.
+
+### Áreas configuradas (6 nodos en data.json) — estado 2026-04-06
+| Área | Vertical | Estado | Datos satelitales | Rinde histórico |
 |------|----------|--------|-------------------|-----------------|
-| cordoba | agro | — | ✅ NDVI + SAR + PNG + SHA256 | — (piloto Basso pendiente) |
-| balcarce | agro | [-37.8,-58.0] | ❌ sin raster | ✅ 146 registros SIIA 2000–2024 |
-| indiana | agro | [40.2,-86.5] | ❌ sin raster | — |
-| vaca_muerta | energia | — | ❌ sin raster | N/A |
-| rotterdam | energia | [51.9,4.4] | ❌ sin raster | N/A |
-| amazonas | deforestacion | [-3.5,-52.0] | ❌ sin raster | — |
+| cordoba | agro | ⚠️ ALERTA | ✅ NDVI + SAR + PNG + SHA256 | MAGyP 3.436 t/ha (Marcos Juárez) |
+| balcarce | agro | ✅ OK (demo) | ❌ sin raster real | ✅ 146 registros SIIA 2000–2024 |
+| indiana | agro | ⏸ SIN DATOS | ❌ sin raster | — |
+| vaca_muerta | energia | ⏸ SIN DATOS | ❌ sin raster | N/A |
+| rotterdam | energia | ⏸ SIN DATOS | ❌ sin raster | N/A |
+| amazonas | deforestacion | ⏸ SIN DATOS | ❌ sin raster | — |
 
 ### Credenciales
 | Variable | Estado |
 |----------|--------|
-| GROQ_API_KEY | ❌ FALTA — agentes MachinaOS degradados (gratis en console.groq.com) |
-| COPERNICUS_USER/PASS | ❌ FALTA — sin descarga SAR |
-| WHATSAPP_TOKEN/PHONE_ID/DEST | ❌ FALTA — alertas desactivadas |
+| GROQ_API_KEY | ⚠️ FALTA en `.env` — agentes corren en modo degradado (gratis en console.groq.com) |
+| GMAIL_APP_PASS | ⚠️ FALTA en `.env` — email semanal no se envía sin ella |
+| COPERNICUS_USER/PASS | ❌ FALTA — sin descarga SAR nueva |
+| WHATSAPP_TOKEN/PHONE_ID/DEST | ❌ FALTA — alertas automáticas desactivadas |
 
 ---
 
-## Automatización — Estado actual (V6)
+## Automatización — Estado actual (V7)
 
-| Tarea | Scheduleado | Comando |
-|-------|-------------|---------|
-| Precios semanales (urea/Brent/diesel) | ✅ Lunes 08:00 ART | `FaroProtocol_PriceUpdate` en Task Scheduler |
-| Pipeline completo + Hermes + entrega | ⬜ Pendiente instalar | `python faro_auto.py --instalar` (como Admin) |
-
-**Para instalar el auto-runner:**
-```bash
-# Abrir CMD como Administrador, luego:
-cd C:\Users\Usuario\Desktop\Faro-index
-python faro_auto.py --instalar
-python faro_auto.py --status
-```
+| Tarea | Estado | Horario |
+|-------|--------|---------|
+| Precios semanales (urea/Brent/diesel) | ✅ Task Scheduler instalado | Lunes 08:00 ART |
+| Pipeline completo + Hermes + entrega | ✅ Task Scheduler instalado | Lunes 10:00 ART |
 
 **Para agregar un cliente:**
 ```bash
 # 1. Agregar email en faro_clientes.json
 # 2. Generar credenciales del portal:
-python gen_portal_key.py cliente@empresa.com su_contraseña
-# 3. Agregar el bloque salt+hash al dict ACCOUNTS en faro_client_portal.html
+python reset_demo_password.py   # o gen_portal_key.py cliente@empresa.com contraseña
+# 3. El hash+salt se agrega a accounts.json (gitignoreado)
 ```
 
-**Para configurar entrega por email:**
+**Para configurar entrega por email (falta GMAIL_APP_PASS):**
 ```bash
 # En .env agregar:
 GMAIL_USER=protocolfaro@gmail.com
-GMAIL_APP_PASS=xxxx xxxx xxxx xxxx   # Google App Password
+GMAIL_APP_PASS=xxxx xxxx xxxx xxxx   # Google App Password (settings → seguridad → contraseñas de app)
 # Test sin enviar:
 python faro_deliver.py --area cordoba --test
 ```
 
+**Para ver el portal de clientes:**
+```bash
+python -m http.server 8080
+# Abrir: http://localhost:8080/faro_client_portal.html
+# Login: demo@faroprotocol.io / (contraseña en accounts.json)
+```
+
+**Para generar card LinkedIn/WhatsApp:**
+```bash
+python faro_card.py --area cordoba              # LinkedIn
+python faro_card.py --area cordoba --format whatsapp
+```
+
 ---
 
-## Qué falta hacer en Claude Code
+## Qué falta hacer — pendientes técnicos
 
-### 1. Calibración SAR — ALTA PRIORIDAD
-`faro_sar_georef.py` usa `10 * log10(DN)` pero Sentinel-1 GRD es amplitud (no potencia).
-La fórmula correcta para sigma0 es `20 * log10(DN)` con offset de calibración.
-Resultado actual: media 19.1 dB (debería ser ~-12 dB para agricultura).
-Hermes sigue marcando NO-GO por SAR fuera de rango. Dos opciones:
-- Corregir la fórmula a `20 * log10(DN + 1e-10) - 83.0` (offset típico Sentinel-1 GRDH)
-- O ajustar los umbrales de Hermes a la escala real de los datos (solución provisional)
+### 1. ~~Calibración SAR~~ — ✅ RESUELTO (2026-04-06)
+`faro_sar_georef.py` usa `20 * log10(DN) - 52.0` (offset empírico Copernicus Data Space).
+Resultado: media -13.9 dB ✅ (rango normal agro VV: -20 a -5 dB).
+Hermes valida GO. Pendiente futuro: leer offset desde calibration LUT del SAFE XML.
 
-### 2. Website — datos demo que siguen activos
-Los siguientes valores en `faro_website.html` son ficticios y representan riesgo
-legal/reputacional si un cliente los verifica:
+### 2. Datos de Basso — PENDIENTE (Padre)
+`datos/rinde_modelo_ready.csv` existe pero sin datos reales de campo.
+El motor usa baseline MAGyP departamental (Marcos Juárez: 3.436 t/ha).
+Para calibración real: el Padre exporta CSV de Basso →
+```bash
+python faro_rinde_import.py --csv datos_basso.csv
+```
+Columnas mínimas: `lote, año, cultivo, rinde_tn_ha`
+
+### 3. Website — datos demo residuales
+Los siguientes valores en `faro_website.html` siguen siendo ficticios:
 - "98.2% accuracy" global (sin respaldo)
 - "1,020K bbl/d" Vaca Muerta (sin datos reales)
 - "8,491 verified blocks" (contador ficticio)
-- "247 readings verified" (sin respaldo)
-- Caso Red Sea / Reuters / Panama Canal (sección "proof") — hashes falsos
-- "sha256:3f8a1b9c4d2e7f0a" en la sección proof (hash ficticio)
-Acción: o se remueven estas secciones, o se marcan explícitamente como "objetivo 2026"
-o "proyectado", o se reemplazan con el único caso real verificable (Córdoba).
+- Caso Red Sea / Reuters / Panama Canal — hashes falsos
+Acción: marcarlos como "objetivo 2026" o reemplazar por el caso real de Córdoba.
+No es bloqueante para el primer cliente piloto pero es riesgo legal si escala.
 
-### 3. Modelo de predicción ML — PENDIENTE
-`datos/rinde_modelo_ready.csv` tiene columnas `ndvi_medio`, `sar_medio_db`,
-`indice_fusion`, `rinde_estimado` todas en NULL.
-El modelo actual usa promedios nacionales INDEC + factores NDVI/SAR.
-Para calibrarlo con los datos reales de Basso: una vez importado el CSV real,
-entrenar un modelo de regresión (scikit-learn o statsmodels) que ajuste los
-factores `factor_ndvi` y `factor_sar` del engine a los datos históricos del campo.
+### 4. Portal — seguridad para producción
+`accounts.json` está gitignoreado y el login usa PBKDF2. Suficiente para piloto.
+Para producción real con múltiples clientes: Firebase Auth o Netlify Identity.
+**Mientras tanto: el portal se comparte solo por localhost o Netlify privado.**
 
-### 4. Portal de clientes — seguridad
-`faro_client_portal.html` tiene credenciales en JS del lado cliente.
-Cualquiera que inspeccione el código fuente las ve.
-Para producción: Firebase Auth (gratis hasta cierto límite) o Netlify Identity.
-Mientras tanto: no compartir la URL con clientes sin advertirlo.
-
-### 5. faro_visor.html — área hardcodeada en demo
+### 5. faro_visor.html — área hardcodeada
 El demo automático de 60s arranca siempre con `cordoba`.
-Cuando lleguen otras áreas, hacer el demo dinámico o parametrizable.
+Cuando lleguen otras áreas, parametrizar el demo.
 
 ### 6. Tests automatizados — no existe ninguno
-Para producción mínima: al menos tests de `faro_areas.py`, `faro_engine._generar_insight()`,
-y `faro_rinde_import.parsear_csv()`. No es bloqueante para cliente piloto.
+No bloqueante para cliente piloto.
 
 ---
 
