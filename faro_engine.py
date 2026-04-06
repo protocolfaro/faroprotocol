@@ -88,21 +88,37 @@ def _sha256(path: str) -> str:
 # _estimar_rinde_agro() para transformar biomasa vegetativa en biomasa de cosecha.
 FACTOR_BIOMASA_A_GRANO: float = 0.44
 
-# Rendimientos de referencia → BIOMASA aérea total (t/ha) por cultivo.
-# Derivados de: rinde_grano_nacional / FACTOR_BIOMASA_A_GRANO.
+# Rendimientos de referencia → fallback hardcodeado si no hay baseline.
+# Con datos MAGyP en datos/baseline_nacional.json el engine usa get_rinde_ref()
+# y estos valores solo se aplican si el archivo no existe.
 # Fuente grano: INDEC / Bolsa de Cereales Argentina, campaña 2024/25.
-#   soja:  3.20 t/ha grano → 3.20 / 0.44 = 7.27 t/ha biomasa
-#   maiz:  8.80 t/ha grano → 8.80 / 0.44 = 20.00 t/ha biomasa
-#   trigo: 3.40 t/ha grano → 3.40 / 0.44 =  7.73 t/ha biomasa
 RINDE_REF_BIOMASA = {
     "soja":  round(3.20 / FACTOR_BIOMASA_A_GRANO, 3),   # 7.273 t/ha
     "maiz":  round(8.80 / FACTOR_BIOMASA_A_GRANO, 3),   # 20.0  t/ha
     "trigo": round(3.40 / FACTOR_BIOMASA_A_GRANO, 3),   # 7.727 t/ha
     "agro":  round(3.20 / FACTOR_BIOMASA_A_GRANO, 3),   # fallback → soja
 }
-
-# Rendimientos de referencia en GRANO (t/ha) — mantener para compatibilidad
 RINDE_REF = {k: round(v * FACTOR_BIOMASA_A_GRANO, 2) for k, v in RINDE_REF_BIOMASA.items()}
+
+
+def _get_rinde_ref_zona(area: dict) -> tuple[float, float, str]:
+    """
+    Retorna (rinde_grano_ref_tn_ha, biomasa_ref_tn_ha, fuente) para el área.
+    Jerarquía: departamento > provincia > nacional > fallback hardcodeado.
+    """
+    cultivo     = area.get('cultivo', 'soja')
+    provincia   = area.get('provincia')
+    departamento = area.get('departamento')
+    try:
+        from faro_rinde_import import get_rinde_ref
+        ref = get_rinde_ref(cultivo, provincia=provincia, departamento=departamento)
+        rinde_grano = ref['media_tn_ha']
+        fuente      = ref['fuente']
+    except Exception:
+        rinde_grano = RINDE_REF.get(cultivo, RINDE_REF['agro'])
+        fuente      = 'fallback_hardcodeado'
+    biomasa = round(rinde_grano / FACTOR_BIOMASA_A_GRANO, 3)
+    return rinde_grano, biomasa, fuente
 
 
 # ─── Utilidades NumPy para procesamiento de arrays ──────────────────────────────
@@ -496,11 +512,12 @@ class FaroEngine:
         biomasa vegetativa total estimada por satélite en rendimiento de
         cosecha real. Es constante agronómica validada para soja/maíz/trigo.
 
-        Sin historial de cliente: RINDE_REF_BIOMASA usa promedios nacionales
-        (INDEC / Bolsa de Cereales Argentina, 2024/25).
+        Con baseline MAGyP disponible: usa rinde histórico por departamento/provincia.
+        Sin baseline: usa promedios nacionales INDEC / Bolsa de Cereales Argentina.
         """
-        cultivo        = area.get('cultivo', 'agro')
-        biomasa_ref    = RINDE_REF_BIOMASA.get(cultivo, RINDE_REF_BIOMASA['agro'])
+        _, biomasa_ref, fuente_ref = _get_rinde_ref_zona(area)
+        if fuente_ref != 'fallback_hardcodeado':
+            print(f"  [engine] Rinde ref: {round(biomasa_ref * FACTOR_BIOMASA_A_GRANO, 3)} t/ha ({fuente_ref})")
 
         if ndvi is None and sar_db is None:
             return None
@@ -562,8 +579,7 @@ class FaroEngine:
 
         if vertical == 'agro':
             if rinde is not None:
-                cultivo   = area.get('cultivo', 'agro')
-                ref       = RINDE_REF.get(cultivo, RINDE_REF['agro'])
+                ref, _, _ = _get_rinde_ref_zona(area)
                 rinde_rel = min(rinde / ref, 1.3) / 1.3  # normalizado sobre max esperable
                 score     = 0.60 * fusion_score + 0.30 * rinde_rel * 100
             else:
@@ -600,8 +616,7 @@ class FaroEngine:
             )
 
         if vertical == 'agro' and rinde is not None:
-            cultivo = area.get('cultivo', 'agro')
-            ref     = RINDE_REF.get(cultivo, RINDE_REF['agro'])
+            ref, _, _ = _get_rinde_ref_zona(area)
             if rinde < ref * SCORE_ALERTA_RINDE:
                 alertas.append(
                     f"Rinde estimado {rinde:.1f} t/ha por debajo del promedio "
