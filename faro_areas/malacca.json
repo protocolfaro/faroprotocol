@@ -1,0 +1,18 @@
+{
+  "name": "malacca",
+  "label": "Strait of Malacca, Malaysia / Singapore",
+  "vertical": "maritimo",
+  "sector": "shipping",
+  "country_code": "MY",
+  "country_name": "Malaysia / Singapore",
+  "hectareas_ref": 250000,
+  "center": [1.5, 103.5],
+  "polygon": "POLYGON((103.0 0.5,104.5 0.5,104.5 2.5,103.0 2.5,103.0 0.5))",
+  "bounds": [103.0, 0.5, 104.5, 2.5],
+  "sar_note": "Sentinel-1 IW GRD — detección de buques en uno de los corredores marítimos más activos del mundo (90k buques/año)",
+  "sar_output": "sar_malacca_georef.tif",
+  "report_png": "faro_reporte_fusion_malacca.png",
+  "copernicus_collection": "SENTINEL-1",
+  "copernicus_product_type": "GRD",
+  "copernicus_mode": "IW"
+}

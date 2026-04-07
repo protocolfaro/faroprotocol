@@ -1,0 +1,18 @@
+{
+  "name": "permian",
+  "label": "Permian Basin, West Texas, USA",
+  "vertical": "energia",
+  "sector": "oil_gas",
+  "country_code": "US",
+  "country_name": "United States",
+  "hectareas_ref": 180000,
+  "center": [31.7, -102.8],
+  "polygon": "POLYGON((-104.5 30.5,-101.5 30.5,-101.5 33.0,-104.5 33.0,-104.5 30.5))",
+  "bounds": [-104.5, 30.5, -101.5, 33.0],
+  "sar_note": "Sentinel-1 IW GRD — alta densidad de pozos activos, backscatter doble rebote característico",
+  "sar_output": "sar_permian_georef.tif",
+  "report_png": "faro_reporte_fusion_permian.png",
+  "copernicus_collection": "SENTINEL-1",
+  "copernicus_product_type": "GRD",
+  "copernicus_mode": "IW"
+}

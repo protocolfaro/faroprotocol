@@ -30,9 +30,11 @@ venv/
 *.DS_Store
 Thumbs.db
 
-# Logs (generados automáticamente, no versionar)
+# Logs y outputs generados automáticamente
 logs/*.log
 logs/*.log.*
+audit_log.jsonl
+faro_card_*.txt
 
 # Claude interno
 .claude/

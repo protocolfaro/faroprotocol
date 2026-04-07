@@ -1,0 +1,18 @@
+{
+  "name": "pilbara",
+  "label": "Pilbara Iron Ore Belt, Western Australia",
+  "vertical": "mineria",
+  "sector": "mining_iron",
+  "country_code": "AU",
+  "country_name": "Australia",
+  "hectareas_ref": 300000,
+  "center": [-22.5, 117.8],
+  "polygon": "POLYGON((116.0 -24.0,119.5 -24.0,119.5 -21.0,116.0 -21.0,116.0 -24.0))",
+  "bounds": [116.0, -24.0, 119.5, -21.0],
+  "sar_note": "Sentinel-1 IW GRD — monitoreo actividad minera Rio Tinto / BHP. SAR detecta movimiento de maquinaria y cambios topográficos en open-cut mines",
+  "sar_output": "sar_pilbara_georef.tif",
+  "report_png": "faro_reporte_fusion_pilbara.png",
+  "copernicus_collection": "SENTINEL-1",
+  "copernicus_product_type": "GRD",
+  "copernicus_mode": "IW"
+}
