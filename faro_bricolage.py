@@ -9,10 +9,10 @@ FARO PROTOCOL — Bricolage 1800×2400 px
   - Sello VERIFIED SHA-256 real
 
 Zonas fijas (hardcodeadas por el usuario):
-  1. Balcarce   (Score ≈ 70)
-  2. Amazonas   (Score ≈ 66)
-  3. Permian    (Score ≈ 52)
-  4. Indiana    (Score ≈ 51)
+  1. Balcarce    (Score ≈ 70) — Agro
+  2. Amazonas    (Score ≈ 66) — Forest
+  3. Vaca Muerta            — O&G
+  4. Rotterdam              — Energía/Marítimo
 
 Uso:
     python faro_bricolage.py
@@ -72,7 +72,7 @@ VERTICAL_COLORS = {
 }
 
 # Zonas fijas solicitadas por el usuario
-AREAS = ['balcarce', 'amazonas', 'permian', 'indiana']
+AREAS = ['balcarce', 'amazonas', 'vaca_muerta', 'rotterdam']
 
 # Coordenadas de recorte de los PNG de fusión (empíricas, 2168×1335 px)
 # y_top: primer fila de pixeles de imagen real
@@ -81,8 +81,8 @@ AREAS = ['balcarce', 'amazonas', 'permian', 'indiana']
 #   panel 0 (NDVI):   x= 50 – 590
 #   panel 1 (SAR):    x=592 – 1348
 #   panel 2 (Fusion): x=1348 – 2115
-PNG_Y_TOP  = 160
-PNG_Y_BOT  = 665
+PNG_Y_TOP  = 175   # empieza después del título del subplot (evita label duplicado)
+PNG_Y_BOT  = 658
 PNG_PANELS = [
     (50,   590,  'NDVI Limpio'),
     (592,  1348, 'Backscatter SAR'),
