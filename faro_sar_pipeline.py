@@ -1,14 +1,23 @@
 """
-FARO PROTOCOL — Pipeline SAR Sentinel-1
-Descarga imágenes SAR desde Copernicus Data Space (API 2024+)
+FARO PROTOCOL — Pipeline SAR Sentinel-1 + Sentinel-2 óptico
+============================================================
 
-Uso:
-    python faro_sar_pipeline.py --area cordoba
+Descarga SAR (Sentinel-1 GRD) y óptico (Sentinel-2 L2A) desde
+Copernicus Data Space usando las mismas credenciales.
+
+Uso SAR:
     python faro_sar_pipeline.py --area vaca_muerta
-    python faro_sar_pipeline.py --area balcarce
+    python faro_sar_pipeline.py --area cordoba
 
-Requiere:
-    pip install requests
+Uso S2 (NDVI):
+    python faro_sar_pipeline.py --area vaca_muerta --s2
+    python faro_sar_pipeline.py --area rotterdam   --s2 --max-nubes 40
+
+Uso combinado SAR + S2:
+    python faro_sar_pipeline.py --area vaca_muerta --s2 --full
+
+La lógica S2 está en faro_s2_pipeline.py — este archivo expone
+el wrapper para uso desde CLI y desde faro_sar_auto.py.
 
 IMPORTANTE: Nunca guardes usuario/contraseña en el código.
 Usá variables de entorno o el archivo .env
@@ -210,11 +219,36 @@ def main(area_name: str) -> list:
     return productos
 
 
+def descargar_s2(area_name: str, max_nubes: float = 50.0, dias: int = 60,
+                 skip_download: bool = False):
+    """
+    Wrapper para descarga S2 desde faro_s2_pipeline.
+    Permite llamar S2 desde cualquier script que importe faro_sar_pipeline.
+    """
+    from faro_s2_pipeline import pipeline_s2
+    return pipeline_s2(area_name, skip_download=skip_download,
+                        max_nubes=max_nubes, dias=dias)
+
+
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='FARO PROTOCOL — Descarga SAR Sentinel-1')
+    parser = argparse.ArgumentParser(
+        description='FARO PROTOCOL — Descarga SAR Sentinel-1 + Sentinel-2')
     parser.add_argument(
         '--area', required=True,
         help=f"Área a procesar. Disponibles: {', '.join(list_areas())}"
     )
+    parser.add_argument('--s2', action='store_true',
+        help='Descargar también Sentinel-2 L2A y calcular NDVI')
+    parser.add_argument('--full', action='store_true',
+        help='SAR + S2 (equivalente a pasar --s2)')
+    parser.add_argument('--max-nubes', type=float, default=50.0,
+        help='Máximo % de nubes para S2 (default: 50)')
+    parser.add_argument('--skip-download', action='store_true',
+        help='No descargar; usar ZIP existente en datos_s2/')
     args = parser.parse_args()
+
     main(args.area)
+
+    if args.s2 or args.full:
+        descargar_s2(args.area, max_nubes=args.max_nubes,
+                     skip_download=args.skip_download)

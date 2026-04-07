@@ -1,12 +1,12 @@
 {
   "_meta": {
     "nota": "Generado automaticamente por faro_engine.py",
-    "generado_en": "2026-04-07 16:58",
+    "generado_en": "2026-04-07 17:16",
     "generado_por": "faro_engine.py",
     "protocolo": "Cero Footprint v1"
   },
   "pipeline": {
-    "ultimo_run": "2026-04-07 16:58",
+    "ultimo_run": "2026-04-07 17:16",
     "cordoba": {
       "estado": "ALERTA",
       "ndvi_medio": 0.4444,
@@ -22,13 +22,13 @@
     },
     "vaca_muerta": {
       "estado": "OK",
-      "ndvi_medio": null,
-      "sar_medio_db": -10.4096,
-      "indice_fusion_medio": 0.5199,
-      "sha256": "adf743ada407a93c...",
-      "ultimo_run": "2026-04-07 16:24",
-      "pixeles_analizados": 14464000,
-      "score_faro": 46.1,
+      "ndvi_medio": 0.0941,
+      "sar_medio_db": -10.4093,
+      "indice_fusion_medio": 0.4212,
+      "sha256": "3d9235ef25ca5c34...",
+      "ultimo_run": "2026-04-07 17:16",
+      "pixeles_analizados": 13392000,
+      "score_faro": 42.1,
       "rinde_estimado_tha": null,
       "indice_actividad": 50.6,
       "pct_anomalia": 0.0
@@ -153,17 +153,17 @@
       "ultimo_run": "2026-04-05 15:54"
     },
     "vaca_muerta": {
-      "sar_medio_db": -10.4096,
-      "ndvi_medio": null,
-      "indice_fusion_medio": 0.5199,
-      "pixeles_analizados": 14464000,
+      "sar_medio_db": -10.4093,
+      "ndvi_medio": 0.0941,
+      "indice_fusion_medio": 0.4212,
+      "pixeles_analizados": 13392000,
       "pct_anomalia": 0.0,
       "reporte_png": "faro_reporte_fusion_vaca_muerta.png",
-      "sha256_completo": "adf743ada407a93ce7e13161dcc34e5aec254285add19986007d1fb5a5e0bbde",
+      "sha256_completo": "3d9235ef25ca5c34c1660ff54ed0ac77141ce68c330643b48850cc619896d6b1",
       "tiene_sar": true,
-      "tiene_ndvi": false,
+      "tiene_ndvi": true,
       "tiene_vision": false,
-      "ultimo_run": "2026-04-07 16:24"
+      "ultimo_run": "2026-04-07 17:16"
     },
     "rotterdam": {
       "sar_medio_db": -11.9649,
@@ -317,16 +317,16 @@
     "vaca_muerta": {
       "zona": "Vaca Muerta, Neuquén, Argentina",
       "vertical": "energia",
-      "fecha": "2026-04-07 16:24",
+      "fecha": "2026-04-07 17:16",
       "rinde_estimado_tha": null,
       "indice_actividad": 50.6,
-      "score_faro": 46.1,
-      "confianza": "Media",
+      "score_faro": 42.1,
+      "confianza": "Alta",
       "estado": "OK",
       "alerta": null,
       "pct_anomalia": 0.0,
-      "sha256_reporte": "adf743ada407a93c...",
-      "sello_datos": "0df880bcc6b75ac6e8272905c3156bc56b5210cd26451e020d71d92c5eff9814"
+      "sha256_reporte": "3d9235ef25ca5c34...",
+      "sello_datos": "1577ded88bf4c2b6808c52a7c301397cc3be3bdd3030bcadfd84025f0662474f"
     },
     "permian": {
       "zona": "Permian Basin, West Texas, USA",
@@ -372,9 +372,9 @@
     }
   },
   "resumen": {
-    "ultimo_run": "2026-04-07 16:58",
+    "ultimo_run": "2026-04-07 17:16",
     "areas_activas": 9,
-    "score_promedio": 50.2,
+    "score_promedio": 49.7,
     "estado_global": "ALERTA",
     "areas_en_alerta": [
       "cordoba"

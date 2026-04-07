@@ -1,20 +1,22 @@
 """
-FARO PROTOCOL — Automatización SAR end-to-end
-===============================================
+FARO PROTOCOL — Pipeline satelital end-to-end (SAR + S2 óptico)
+================================================================
 
 Pipeline completo para un área:
-  1. Buscar el producto SAR más pequeño disponible en Copernicus
-  2. Descargar el ZIP
-  3. Extraer solo el VV TIFF (sin descomprimir todo el SAFE)
-  4. Georreferenciar → sar_<area>_georef.tif
-  5. Fusión SAR + NDVI (SAR-only si no hay NDVI)
-  6. Motor económico → data.json + SHA-256
-  7. Certificado PNG
+  1. SAR: buscar escena Sentinel-1 GRD en Copernicus
+  2. SAR: descargar ZIP y extraer VV TIFF
+  3. SAR: georreferenciar → sar_<area>_georef.tif
+  4. S2 : buscar escena L2A (low-cloud) y descargar ZIP
+  5. S2 : extraer B04 + B08, calcular NDVI (CLOSDI) → FaroProtocol_NDVI_limpio_<Area>.tif
+  6. Fusión SAR + NDVI → reporte PNG (SAR-only si no hay NDVI)
+  7. Motor económico → data.json + SHA-256
+  8. Certificado PNG
 
 Uso:
-    python faro_sar_auto.py --area vaca_muerta
-    python faro_sar_auto.py --area rotterdam --skip-download  (si ZIP ya descargado)
-    python faro_sar_auto.py --area permian   --skip-georef    (si .tif ya existe)
+    python faro_sar_auto.py --area vaca_muerta              # SAR-only
+    python faro_sar_auto.py --area vaca_muerta --with-s2    # SAR + S2 NDVI
+    python faro_sar_auto.py --area permian --skip-georef    # desde fusión
+    python faro_sar_auto.py --area cordoba --skip-georef --skip-s2  # solo refusión
 """
 
 import argparse
@@ -197,15 +199,19 @@ def extraer_vv_tiff(zip_path: Path) -> Path:
 
 def pipeline_area(area_name: str,
                   skip_download: bool = False,
-                  skip_georef:   bool = False) -> dict:
+                  skip_georef:   bool = False,
+                  with_s2:       bool = False,
+                  skip_s2:       bool = False,
+                  max_nubes_s2:  float = 50.0) -> dict:
     """
-    Ejecuta el pipeline completo para un área.
+    Ejecuta el pipeline completo para un área (SAR + opcionalmente S2 NDVI).
     Retorna un dict con estado y SHA-256.
     """
     area = load_area(area_name)
     print()
     print('=' * 65)
-    print(f'  FARO PROTOCOL — Pipeline SAR-only')
+    modo = 'SAR + S2 óptico' if (with_s2 and not skip_s2) else 'SAR-only'
+    print(f'  FARO PROTOCOL — Pipeline {modo}')
     print(f'  Área     : {area["label"]}')
     print(f'  Vertical : {area.get("vertical","?").upper()}')
     print(f'  Inicio   : {datetime.now().strftime("%Y-%m-%d %H:%M")}')
@@ -257,13 +263,30 @@ def pipeline_area(area_name: str,
     else:
         print(f'\n[4/6] Georef omitido (archivo ya existe)')
 
+    # ── Paso 4.5: Sentinel-2 NDVI (opcional) ─────────────────────────────────
+    ndvi_nombre = area.get('ndvi_tif', f'FaroProtocol_NDVI_limpio_{area_name.title()}.tif')
+    ndvi_path   = PROJECT_ROOT / ndvi_nombre
+
+    if with_s2 and not skip_s2:
+        if ndvi_path.exists():
+            print(f'\n[S2] NDVI ya existe: {ndvi_path.name} — omitiendo descarga S2')
+        else:
+            print(f'\n[S2] Descargando Sentinel-2 L2A y calculando NDVI...')
+            from faro_s2_pipeline import pipeline_s2
+            resultado_s2 = pipeline_s2(area_name, max_nubes=max_nubes_s2)
+            if resultado_s2:
+                print(f'  NDVI listo: {resultado_s2.name}')
+            else:
+                print(f'  S2 falló — continuando en modo SAR-only')
+    elif not ndvi_path.exists():
+        print(f'\n[S2] Omitido (usar --with-s2 para descargar Sentinel-2)')
+
     # ── Paso 5: Fusión SAR + NDVI (SAR-only si falta NDVI) ───────────────────
     print(f'\n[5/6] Fusión SAR + óptico...')
-    ndvi_path = PROJECT_ROOT / area.get('ndvi_tif', 'NOEXISTE')
     if ndvi_path.exists():
         print(f'  NDVI disponible: {ndvi_path.name}')
     else:
-        print(f'  NDVI no disponible — modo SAR-only (NDVI pendiente GEE)')
+        print(f'  NDVI no disponible — modo SAR-only')
 
     import faro_fusion
     resultado  = faro_fusion.main(area=area)
@@ -305,13 +328,14 @@ def pipeline_area(area_name: str,
     from faro_certificado import generar_certificado
     generar_certificado(area_name, PROJECT_ROOT)
 
+    ndvi_modo = 'S2 real' if stats.get('ndvi_disponible') else 'SAR-only'
     print()
     print('=' * 65)
     print(f'  COMPLETADO: {area["label"]}')
     print(f'  Reporte   : {output_png}')
     print(f'  Score     : {insight.score_faro} / 100')
     print(f'  SHA-256   : {digest[:32]}...')
-    print(f'  NDVI      : {"disponible" if stats.get("ndvi_disponible") else "SAR-only (pendiente GEE)"}')
+    print(f'  NDVI      : {ndvi_modo}')
     print('=' * 65)
 
     return {
@@ -319,7 +343,7 @@ def pipeline_area(area_name: str,
         'estado':     'OK',
         'sha256':     digest,
         'score':      insight.score_faro,
-        'ndvi_mode':  'real' if stats.get('ndvi_disponible') else 'sar_only',
+        'ndvi_mode':  ndvi_modo,
         'output_png': output_png,
     }
 
@@ -328,11 +352,17 @@ def pipeline_area(area_name: str,
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
-        description='FARO PROTOCOL — Pipeline SAR auto end-to-end')
-    parser.add_argument('--area', required=True, help='Nombre del área')
-    parser.add_argument('--skip-download', action='store_true',
-                        help='Usar ZIP ya descargado en datos_sar/')
-    parser.add_argument('--skip-georef', action='store_true',
+        description='FARO PROTOCOL — Pipeline satelital end-to-end (SAR + S2)')
+    parser.add_argument('--area',         required=True, help='Nombre del área')
+    parser.add_argument('--with-s2',      action='store_true',
+                        help='Descargar Sentinel-2 L2A y calcular NDVI')
+    parser.add_argument('--skip-s2',      action='store_true',
+                        help='No descargar S2 (ignorar --with-s2)')
+    parser.add_argument('--max-nubes-s2', type=float, default=50.0,
+                        help='% máximo nubes S2 (default: 50)')
+    parser.add_argument('--skip-download',action='store_true',
+                        help='Usar ZIP SAR ya descargado en datos_sar/')
+    parser.add_argument('--skip-georef',  action='store_true',
                         help='Usar sar_<area>_georef.tif ya existente')
     args = parser.parse_args()
 
@@ -340,5 +370,8 @@ if __name__ == '__main__':
         args.area,
         skip_download=args.skip_download,
         skip_georef=args.skip_georef,
+        with_s2=args.with_s2,
+        skip_s2=args.skip_s2,
+        max_nubes_s2=args.max_nubes_s2,
     )
     sys.exit(0 if resultado.get('estado') == 'OK' else 1)
