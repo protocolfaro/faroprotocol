@@ -69,33 +69,91 @@ def actualizar_data_json(area_name: str, stats: dict, sha256: str):
 
 def main():
     parser = argparse.ArgumentParser(
-        description='FARO PROTOCOL — Pipeline unificado',
+        description='FARO PROTOCOL — Pipeline unificado (SAR + S2 óptico)',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=f"Areas disponibles: {', '.join(list_areas())}"
     )
     parser.add_argument(
-        '--area', required=True,
-        help='Nombre del area (ej: cordoba, vaca_muerta, balcarce)'
+        '--area', required=True, nargs='+',
+        help='Área(s) a procesar. Admite múltiples: --area cordoba balcarce vaca_muerta'
+    )
+    parser.add_argument(
+        '--with-s2', action='store_true', default=True,
+        help='Descargar Sentinel-2 L2A y calcular NDVI (activo por defecto)'
+    )
+    parser.add_argument(
+        '--no-s2', action='store_true',
+        help='No descargar S2 (modo SAR-only forzado)'
+    )
+    parser.add_argument(
+        '--max-nubes-s2', type=float, default=50.0,
+        help='Máximo %% nubes para S2 (default: 50)'
     )
     parser.add_argument(
         '--sar-file',
-        help='Path al archivo SAR .tiff crudo descargado de Copernicus'
+        help='Path al archivo SAR .tiff crudo (solo para área única sin georef)'
     )
     parser.add_argument(
         '--skip-georef', action='store_true',
-        help='Omitir el paso de georreferenciacion (el .tif ya existe)'
+        help='Omitir georreferenciación SAR (el .tif ya existe)'
     )
     parser.add_argument(
         '--only-search', action='store_true',
-        help='Solo buscar imagenes SAR disponibles, sin procesar'
+        help='Solo buscar imágenes SAR disponibles, sin procesar'
     )
     parser.add_argument(
         '--skip-vision', action='store_true',
-        help='Omitir la clasificacion de vigor (Fase 6) — util si el NDVI no esta disponible'
+        help='Omitir clasificación de vigor'
     )
     args = parser.parse_args()
 
-    area = load_area(args.area)
+    # Modo multi-área: delegar en faro_sar_auto.pipeline_area()
+    if len(args.area) > 1 or (len(args.area) == 1 and not args.sar_file and not args.only_search):
+        from faro_sar_auto import pipeline_area
+
+        areas_a_procesar = args.area
+        use_s2 = args.with_s2 and not args.no_s2
+        resultados = []
+        errores    = []
+
+        print()
+        print('=' * 65)
+        print(f'  FARO PROTOCOL — Batch pipeline ({len(areas_a_procesar)} áreas)')
+        print(f'  Modo: {"SAR + S2 óptico" if use_s2 else "SAR-only"}')
+        print(f'  Inicio: {datetime.now().strftime("%Y-%m-%d %H:%M")}')
+        print('=' * 65)
+
+        for i, area_name in enumerate(areas_a_procesar, 1):
+            print(f'\n[{i}/{len(areas_a_procesar)}] ── {area_name.upper()} ──')
+            try:
+                res = pipeline_area(
+                    area_name,
+                    skip_georef=True,   # el georef ya existe para todas
+                    with_s2=use_s2,
+                    max_nubes_s2=args.max_nubes_s2,
+                )
+                resultados.append(res)
+            except Exception as exc:
+                print(f'  ERROR en {area_name}: {exc}')
+                errores.append({'area': area_name, 'error': str(exc)})
+
+        # Resumen final
+        print()
+        print('=' * 65)
+        print(f'  RESUMEN BATCH — {datetime.now().strftime("%Y-%m-%d %H:%M")}')
+        print('=' * 65)
+        for r in resultados:
+            ndvi_tag = '★ S2' if 'S2' in r.get('ndvi_mode', '') else 'SAR'
+            print(f'  {r["area"]:<15} Score {r.get("score","?"):>5} | {ndvi_tag} | SHA {r.get("sha256","?")[:16]}...')
+        for e in errores:
+            print(f'  {e["area"]:<15} ERROR: {e["error"][:50]}')
+        print(f'  Total OK: {len(resultados)} | Errores: {len(errores)}')
+        print('=' * 65)
+        return
+
+    # Modo área única con SAR file (path legacy)
+    area_name = args.area[0]
+    area = load_area(area_name)
 
     print("\n" + "=" * 60)
     print(f"  FARO PROTOCOL -- Pipeline completo")
