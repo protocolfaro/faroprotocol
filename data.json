@@ -1,12 +1,12 @@
 {
   "_meta": {
     "nota": "Generado automaticamente por faro_engine.py",
-    "generado_en": "2026-04-07 17:43",
+    "generado_en": "2026-04-07 17:46",
     "generado_por": "faro_engine.py",
     "protocolo": "Cero Footprint v1"
   },
   "pipeline": {
-    "ultimo_run": "2026-04-07 17:43",
+    "ultimo_run": "2026-04-07 17:46",
     "cordoba": {
       "estado": "ALERTA",
       "ndvi_medio": 0.4444,
@@ -113,13 +113,13 @@
     },
     "malacca": {
       "estado": "OK",
-      "ultimo_run": "2026-04-07 16:58",
-      "ndvi_medio": null,
+      "ultimo_run": "2026-04-07 17:46",
+      "ndvi_medio": -0.0114,
       "sar_medio_db": -10.2222,
-      "indice_fusion_medio": 0.3632,
-      "pixeles_analizados": 10612000,
-      "sha256": "c3a33f4b79db3c88...",
-      "score_faro": 40.5,
+      "indice_fusion_medio": 0.4045,
+      "pixeles_analizados": 15892000,
+      "sha256": "0172f62bea82a695...",
+      "score_faro": 42.1,
       "rinde_estimado_tha": null,
       "indice_actividad": 51.9,
       "pct_anomalia": 0.0
@@ -232,16 +232,16 @@
     },
     "malacca": {
       "sar_medio_db": -10.2222,
-      "ndvi_medio": null,
-      "indice_fusion_medio": 0.3632,
-      "pixeles_analizados": 10612000,
+      "ndvi_medio": -0.0114,
+      "indice_fusion_medio": 0.4045,
+      "pixeles_analizados": 15892000,
       "pct_anomalia": 0.0,
       "reporte_png": "faro_reporte_fusion_malacca.png",
-      "sha256_completo": "c3a33f4b79db3c88dc37012d656385f4ec1fdbd4945c32f9400e5b5bc67ca38f",
+      "sha256_completo": "0172f62bea82a6951ead98276b7b19a1694dc256bc00b2eebd4e34a31d82880d",
       "tiene_sar": true,
-      "tiene_ndvi": false,
+      "tiene_ndvi": true,
       "tiene_vision": false,
-      "ultimo_run": "2026-04-07 16:58"
+      "ultimo_run": "2026-04-07 17:46"
     }
   },
   "insights": {
@@ -360,22 +360,22 @@
     "malacca": {
       "zona": "Strait of Malacca, Malaysia / Singapore",
       "vertical": "maritimo",
-      "fecha": "2026-04-07 16:58",
+      "fecha": "2026-04-07 17:46",
       "rinde_estimado_tha": null,
       "indice_actividad": 51.9,
-      "score_faro": 40.5,
-      "confianza": "Media",
+      "score_faro": 42.1,
+      "confianza": "Alta",
       "estado": "OK",
       "alerta": null,
       "pct_anomalia": 0.0,
-      "sha256_reporte": "c3a33f4b79db3c88...",
-      "sello_datos": "aff7659953b6f5e92e8ea58ad4865a493a6ceef5185b478049c305658b8d7014"
+      "sha256_reporte": "0172f62bea82a695...",
+      "sello_datos": "0e9e8391ec44b7791614794f485bbf1bb4ffeed20369d13811bd2ee6b5ea7cc5"
     }
   },
   "resumen": {
-    "ultimo_run": "2026-04-07 17:43",
+    "ultimo_run": "2026-04-07 17:46",
     "areas_activas": 9,
-    "score_promedio": 48.5,
+    "score_promedio": 48.7,
     "estado_global": "ALERTA",
     "areas_en_alerta": [
       "cordoba",
