@@ -153,9 +153,10 @@ def generar_reporte(ndvi, sar, fusion, zona, fecha, output_png):
 
 
 def main(area=None):
-    ndvi_tif   = area['ndvi_tif']   if area else NDVI_TIF
-    sar_tif    = area['sar_output'] if area else SAR_TIF
-    output_png = area['report_png'] if area else OUTPUT_PNG
+    name       = area['name']       if area else 'area'
+    ndvi_tif   = area.get('ndvi_tif', f'FaroProtocol_NDVI_limpio_{name.title()}.tif') if area else NDVI_TIF
+    sar_tif    = area.get('sar_output', f'sar_{name}_georef.tif') if area else SAR_TIF
+    output_png = area.get('report_png', f'faro_reporte_fusion_{name}.png') if area else OUTPUT_PNG
     zona       = area['label']      if area else ZONA
     fecha      = datetime.now().strftime("%Y-%m-%d %H:%M")
 

@@ -1,44 +1,37 @@
 {
   "_meta": {
     "nota": "Generado automaticamente por faro_engine.py",
-    "generado_en": "2026-04-06 13:58",
+    "generado_en": "2026-04-07 16:58",
     "generado_por": "faro_engine.py",
     "protocolo": "Cero Footprint v1"
   },
-  "accuracy_pct": 98.2,
-  "readings_verified": 247,
-  "sla_pct": 99.9,
-  "vaca_muerta": {
-    "production": "1,020K bbl/d",
-    "change_7d": "↑ +3.8% 7d"
-  },
-  "lithium_puna": {
-    "concentration": "942 mg/L",
-    "change_7d": "↑ +8.1% 7d"
-  },
-  "faro_arg_score": "72 / 100",
   "pipeline": {
-    "ultimo_run": "2026-04-06 13:58",
+    "ultimo_run": "2026-04-07 16:58",
     "cordoba": {
       "estado": "ALERTA",
       "ndvi_medio": 0.4444,
       "sar_medio_db": -13.8681,
       "indice_fusion_medio": 0.5904,
-      "sha256": "404a159a0cea3c72...",
-      "ultimo_run": "2026-04-06 13:58",
+      "sha256": "bcae6407224c90b2...",
+      "ultimo_run": "2026-04-06 19:55",
       "pixeles_analizados": 124066152,
       "score_faro": 49.0,
-      "rinde_estimado_tha": 1.88,
+      "rinde_estimado_tha": 2.02,
       "indice_actividad": null,
-      "pct_anomalia": 0.06
+      "pct_anomalia": 0.0
     },
     "vaca_muerta": {
-      "estado": "PENDIENTE_DATOS",
+      "estado": "OK",
       "ndvi_medio": null,
-      "sar_medio_db": null,
-      "indice_fusion_medio": null,
-      "sha256": null,
-      "ultimo_run": "2026-04-04 23:20"
+      "sar_medio_db": -10.4096,
+      "indice_fusion_medio": 0.5199,
+      "sha256": "adf743ada407a93c...",
+      "ultimo_run": "2026-04-07 16:24",
+      "pixeles_analizados": 14464000,
+      "score_faro": 46.1,
+      "rinde_estimado_tha": null,
+      "indice_actividad": 50.6,
+      "pct_anomalia": 0.0
     },
     "balcarce": {
       "estado": "OK",
@@ -54,16 +47,82 @@
       "pct_anomalia": 0.0
     },
     "amazonas": {
-      "estado": "PENDIENTE_DATOS",
-      "ultimo_run": "2026-04-04 23:20"
+      "estado": "OK",
+      "ultimo_run": "2026-04-07 16:45",
+      "ndvi_medio": null,
+      "sar_medio_db": -5.3823,
+      "indice_fusion_medio": 0.6636,
+      "pixeles_analizados": 10592000,
+      "sha256": "ccf30817adeedbbc...",
+      "score_faro": 68.6,
+      "rinde_estimado_tha": null,
+      "indice_actividad": 84.1,
+      "pct_anomalia": 0.0
     },
     "indiana": {
-      "estado": "PENDIENTE_DATOS",
-      "ultimo_run": "2026-04-04 23:20"
+      "estado": "OK",
+      "ultimo_run": "2026-04-07 16:49",
+      "ndvi_medio": null,
+      "sar_medio_db": -9.2537,
+      "indice_fusion_medio": 0.4125,
+      "pixeles_analizados": 9136000,
+      "sha256": "409a6383e3c6e573...",
+      "score_faro": 51.0,
+      "rinde_estimado_tha": 8.53,
+      "indice_actividad": null,
+      "pct_anomalia": 0.0
     },
     "rotterdam": {
-      "estado": "PENDIENTE_DATOS",
-      "ultimo_run": "2026-04-04 23:20"
+      "estado": "OK",
+      "ultimo_run": "2026-04-07 16:28",
+      "ndvi_medio": null,
+      "sar_medio_db": -11.9649,
+      "indice_fusion_medio": 0.3274,
+      "pixeles_analizados": 10140000,
+      "sha256": "acf6f975584cf56c...",
+      "score_faro": 33.2,
+      "rinde_estimado_tha": null,
+      "indice_actividad": 40.2,
+      "pct_anomalia": 0.0
+    },
+    "permian": {
+      "estado": "OK",
+      "ultimo_run": "2026-04-07 16:35",
+      "ndvi_medio": null,
+      "sar_medio_db": -8.4562,
+      "indice_fusion_medio": 0.5276,
+      "pixeles_analizados": 10524000,
+      "sha256": "a8e550199ef4d877...",
+      "score_faro": 52.9,
+      "rinde_estimado_tha": null,
+      "indice_actividad": 63.6,
+      "pct_anomalia": 0.0
+    },
+    "pilbara": {
+      "estado": "OK",
+      "ultimo_run": "2026-04-07 16:42",
+      "ndvi_medio": null,
+      "sar_medio_db": -11.6387,
+      "indice_fusion_medio": 0.4932,
+      "pixeles_analizados": 10532000,
+      "sha256": "4536f1d25cfbc75d...",
+      "score_faro": 40.9,
+      "rinde_estimado_tha": null,
+      "indice_actividad": 42.4,
+      "pct_anomalia": 0.0
+    },
+    "malacca": {
+      "estado": "OK",
+      "ultimo_run": "2026-04-07 16:58",
+      "ndvi_medio": null,
+      "sar_medio_db": -10.2222,
+      "indice_fusion_medio": 0.3632,
+      "pixeles_analizados": 10612000,
+      "sha256": "c3a33f4b79db3c88...",
+      "score_faro": 40.5,
+      "rinde_estimado_tha": null,
+      "indice_actividad": 51.9,
+      "pct_anomalia": 0.0
     }
   },
   "_interno": {
@@ -72,13 +131,13 @@
       "ndvi_medio": 0.4444,
       "indice_fusion_medio": 0.5904,
       "pixeles_analizados": 124066152,
-      "pct_anomalia": 0.06,
+      "pct_anomalia": 0.0,
       "reporte_png": "faro_reporte_fusion_cordoba.png",
-      "sha256_completo": "404a159a0cea3c723b6d55ad4ce6fea0618fbe5de9ebb3721da7b9c58411b3b2",
+      "sha256_completo": "bcae6407224c90b26f3b246a62b003bf504a678e4aa316bc76e87546a0addb3b",
       "tiene_sar": true,
       "tiene_ndvi": true,
-      "tiene_vision": true,
-      "ultimo_run": "2026-04-06 13:58"
+      "tiene_vision": false,
+      "ultimo_run": "2026-04-06 19:55"
     },
     "balcarce": {
       "sar_medio_db": 15.4836,
@@ -92,44 +151,127 @@
       "tiene_ndvi": true,
       "tiene_vision": false,
       "ultimo_run": "2026-04-05 15:54"
+    },
+    "vaca_muerta": {
+      "sar_medio_db": -10.4096,
+      "ndvi_medio": null,
+      "indice_fusion_medio": 0.5199,
+      "pixeles_analizados": 14464000,
+      "pct_anomalia": 0.0,
+      "reporte_png": "faro_reporte_fusion_vaca_muerta.png",
+      "sha256_completo": "adf743ada407a93ce7e13161dcc34e5aec254285add19986007d1fb5a5e0bbde",
+      "tiene_sar": true,
+      "tiene_ndvi": false,
+      "tiene_vision": false,
+      "ultimo_run": "2026-04-07 16:24"
+    },
+    "rotterdam": {
+      "sar_medio_db": -11.9649,
+      "ndvi_medio": null,
+      "indice_fusion_medio": 0.3274,
+      "pixeles_analizados": 10140000,
+      "pct_anomalia": 0.0,
+      "reporte_png": "faro_reporte_fusion_rotterdam.png",
+      "sha256_completo": "acf6f975584cf56cbe7cf7d6f4662793dbb2773c58ce1d314ea8a87f0c3a69c8",
+      "tiene_sar": true,
+      "tiene_ndvi": false,
+      "tiene_vision": false,
+      "ultimo_run": "2026-04-07 16:28"
+    },
+    "permian": {
+      "sar_medio_db": -8.4562,
+      "ndvi_medio": null,
+      "indice_fusion_medio": 0.5276,
+      "pixeles_analizados": 10524000,
+      "pct_anomalia": 0.0,
+      "reporte_png": "faro_reporte_fusion_permian.png",
+      "sha256_completo": "a8e550199ef4d877e19064dd548112bac92eef6ad8d3e735bbccd94e26ab4366",
+      "tiene_sar": true,
+      "tiene_ndvi": false,
+      "tiene_vision": false,
+      "ultimo_run": "2026-04-07 16:35"
+    },
+    "pilbara": {
+      "sar_medio_db": -11.6387,
+      "ndvi_medio": null,
+      "indice_fusion_medio": 0.4932,
+      "pixeles_analizados": 10532000,
+      "pct_anomalia": 0.0,
+      "reporte_png": "faro_reporte_fusion_pilbara.png",
+      "sha256_completo": "4536f1d25cfbc75d528b7d637ccae15fd5068fca84e947dd7ab1f6eb051e6a9d",
+      "tiene_sar": true,
+      "tiene_ndvi": false,
+      "tiene_vision": false,
+      "ultimo_run": "2026-04-07 16:42"
+    },
+    "amazonas": {
+      "sar_medio_db": -5.3823,
+      "ndvi_medio": null,
+      "indice_fusion_medio": 0.6636,
+      "pixeles_analizados": 10592000,
+      "pct_anomalia": 0.0,
+      "reporte_png": "faro_reporte_fusion_amazonas.png",
+      "sha256_completo": "ccf30817adeedbbcc69edc380b8b0be03d2908f45c19ca7a4fffbdd9a73f5315",
+      "tiene_sar": true,
+      "tiene_ndvi": false,
+      "tiene_vision": false,
+      "ultimo_run": "2026-04-07 16:45"
+    },
+    "indiana": {
+      "sar_medio_db": -9.2537,
+      "ndvi_medio": null,
+      "indice_fusion_medio": 0.4125,
+      "pixeles_analizados": 9136000,
+      "pct_anomalia": 0.0,
+      "reporte_png": "faro_reporte_fusion_indiana.png",
+      "sha256_completo": "409a6383e3c6e573a6a785318e160e7bd6b497566f0ba4aa62b8292e68c1b3a2",
+      "tiene_sar": true,
+      "tiene_ndvi": false,
+      "tiene_vision": false,
+      "ultimo_run": "2026-04-07 16:49"
+    },
+    "malacca": {
+      "sar_medio_db": -10.2222,
+      "ndvi_medio": null,
+      "indice_fusion_medio": 0.3632,
+      "pixeles_analizados": 10612000,
+      "pct_anomalia": 0.0,
+      "reporte_png": "faro_reporte_fusion_malacca.png",
+      "sha256_completo": "c3a33f4b79db3c88dc37012d656385f4ec1fdbd4945c32f9400e5b5bc67ca38f",
+      "tiene_sar": true,
+      "tiene_ndvi": false,
+      "tiene_vision": false,
+      "ultimo_run": "2026-04-07 16:58"
     }
   },
   "insights": {
     "cordoba": {
       "zona": "Marcos Juárez, Córdoba, Argentina",
       "vertical": "agro",
-      "fecha": "2026-04-06 13:58",
-      "rinde_estimado_tha": 1.88,
+      "fecha": "2026-04-06 19:55",
+      "rinde_estimado_tha": 2.02,
       "indice_actividad": null,
       "score_faro": 49.0,
       "confianza": "Alta",
       "estado": "ALERTA",
-      "alerta": "Rinde estimado 1.9 t/ha por debajo del promedio regional (3.2 t/ha)",
-      "pct_anomalia": 0.06,
-      "sha256_reporte": "404a159a0cea3c72..."
+      "alerta": "Rinde estimado 2.02 t/ha — 41.2% por debajo del promedio historico regional 3.44 t/ha (departamento:Marcos Juárez). Recomendacion: verificar condicion hidrica y sanidad del cultivo de soja en campo antes de proyectar cosecha.",
+      "pct_anomalia": 0.0,
+      "sha256_reporte": "bcae6407224c90b2...",
+      "sello_datos": "52f6a524240a60d2aad843c01029b4c5829d6c606aa1cfea5828d140b46b6769"
     },
     "amazonas": {
       "zona": "Cuiabá / Sorriso, Mato Grosso, Brasil",
       "vertical": "deforestacion",
-      "fecha": "2026-04-04 23:20",
+      "fecha": "2026-04-07 16:45",
       "rinde_estimado_tha": null,
-      "indice_actividad": null,
-      "score_faro": null,
-      "confianza": "—",
-      "estado": "PENDIENTE_DATOS",
+      "indice_actividad": 84.1,
+      "score_faro": 68.6,
+      "confianza": "Media",
+      "estado": "OK",
       "alerta": null,
-      "pct_anomalia": null,
-      "sha256_reporte": "—",
-      "center": [
-        -3.5,
-        -52.0
-      ],
-      "bounds": [
-        -52.5,
-        -4.0,
-        -51.5,
-        -3.0
-      ]
+      "pct_anomalia": 0.0,
+      "sha256_reporte": "ccf30817adeedbbc...",
+      "sello_datos": "b5068cf20c6c792bae4d5302fe6e3235342d27e7728fa3e0e2610e52593bfc18"
     },
     "balcarce": {
       "zona": "Balcarce, Buenos Aires, Argentina",
@@ -147,74 +289,92 @@
     "indiana": {
       "zona": "Corn Belt, Indiana, EE.UU.",
       "vertical": "agro",
-      "fecha": "2026-04-04 23:20",
-      "rinde_estimado_tha": null,
+      "fecha": "2026-04-07 16:49",
+      "rinde_estimado_tha": 8.53,
       "indice_actividad": null,
-      "score_faro": null,
-      "confianza": "—",
-      "estado": "PENDIENTE_DATOS",
+      "score_faro": 51.0,
+      "confianza": "Media",
+      "estado": "OK",
       "alerta": null,
-      "pct_anomalia": null,
-      "sha256_reporte": "—",
-      "center": [
-        40.2,
-        -86.5
-      ],
-      "bounds": [
-        -87.0,
-        39.7,
-        -86.0,
-        40.7
-      ]
+      "pct_anomalia": 0.0,
+      "sha256_reporte": "409a6383e3c6e573...",
+      "sello_datos": "d9ca2c30dff5ecea6ce6e6020c02ba9d6fc0bd84e5a87e35eb138e5a1deb74d0"
     },
     "rotterdam": {
       "zona": "Puerto Rotterdam, Países Bajos",
       "vertical": "energia",
-      "fecha": "2026-04-04 23:20",
+      "fecha": "2026-04-07 16:28",
       "rinde_estimado_tha": null,
-      "indice_actividad": null,
-      "score_faro": null,
-      "confianza": "—",
-      "estado": "PENDIENTE_DATOS",
+      "indice_actividad": 40.2,
+      "score_faro": 33.2,
+      "confianza": "Media",
+      "estado": "OK",
       "alerta": null,
-      "pct_anomalia": null,
-      "sha256_reporte": "—",
-      "center": [
-        51.9,
-        4.4
-      ],
-      "bounds": [
-        4.1,
-        51.8,
-        4.7,
-        52.0
-      ]
+      "pct_anomalia": 0.0,
+      "sha256_reporte": "acf6f975584cf56c...",
+      "sello_datos": "d85970c2113295c3644a5d568044de3200f2d8f12006c9de5fe83ac3d2a17858"
     },
     "vaca_muerta": {
       "zona": "Vaca Muerta, Neuquén, Argentina",
       "vertical": "energia",
-      "fecha": "2026-04-04 23:20",
+      "fecha": "2026-04-07 16:24",
       "rinde_estimado_tha": null,
-      "indice_actividad": null,
-      "score_faro": null,
-      "confianza": "—",
-      "estado": "PENDIENTE_DATOS",
+      "indice_actividad": 50.6,
+      "score_faro": 46.1,
+      "confianza": "Media",
+      "estado": "OK",
       "alerta": null,
-      "pct_anomalia": null,
-      "sha256_reporte": "—",
-      "center": null,
-      "bounds": [
-        -70.0,
-        -38.0,
-        -68.0,
-        -37.0
-      ]
+      "pct_anomalia": 0.0,
+      "sha256_reporte": "adf743ada407a93c...",
+      "sello_datos": "0df880bcc6b75ac6e8272905c3156bc56b5210cd26451e020d71d92c5eff9814"
+    },
+    "permian": {
+      "zona": "Permian Basin, West Texas, USA",
+      "vertical": "energia",
+      "fecha": "2026-04-07 16:35",
+      "rinde_estimado_tha": null,
+      "indice_actividad": 63.6,
+      "score_faro": 52.9,
+      "confianza": "Media",
+      "estado": "OK",
+      "alerta": null,
+      "pct_anomalia": 0.0,
+      "sha256_reporte": "a8e550199ef4d877...",
+      "sello_datos": "1a27cbc83b753ebad8e29dcea85cf4aab51d6db18c14133a3fee4455d34d429e"
+    },
+    "pilbara": {
+      "zona": "Pilbara Iron Ore Belt, Western Australia",
+      "vertical": "mineria",
+      "fecha": "2026-04-07 16:42",
+      "rinde_estimado_tha": null,
+      "indice_actividad": 42.4,
+      "score_faro": 40.9,
+      "confianza": "Media",
+      "estado": "OK",
+      "alerta": null,
+      "pct_anomalia": 0.0,
+      "sha256_reporte": "4536f1d25cfbc75d...",
+      "sello_datos": "22df3be0a287c1433a5d4cc1d1b1e909d565973449d8c4921ccab792e5663747"
+    },
+    "malacca": {
+      "zona": "Strait of Malacca, Malaysia / Singapore",
+      "vertical": "maritimo",
+      "fecha": "2026-04-07 16:58",
+      "rinde_estimado_tha": null,
+      "indice_actividad": 51.9,
+      "score_faro": 40.5,
+      "confianza": "Media",
+      "estado": "OK",
+      "alerta": null,
+      "pct_anomalia": 0.0,
+      "sha256_reporte": "c3a33f4b79db3c88...",
+      "sello_datos": "aff7659953b6f5e92e8ea58ad4865a493a6ceef5185b478049c305658b8d7014"
     }
   },
   "resumen": {
-    "ultimo_run": "2026-04-06 13:58",
-    "areas_activas": 6,
-    "score_promedio": 59.2,
+    "ultimo_run": "2026-04-07 16:58",
+    "areas_activas": 9,
+    "score_promedio": 50.2,
     "estado_global": "ALERTA",
     "areas_en_alerta": [
       "cordoba"
