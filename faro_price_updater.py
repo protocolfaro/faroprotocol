@@ -1613,13 +1613,20 @@ def main() -> None:
             "El script la detectará automáticamente en el próximo ciclo.\n"
         ),
     )
-    parser.add_argument('--now',    action='store_true',
+    parser.add_argument('--now',     action='store_true',
                         help='Ejecutar ciclo completo ahora (comportamiento por defecto)')
-    parser.add_argument('--daemon', action='store_true',
+    parser.add_argument('--daemon',  action='store_true',
                         help='Iniciar scheduler — lunes 08:00 ART (proceso bloqueante)')
-    parser.add_argument('--log',    nargs='?', const=10, type=int, metavar='N',
+    parser.add_argument('--log',     nargs='?', const=10, type=int, metavar='N',
                         help='Ver historial de precios (últimas N entradas, default 10)')
+    parser.add_argument('--dry-run', action='store_true',
+                        help='Muestra historial reciente sin ejecutar ciclo (alias de --log 5)')
     args = parser.parse_args()
+
+    if args.dry_run:
+        print("\n  FARO PRICES — Historial de actualizaciones (dry-run)")
+        PriceLogger().mostrar_historial(n=5)
+        return
 
     if args.log is not None:
         print("\n  FARO PRICES — Historial de actualizaciones")

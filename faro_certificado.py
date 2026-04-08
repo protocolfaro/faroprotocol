@@ -468,6 +468,9 @@ if __name__ == '__main__':
         areas = _listar_areas()
         print(f'\n  Generando {len(areas)} certificados...')
         for a in areas:
-            generar_certificado(a, out_dir)
+            try:
+                generar_certificado(a, out_dir)
+            except Exception as e:
+                print(f'  [!] {a}: omitido — {e}')
 
     print('\n' + '=' * 60)

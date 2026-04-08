@@ -100,7 +100,10 @@ def auditar_area(area: dict, verbose: bool = False) -> dict:
 
     report_png = PROJECT_ROOT / area['report_png']
     sar_georef = PROJECT_ROOT / area['sar_output']
-    ndvi_tif   = PROJECT_ROOT / area['ndvi_tif']
+    # ndvi_tif es opcional — áreas SAR-only (marítimo, O&G sin S2) no lo tienen
+    ndvi_tif_rel = area.get('ndvi_tif',
+                             f'FaroProtocol_NDVI_limpio_{nombre.title()}.tif')
+    ndvi_tif   = PROJECT_ROOT / ndvi_tif_rel
 
     reporte = info_archivo(report_png)
     sar     = info_archivo(sar_georef)

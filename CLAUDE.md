@@ -1,27 +1,33 @@
 # FARO PROTOCOL — Guía para Claude Code
-> Última actualización: 2026-04-07 — V8 Arquitectura dual Dashboard/Reporte + 9 áreas globales
+> Última actualización: 2026-04-08 — V9 Auditoría final · FSI · Portfolio Global · Quality Gate
 > Arquitecto del sistema: Emilio (hijo)
 > Conocimiento de campo y contactos: Padre (fundador)
 
 ---
 
-## Estado del sistema — V8 (2026-04-07)
+## Estado del sistema — V9 (2026-04-08) — Post-auditoría
 
-### Pipeline operativo — 9 áreas globales con Sello Verde
+### Pipeline operativo — 9 áreas globales
 
-| Área | Vertical | Score | NDVI | SAR dB | Estado | SHA-256 |
-|------|----------|-------|------|--------|--------|---------|
-| cordoba | agro | 49 | 0.4444 | -13.9 | ⚠️ ALERTA | 08ca07bf... |
-| balcarce | agro | 70 | 0.5328 | 15.5 | ✅ OK | 29fcdbb0... |
-| vaca_muerta | energia | 42 | 0.0941 | — | ✅ OK | fd2a23eb... |
-| rotterdam | energia | 38 | 0.2799 | — | ✅ OK | 99fa9be2... |
-| permian | oil_gas | 52 | 0.1383 | — | ✅ OK | 0b468b75... |
-| pilbara | mining_iron | 41 | 0.0840 | — | ✅ OK | 54789e08... |
-| amazonas | deforestacion | 66 | 0.2834 | -5.4 | ✅ OK | 22dbb6ac... |
-| indiana | agro | 38 | 0.2594 | -9.3 | ⚠️ ALERTA | 950dd57c... |
-| malacca | shipping | 42 | — | — | ✅ OK | c3a33f4b... |
+| Área | Vertical | Score | FSI | NDVI | SAR dB | Estado | SHA-256 |
+|------|----------|-------|-----|------|--------|--------|---------|
+| cordoba | agro | 49 | 49.7 Moderado | 0.4444 | -13.9 | ⚠️ ALERTA | 08ca07bf... |
+| balcarce | agro | 70 | 0.0 Sin estrés | 0.5328 | 15.5 | ✅ OK | 5233ec23... |
+| vaca_muerta | energia | 42 | 15.0 Sin estrés | 0.0941 | — | ✅ OK | fd2a23eb... |
+| rotterdam | maritimo | 38 | 0.0 Sin estrés | 0.2799 | — | ✅ OK | 99fa9be2... |
+| permian | oil_gas | 52 | — | 0.1383 | — | ✅ OK | 0b468b75... |
+| pilbara | mining_iron | 41 | — | 0.0840 | — | ✅ OK | 54789e08... |
+| amazonas | deforestacion | 66 | 36.0 Leve | 0.2834 | -5.4 | ✅ OK | 22dbb6ac... |
+| indiana | agro | 38 | — | 0.2594 | -9.3 | ⚠️ ALERTA | 950dd57c... |
+| malacca | shipping | 42 | — | — | — | ✅ OK | c3a33f4b... |
 
-**Nota Córdoba:** Score 49 (ALERTA). SAR calibrado en -13.9 dB. Rinde 2.02 t/ha vs histórico 3.44 t/ha (MAGyP, Marcos Juárez). La alerta puede ser agronómicamente válida — revisar con campo antes del pitch.
+**Nota Córdoba:** Score 49 (ALERTA). SAR calibrado en -13.9 dB. Rinde 2.02 t/ha vs histórico 3.44 t/ha (MAGyP, Marcos Juárez). FSI 49.7 (Moderado) confirma estrés real — revisar con campo antes del pitch.
+**Nota rotterdam:** vertical corregida de 'energia' → 'maritimo' (2026-04-08).
+
+### Quality Gate — Certificados externos
+Áreas con score ≥ 50 y sin ALERTA reciben Sello Verde: **balcarce, permian, amazonas**.
+Áreas excluidas de outputs externos (score < 50 o ALERTA): cordoba, indiana, malacca, pilbara, rotterdam, vaca_muerta.
+Usar `mode='internal'` para auditoría interna de todas las áreas.
 
 ---
 
@@ -42,11 +48,15 @@ faro_pipeline.py --area <zona>       # orquestador multi-área
 
 ### Módulos de salida
 ```
-faro_certificado.py     # Sello Verde: PNG con SHA-256 verificado
-faro_bricolage.py       # Imagen 1800×2400 px para LinkedIn (4 zonas)
-faro_dashboard.py       # Dashboard dinámico: multicapa + ROI + alertas
-faro_report_engine.py   # Reporte certificado estático: KPIs + Economic Impact
-faro_card.py            # Cards LinkedIn/WhatsApp desde data.json
+faro_certificado.py       # Sello Verde: PNG con SHA-256 verificado
+faro_bricolage.py         # Imagen 1800×2400 px para LinkedIn (4 zonas)
+faro_dashboard.py         # Dashboard dinámico: multicapa + ROI + alertas
+faro_report_engine.py     # Reporte certificado estático: KPIs + Economic Impact
+faro_card.py              # Cards LinkedIn/WhatsApp desde data.json
+faro_portfolio_global.py  # Portfolio 1800×1200 px: 4 sectores + FSI + SHA compuesto
+faro_stress_index.py      # Faro Stress Index (FSI): modelos por sector agro/forest/maritimo/energia
+faro_quality.py           # Quality Gate compartido: score, SHA-256, ALERTA
+QUALITY_STANDARD.md       # Estándar de calidad v1.0 (fuente de verdad)
 ```
 
 ### Automatización y entrega
@@ -167,18 +177,6 @@ python -m http.server 8080
 
 ---
 
-## Estado de credenciales
-
-| Variable | Estado | Dónde obtener |
-|----------|--------|---------------|
-| `GROQ_API_KEY` | ⚠️ FALTA | console.groq.com (gratis) |
-| `GMAIL_APP_PASS` | ⚠️ FALTA | Google → Seguridad → App Passwords |
-| `COPERNICUS_USER/PASS` | ⚠️ FALTA | dataspace.copernicus.eu |
-| `WHATSAPP_TOKEN/PHONE_ID/DEST` | ❌ FALTA | Meta for Developers |
-
-Sin `GROQ_API_KEY`: Hermes y Paperclip corren en modo local (sin LLM).
-Sin `COPERNICUS_USER/PASS`: no se pueden descargar nuevas escenas SAR.
-
 ---
 
 ## Estructura de directorios
@@ -261,6 +259,28 @@ faro_protocol/
 
 ---
 
+## Auditoría de módulos — 2026-04-08
+
+| Módulo | Estado | Notas |
+|--------|--------|-------|
+| `faro_pipeline.py` | ✅ OK | balcarce score 69.5, SHA sellado |
+| `faro_certificado.py --all` | ⚠️ DEGRADADO | 3/9 pasan QualityGate externo; resto omitidos por score < 50 o ALERTA — comportamiento correcto por diseño |
+| `faro_portfolio_global.py` | ✅ OK | 1800×1200px, contrast stretch, SHA compuesto |
+| `faro_dashboard.py` | ✅ OK | balcarce Score 69.5, 0 alertas |
+| `faro_stress_index.py` | ✅ OK | modelos por sector, scores no-zero |
+| `MachinaOS/paperclip_agent.py` | ✅ OK | (fix: ndvi_tif opcional para áreas SAR-only) |
+| `MachinaOS/hermes_agent.py` | ✅ OK | requiere `--area <nombre>`; SAR warning en balcarce es dato, no bug |
+| `faro_price_updater.py` | ✅ OK | (fix: agregado `--dry-run`) |
+| `faro_quality.py` | ✅ OK | QualityGate integrado en 3 módulos |
+
+### Bugs corregidos en esta auditoría
+1. `faro_certificado.py --all` — abortaba con `QualityViolation` en Córdoba. Fix: try/except por área.
+2. `MachinaOS/paperclip_agent.py` — `KeyError: 'ndvi_tif'` en áreas sin campo (malacca, permian, pilbara). Fix: `.get()` con fallback.
+3. `faro_price_updater.py` — flag `--dry-run` inexistente. Fix: agregado como alias de `--log 5`.
+4. `faro_areas/rotterdam.json` — `vertical: "energia"` incorrecto. Fix: corregido a `"maritimo"`.
+
+---
+
 ## Pendientes técnicos prioritarios
 
 ### 🔴 Datos de campo (Padre → acción inmediata)
@@ -272,9 +292,16 @@ python faro_rinde_import.py --csv datos_basso.csv
 ```
 
 ### 🟡 Score Córdoba (calibración, no bug)
-Score 49 (ALERTA) con SAR calibrado en -13.9 dB.
+Score 49 (ALERTA). FSI 49.7 (Moderado). SAR calibrado en -13.9 dB.
 Rinde 2.02 t/ha vs histórico departamental 3.44 t/ha.
 Revisar umbrales en `faro_engine.py` antes del pitch.
+El QualityGate lo excluye automáticamente de outputs externos.
+
+### 🟡 Credenciales faltantes (pendiente acción externa)
+- `GROQ_API_KEY` → console.groq.com (gratis) — Hermes/Paperclip en modo local sin esto
+- `GMAIL_APP_PASS` → Google → Seguridad → App Passwords
+- `COPERNICUS_USER/PASS` → dataspace.copernicus.eu — sin esto no hay descarga de escenas nuevas
+- `WHATSAPP_TOKEN/PHONE_ID/DEST` → Meta for Developers
 
 ### 🟡 Portal externo
 Hoy: `python -m http.server 8080` (localhost).
@@ -282,8 +309,7 @@ Para clientes: deploy en Netlify (gratis, 5 min desde GitHub).
 
 ### 🟢 Website — datos hardcodeados
 `faro_website.html` tiene métricas ficticias ("98.2% accuracy", "1,020K bbl/d").
-Marcar como "objetivo 2026" o conectar a `data.json`.
-No es bloqueante para el piloto pero es riesgo legal si escala.
+No bloqueante para el piloto pero riesgo legal si escala.
 
 ---
 
