@@ -89,6 +89,18 @@ SECTOR_LABELS = {
     'mining_iron':   'MINERIA',
 }
 
+# Leyenda pública por sector — explica la escala FSI al lector no técnico
+FSI_LEGEND = {
+    'agro':          'FSI bajo = cultivo sano  ·  FSI alto = estres hidrico',
+    'deforestacion': 'FSI bajo = cobertura estable  ·  FSI alto = deforestacion',
+    'maritimo':      'FSI bajo = puerto operativo  ·  FSI alto = anomalia',
+    'shipping':      'FSI bajo = puerto operativo  ·  FSI alto = anomalia',
+    'energia':       'FSI bajo = actividad normal  ·  FSI alto = incidente',
+    'oil_gas':       'FSI bajo = actividad normal  ·  FSI alto = incidente',
+    'mineria':       'FSI bajo = produccion normal  ·  FSI alto = paralisis',
+    'mining_iron':   'FSI bajo = produccion normal  ·  FSI alto = paralisis',
+}
+
 SECTOR_COLOR = {
     'agro':          GREEN,
     'deforestacion': '#5eaa3a',
@@ -182,7 +194,7 @@ def _render_area_column(fig, outer_gs_cell, area: str, show_panel_labels: bool =
     inner = gridspec.GridSpecFromSubplotSpec(
         5, 1,
         subplot_spec=outer_gs_cell,
-        height_ratios=[1.0, 3.5, 3.5, 3.5, 1.2],
+        height_ratios=[1.0, 3.5, 3.5, 3.5, 1.8],
         hspace=0.06,
     )
 
@@ -209,10 +221,13 @@ def _render_area_column(fig, outer_gs_cell, area: str, show_panel_labels: bool =
               color=WHITE60, fontfamily='monospace', transform=ax_h.transAxes,
               style='italic')
 
-    # Score FSI pequeño en el header
-    ax_h.text(0.5, 0.12, f'FSI {fsi_score:.0f}/100  |  {fsi_nivel.upper()}',
-              ha='center', va='bottom', fontsize=6,
-              color=nivel_col, fontfamily='monospace', transform=ax_h.transAxes)
+    # Estado en el header (país + score compacto)
+    estado_txt = metrics.get('estado', '')
+    estado_mark = ' [ALERTA]' if estado_txt == 'ALERTA' else ''
+    ax_h.text(0.5, 0.12, f'{country}{estado_mark}',
+              ha='center', va='bottom', fontsize=5.5,
+              color=RED if estado_txt == 'ALERTA' else WHITE60,
+              fontfamily='monospace', transform=ax_h.transAxes)
 
     # ── 3 paneles satelitales ─────────────────────────────────────────────────
     panel_titles = ['VIGOR · NDVI', 'ESTRUCTURA · SAR', 'FUSION O+R']
@@ -251,28 +266,43 @@ def _render_area_column(fig, outer_gs_cell, area: str, show_panel_labels: bool =
     ax_f.set_ylim(0, 1)
     ax_f.axis('off')
 
-    # Fondo gris de la barra
-    ax_f.add_patch(Rectangle((0, 0.35), 100, 0.25,
-                              facecolor='#1a1f2b', zorder=1))
-    # Relleno proporcional al score
-    fill_col = nivel_col
-    if fsi_score > 0:
-        ax_f.add_patch(Rectangle((0, 0.35), fsi_score, 0.25,
-                                  facecolor=fill_col, alpha=0.85, zorder=2))
-
-    ax_f.text(50, 0.92, f'FSI: {fsi_score:.0f} / 100',
+    # Título con score
+    ax_f.text(50, 0.97, f'FSI: {fsi_score:.0f} / 100  |  {fsi_nivel.upper()}',
               ha='center', va='top', fontsize=6.5,
               color=nivel_col, fontfamily='monospace', fontweight='bold')
 
-    # Primera linea de detalle
+    # Fondo gris de la barra
+    ax_f.add_patch(Rectangle((0, 0.68), 100, 0.14,
+                              facecolor='#1a1f2b', zorder=1))
+    # Relleno proporcional al score
+    if fsi_score > 0:
+        ax_f.add_patch(Rectangle((0, 0.68), fsi_score, 0.14,
+                                  facecolor=nivel_col, alpha=0.85, zorder=2))
+
+    # Leyenda pública del sector (dos líneas: bajo / alto)
+    legend_raw = FSI_LEGEND.get(sector, '')
+    if legend_raw:
+        parts = legend_raw.split('  ·  ')
+        line_bajo = parts[0].strip() if len(parts) > 0 else ''
+        line_alto = parts[1].strip() if len(parts) > 1 else ''
+        ax_f.text(1, 0.58, line_bajo,
+                  ha='right', va='top', fontsize=4.8,
+                  color=GREEN, fontfamily='monospace',
+                  transform=ax_f.transAxes)
+        ax_f.text(1, 0.43, line_alto,
+                  ha='right', va='top', fontsize=4.8,
+                  color='#c07070', fontfamily='monospace',
+                  transform=ax_f.transAxes)
+
+    # Primera línea de detalle satelital
     if fsi_detalle:
         txt = fsi_detalle[0]
-        if len(txt) > 48:
-            txt = txt[:45] + '...'
-        ax_f.text(50, 0.15, txt,
-                  ha='center', va='bottom', fontsize=4.5,
+        if len(txt) > 52:
+            txt = txt[:49] + '...'
+        ax_f.text(50, 0.16, txt,
+                  ha='center', va='bottom', fontsize=4.3,
                   color=WHITE60, fontfamily='monospace',
-                  wrap=True)
+                  transform=ax_f.transAxes)
 
 
 def _composite_sha(areas: list[str]) -> str:
