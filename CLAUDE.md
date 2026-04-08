@@ -1,5 +1,5 @@
 # FARO PROTOCOL — Guía para Claude Code
-> Última actualización: 2026-04-08 — V10 Seguridad máxima 9 capas + Manual cliente PDF
+> Última actualización: 2026-04-08 — V11 Firebase integrado · portal 100% operativo
 > Arquitecto del sistema: Emilio (hijo)
 > Conocimiento de campo y contactos: Padre (fundador)
 
@@ -330,15 +330,53 @@ python faro_manual_cliente.py --email cliente@empresa.com --name "Empresa SA" --
 python gen_portal_key.py --check-expiry
 ```
 
-### Setup Firebase (una vez)
+### Firebase — Estado V11 (2026-04-08)
+
+**Proyecto:** `faro-protocol-906a5` · **Auth domain:** `faro-protocol-906a5.firebaseapp.com`
+**Config real integrada en:** `faro_client_portal.html` ✅
+
+#### Checklist de configuración (pasos externos pendientes)
+
+**En Firebase Console (console.firebase.google.com/project/faro-protocol-906a5):**
 ```
-1. console.firebase.google.com → Crear proyecto
-2. Authentication → Sign-in method → Email/Password → Habilitar
-3. Firestore → Crear base de datos → modo producción
-4. Project settings → Service accounts → Generate new private key → guardar JSON
-5. .env: FIREBASE_SERVICE_ACCOUNT=/ruta/serviceAccount.json
-6. Netlify dashboard → Environment variables → agregar todas las vars (ver netlify.toml)
-7. SIGNED_URL_SECRET: openssl rand -hex 32
+☐ 1. Authentication → Sign-in method → Email/Password → Habilitar
+☐ 2. Authentication → Settings → Authorized domains → agregar faroprotocol.netlify.app
+☐ 3. Firestore → Crear base de datos → modo producción → región southamerica-east1
+☐ 4. Firestore → Rules → publicar regla que solo permite leer perfil propio:
+      rules_version = '2';
+      service cloud.firestore {
+        match /databases/{database}/documents {
+          match /clients/{uid} {
+            allow read: if request.auth.uid == uid;
+            allow write: if false;  // solo admin (servidor)
+          }
+          match /auth_attempts/{doc} { allow read, write: if false; }
+          match /rate_limits/{doc}   { allow read, write: if false; }
+          match /audit_log/{doc}     { allow read, write: if false; }
+        }
+      }
+☐ 5. Project settings → Service accounts → Generar nueva clave privada → descargar JSON
+☐ 6. .env local: FIREBASE_SERVICE_ACCOUNT=/ruta/serviceAccount.json
+```
+
+**En Netlify Dashboard (app.netlify.com → Site → Environment variables):**
+```
+☐ FIREBASE_SERVICE_ACCOUNT  = [contenido JSON del service account, una sola línea]
+☐ FIREBASE_PROJECT_ID       = faro-protocol-906a5
+☐ SIGNED_URL_SECRET         = 1ee45256a5233da6ccc7f1ade9568bfd823ea4c5f3593069353bf22c796d0cb0
+☐ GMAIL_USER                = protocolfaro@gmail.com
+☐ GMAIL_APP_PASS            = kccx ypkn vvnf auer
+☐ ADMIN_EMAIL               = protocolfaro@gmail.com
+☐ PORTAL_URL                = https://faroprotocol.netlify.app
+```
+
+**Para conectar repo a Netlify (deploy automático):**
+```
+☐ app.netlify.com → Add new site → Import existing project → GitHub
+☐ Seleccionar repo: protocolfaro/faroprotocol
+☐ Branch: master · Build: no build command · Publish: .
+☐ Variables de entorno: agregar las de arriba
+☐ Deploy site
 ```
 
 ## Pendientes técnicos prioritarios

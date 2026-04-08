@@ -6,16 +6,16 @@
 <title>Faro Protocol · Client Portal</title>
 <!-- Firebase Auth SDK v10 (modular) -->
 <script type="module">
-  // ── SETUP: Reemplazá estos valores con los de tu proyecto Firebase ────────────
-  // Firebase Dashboard → Project Settings → Your apps → Web app → SDK snippet
-  // El API key de Firebase NO es secreto — la seguridad está en Security Rules
+  // ── Firebase config — proyecto: faro-protocol-906a5 ──────────────────────────
+  // El API key de Firebase es público por diseño — la seguridad está en
+  // Firebase Security Rules + el service account en el servidor (Netlify).
   const FIREBASE_CONFIG = {
-    apiKey:            "REEMPLAZAR_FIREBASE_API_KEY",
-    authDomain:        "REEMPLAZAR_PROYECTO.firebaseapp.com",
-    projectId:         "REEMPLAZAR_PROYECTO",
-    storageBucket:     "REEMPLAZAR_PROYECTO.appspot.com",
-    messagingSenderId: "REEMPLAZAR_SENDER_ID",
-    appId:             "REEMPLAZAR_APP_ID",
+    apiKey:            "AIzaSyBWxpKBjdHj3k7K1SLQV78L55p27UY-PZY",
+    authDomain:        "faro-protocol-906a5.firebaseapp.com",
+    projectId:         "faro-protocol-906a5",
+    storageBucket:     "faro-protocol-906a5.firebasestorage.app",
+    messagingSenderId: "423899630238",
+    appId:             "1:423899630238:web:489ede6df61da3d8ca898f",
   };
   window.__FIREBASE_CONFIG__ = FIREBASE_CONFIG;
 </script>
@@ -734,7 +734,7 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
         </div>
         <div class="wb-right">
           <div class="wb-plan" id="planBadge">Analyst Plan</div>
-          <div class="wb-renewal">Renewal: Apr 22, 2026 · 30 days</div>
+          <div class="wb-renewal" id="faroWeekBanner">Faro Week · cargando…</div>
           <div style="font-family:var(--mono);font-size:8px;color:var(--green);margin-top:4px;">● All systems operational</div>
         </div>
       </div>
@@ -1099,14 +1099,20 @@ onAuthStateChanged(_auth, async user => {
       return;
     }
 
+    const displayName = user.displayName || user.email.split('@')[0];
+    const initials    = displayName.substring(0, 2).toUpperCase();
     currentUser = {
-      name:     user.displayName || user.email.split('@')[0],
+      name:     displayName,
       email:    user.email,
-      initials: (user.displayName || user.email).substring(0, 2).toUpperCase(),
+      initials: initials,
       uid:      user.uid,
       plan:     'Analyst',
     };
+    // Guardar email para expired.html (CAPA 9: página de conversión)
+    sessionStorage.setItem('_faro_email', user.email);
     enterDashboard();
+    // Cargar perfil Firestore (áreas + Faro Week expiry)
+    _loadClientProfile();
   } else {
     currentUser = null;
     _idToken    = null;
@@ -1290,9 +1296,75 @@ setInterval(async () => {
   }
 }, 60_000);
 
+// ── Faro Week — cargar perfil del cliente desde Firestore ─────
+async function _loadClientProfile() {
+  const user = _auth.currentUser;
+  if (!user) return;
+
+  try {
+    // Importar Firestore (modular SDK)
+    const { getFirestore, doc, getDoc } = await import(
+      'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js'
+    );
+    const db     = getFirestore(_app);
+    const ref    = doc(db, 'clients', user.uid);
+    const snap   = await getDoc(ref);
+
+    if (!snap.exists()) {
+      _updateFaroWeekBanner(null);
+      return;
+    }
+
+    const profile = snap.data();
+    const expiry  = profile.faroWeekExpiry;
+    const areas   = profile.areas || [];
+
+    // Actualizar áreas en currentUser
+    if (currentUser) currentUser.areas = areas;
+
+    // Mostrar banner Faro Week
+    _updateFaroWeekBanner(expiry);
+
+  } catch (e) {
+    console.warn('[Faro] No se pudo cargar perfil de Firestore:', e.message);
+    _updateFaroWeekBanner(null);
+  }
+}
+
+function _updateFaroWeekBanner(expiry) {
+  const el = document.getElementById('faroWeekBanner');
+  if (!el) return;
+
+  if (!expiry) {
+    el.textContent = 'Faro Week · Activo';
+    el.style.color = '';
+    return;
+  }
+
+  const expiryMs = expiry.toMillis ? expiry.toMillis() : Number(expiry);
+  const now      = Date.now();
+  const daysLeft = Math.ceil((expiryMs - now) / 86400000);
+  const dateStr  = new Date(expiryMs).toLocaleDateString('es-AR',
+    { day: '2-digit', month: 'short', year: 'numeric' });
+
+  if (daysLeft <= 0) {
+    el.textContent = 'Faro Week · Vencida';
+    el.style.color = 'var(--red)';
+  } else if (daysLeft === 1) {
+    el.textContent = `Faro Week · Vence hoy (${dateStr})`;
+    el.style.color = 'var(--amber)';
+  } else if (daysLeft <= 2) {
+    el.textContent = `Faro Week · ${daysLeft}d restantes · ${dateStr}`;
+    el.style.color = 'var(--amber)';
+  } else {
+    el.textContent = `Faro Week · ${daysLeft}d restantes · ${dateStr}`;
+    el.style.color = '';
+  }
+}
+
 // ── Exponer funciones al HTML (scope global) ──────────────────
-window.attemptLogin  = attemptLogin;
-window.doLogout      = _doLogout;
+window.attemptLogin   = attemptLogin;
+window.doLogout       = _doLogout;
 window.downloadReport = downloadReport;
 
 // ── Faro data loader — fetches data.json (GitHub Pages same origin) ──────────
@@ -1421,79 +1493,12 @@ function _populateReports(d) {
   if (countEl) countEl.textContent = rows.length + ' verified report' + (rows.length > 1 ? 's' : '') + ' available';
 }
 
-// ── Auth helpers ───────────────────────────────────────────────
-const _MAX_ATTEMPTS=5, _LOCKOUT_MS=30*60*1000, _SESSION_MS=4*60*60*1000;
-
-function _getFA(){try{const d=JSON.parse(sessionStorage.getItem('_fa')||'{}');return{c:d.c||0,l:d.l||0};}catch(e){return{c:0,l:0};}}
-function _setFA(c,l){sessionStorage.setItem('_fa',JSON.stringify({c,l}));}
-function _h2u(hex){const b=new Uint8Array(hex.length/2);for(let i=0;i<hex.length;i+=2)b[i/2]=parseInt(hex.substr(i,2),16);return b;}
-function _u2h(buf){return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');}
-
-async function _pbkdf2(password,saltHex){
-  const enc=new TextEncoder();
-  const km=await crypto.subtle.importKey('raw',enc.encode(password),'PBKDF2',false,['deriveBits']);
-  const bits=await crypto.subtle.deriveBits({name:'PBKDF2',salt:_h2u(saltHex),iterations:100000,hash:'SHA-256'},km,256);
-  return _u2h(bits);
-}
-
-// Session timeout checker (runs every 60s)
-function _checkSession(){
-  const exp=parseInt(sessionStorage.getItem('_fs')||'0');
-  if(exp&&Date.now()>exp&&currentUser){doLogout();showToast('Session expired. Please sign in again.');}
-}
-setInterval(_checkSession,60000);
-
-// ── Login (async PBKDF2) ───────────────────────────────────────
-async function attemptLogin(){
-  const email=document.getElementById('loginEmail').value.trim().toLowerCase();
-  const pass=document.getElementById('loginPass').value;
-  const err=document.getElementById('loginError');
-
-  if(!email||!pass){err.classList.add('show');err.textContent='Please enter your email and access key.';return;}
-
-  // Brute force protection
-  const {c:count,l:lockedUntil}=_getFA();
-  if(Date.now()<lockedUntil){
-    const mins=Math.ceil((lockedUntil-Date.now())/60000);
-    err.classList.add('show');err.textContent=`Too many attempts. Try again in ${mins} minute${mins>1?'s':''}.`;return;
-  }
-
-  const btn=document.getElementById('loginBtn');
-  btn.textContent='Verifying…';btn.disabled=true;btn.style.opacity='0.7';
-
-  const user=ACCOUNTS[email]||null;
-  // Always hash with a dummy salt when user not found (prevents email enumeration via timing)
-  const saltHex=user?user.salt:'a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0';
-  const computed=await _pbkdf2(pass,saltHex);
-
-  if(!user||computed!==user.hash){
-    const newCount=count+1;
-    const locked=newCount>=_MAX_ATTEMPTS?Date.now()+_LOCKOUT_MS:0;
-    _setFA(newCount,locked);
-    btn.textContent='Access Dashboard →';btn.disabled=false;btn.style.opacity='';
-    if(locked){err.textContent='Too many failed attempts. Access locked for 30 minutes.';}
-    else{const rem=_MAX_ATTEMPTS-newCount;err.textContent=`Invalid credentials. ${rem} attempt${rem!==1?'s':''} remaining.`;}
-    err.classList.add('show');return;
-  }
-
-  // Success
-  _setFA(0,0);
-  err.classList.remove('show');
-  currentUser={name:user.name,plan:user.plan,initials:user.initials};
-  sessionStorage.setItem('_fs',String(Date.now()+_SESSION_MS));
-
-  btn.style.background='rgba(201,168,76,0.5)';
-  setTimeout(()=>{btn.textContent='Access Dashboard →';btn.disabled=false;btn.style.opacity='';btn.style.background='';enterDashboard();},700);
-}
-
-function capitalize(s){ return s.charAt(0).toUpperCase() + s.slice(1); }
-
-// Cargar accounts.json al arrancar (antes del primer intento de login)
-_loadAccounts();
-
-// Enter on Enter key
+// ── Enter key → login ─────────────────────────────────────────
+// attemptLogin() se define en el módulo Firebase (window.attemptLogin)
 document.addEventListener('keydown', e => {
-  if(e.key === 'Enter' && document.getElementById('loginScreen').classList.contains('active')) attemptLogin();
+  if (e.key === 'Enter' && document.getElementById('loginScreen').classList.contains('active')) {
+    if (typeof window.attemptLogin === 'function') window.attemptLogin();
+  }
 });
 
 // ── Dashboard entry ───────────────────────────────────────────
@@ -1540,15 +1545,21 @@ document.addEventListener('click', e => {
 });
 
 // ── Logout ────────────────────────────────────────────────────
-function doLogout(){
-  sessionStorage.removeItem('_fs');
+// doLogout es manejado por el módulo Firebase (window.doLogout = _doLogout)
+// Este wrapper asegura que el botón onclick="doLogout()" funcione correctamente.
+async function doLogout(){
+  if (typeof window.doLogout === 'function' && window.doLogout !== doLogout) {
+    await window.doLogout();
+    return;
+  }
+  // Fallback UI (si el módulo Firebase no cargó)
+  sessionStorage.clear();
   document.getElementById('dashScreen').classList.remove('active');
   document.getElementById('loginScreen').classList.add('active');
   document.getElementById('loginPass').value = '';
   document.getElementById('loginBtn').textContent = 'Access Dashboard →';
-  document.getElementById('loginBtn').style.background = '';
   currentUser = null;
-  showToast('Signed out securely.');
+  showToast('Signed out.');
 }
 
 // ── Tab switching ─────────────────────────────────────────────
@@ -1615,12 +1626,17 @@ function buildReports(){
     </div>`).join('');
 }
 
+// downloadReport es manejado por el módulo Firebase (signed URL — CAPA 4)
+// onclick="downloadReport(...)" llama window.downloadReport = Firebase version
 function downloadReport(file){
+  if (typeof window.downloadReport === 'function' && window.downloadReport !== downloadReport) {
+    window.downloadReport(file);
+    return;
+  }
+  // Fallback (sin Firebase — solo para desarrollo local)
   const a = document.createElement('a');
-  a.href = file;
-  a.download = file;
-  a.click();
-  showToast('Descargando reporte + SHA-256…');
+  a.href = file; a.download = file; a.click();
+  showToast('Descargando (modo local)…');
 }
 
 // ── Verify ────────────────────────────────────────────────────
