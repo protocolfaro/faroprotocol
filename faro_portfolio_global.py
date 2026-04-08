@@ -238,10 +238,15 @@ def _render_area_column(fig, outer_gs_cell, area: str, show_panel_labels: bool =
 
         crop = _load_panel(area, pi)
         if crop is not None:
-            ax_p.imshow(crop, aspect='auto',
-                        extent=[0, 1, 0, 1],
-                        transform=ax_p.transAxes,
-                        zorder=1)
+            # Stretch de contraste por percentil — garantiza visibilidad en
+            # zonas oscuras (agua, desierto, puerto) igual que en zonas verdes
+            lo = np.percentile(crop, 2)
+            hi = np.percentile(crop, 98)
+            if hi > lo:
+                crop = np.clip((crop.astype(float) - lo) / (hi - lo), 0, 1)
+            ax_p.imshow(crop, aspect='auto', extent=[0, 1, 0, 1], zorder=1)
+            ax_p.set_xlim(0, 1)
+            ax_p.set_ylim(0, 1)
         else:
             # Placeholder cuando no hay PNG fuente
             ax_p.add_patch(Rectangle((0, 0), 1, 1,
@@ -376,12 +381,12 @@ def generar_portfolio(areas: list[str], output: str = 'faro_portfolio_global.png
 
     comp_sha = _composite_sha(areas)
 
-    ax_foot.text(0.012, 0.70, 'SHA-256 COMPUESTO',
-                 ha='left', va='top', fontsize=5.5, fontweight='bold',
+    ax_foot.text(0.012, 0.80, 'SHA-256 COMPUESTO',
+                 ha='left', va='top', fontsize=8, fontweight='bold',
                  color=GOLD, fontfamily='monospace',
                  transform=ax_foot.transAxes)
-    ax_foot.text(0.012, 0.25, comp_sha,
-                 ha='left', va='top', fontsize=5.5,
+    ax_foot.text(0.012, 0.30, comp_sha,
+                 ha='left', va='top', fontsize=8,
                  color=WHITE60, fontfamily='monospace',
                  transform=ax_foot.transAxes)
 
@@ -394,20 +399,21 @@ def generar_portfolio(areas: list[str], output: str = 'faro_portfolio_global.png
             sha_strs.append(f'{a.upper()[:10]}:{h}')
         else:
             sha_strs.append(f'{a.upper()[:10]}:NO_SHA')
-    ax_foot.text(0.988, 0.70, '  |  '.join(sha_strs),
-                 ha='right', va='top', fontsize=4.5,
+    ax_foot.text(0.988, 0.80, '  |  '.join(sha_strs),
+                 ha='right', va='top', fontsize=8,
                  color=WHITE60, fontfamily='monospace',
                  transform=ax_foot.transAxes)
-    ax_foot.text(0.988, 0.25,
+    ax_foot.text(0.988, 0.30,
                  'protocolfaro.github.io/faroprotocol  |  Datos: ESA Copernicus, USGS, GEE',
-                 ha='right', va='top', fontsize=4.5,
+                 ha='right', va='top', fontsize=8,
                  color=WHITE60, fontfamily='monospace',
                  transform=ax_foot.transAxes)
 
     # ── Guardar ───────────────────────────────────────────────────────────────
     out_path = ROOT / output
-    plt.savefig(out_path, dpi=100,
-                facecolor=BG, edgecolor='none')
+    fig.subplots_adjust(left=0.005, right=0.995, top=0.995, bottom=0.005,
+                        hspace=0.015, wspace=0.015)
+    plt.savefig(out_path, dpi=100, facecolor=BG, edgecolor='none')
     plt.close()
 
     # Sello SHA-256
