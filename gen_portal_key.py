@@ -29,6 +29,11 @@ import argparse
 import os
 import sys
 import json
+
+# Fix encoding en Windows (cp1252 no soporta ✓, etc.)
+if hasattr(sys.stdout, 'buffer') and (sys.stdout.encoding or '').lower() != 'utf-8':
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 import secrets
 import string
 import smtplib
@@ -607,7 +612,7 @@ def main():
                         help='Generar manual PDF de bienvenida')
     parser.add_argument('--extend', metavar='EMAIL',
                         help='Extender acceso de un cliente')
-    parser.add_argument('--days', type=int, default=7,
+    parser.add_argument('--days', '--dias', type=int, default=7,
                         help='Días a extender (default: 7)')
     parser.add_argument('--revoke', metavar='EMAIL',
                         help='Revocar acceso inmediatamente')

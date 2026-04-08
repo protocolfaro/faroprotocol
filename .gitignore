@@ -3,6 +3,8 @@
 faro_accesos.txt
 faro_clientes.json
 accounts.json
+firebase-service-account.json
+*-firebase-adminsdk-*.json
 
 # Datos satelitales (archivos grandes)
 *.tif
