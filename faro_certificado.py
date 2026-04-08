@@ -35,6 +35,8 @@ if hasattr(sys.stdout, 'reconfigure'):
 
 PROJECT_ROOT = Path(__file__).parent
 
+from faro_quality import QualityGate, print_quality_header, log_generation
+
 # ── Paleta Faro ───────────────────────────────────────────────────────────────
 BG      = '#06080b'
 BG2     = '#0d1117'
@@ -163,9 +165,12 @@ def _dibujar_barra_estado(ax, x, y, w, h, estado, score):
             facecolor=col, alpha=0.7, transform=ax.transAxes, clip_on=False))
 
 
-def generar_certificado(area_name: str, output_dir: Path = None) -> Path:
+def generar_certificado(area_name: str, output_dir: Path = None,
+                        mode: str = 'external') -> Path:
     """
     Genera el certificado PNG para el área indicada.
+    mode='external': aplica quality gate estricto (score >= 50, sin ALERTA)
+    mode='internal': genera aunque haya alertas (para auditoría interna)
     Retorna la ruta del PNG generado.
     """
     if output_dir is None:
@@ -184,6 +189,15 @@ def generar_certificado(area_name: str, output_dir: Path = None) -> Path:
 
     score  = data.get('score_faro')
     estado = data.get('estado', 'PENDIENTE_DATOS')
+
+    # ── Quality gate ──────────────────────────────────────────────────────────
+    violations = QualityGate.check(
+        area_name  = area_name,
+        score      = score,
+        estado     = estado,
+        report_png = report_png,
+        mode       = mode,
+    )
     ndvi   = data.get('ndvi_medio')
     sar    = data.get('sar_medio_db')
     rinde  = data.get('rinde_estimado_tha')
@@ -400,6 +414,15 @@ def generar_certificado(area_name: str, output_dir: Path = None) -> Path:
 
     status = 'SELLO VERDE' if sello['sello_verde'] else 'sin sello'
     print(f'  [{status}]  {out_path.name}')
+
+    log_generation(
+        output_type='certificado',
+        area_name=area_name,
+        output_path=str(out_path),
+        violations=violations,
+        score=score,
+        estado=estado,
+    )
     return out_path
 
 
@@ -425,6 +448,8 @@ if __name__ == '__main__':
     print('  FARO PROTOCOL — Certificados')
     print(f'  {datetime.now().strftime("%Y-%m-%d %H:%M")}')
     print('=' * 60)
+    print()
+    print_quality_header('certificado')
 
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)

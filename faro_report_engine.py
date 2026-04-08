@@ -58,6 +58,7 @@ from faro_areas import load_area, list_areas
 from faro_dashboard import (
     get_economic_vars, compute_roi, check_alerts, SECTOR_COLORS
 )
+from faro_quality import QualityGate, print_quality_header, log_generation as _log_quality
 
 ROOT       = Path(__file__).parent
 DATA_JSON  = ROOT / 'data.json'
@@ -710,13 +711,28 @@ def _load_metrics(area_name: str) -> dict:
     return {**pipe, **ins}
 
 
-def _run_report(area_name: str, trigger: str = 'on_demand') -> dict:
-    """Pipeline completo de generación de reporte certificado."""
-    print(f'\n  [{area_name.upper()}] Reporte certificado — trigger={trigger}')
+def _run_report(area_name: str, trigger: str = 'on_demand',
+                mode: str = 'internal') -> dict:
+    """
+    Pipeline completo de generación de reporte certificado.
+    mode='internal': permite scores bajos y ALERTA (auditoría interna).
+    mode='external': aplica quality gate estricto (score >= 50, sin ALERTA).
+    """
+    print(f'\n  [{area_name.upper()}] Reporte certificado — trigger={trigger} mode={mode}')
 
     area_cfg = load_area(area_name)
     metrics  = _load_metrics(area_name)
     sector   = area_cfg.get('sector', area_cfg.get('vertical', ''))
+
+    # ── Quality gate ──────────────────────────────────────────────────────────
+    report_png_src = f'faro_reporte_fusion_{area_name}.png'
+    q_violations = QualityGate.check(
+        area_name  = area_name,
+        score      = metrics.get('score_faro'),
+        estado     = metrics.get('estado', 'OK'),
+        report_png = report_png_src,
+        mode       = mode,
+    )
 
     econ    = get_economic_vars(sector)
     roi     = compute_roi(area_cfg, metrics, econ)
@@ -736,7 +752,7 @@ def _run_report(area_name: str, trigger: str = 'on_demand') -> dict:
     sha_out    = out_path.with_suffix('.sha256')
     sha_out.write_text(f'{report_sha}  {out_path.name}\n', encoding='utf-8')
 
-    # Audit log
+    # Audit log (interno del engine)
     _audit_entry(
         area_name=area_name,
         trigger=trigger,
@@ -745,6 +761,16 @@ def _run_report(area_name: str, trigger: str = 'on_demand') -> dict:
         estado=metrics.get('estado', '?'),
         impact_total=impact.get('total_impacto'),
         alerts_n=len(alerts),
+    )
+
+    # Quality log (estándar unificado)
+    _log_quality(
+        output_type=f'report-{trigger}',
+        area_name=area_name,
+        output_path=str(out_path),
+        violations=q_violations,
+        score=metrics.get('score_faro'),
+        estado=metrics.get('estado', '?'),
     )
 
     print(f'  Reporte: {out_path.name}')
@@ -790,6 +816,9 @@ if __name__ == '__main__':
     print('  FARO PROTOCOL — Motor de Reportes Certificados')
     print(f'  {datetime.now().strftime("%Y-%m-%d %H:%M")}  ·  Trigger: {args.trigger}')
     print('=' * 65)
+    print()
+    print_quality_header(f'report-engine/{args.trigger}')
+    print()
 
     trigger = FaroTrigger()
     resultados = []

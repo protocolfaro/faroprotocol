@@ -43,6 +43,8 @@ if hasattr(sys.stdout, 'reconfigure'):
 
 ROOT = Path(__file__).parent
 
+from faro_quality import QualityGate, print_quality_header, log_generation
+
 # ── Paleta idéntica a los reportes de fusión ──────────────────────────────────
 BG      = '#0a0a1a'
 BG2     = '#0d1020'
@@ -382,9 +384,29 @@ def generar_bricolage(output_path: Path = None) -> Path:
     # Línea separadora
     ax_hdr.axhline(y=0.02, color=GOLD, linewidth=0.8, alpha=0.5)
 
+    # ── Quality gate por área (excluye scores < 50 y ALERTA en externos) ────────
+    areas_aprobadas = []
+    for area in AREAS:
+        m = _load_metrics(area)
+        try:
+            QualityGate.check(
+                area_name  = area,
+                score      = m.get('score'),
+                estado     = m.get('estado', 'OK'),
+                report_png = f'faro_reporte_fusion_{area}.png',
+                mode       = 'external',
+            )
+            areas_aprobadas.append(area)
+        except Exception as e:
+            print(f'  [✗] {area} excluido del bricolage: {e}')
+
+    if not areas_aprobadas:
+        raise RuntimeError('No hay áreas que pasen el quality gate externo.')
+
     # ── 4 filas de área ───────────────────────────────────────────────────────
-    for row_idx, area in enumerate(AREAS):
-        print(f'  Procesando [{row_idx+1}/{len(AREAS)}] {area}...')
+    all_violations = []
+    for row_idx, area in enumerate(areas_aprobadas[:4]):
+        print(f'  Procesando [{row_idx+1}/{min(4,len(areas_aprobadas))}] {area}...')
         metrics  = _load_metrics(area)
         sello_ok, sha_hex = _verificar(area)
 
@@ -401,6 +423,13 @@ def generar_bricolage(output_path: Path = None) -> Path:
     fig.savefig(output_path, dpi=100, bbox_inches=None,
                 facecolor=BG, edgecolor='none')
     plt.close(fig)
+
+    log_generation(
+        output_type='bricolage',
+        area_name=areas_aprobadas[:4],
+        output_path=str(output_path),
+        violations=all_violations,
+    )
     return output_path
 
 
@@ -416,6 +445,8 @@ if __name__ == '__main__':
     print('  FARO PROTOCOL — Bricolage 1800×2400')
     print(f'  {datetime.now().strftime("%Y-%m-%d %H:%M")}')
     print('=' * 62)
+    print()
+    print_quality_header('bricolage-linkedin')
     print()
 
     out = generar_bricolage(ROOT / args.out)
