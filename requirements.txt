@@ -22,3 +22,9 @@ APScheduler>=3.10.0
 
 # ── Variables de entorno (.env) ───────────────────────────────────
 python-dotenv>=1.0.0
+
+# ── Portal seguro — CAPA 7 (gen_portal_key.py con Firebase Admin) ─
+firebase-admin>=6.5.0
+
+# ── Manual de cliente — TAREA 2 (faro_manual_cliente.py, PDF) ─────
+reportlab>=4.2.0

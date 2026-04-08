@@ -1,5 +1,5 @@
 # FARO PROTOCOL — Guía para Claude Code
-> Última actualización: 2026-04-08 — V9 Auditoría final · FSI · Portfolio Global · Quality Gate
+> Última actualización: 2026-04-08 — V10 Seguridad máxima 9 capas + Manual cliente PDF
 > Arquitecto del sistema: Emilio (hijo)
 > Conocimiento de campo y contactos: Padre (fundador)
 
@@ -95,12 +95,23 @@ faro_rinde_import.py      # importa CSV de rinde → baseline departamental
 faro_siia_download.py     # descarga histórico SIIA/MAGyP
 ```
 
-### Portal y autenticación
+### Portal y autenticación — SEGURIDAD MÁXIMA (V10)
 ```
-gen_portal_key.py         # genera hash+salt para accounts.json
-reset_demo_password.py    # resetea contraseña demo
-accounts.json             # credenciales hasheadas (gitignoreado)
-ver_portal.bat            # abre el portal en el browser
+gen_portal_key.py              # CAPA 7: crea clientes en Firebase, Faro Week, --extend, --revoke, --list
+reset_demo_password.py         # resetea contraseña demo (legacy)
+accounts.json                  # credenciales hasheadas (gitignoreado, legacy)
+ver_portal.bat                 # abre el portal en el browser
+faro_security_test.py          # CAPA 8: 9 categorías de pruebas de seguridad
+faro_manual_cliente.py         # TAREA 2: genera PDF manual de bienvenida por cliente
+expired.html                   # CAPA 9: página de conversión al vencer Faro Week
+```
+
+### Netlify Functions (seguridad servidor)
+```
+netlify/functions/auth-monitor.mjs        # CAPA 2+5: rate limiting + alertas por email
+netlify/functions/generate-signed-url.mjs # CAPA 3+4: signed URLs por cliente + Faro Week check
+netlify/functions/serve-report.mjs        # CAPA 4: sirve archivos via HMAC firmado
+netlify/functions/faro-week-notifier.mjs  # CAPA 9: alertas 24h + revocación automática (daily cron)
 ```
 
 ---
@@ -280,6 +291,55 @@ faro_protocol/
 4. `faro_areas/rotterdam.json` — `vertical: "energia"` incorrecto. Fix: corregido a `"maritimo"`.
 
 ---
+
+## Seguridad — Estado V10 (2026-04-08)
+
+| Capa | Descripción | Estado | Implementación |
+|------|-------------|--------|----------------|
+| 1 | Firebase Auth (Email/Password, JWT RS256, 8h sesión) | ✅ | `faro_client_portal.html` |
+| 2 | Rate limiting (3→captcha, 5→lockout 30min, 10→bloqueo permanente), CSRF, Headers | ✅ | `auth-monitor.mjs` + `netlify.toml` |
+| 3 | Autorización por cliente (áreas asignadas, aislamiento total) | ✅ | `generate-signed-url.mjs` |
+| 4 | Signed URLs HMAC-SHA256 (1h), archivos no expuestos directamente | ✅ | `serve-report.mjs` |
+| 5 | Monitoreo: alertas email por IP nueva, intentos fallidos, descarga masiva | ✅ | `auth-monitor.mjs` |
+| 6 | Netlify: HTTPS automático, variables de entorno, headers de seguridad | ✅ | `netlify.toml` |
+| 7 | gen_portal_key.py con Firebase Admin: crear usuario, áreas, email bienvenida | ✅ | `gen_portal_key.py` |
+| 8 | Penetration testing: 9 categorías de pruebas automatizadas | ✅ | `faro_security_test.py` |
+| 9 | Faro Week: 7 días, alerta 24h, revocación automática, página conversión | ✅ | `faro-week-notifier.mjs` + `expired.html` |
+
+### Comandos de seguridad
+```bash
+# Crear cliente con áreas + manual PDF
+python gen_portal_key.py cliente@empresa.com --areas cordoba,balcarce --manual
+
+# Extender acceso Faro Week
+python gen_portal_key.py --extend cliente@empresa.com --days 7
+
+# Revocar acceso inmediatamente
+python gen_portal_key.py --revoke cliente@empresa.com
+
+# Listar clientes
+python gen_portal_key.py --list
+
+# Correr security test (ANTES de cada onboarding nuevo)
+python faro_security_test.py --url https://faroprotocol.netlify.app
+
+# Generar manual PDF independiente
+python faro_manual_cliente.py --email cliente@empresa.com --name "Empresa SA" --areas cordoba
+
+# Enviar alertas de vencimiento manualmente (normalmente lo hace faro-week-notifier diario)
+python gen_portal_key.py --check-expiry
+```
+
+### Setup Firebase (una vez)
+```
+1. console.firebase.google.com → Crear proyecto
+2. Authentication → Sign-in method → Email/Password → Habilitar
+3. Firestore → Crear base de datos → modo producción
+4. Project settings → Service accounts → Generate new private key → guardar JSON
+5. .env: FIREBASE_SERVICE_ACCOUNT=/ruta/serviceAccount.json
+6. Netlify dashboard → Environment variables → agregar todas las vars (ver netlify.toml)
+7. SIGNED_URL_SECRET: openssl rand -hex 32
+```
 
 ## Pendientes técnicos prioritarios
 

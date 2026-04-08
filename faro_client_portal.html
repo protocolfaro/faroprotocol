@@ -4,6 +4,21 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Faro Protocol · Client Portal</title>
+<!-- Firebase Auth SDK v10 (modular) -->
+<script type="module">
+  // ── SETUP: Reemplazá estos valores con los de tu proyecto Firebase ────────────
+  // Firebase Dashboard → Project Settings → Your apps → Web app → SDK snippet
+  // El API key de Firebase NO es secreto — la seguridad está en Security Rules
+  const FIREBASE_CONFIG = {
+    apiKey:            "REEMPLAZAR_FIREBASE_API_KEY",
+    authDomain:        "REEMPLAZAR_PROYECTO.firebaseapp.com",
+    projectId:         "REEMPLAZAR_PROYECTO",
+    storageBucket:     "REEMPLAZAR_PROYECTO.appspot.com",
+    messagingSenderId: "REEMPLAZAR_SENDER_ID",
+    appId:             "REEMPLAZAR_APP_ID",
+  };
+  window.__FIREBASE_CONFIG__ = FIREBASE_CONFIG;
+</script>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Epilogue:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -641,14 +656,19 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
             <input type="checkbox" id="rememberMe" checked>
             <span>Keep me signed in</span>
           </label>
-          <a href="#" class="lc-forgot" onclick="return false;">Request new key</a>
+          <a href="#" class="lc-forgot" onclick="sendPasswordReset();return false;">Forgot password</a>
+        </div>
+
+        <!-- CAPTCHA notice (CAPA 2: visible tras 3 intentos fallidos) -->
+        <div id="captchaNotice" style="display:none;background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.25);border-radius:6px;padding:10px 14px;margin-bottom:12px;font-family:var(--mono);font-size:10px;color:var(--gold);">
+          ⚠ Security check required. Too many failed attempts detected.
         </div>
 
         <button class="btn-login" id="loginBtn" onclick="attemptLogin()">
           Access Dashboard →
         </button>
 
-        <div class="lc-divider"><span>institutional access only</span></div>
+        <div class="lc-divider"><span>Firebase Auth · TLS 1.3 · 8h session</span></div>
 
         <div class="lc-demo">
           Don't have credentials? <a href="faro_website.html#access" style="color:var(--gold);text-decoration:none;">Request access →</a>
@@ -1016,32 +1036,264 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
   </button>
 </div>
 
-<script>
+<script type="module">
 'use strict';
 
-// ── Accounts — cargados desde accounts.json (externo, gitignoreado) ───────────
-// SEGURIDAD: accounts.json NO debe estar en el repo público.
-// En despliegue local/LAN: el archivo queda fuera del repo.
-// En producción real: reemplazar por Firebase Auth o Netlify Identity.
-// Para agregar un cliente: python gen_portal_key.py <email> <password>
-// y agregar el bloque generado a accounts.json.
-let ACCOUNTS = {};
-let currentUser = null;
+// ═══════════════════════════════════════════════════════════════
+// FARO PROTOCOL — AUTENTICACIÓN FIREBASE (CAPA 1-5)
+// Reemplaza PBKDF2 client-side por Firebase Auth server-side
+// ═══════════════════════════════════════════════════════════════
 
-async function _loadAccounts() {
-  try {
-    const res = await fetch('accounts.json?_=' + Date.now());
-    if (res.ok) { ACCOUNTS = await res.json(); return; }
-  } catch(e) {}
-  // Fallback embebido solo si accounts.json no está disponible
-  ACCOUNTS = {
-    'demo@faroprotocol.io': {
-      name:'Faro Protocol', plan:'Analyst', initials:'FP',
-      salt:'3841b70af69616f21a2d2ce465e4ffd4',
-      hash:'dbcdf62cea49aaedafd904c057f32834298997687782952e5c7a8ad06200f911'
-    }
-  };
+import { initializeApp }                    from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getAuth, signInWithEmailAndPassword,
+         signOut, onAuthStateChanged,
+         sendPasswordResetEmail }           from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+
+const _app  = initializeApp(window.__FIREBASE_CONFIG__);
+const _auth = getAuth(_app);
+
+// ── Constantes de sesión ───────────────────────────────────────
+const SESSION_HOURS  = 8;
+const SESSION_MS     = SESSION_HOURS * 60 * 60 * 1000;
+const API_BASE       = window.location.origin + '/api';
+
+// ── Estado global ─────────────────────────────────────────────
+let currentUser  = null;
+let _idToken     = null;
+let _sessionExp  = 0;
+let _csrfToken   = null;
+let _downloadCount = 0;
+const BULK_THRESHOLD = 5; // >5 descargas en sesión → alerta
+
+// ── CSRF token — generado una vez por sesión ─────────────────
+function _initCsrf() {
+  const arr = new Uint8Array(32);
+  crypto.getRandomValues(arr);
+  _csrfToken = Array.from(arr).map(b => b.toString(16).padStart(2,'0')).join('');
+  return _csrfToken;
 }
+_initCsrf();
+
+// ── IP del cliente (para alertas) ────────────────────────────
+let _clientIP = 'unknown';
+fetch('https://api.ipify.org?format=json').then(r => r.json())
+  .then(d => { _clientIP = d.ip || 'unknown'; }).catch(() => {});
+
+// ── IP almacenada en sesión previa ────────────────────────────
+function _getStoredIP() { return sessionStorage.getItem('_faro_ip') || ''; }
+function _storeIP(ip)   { sessionStorage.setItem('_faro_ip', ip); }
+
+// ── Firebase Auth state listener ─────────────────────────────
+onAuthStateChanged(_auth, async user => {
+  if (user) {
+    // Renovar ID token (válido 1h por Firebase, refresh automático)
+    _idToken = await user.getIdToken();
+    const parsed   = JSON.parse(atob(_idToken.split('.')[1]));
+    const expUnix  = (parsed.exp || 0) * 1000;
+
+    // Forzar logout si la sesión Faro (8h) venció
+    _sessionExp = parseInt(sessionStorage.getItem('_faro_session_exp') || '0');
+    if (_sessionExp && Date.now() > _sessionExp) {
+      await _doLogout();
+      showToast('Session expired after 8 hours. Please sign in again.');
+      return;
+    }
+
+    currentUser = {
+      name:     user.displayName || user.email.split('@')[0],
+      email:    user.email,
+      initials: (user.displayName || user.email).substring(0, 2).toUpperCase(),
+      uid:      user.uid,
+      plan:     'Analyst',
+    };
+    enterDashboard();
+  } else {
+    currentUser = null;
+    _idToken    = null;
+    showLoginScreen();
+  }
+});
+
+// ── Rate limit state (Firestore via API) ─────────────────────
+async function _checkRateLimit(email) {
+  try {
+    const r = await fetch(`${API_BASE}/auth-monitor`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event: 'check_attempts', email, ip: _clientIP }),
+    });
+    return await r.json();
+  } catch { return { action: 'allow' }; }
+}
+
+async function _reportEvent(event, extra = {}) {
+  try {
+    await fetch(`${API_BASE}/auth-monitor`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event, ip: _clientIP, ...extra }),
+    });
+  } catch {}
+}
+
+// ── Login (Firebase Auth) ─────────────────────────────────────
+async function attemptLogin() {
+  const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+  const pass  = document.getElementById('loginPass').value;
+  const err   = document.getElementById('loginError');
+
+  if (!email || !pass) {
+    err.classList.add('show');
+    err.textContent = 'Please enter your email and access key.';
+    return;
+  }
+
+  // Check rate limit antes de intentar
+  const rl = await _checkRateLimit(email);
+  if (rl.action === 'permanent_block') {
+    err.classList.add('show');
+    err.textContent = 'Account permanently blocked. Contact support.';
+    return;
+  }
+  if (rl.action === 'lockout') {
+    const mins = Math.ceil((rl.lockoutUntil - Date.now()) / 60000);
+    err.classList.add('show');
+    err.textContent = `Too many attempts. Try again in ${mins} minute${mins !== 1 ? 's' : ''}.`;
+    return;
+  }
+  if (rl.action === 'captcha') {
+    // En producción: mostrar reCAPTCHA v3. Aquí mostramos advertencia.
+    showToast('Please complete the security check.');
+    document.getElementById('captchaNotice').style.display = 'block';
+  }
+
+  const btn = document.getElementById('loginBtn');
+  btn.textContent = 'Verifying…'; btn.disabled = true;
+
+  try {
+    await signInWithEmailAndPassword(_auth, email, pass);
+
+    // Éxito — registrar IP y resetear contador
+    const prevIP = _getStoredIP();
+    _storeIP(_clientIP);
+    sessionStorage.setItem('_faro_session_exp', String(Date.now() + SESSION_MS));
+    _initCsrf(); // Nuevo CSRF token en cada login
+
+    await _reportEvent('login_ok', {
+      email,
+      uid:        _auth.currentUser?.uid,
+      userAgent:  navigator.userAgent,
+      newIP:      prevIP && prevIP !== _clientIP,
+    });
+
+    err.classList.remove('show');
+    document.getElementById('captchaNotice').style.display = 'none';
+
+  } catch (fbErr) {
+    // Firebase Auth error — reportar fallo
+    await _reportEvent('login_failed', {
+      email,
+      userAgent: navigator.userAgent,
+      errorCode: fbErr.code,
+    });
+
+    // Re-verificar estado de rate limit
+    const rlAfter = await _checkRateLimit(email);
+
+    btn.textContent = 'Access Dashboard →'; btn.disabled = false;
+
+    if (rlAfter.action === 'lockout') {
+      err.textContent = 'Too many failed attempts. Access locked for 30 minutes.';
+    } else if (rlAfter.action === 'captcha') {
+      document.getElementById('captchaNotice').style.display = 'block';
+      const left = rlAfter.attemptsLeft || 2;
+      err.textContent = `Invalid credentials. ${left} attempt${left !== 1 ? 's' : ''} remaining.`;
+    } else {
+      err.textContent = 'Invalid credentials. Please check your email and password.';
+    }
+    err.classList.add('show');
+  }
+}
+
+// ── Logout ────────────────────────────────────────────────────
+async function _doLogout() {
+  await signOut(_auth);
+  sessionStorage.clear();
+  currentUser = null;
+  _idToken    = null;
+  _csrfToken  = null;
+  _downloadCount = 0;
+  _initCsrf();
+}
+
+// ── Descarga via Signed URL (CAPA 4) ─────────────────────────
+async function downloadReport(file) {
+  if (!_auth.currentUser || !_idToken) {
+    showToast('Please sign in to download reports.');
+    return;
+  }
+
+  // Renovar token si está próximo a vencer
+  try { _idToken = await _auth.currentUser.getIdToken(); } catch {}
+
+  // Detección de descarga masiva
+  _downloadCount++;
+  if (_downloadCount > BULK_THRESHOLD) {
+    await _reportEvent('bulk_download', { email: currentUser?.email, uid: currentUser?.uid, count: _downloadCount });
+  }
+
+  showToast('Generating secure download link…');
+
+  try {
+    const res = await fetch(`${API_BASE}/generate-signed-url`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        idToken:   _idToken,
+        file,
+        csrfToken: _csrfToken,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (data.redirect) {
+      // Faro Week expirado
+      window.location.href = data.redirect;
+      return;
+    }
+
+    if (!res.ok || !data.signedUrl) {
+      showToast('Download error: ' + (data.error || 'Access denied.'));
+      return;
+    }
+
+    // Abrir URL firmada (válida 1 hora)
+    const expDate = new Date(data.expiresAt).toLocaleTimeString();
+    const a = document.createElement('a');
+    a.href = data.signedUrl;
+    a.download = file;
+    a.click();
+    showToast(`↓ Downloading… Link valid until ${expDate}`);
+
+  } catch (e) {
+    showToast('Network error. Please try again.');
+  }
+}
+
+// ── Session timeout checker (cada 60s) ───────────────────────
+setInterval(async () => {
+  const exp = parseInt(sessionStorage.getItem('_faro_session_exp') || '0');
+  if (exp && Date.now() > exp && currentUser) {
+    await _doLogout();
+    showToast('Session expired after 8 hours. Please sign in again.');
+  }
+}, 60_000);
+
+// ── Exponer funciones al HTML (scope global) ──────────────────
+window.attemptLogin  = attemptLogin;
+window.doLogout      = _doLogout;
+window.downloadReport = downloadReport;
 
 // ── Faro data loader — fetches data.json (GitHub Pages same origin) ──────────
 let _faroData = null;

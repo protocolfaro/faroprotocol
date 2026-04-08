@@ -1,0 +1,129 @@
+# ============================================================
+# FARO PROTOCOL — Netlify Configuration
+# SEGURIDAD MÁXIMA: 9 capas de protección
+# ============================================================
+
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+# ── Security Headers (CAPA 2) ────────────────────────────────
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # HSTS: forzar HTTPS por 1 año, incluir subdominios
+    Strict-Transport-Security     = "max-age=31536000; includeSubDomains; preload"
+    # CSP: solo recursos propios + Firebase + Google Fonts
+    Content-Security-Policy       = "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com https://www.googleapis.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; img-src 'self' data: blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self';"
+    X-Frame-Options               = "DENY"
+    X-Content-Type-Options        = "nosniff"
+    Referrer-Policy               = "no-referrer"
+    X-XSS-Protection              = "1; mode=block"
+    Permissions-Policy            = "camera=(), microphone=(), geolocation=(), payment=()"
+    Cross-Origin-Opener-Policy    = "same-origin"
+    Cross-Origin-Embedder-Policy  = "require-corp"
+    Cross-Origin-Resource-Policy  = "same-origin"
+
+# ── Bloquear acceso directo a reportes (CAPA 4) ─────────────
+[[headers]]
+  for = "/faro_reporte_fusion_*.png"
+  [headers.values]
+    X-Robots-Tag = "noindex"
+    Cache-Control = "no-store, no-cache, private"
+
+[[headers]]
+  for = "/*.sha256"
+  [headers.values]
+    Cache-Control = "no-store, no-cache, private"
+
+[[headers]]
+  for = "/data.json"
+  [headers.values]
+    Cache-Control = "no-store, no-cache, private"
+
+# ── Redirigir acceso directo a reportes → portal ────────────
+[[redirects]]
+  from = "/faro_reporte_fusion_*.png"
+  to   = "/faro_client_portal.html"
+  status = 302
+  force  = true
+  conditions = {Cookie = ["_faro_session"]}
+
+[[redirects]]
+  from = "/faro_reporte_fusion_*.png"
+  to   = "/faro_client_portal.html"
+  status = 302
+  force  = true
+
+[[redirects]]
+  from = "/*.sha256"
+  to   = "/faro_client_portal.html"
+  status = 302
+  force  = true
+
+[[redirects]]
+  from = "/accounts.json"
+  to   = "/404"
+  status = 404
+  force  = true
+
+# ── Bloquear archivos sensibles ──────────────────────────────
+[[redirects]]
+  from = "/accounts.json"
+  to   = "/404"
+  status = 404
+  force  = true
+
+[[redirects]]
+  from = "/.env"
+  to   = "/404"
+  status = 404
+  force  = true
+
+[[redirects]]
+  from = "/audit_log.jsonl"
+  to   = "/404"
+  status = 404
+  force  = true
+
+[[redirects]]
+  from = "/faro_clientes.json"
+  to   = "/404"
+  status = 404
+  force  = true
+
+# ── Netlify Functions routing ─────────────────────────────────
+[[redirects]]
+  from = "/api/*"
+  to   = "/.netlify/functions/:splat"
+  status = 200
+
+# ── Serve-report: archivos PNG/SHA256 incluidos en bundle ────
+# (los archivos se incluyen via included_files abajo)
+[functions."serve-report"]
+  included_files = [
+    "faro_reporte_fusion_*.png",
+    "faro_report_*.png",
+    "faro_reporte_fusion_*.sha256",
+    "faro_report_*.sha256",
+    "faro_manual_*.pdf",
+  ]
+
+# ── Faro Week Notifier — corre diariamente a las 09:00 UTC ───
+[functions."faro-week-notifier"]
+  schedule = "0 9 * * *"
+
+# ── TLS mínimo ───────────────────────────────────────────────
+[build.environment]
+  NODE_VERSION = "20"
+
+# ── Variables de entorno requeridas en Netlify Dashboard ─────
+# Site settings → Environment variables → Add variable:
+#
+#   FIREBASE_PROJECT_ID       → ID del proyecto Firebase
+#   FIREBASE_SERVICE_ACCOUNT  → contenido JSON del service account (como string)
+#   SIGNED_URL_SECRET         → openssl rand -hex 32  (64 chars, guardar bien)
+#   GMAIL_USER                → protocolfaro@gmail.com
+#   GMAIL_APP_PASS            → app password de Gmail (16 chars)
+#   ADMIN_EMAIL               → protocolfaro@gmail.com (o email admin)
+#   PORTAL_URL                → https://faroprotocol.netlify.app
