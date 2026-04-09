@@ -15,59 +15,77 @@
     --mono:   'Courier New', monospace;
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: #f1f5f9; font-family: var(--mono); overflow: hidden; height: 100vh; }
+  html, body { width: 100%; height: 100%; overflow: hidden;
+                background: var(--bg); color: #f1f5f9; font-family: var(--mono); }
 
-  /* ── Mapa ── */
-  #map { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; }
+  /* ── Contenedor tilt (perspectiva 3D) ── */
+  #tilt-wrap {
+    position: fixed; inset: 0;
+    /* perspective se aplica aquí: la cámara está 900px delante del plano */
+    perspective: 900px;
+    perspective-origin: 50% 100%;   /* punto de fuga en el borde inferior */
+    background: #000;
+  }
+  /* El mapa rota sobre su borde inferior → simula vista inclinada */
+  #map {
+    position: absolute; inset: 0;
+    width: 100%; height: 140%;      /* extra alto para no descubrir fondo al inclinar */
+    transform-origin: 50% 100%;
+    transition: transform 0.35s ease;
+    will-change: transform;
+  }
 
-  /* Ocultar atribución Leaflet (la dejamos en esquina pequeña) */
+  /* ── Leaflet theme ── */
   .leaflet-control-attribution {
-    background: rgba(15,23,42,0.7) !important;
+    background: rgba(15,23,42,0.75) !important;
     color: rgba(148,163,184,0.5) !important;
-    font-family: var(--mono) !important;
-    font-size: 9px !important;
+    font-family: var(--mono) !important; font-size: 9px !important;
   }
   .leaflet-control-attribution a { color: rgba(34,211,238,0.4) !important; }
-
-  /* Estilo controles zoom */
   .leaflet-control-zoom a {
     background: rgba(15,23,42,0.9) !important;
     color: #22d3ee !important;
     border-color: rgba(34,211,238,0.25) !important;
     font-family: var(--mono) !important;
   }
-  .leaflet-control-zoom a:hover {
-    background: rgba(34,211,238,0.1) !important;
+  .leaflet-control-zoom a:hover { background: rgba(34,211,238,0.12) !important; }
+
+  /* ── Capa UI — encima del tilt, sin transform ── */
+  #ui {
+    position: fixed; inset: 0;
+    z-index: 100;
+    pointer-events: none;   /* deja pasar eventos al mapa */
   }
+  /* Hijos del UI recuperan pointer-events */
+  #ui > * { pointer-events: auto; }
 
   /* ── Panel lateral ── */
   #panel {
-    position: absolute;
-    top: 20px; right: 20px;
+    position: absolute; top: 20px; right: 20px;
     width: 340px;
     background: rgba(15,23,42,0.93);
     border: 1px solid color-mix(in srgb, #22d3ee 35%, transparent);
-    border-radius: 4px;
-    padding: 20px;
+    border-radius: 4px; padding: 20px;
     backdrop-filter: blur(12px);
-    z-index: 10;
     box-shadow: 0 0 32px color-mix(in srgb, #22d3ee 8%, transparent);
   }
   #panel::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 2px;
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
     background: linear-gradient(90deg, transparent, #22d3ee, transparent);
     opacity: 0.6;
   }
-  .ph  { font-size: 10px; letter-spacing: 0.2em; color: color-mix(in srgb, #22d3ee 55%, transparent);
-          margin-bottom: 14px; border-bottom: 1px solid color-mix(in srgb, #22d3ee 12%, transparent);
+  .ph  { font-size: 10px; letter-spacing: 0.2em;
+          color: color-mix(in srgb, #22d3ee 55%, transparent);
+          margin-bottom: 14px;
+          border-bottom: 1px solid color-mix(in srgb, #22d3ee 12%, transparent);
           padding-bottom: 10px; }
   .pt  { font-size: 15px; font-weight: bold; color: #f1f5f9; letter-spacing: 0.06em; margin-bottom: 2px; }
-  .ps  { font-size: 11px; color: color-mix(in srgb, #22d3ee 65%, transparent); letter-spacing: 0.12em; margin-bottom: 16px; }
-  .kv  { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 9px; gap: 8px; }
-  .kk  { color: rgba(148,163,184,0.7); letter-spacing: 0.08em; flex-shrink: 0; text-transform: uppercase; font-size: 10px; }
+  .ps  { font-size: 11px; color: color-mix(in srgb, #22d3ee 65%, transparent);
+          letter-spacing: 0.12em; margin-bottom: 16px; }
+  .kv  { display: flex; justify-content: space-between; align-items: flex-start;
+          margin-bottom: 9px; gap: 8px; }
+  .kk  { color: rgba(148,163,184,0.7); letter-spacing: 0.08em; flex-shrink: 0;
+          text-transform: uppercase; font-size: 10px; }
   .vv  { color: #e2e8f0; text-align: right; word-break: break-all; font-size: 11px; }
   .vv.ac { color: #22d3ee; }
   .sha-box { margin-top: 12px; background: rgba(15,23,42,0.5);
@@ -75,96 +93,140 @@
               border-radius: 2px; padding: 8px 10px; }
   .sha-lbl { font-size: 9px; letter-spacing: 0.15em; color: rgba(148,163,184,0.5);
               margin-bottom: 4px; text-transform: uppercase; }
-  .sha-v { font-size: 9.5px; color: color-mix(in srgb, #22d3ee 75%, transparent);
-            word-break: break-all; line-height: 1.6; }
+  .sha-v   { font-size: 9.5px; color: color-mix(in srgb, #22d3ee 75%, transparent);
+              word-break: break-all; line-height: 1.6; }
   .st  { margin-top: 14px; display: flex; align-items: center; gap: 8px;
           font-size: 11px; letter-spacing: 0.08em; }
   .sd  { width: 8px; height: 8px; border-radius: 50%; background: #94a3b8;
           flex-shrink: 0; animation: pd 1.4s ease-in-out infinite; }
   .st-t { color: #94a3b8; font-weight: bold; letter-spacing: 0.12em; }
   .nota { margin-top: 10px; font-size: 9.5px; color: rgba(148,163,184,0.5); line-height: 1.55;
-           font-style: italic; border-top: 1px solid color-mix(in srgb, #22d3ee 8%, transparent);
+           font-style: italic;
+           border-top: 1px solid color-mix(in srgb, #22d3ee 8%, transparent);
            padding-top: 9px; }
 
   /* ── Botón SAR ── */
   #btn-sar {
-    position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%);
-    z-index: 10;
+    position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%);
     background: rgba(15,23,42,0.92); border: 1px solid #22d3ee;
     color: #22d3ee; font-family: var(--mono); font-size: 12px;
-    letter-spacing: 0.18em; padding: 11px 28px; border-radius: 3px; cursor: pointer;
+    letter-spacing: 0.16em; padding: 11px 28px; border-radius: 3px; cursor: pointer;
     backdrop-filter: blur(8px); transition: all 0.25s ease; text-transform: uppercase;
-    box-shadow: 0 0 18px color-mix(in srgb, #22d3ee 12%, transparent);
+    box-shadow: 0 0 18px color-mix(in srgb, #22d3ee 15%, transparent);
     white-space: nowrap;
   }
-  #btn-sar:hover  { background: color-mix(in srgb, #22d3ee 10%, transparent);
-                     box-shadow: 0 0 28px color-mix(in srgb, #22d3ee 25%, transparent); }
+  #btn-sar:hover  { background: color-mix(in srgb, #22d3ee 12%, transparent);
+                     box-shadow: 0 0 28px color-mix(in srgb, #22d3ee 30%, transparent); }
   #btn-sar.active { background: color-mix(in srgb, #22d3ee 15%, transparent);
                      border-color: var(--green); color: var(--green);
-                     box-shadow: 0 0 32px rgba(0,255,65,0.2); }
+                     box-shadow: 0 0 32px rgba(0,255,65,0.25); }
+
+  /* ── Slider de inclinación ── */
+  #tilt-ctrl {
+    position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(15,23,42,0.85); border: 1px solid rgba(34,211,238,0.2);
+    border-radius: 3px; padding: 7px 14px;
+    backdrop-filter: blur(8px);
+    white-space: nowrap;
+  }
+  .tilt-lbl { font-size: 9px; letter-spacing: 0.18em; color: color-mix(in srgb, #22d3ee 55%, transparent);
+               text-transform: uppercase; }
+  #tilt-slider {
+    -webkit-appearance: none; appearance: none;
+    width: 120px; height: 3px;
+    background: color-mix(in srgb, #22d3ee 25%, transparent);
+    border-radius: 2px; outline: none; cursor: pointer;
+  }
+  #tilt-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: #22d3ee; cursor: pointer;
+    box-shadow: 0 0 8px color-mix(in srgb, #22d3ee 60%, transparent);
+  }
+  #tilt-slider::-moz-range-thumb {
+    width: 14px; height: 14px; border-radius: 50%; border: none;
+    background: #22d3ee; cursor: pointer;
+  }
+  #tilt-val { font-size: 10px; color: #22d3ee; min-width: 28px; text-align: right; }
 
   /* ── Logo ── */
-  #logo { position: absolute; top: 20px; left: 20px; z-index: 10; font-family: var(--mono); }
+  #logo { position: absolute; top: 20px; left: 20px; font-family: var(--mono); }
   #logo .brand   { font-size: 14px; color: var(--gold); letter-spacing: 0.2em; font-weight: bold; }
   #logo .tagline { font-size: 9px; color: rgba(201,168,76,0.5); letter-spacing: 0.15em; margin-top: 3px; }
 
   /* ── Scan line decorativa ── */
-  .scan-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 5; overflow: hidden; }
-  .scan-line { position: absolute; left: 0; right: 0; height: 2px;
-                background: linear-gradient(90deg, transparent,
-                  color-mix(in srgb, #22d3ee 22%, transparent), transparent);
-                animation: sl 7s linear infinite; }
+  #scan { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+  #scan::after {
+    content: ''; position: absolute; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, color-mix(in srgb, #22d3ee 20%, transparent), transparent);
+    animation: sl 7s linear infinite;
+  }
 
   /* ── Coordenadas ── */
-  #coords { position: absolute; bottom: 10px; left: 20px; z-index: 10;
+  #coords { position: absolute; bottom: 10px; left: 20px;
              font-size: 10px; color: color-mix(in srgb, #22d3ee 45%, transparent); letter-spacing: 0.1em; }
 
   @keyframes pd { 0%,100% { opacity:1; box-shadow:0 0 6px #94a3b8; } 50% { opacity:0.4; } }
-  @keyframes sl { 0% { transform:translateY(-100%); } 100% { transform:translateY(100vh); } }
+  @keyframes sl { 0% { top:-2px; } 100% { top:100%; } }
 </style>
 </head>
 <body>
 
-<div id="map"></div>
-<div class="scan-overlay"><div class="scan-line"></div></div>
-
-<div id="logo">
-  <div class="brand">FARO PROTOCOL</div>
-  <div class="tagline">SATELLITE ECONOMIC INTELLIGENCE</div>
+<!-- Mapa con perspectiva 3D -->
+<div id="tilt-wrap">
+  <div id="map"></div>
 </div>
 
-<div id="panel">
-  <div class="ph">VISOR TÁCTICO · CAUCHARI · ARGENTINA</div>
-  <div class="pt">Cauchari-Olaroz</div>
-  <div class="ps">Tierras Raras · Li₂CO₃</div>
+<!-- UI fija encima, sin distorsión -->
+<div id="ui">
+  <div id="scan"></div>
 
-  <div class="kv"><span class="kk">Asset</span>   <span class="vv">Cauchari-Olaroz · Jujuy, Argentina</span></div>
-  <div class="kv"><span class="kk">Sensor</span>  <span class="vv ac">Sentinel-1A IW GRD</span></div>
-  <div class="kv"><span class="kk">Centro</span>  <span class="vv">24.0130°S · 66.7530°W</span></div>
-  <div class="kv"><span class="kk">Score Faro</span><span class="vv ac">— / 100</span></div>
-  <div class="kv"><span class="kk">NDVI</span>    <span class="vv">—</span></div>
-  <div class="kv"><span class="kk">SAR VV</span>  <span class="vv">—</span></div>
-  <div class="kv"><span class="kk">Actividad</span><span class="vv">—</span></div>
-  <div class="kv"><span class="kk">Último run</span><span class="vv">—</span></div>
-
-  <div class="sha-box">
-    <div class="sha-lbl">SHA-256 · Cert Faro Protocol</div>
-    <div class="sha-v">— hash no disponible —</div>
+  <div id="logo">
+    <div class="brand">FARO PROTOCOL</div>
+    <div class="tagline">SATELLITE ECONOMIC INTELLIGENCE</div>
   </div>
 
-  <div class="st">
-    <div class="sd"></div>
-    <span class="st-t">· DATA INCOMING</span>
+  <div id="panel">
+    <div class="ph">VISOR TÁCTICO · CAUCHARI · ARGENTINA</div>
+    <div class="pt">Cauchari-Olaroz</div>
+    <div class="ps">Tierras Raras · Li₂CO₃</div>
+
+    <div class="kv"><span class="kk">Asset</span>    <span class="vv">Cauchari-Olaroz · Jujuy, Argentina</span></div>
+    <div class="kv"><span class="kk">Sensor</span>   <span class="vv ac">Sentinel-1A IW GRD</span></div>
+    <div class="kv"><span class="kk">Centro</span>   <span class="vv">24.0130°S · 66.7530°W</span></div>
+    <div class="kv"><span class="kk">Score Faro</span><span class="vv ac">— / 100</span></div>
+    <div class="kv"><span class="kk">NDVI</span>     <span class="vv">—</span></div>
+    <div class="kv"><span class="kk">SAR VV</span>   <span class="vv">—</span></div>
+    <div class="kv"><span class="kk">Actividad</span><span class="vv">—</span></div>
+    <div class="kv"><span class="kk">Último run</span><span class="vv">—</span></div>
+
+    <div class="sha-box">
+      <div class="sha-lbl">SHA-256 · Cert Faro Protocol</div>
+      <div class="sha-v">— hash no disponible —</div>
+    </div>
+
+    <div class="st">
+      <div class="sd"></div>
+      <span class="st-t">· DATA INCOMING</span>
+    </div>
+
+    <div class="nota">Proyecto litio Cauchari-Olaroz · Lithium Americas + JEMSE<br>Certificación emitida al adquirir datos SAR de la zona.</div>
   </div>
 
-  <div class="nota">Proyecto litio Cauchari-Olaroz · Lithium Americas + JEMSE<br>Certificación emitida al adquirir datos SAR de la zona.</div>
+  <button id="btn-sar">Activar Capa SAR (Faro Protocol)</button>
+
+  <div id="tilt-ctrl">
+    <span class="tilt-lbl">Inclinacion</span>
+    <input type="range" id="tilt-slider" min="0" max="42" value="0" step="1">
+    <span id="tilt-val">0°</span>
+  </div>
+
+  <div id="coords">LAT — · LON —</div>
 </div>
-
-<button id="btn-sar">Activar Capa SAR (Faro Protocol)</button>
-<div id="coords">LAT — · LON —</div>
 
 <script>
-// ── Mapa Leaflet + ESRI World Imagery (sin token, gratuito) ──────────────────
+// ── Mapa Leaflet + ESRI World Imagery (gratuito, sin token) ──────────────────
 const map = L.map('map', {
   center: [-24.013, -66.753],
   zoom: 13,
@@ -174,62 +236,79 @@ const map = L.map('map', {
 L.tileLayer(
   'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
   {
-    attribution: 'Imagery &copy; Esri | Faro Protocol · Sentinel-1/2',
+    attribution: 'Imagery &copy; Esri &mdash; Faro Protocol · Sentinel-1/2',
     maxZoom: 19,
   }
 ).addTo(map);
 
-// Control zoom en esquina inferior derecha
 L.control.zoom({ position: 'bottomright' }).addTo(map);
 
 // ── Polígonos SAR ─────────────────────────────────────────────────────────────
+// FIX: los polígonos NO se añaden al mapa inicialmente.
+// addTo(map) / remove() garantiza que Leaflet los renderice correctamente
+// cuando el usuario activa/desactiva la capa (evita bug de opacity:0 en SVG).
 const POLYGONS = [[[-23.99, -66.782], [-23.99, -66.748], [-23.965, -66.748], [-23.965, -66.782]], [[-23.99, -66.748], [-23.99, -66.715], [-23.965, -66.715], [-23.965, -66.748]], [[-24.028, -66.782], [-24.028, -66.715], [-23.99, -66.715], [-23.99, -66.782]], [[-24.065, -66.782], [-24.065, -66.715], [-24.028, -66.715], [-24.028, -66.782]], [[-24.11, -66.81], [-24.11, -66.72], [-24.065, -66.72], [-24.065, -66.81]]];
 const ACCENT   = '#22d3ee';
 
-const sarLayers = POLYGONS.map(coords =>
-  L.polygon(coords, {
+const sarGroup = L.layerGroup(
+  POLYGONS.map(coords => L.polygon(coords, {
     color:       ACCENT,
     fillColor:   ACCENT,
-    weight:      2,
-    opacity:     0,
-    fillOpacity: 0,
-    interactive: false,
-  }).addTo(map)
+    weight:      2.5,
+    opacity:     0.9,
+    fillOpacity: 0.35,
+  }))
 );
 
-// ── Toggle SAR con animación de pulso ────────────────────────────────────────
-let sarActive = false, sarInterval = null, sarOp = 0, sarDir = 1;
-const btn = document.getElementById('btn-sar');
+// ── Toggle SAR con pulso animado ──────────────────────────────────────────────
+let sarActive  = false;
+let sarRaf     = null;
+let sarDir     = 1;
+let sarFill    = 0.35;
 
-btn.addEventListener('click', () => {
+function animateSar() {
+  sarFill += sarDir * 0.012;
+  if (sarFill >= 0.60) { sarFill = 0.60; sarDir = -1; }
+  if (sarFill <= 0.20) { sarFill = 0.20; sarDir =  1; }
+  sarGroup.eachLayer(l => l.setStyle({ fillOpacity: sarFill, opacity: 0.7 + sarFill * 0.5 }));
+  sarRaf = requestAnimationFrame(animateSar);
+}
+
+document.getElementById('btn-sar').addEventListener('click', function() {
   sarActive = !sarActive;
-
   if (sarActive) {
-    btn.textContent = '✓ Capa SAR Activa · Faro Protocol';
-    btn.classList.add('active');
-
-    sarInterval = setInterval(() => {
-      sarOp += sarDir * 0.025;
-      if (sarOp >= 0.55) { sarOp = 0.55; sarDir = -1; }
-      if (sarOp <= 0.12) { sarOp = 0.12; sarDir =  1; }
-      sarLayers.forEach(l => l.setStyle({ opacity: Math.min(1, sarOp * 1.8), fillOpacity: sarOp }));
-    }, 40);
-
+    this.textContent = 'SAR Activo · Faro Protocol  [ON]';
+    this.classList.add('active');
+    sarGroup.addTo(map);           // añadir al mapa → Leaflet renderiza SVG fresco
+    sarRaf = requestAnimationFrame(animateSar);
   } else {
-    btn.textContent = 'Activar Capa SAR (Faro Protocol)';
-    btn.classList.remove('active');
-    if (sarInterval) clearInterval(sarInterval);
-    sarLayers.forEach(l => l.setStyle({ opacity: 0, fillOpacity: 0 }));
+    this.textContent = 'Activar Capa SAR (Faro Protocol)';
+    this.classList.remove('active');
+    cancelAnimationFrame(sarRaf);
+    map.removeLayer(sarGroup);    // quitar del mapa → limpio
   }
 });
 
+// ── Slider de inclinación 3D (CSS perspective + rotateX) ─────────────────────
+const mapEl   = document.getElementById('map');
+const slider  = document.getElementById('tilt-slider');
+const tiltVal = document.getElementById('tilt-val');
+
+slider.addEventListener('input', function() {
+  const deg = parseInt(this.value, 10);
+  tiltVal.textContent = deg + 'deg';
+  // rotateX negativo: la parte superior del mapa se aleja (vista oblicua)
+  mapEl.style.transform = deg > 0 ? 'rotateX(-' + deg + 'deg)' : 'none';
+  // Leaflet necesita recalcular tiles después del resize visual
+  setTimeout(() => map.invalidateSize(), 350);
+});
+
 // ── Coordenadas vivas ─────────────────────────────────────────────────────────
-map.on('mousemove', (e) => {
-  const lat = e.latlng.lat.toFixed(5);
-  const lon = e.latlng.lng.toFixed(5);
-  const latS = (lat < 0 ? Math.abs(lat) + '°S' : lat + '°N');
-  const lonS = (lon < 0 ? Math.abs(lon) + '°W' : lon + '°E');
-  document.getElementById('coords').textContent = 'LAT ' + latS + ' · LON ' + lonS;
+map.on('mousemove', function(e) {
+  const la = e.latlng.lat, lo = e.latlng.lng;
+  const ls = (la < 0 ? Math.abs(la).toFixed(5) + 'S' : la.toFixed(5) + 'N');
+  const lo2 = (lo < 0 ? Math.abs(lo).toFixed(5) + 'W' : lo.toFixed(5) + 'E');
+  document.getElementById('coords').textContent = 'LAT ' + ls + ' · LON ' + lo2;
 });
 </script>
 </body>
