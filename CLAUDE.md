@@ -1,5 +1,5 @@
 # FARO PROTOCOL — Guía para Claude Code
-> Última actualización: 2026-04-08 — V12 · SISTEMA 100% LIVE · https://faroprotocol.netlify.app
+> Última actualización: 2026-04-08 — V12 · SISTEMA 100% LIVE · https://faro-protocol.netlify.app
 > Arquitecto del sistema: Emilio (hijo)
 > Conocimiento de campo y contactos: Padre (fundador)
 
@@ -321,7 +321,7 @@ python gen_portal_key.py --revoke cliente@empresa.com
 python gen_portal_key.py --list
 
 # Correr security test (ANTES de cada onboarding nuevo)
-python faro_security_test.py --url https://faroprotocol.netlify.app
+python faro_security_test.py --url https://faro-protocol.netlify.app
 
 # Generar manual PDF independiente
 python faro_manual_cliente.py --email cliente@empresa.com --name "Empresa SA" --areas cordoba
@@ -333,7 +333,7 @@ python gen_portal_key.py --check-expiry
 ### Firebase + Netlify — Estado V12 (2026-04-08) — LIVE
 
 **Proyecto:** `faro-protocol-906a5` · **Auth domain:** `faro-protocol-906a5.firebaseapp.com`
-**Portal:** https://faroprotocol.netlify.app
+**Portal:** https://faro-protocol.netlify.app
 
 #### Estado de configuración
 
@@ -356,8 +356,8 @@ python gen_portal_key.py --check-expiry
 ✅ GMAIL_USER                = protocolfaro@gmail.com
 ✅ GMAIL_APP_PASS            = [configurado]
 ✅ ADMIN_EMAIL               = protocolfaro@gmail.com
-✅ PORTAL_URL                = https://faroprotocol.netlify.app
-✅ Deploy activo → https://faroprotocol.netlify.app
+✅ PORTAL_URL                = https://faro-protocol.netlify.app
+✅ Deploy activo → https://faro-protocol.netlify.app
 ```
 
 **Nota:** Las Netlify Functions esperan `FIREBASE_SERVICE_ACCOUNT` en base64.
@@ -392,7 +392,7 @@ service cloud.firestore {
 ## Pendientes técnicos prioritarios
 
 ### ✅ Firebase + Netlify — COMPLETADO (2026-04-08)
-El portal está 100% operativo en https://faroprotocol.netlify.app
+El portal está 100% operativo en https://faro-protocol.netlify.app
 Firebase Auth, Firestore y las 9 capas de seguridad están activas en producción.
 
 ### 🔴 Datos de campo (Padre → acción inmediata)
