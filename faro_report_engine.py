@@ -201,6 +201,23 @@ def compute_kpis(area_cfg: dict, metrics: dict) -> dict:
                 'Producción relativa basada en Índice Actividad SAR (0–100).',
         })
 
+    elif sector in ('tierras_raras',):
+        produccion_rel = round(activ / 100, 3) if activ else round(fusion, 3)
+        # NDVI anomalia: en salar, NDVI > 0.10 indica inundacion de piletas
+        ndvi_anomalia = ndvi is not None and ndvi > 0.10
+
+        kpis.update({
+            'kpi_produccion_relativa':   produccion_rel,
+            'kpi_indice_actividad':      round(activ, 2),
+            'kpi_backscatter_db':        round(sar, 3),
+            'kpi_ndvi_salar':            round(ndvi, 4) if ndvi is not None else None,
+            'kpi_ndvi_anomalia':         ndvi_anomalia,
+            'kpi_score_faro':            score,
+            'nota_produccion':
+                'Producción relativa basada en Índice Actividad SAR. '
+                'NDVI > 0.10 en salar/mineral expuesto es señal de inundación de piletas.',
+        })
+
     elif sector in ('deforestacion',):
         # Cobertura forestal perdida: NDVI bajo en zona que debería ser verde
         ndvi_ref    = 0.7     # NDVI esperado para bosque tropical (referencia)
@@ -336,6 +353,31 @@ def economic_impact(area_cfg: dict, metrics: dict,
              'valor':    round(val_dia * 250, 0)},
         ]
         impact['total_impacto'] = round(val_dia * 250, 0)
+
+    elif sector in ('tierras_raras',):
+        val_dia      = roi.get('valor_produccion_dia_usd', 0)
+        precio_li    = roi.get('precio_mineral_usd_t', 8_500)
+        ton_d        = roi.get('econ', {}).get('tonelaje_diario', 200)
+        activ_pct    = kpis.get('kpi_indice_actividad', 0)
+
+        impact['supuestos'] = {
+            'precio_mineral_usd_t':  precio_li,
+            'tonelaje_referencia_t': ton_d,
+            'actividad_pct':         activ_pct,
+            'fuente_precio':         'Li₂CO₃ spot (proxy — adaptar según mineral)',
+            'nota':
+                'Modelo aplicable a litio, tierras raras (REE), arenas minerales pesadas. '
+                'Precio y tonelaje deben calibrarse con datos del cliente.',
+        }
+        impact['lineas'] = [
+            {'concepto': 'Valor producción diaria estimada',
+             'calculo':  f'USD {precio_li:,}/t × {ton_d} t/día × {activ_pct/100:.0%} actividad',
+             'valor':    round(val_dia, 0)},
+            {'concepto': 'Valor anual estimado (300 días operativos)',
+             'calculo':  f'USD {val_dia:,.0f} × 300 días',
+             'valor':    round(val_dia * 300, 0)},
+        ]
+        impact['total_impacto'] = round(val_dia * 300, 0)
 
     elif sector in ('deforestacion',):
         pct_perdida = kpis.get('kpi_cobertura_perdida_pct', 0)

@@ -279,7 +279,7 @@ faro_protocol/
 | `faro_certificado.py --all` | ⚠️ DEGRADADO | 3/9 pasan QualityGate externo; resto omitidos por score < 50 o ALERTA — comportamiento correcto por diseño |
 | `faro_portfolio_global.py` | ✅ OK | 1800×1200px, contrast stretch, SHA compuesto |
 | `faro_dashboard.py` | ✅ OK | balcarce Score 69.5, 0 alertas |
-| `faro_stress_index.py` | ✅ OK | modelos por sector, scores no-zero |
+| `faro_stress_index.py` | ✅ OK | sectores: agro/forest/maritimo/energia/mineria/**tierras_raras** — modelos separados |
 | `MachinaOS/paperclip_agent.py` | ✅ OK | (fix: ndvi_tif opcional para áreas SAR-only) |
 | `MachinaOS/hermes_agent.py` | ✅ OK | requiere `--area <nombre>`; SAR warning en balcarce es dato, no bug |
 | `faro_price_updater.py` | ✅ OK | (fix: agregado `--dry-run`) |

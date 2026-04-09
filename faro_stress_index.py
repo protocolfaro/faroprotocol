@@ -8,11 +8,12 @@ de un desierto petrolero con una pradera agricola es un error
 categorico que este modulo evita.
 
 Modelos por sector:
-  agro         NDVI + SAR + estado del engine + brecha optico/radar
-  deforestacion NDVI relativo a bosque tropical esperado (ref. 0.70)
-  maritimo     Actividad SAR en zona portuaria (retorno < -12 dB = baja actividad)
-  energia/oil_gas  Indice de actividad + SAR (proxy de actividad industrial)
-  mineria      Actividad + variacion de produccion relativa
+  agro            NDVI + SAR + estado del engine + brecha optico/radar
+  deforestacion   NDVI relativo a bosque tropical esperado (ref. 0.70)
+  maritimo        Actividad SAR en zona portuaria (retorno < -12 dB = baja actividad)
+  energia/oil_gas Indice de actividad + SAR (proxy de actividad industrial)
+  mineria         Actividad + SAR open-pit (alta reflectividad superficie mineral)
+  tierras_raras   SAR procesamiento + actividad + NDVI anomalia (inundacion salares)
 
 Integracion Landsat 9 TIRS (futura):
   Con LST disponible se agrega estrés termico confirmado:
@@ -58,6 +59,7 @@ NDVI_REF = {
     'oil_gas':        0.15,
     'mineria':        0.10,   # zona de extraccion / terreno descubierto
     'mining_iron':    0.10,
+    'tierras_raras':  0.04,   # salares / mineral expuesto: cobertura vegetal minima
 }
 
 # ── SAR esperado por sector (dB, VV polarizacion) ────────────────────────────
@@ -71,6 +73,7 @@ SAR_REF = {
     'oil_gas':        -8.0,
     'mineria':        -5.0,   # superficie mineral expuesta: alta reflectividad
     'mining_iron':    -5.0,
+    'tierras_raras':  -7.0,   # planta procesamiento + terreno mineral: retorno medio-alto
 }
 
 
@@ -106,8 +109,9 @@ def _cert(nivel: str, sector: str) -> str:
         'shipping':     'actividad logistica portuaria',
         'energia':      'actividad operacional O&G',
         'oil_gas':      'actividad operacional O&G',
-        'mineria':      'produccion en zona minera',
-        'mining_iron':  'produccion en zona minera',
+        'mineria':        'produccion en zona minera',
+        'mining_iron':    'produccion en zona minera',
+        'tierras_raras':  'extraccion de minerales criticos / tierras raras',
     }.get(sector, 'parametros operacionales')
 
     if nivel == 'Sin estres':
@@ -248,8 +252,135 @@ def _stress_maritime(ndvi, sar, fusion) -> tuple[float, list[str]]:
     return min(100, score), detalle
 
 
+def _stress_mining(ndvi, sar, activ, fusion) -> tuple[float, list[str]]:
+    """Modelo mineria (iron ore / hard rock): actividad open-pit + SAR superficie."""
+    score   = 0.0
+    detalle = []
+    ref_s   = SAR_REF['mineria']
+
+    # Actividad operacional — KPI primario (extraccion es binaria: encendida o no)
+    if activ is not None:
+        if activ < 35:
+            pts = round((65 - activ) * 0.9)
+            score += min(45, pts)
+            detalle.append(
+                f'Indice Actividad {activ:.1f}/100 — por debajo del umbral '
+                f'operacional minero (35): posible paralisis o mantenimiento prolongado'
+            )
+        elif activ < 55:
+            score += 15
+            detalle.append(f'Actividad {activ:.1f}/100 — por debajo del ritmo normal de extraccion')
+        else:
+            detalle.append(f'Actividad {activ:.1f}/100 — ritmo operacional normal')
+
+    # SAR open-pit: alta reflectividad en superficie mineral expuesta
+    # Un caida brusca indica cobertura de agua o reduccion de frentes de trabajo
+    if sar is not None:
+        if sar < ref_s - 7:
+            score += 25
+            detalle.append(
+                f'SAR {sar:.1f} dB — retorno muy bajo para open-pit '
+                f'(ref. {ref_s} dB): posible inundacion de tajo o cese de operaciones'
+            )
+        elif sar < ref_s - 3:
+            score += 10
+            detalle.append(
+                f'SAR {sar:.1f} dB — retorno reducido en zona de extraccion '
+                f'(ref. {ref_s} dB): monitorear actividad de frentes'
+            )
+        else:
+            detalle.append(f'SAR {sar:.1f} dB — retorno consistente con operacion open-pit activa')
+
+    if not detalle:
+        detalle.append('Parametros mineros dentro del rango operacional esperado')
+
+    return min(100, score), detalle
+
+
+def _stress_tierras_raras(ndvi, sar, activ, fusion) -> tuple[float, list[str]]:
+    """
+    Modelo tierras raras / litio / minerales criticos.
+
+    Aplica a: salares de litio, open-pit tierras raras, arenas minerales pesadas,
+    plantas de procesamiento hidrometalurgico.
+
+    Indicadores clave:
+      - SAR: retorno de planta procesamiento + superficie mineral expuesta
+      - NDVI anomalia alta (> 0.10): posible inundacion de piletas de evaporacion
+      - Actividad: proxy de operacion de planta (bombeo, camiones, estructuras)
+      - Fusion: convergencia SAR+optico — decoupling indica cambio de superficie
+    """
+    score   = 0.0
+    detalle = []
+    ref_s   = SAR_REF['tierras_raras']
+    ref_n   = NDVI_REF['tierras_raras']
+
+    # Actividad operacional
+    if activ is not None:
+        if activ < 35:
+            pts = round((65 - activ) * 0.85)
+            score += min(40, pts)
+            detalle.append(
+                f'Indice Actividad {activ:.1f}/100 — extraccion/procesamiento '
+                f'por debajo del umbral operacional (35): posible parada de planta'
+            )
+        elif activ < 55:
+            score += 12
+            detalle.append(f'Actividad {activ:.1f}/100 — produccion reducida, monitorear tendencia')
+        else:
+            detalle.append(f'Actividad {activ:.1f}/100 — planta operando a regimen normal')
+
+    # SAR: calda de retorno en zona de procesamiento = paralisis o cambio de superficie
+    if sar is not None:
+        if sar < ref_s - 8:
+            score += 25
+            detalle.append(
+                f'SAR {sar:.1f} dB — retorno muy bajo para zona de procesamiento '
+                f'(ref. {ref_s} dB): posible inundacion de salmuera o cese de operaciones'
+            )
+        elif sar < ref_s - 4:
+            score += 12
+            detalle.append(
+                f'SAR {sar:.1f} dB — retorno SAR reducido (ref. {ref_s} dB): '
+                f'vigilar nivel de piletas y actividad de planta'
+            )
+        else:
+            detalle.append(f'SAR {sar:.1f} dB — retorno consistente con superficie de procesamiento activa')
+
+    # NDVI anomalia ALTA: inundacion de salares / piletas de evaporacion desbordadas
+    # En zonas de tierras raras NDVI > 0.10 es anomalia, no indicador de salud
+    if ndvi is not None:
+        if ndvi > 0.12:
+            score += 20
+            detalle.append(
+                f'NDVI {ndvi:.3f} — anomalia alta para zona arida de extraccion '
+                f'(ref. {ref_n}): posible inundacion de piletas o contaminacion de superficie'
+            )
+        elif ndvi > 0.08:
+            score += 8
+            detalle.append(
+                f'NDVI {ndvi:.3f} — levemente elevado para salar/mineral expuesto '
+                f'(ref. {ref_n}): monitorear condicion hidrologica'
+            )
+        else:
+            detalle.append(f'NDVI {ndvi:.3f} — dentro del rango esperado para mineral expuesto/salar')
+
+    # Fusion baja: decoupling SAR-optico = cambio brusco de superficie
+    if fusion is not None and fusion < 0.30:
+        score += 15
+        detalle.append(
+            f'Indice Fusion {fusion:.3f} — baja convergencia SAR+optico: '
+            f'posible cambio de fase en superficie (humedad, depositos, cobertura)'
+        )
+
+    if not detalle:
+        detalle.append('Parametros de extraccion dentro del rango operacional esperado')
+
+    return min(100, score), detalle
+
+
 def _stress_energy(ndvi, sar, activ, fusion) -> tuple[float, list[str]]:
-    """Modelo energia (O&G / mineria): actividad industrial SAR."""
+    """Modelo energia (O&G): actividad industrial SAR."""
     score   = 0.0
     detalle = []
 
@@ -314,8 +445,12 @@ class FaroStressIndex:
             score, detalle = _stress_forest(ndvi, sar, pct_an)
         elif sector in ('maritimo', 'shipping'):
             score, detalle = _stress_maritime(ndvi, sar, fusion)
-        elif sector in ('energia', 'oil_gas', 'mineria', 'mining_iron'):
+        elif sector in ('energia', 'oil_gas'):
             score, detalle = _stress_energy(ndvi, sar, activ, fusion)
+        elif sector in ('mineria', 'mining_iron'):
+            score, detalle = _stress_mining(ndvi, sar, activ, fusion)
+        elif sector in ('tierras_raras',):
+            score, detalle = _stress_tierras_raras(ndvi, sar, activ, fusion)
         else:
             # Fallback generico
             score   = 0.0

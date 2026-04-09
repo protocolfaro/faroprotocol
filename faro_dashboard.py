@@ -75,6 +75,7 @@ SECTOR_COLORS = {
     'shipping':      (PURPLE, PURPLE_L, 'MARITIME'),
     'mineria':       (AMBER,  AMBER_L,  'MINING'),
     'mining_iron':   (AMBER,  AMBER_L,  'MINING'),
+    'tierras_raras': (AMBER,  AMBER_L,  'CRITICAL MIN'),
 }
 
 # ── Variables económicas por sector ───────────────────────────────────────────
@@ -126,6 +127,12 @@ ECONOMIC_VARS = {
     # Deforestación: no tiene ROI productivo
     'deforestacion': {
         'nota': 'Monitoreo de pérdida de cobertura forestal — sin ROI productivo',
+    },
+    # Tierras raras / litio / minerales críticos
+    'tierras_raras': {
+        'precio_mineral_usd_t': 8_500,  # litio carbonato (proxy Li2CO3 spot ~USD 8,500/t)
+        'tonelaje_diario':      200,     # t/día referencia operación mediana
+        'nota': 'Precio Li₂CO₃ spot (proxy). Adaptar según mineral específico.',
     },
 }
 
@@ -221,6 +228,19 @@ def compute_roi(area_cfg: dict, metrics: dict, econ: dict) -> dict:
             'precio_mineral_usd_t': precio,
         })
 
+    elif sector in ('tierras_raras',):
+        precio = econ.get('precio_mineral_usd_t', 8_500)
+        ton_d  = econ.get('tonelaje_diario', 200)
+        activ  = metrics.get('indice_actividad', 50) or 50
+        produccion_rel = activ / 100
+        valor_dia      = precio * ton_d * produccion_rel
+        roi.update({
+            'indice_actividad':         round(activ, 1),
+            'produccion_relativa':      round(produccion_rel, 3),
+            'valor_produccion_dia_usd': round(valor_dia, 0),
+            'precio_mineral_usd_t':     precio,
+        })
+
     return roi
 
 
@@ -277,8 +297,8 @@ def check_alerts(area_name: str, metrics: dict, area_cfg: dict) -> list[dict]:
                 'umbral':  -12,
             })
 
-    # Alerta O&G / minería: actividad baja
-    if sector in ('energia', 'oil_gas', 'mineria', 'mining_iron'):
+    # Alerta O&G / minería / tierras raras: actividad baja
+    if sector in ('energia', 'oil_gas', 'mineria', 'mining_iron', 'tierras_raras'):
         if activ is not None and activ < 40:
             alerts.append({
                 'nivel':  'MEDIUM',

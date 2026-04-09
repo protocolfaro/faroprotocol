@@ -7,9 +7,9 @@
 
 ## CORRECCIONES SISTEMA
 
-- [ ] Agregar sector `tierras_raras` en `faro_stress_index.py`
+- [x] Agregar sector `tierras_raras` en `faro_stress_index.py` — modelo FSI Li/REE/minerales críticos (2026-04-09)
 - [x] Crear área `punta_colorada` para Emiliano González — Score 41, SAR -11.7 dB, NDVI 0.098 (2026-04-09)
-- [ ] Separar Minería de Tierras Raras como sector independiente
+- [x] Separar Minería de Tierras Raras como sector independiente — `_stress_mining()` + `_stress_tierras_raras()` (2026-04-09)
 
 ---
 
@@ -43,9 +43,7 @@ python gen_portal_key.py emiliano@empresa.com \
 
 ---
 
-## PRECIOS A REVISAR EN MANUAL
-
-Confirmar con Padre antes de mandar más manuales:
+## PRECIOS EN MANUAL — CONFIRMADOS (2026-04-09)
 
 | Plan | Precio | Áreas |
 |------|--------|-------|
