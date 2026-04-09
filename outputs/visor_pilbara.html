@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Faro Protocol · Visor Táctico · Pilbara Iron Ore Belt, Western Australia</title>
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.js"></script>
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.css" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root {
+    --bg:     #0f172a;
+    --accent: #f59e0b;
+    --green:  #00ff41;
+    --gold:   #c9a84c;
+    --mono:   'Courier New', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: #f1f5f9; font-family: var(--mono); overflow: hidden; }
+  #map { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+  #panel {
+    position: absolute;
+    top: 20px; right: 20px;
+    width: 340px;
+    background: rgba(15,23,42,0.93);
+    border: 1px solid color-mix(in srgb, #f59e0b 35%, transparent);
+    border-radius: 4px;
+    padding: 20px;
+    backdrop-filter: blur(12px);
+    z-index: 10;
+    box-shadow: 0 0 32px color-mix(in srgb, #f59e0b 8%, transparent);
+  }
+  #panel::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #f59e0b, transparent);
+    opacity: 0.6;
+  }
+  .ph { font-size: 10px; letter-spacing: 0.2em; color: color-mix(in srgb, #f59e0b 55%, transparent);
+         margin-bottom: 14px; border-bottom: 1px solid color-mix(in srgb, #f59e0b 12%, transparent);
+         padding-bottom: 10px; }
+  .pt { font-size: 15px; font-weight: bold; color: #f1f5f9; letter-spacing: 0.06em; margin-bottom: 2px; }
+  .ps { font-size: 11px; color: color-mix(in srgb, #f59e0b 65%, transparent); letter-spacing: 0.12em; margin-bottom: 16px; }
+  .kv { display: flex; justify-content: space-between; align-items: flex-start;
+         margin-bottom: 9px; gap: 8px; }
+  .kk { color: rgba(148,163,184,0.7); letter-spacing: 0.08em; flex-shrink: 0;
+         text-transform: uppercase; font-size: 10px; }
+  .kv-v { color: #e2e8f0; text-align: right; word-break: break-all; font-size: 11px; }
+  .kv-v.ac { color: #f59e0b; }
+  .sha-box { margin-top: 12px; background: rgba(15,23,42,0.5);
+              border: 1px solid color-mix(in srgb, #f59e0b 18%, transparent);
+              border-radius: 2px; padding: 8px 10px; }
+  .sha-lbl { font-size: 9px; letter-spacing: 0.15em; color: color-mix(in srgb, #f59e0b 5%, transparent);
+              margin-bottom: 4px; text-transform: uppercase; color: rgba(148,163,184,0.5); }
+  .sha-v { font-size: 9.5px; color: color-mix(in srgb, #f59e0b 75%, transparent);
+            word-break: break-all; line-height: 1.6; }
+  .st { margin-top: 14px; display: flex; align-items: center; gap: 8px; font-size: 11px; letter-spacing: 0.08em; }
+  .sd { width: 8px; height: 8px; border-radius: 50%; background: #00ff41;
+         flex-shrink: 0; animation: pd 1.4s ease-in-out infinite; }
+  .st-t { color: #00ff41; font-weight: bold; letter-spacing: 0.12em; }
+  .nota { margin-top: 10px; font-size: 9.5px; color: rgba(148,163,184,0.5); line-height: 1.55;
+           font-style: italic; border-top: 1px solid color-mix(in srgb, #f59e0b 8%, transparent);
+           padding-top: 9px; }
+
+  #btn-sar {
+    position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%);
+    z-index: 10;
+    background: rgba(15,23,42,0.92); border: 1px solid #f59e0b;
+    color: #f59e0b; font-family: var(--mono); font-size: 12px; letter-spacing: 0.18em;
+    padding: 11px 28px; border-radius: 3px; cursor: pointer;
+    backdrop-filter: blur(8px); transition: all 0.25s ease; text-transform: uppercase;
+    box-shadow: 0 0 18px color-mix(in srgb, #f59e0b 12%, transparent);
+  }
+  #btn-sar:hover { background: color-mix(in srgb, #f59e0b 10%, transparent);
+                    box-shadow: 0 0 28px color-mix(in srgb, #f59e0b 25%, transparent); }
+  #btn-sar.active { background: color-mix(in srgb, #f59e0b 15%, transparent);
+                     border-color: var(--green); color: var(--green);
+                     box-shadow: 0 0 32px rgba(0,255,65,0.2); }
+
+  #logo { position: absolute; top: 20px; left: 20px; z-index: 10; font-family: var(--mono); }
+  #logo .brand { font-size: 14px; color: var(--gold); letter-spacing: 0.2em; font-weight: bold; }
+  #logo .tagline { font-size: 9px; color: rgba(201,168,76,0.5); letter-spacing: 0.15em; margin-top: 3px; }
+
+  .scan-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 5; overflow: hidden; }
+  .scan-line { position: absolute; left: 0; right: 0; height: 2px;
+                background: linear-gradient(90deg, transparent, color-mix(in srgb, #f59e0b 25%, transparent), transparent);
+                animation: sl 7s linear infinite; }
+
+  #coords { position: absolute; bottom: 10px; left: 20px; z-index: 10;
+             font-size: 10px; color: color-mix(in srgb, #f59e0b 45%, transparent); letter-spacing: 0.1em; }
+
+  @keyframes pd { 0%,100% { opacity:1; box-shadow:0 0 6px #00ff41; } 50% { opacity:0.4; box-shadow:0 0 2px #00ff41; } }
+  @keyframes sl { 0% { transform:translateY(-100%); } 100% { transform:translateY(100vh); } }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div class="scan-overlay"><div class="scan-line"></div></div>
+
+<div id="logo">
+  <div class="brand">FARO PROTOCOL</div>
+  <div class="tagline">SATELLITE ECONOMIC INTELLIGENCE</div>
+</div>
+
+<div id="panel">
+  <div class="ph">VISOR TÁCTICO · PILBARA · AUSTRALIA</div>
+  <div class="pt">Pilbara Iron Ore Belt, Western Australia</div>
+  <div class="ps">Minería · Open-cut</div>
+
+  <div class="kv"><span class="kk">Asset</span><span class="kv-v">Pilbara Iron Ore Belt, Western Australia</span></div>
+  <div class="kv"><span class="kk">Sensor</span><span class="kv-v ac">Sentinel-1 IW GRD</span></div>
+  <div class="kv"><span class="kk">Centro</span><span class="kv-v">22.5000°S · 117.8000°E</span></div>
+  <div class="kv"><span class="kk">Score Faro</span><span class="kv-v ac">41.3 / 100</span></div>
+  <div class="kv"><span class="kk">NDVI</span><span class="kv-v">0.0840</span></div>
+  <div class="kv"><span class="kk">SAR VV</span><span class="kv-v">-11.64 dB</span></div>
+  <div class="kv"><span class="kk">Actividad</span><span class="kv-v">42.4</span></div>
+  <div class="kv"><span class="kk">Último run</span><span class="kv-v" id="ts-run">2026-04-07 17:36</span></div>
+
+  <div class="sha-box">
+    <div class="sha-lbl">SHA-256 · Cert Faro Protocol</div>
+    <div class="sha-v">54789e08ae0db3765af03c0b5ea50a99<br>8cd9b268e4d906f5dd94513eca1bab6a</div>
+  </div>
+
+  <div class="st">
+    <div class="sd"></div>
+    <span class="st-t">✓ PIPELINE ACTIVE · OK</span>
+  </div>
+
+  <div class="nota">Datos procesados con pipeline Faro Protocol.&#10;Certificación emitida al adquirir datos SAR de la zona.</div>
+</div>
+
+<button id="btn-sar">Activar Capa SAR (Faro Protocol)</button>
+<div id="coords">LAT — · LON —</div>
+
+<script>
+mapboxgl.accessToken = ['pk.eyJ1Ijoi','bWFwYm94Iiw','iYSI6ImNpej','Y4NXVycTA2e','mYycXBndHRq','cmZ3N3gifQ.','rJcFIG214Ar','iISLbB4Sbyg'].join('');
+
+const map = new mapboxgl.Map({
+  container: 'map',
+  style: 'mapbox://styles/mapbox/satellite-v9',
+  center: [117.8, -22.5],
+  zoom: 9,
+  pitch: 60,
+  bearing: -20,
+  antialias: true,
+});
+
+map.on('load', () => {
+  map.addSource('mapbox-dem', {
+    type: 'raster-dem',
+    url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
+    tileSize: 512,
+    maxzoom: 14,
+  });
+  map.setTerrain({ source: 'mapbox-dem', exaggeration: 1.8 });
+  map.addLayer({
+    id: 'sky', type: 'sky',
+    paint: { 'sky-type': 'atmosphere', 'sky-atmosphere-sun': [0.0, 90.0], 'sky-atmosphere-sun-intensity': 15 },
+  });
+
+  map.addSource('sar-zone', {
+    type: 'geojson',
+    data: {
+      type: 'Feature',
+      properties: { area: 'pilbara', vertical: 'mineria' },
+      geometry: { type: 'Polygon', coordinates: [[[[116.0, -24.0], [119.5, -24.0], [119.5, -21.0], [116.0, -21.0], [116.0, -24.0]]]] },
+    },
+  });
+  map.addLayer({ id: 'sar-fill', type: 'fill', source: 'sar-zone',
+    paint: { 'fill-color': '#f59e0b', 'fill-opacity': 0 } });
+  map.addLayer({ id: 'sar-line', type: 'line', source: 'sar-zone',
+    paint: { 'line-color': '#f59e0b', 'line-width': 2, 'line-opacity': 0 } });
+});
+
+let sarActive = false, sarInterval = null, sarOp = 0, sarDir = 1;
+const btn = document.getElementById('btn-sar');
+btn.addEventListener('click', () => {
+  sarActive = !sarActive;
+  if (sarActive) {
+    btn.textContent = '✓ Capa SAR Activa · Faro Protocol';
+    btn.classList.add('active');
+    sarInterval = setInterval(() => {
+      sarOp += sarDir * 0.025;
+      if (sarOp >= 0.55) { sarOp = 0.55; sarDir = -1; }
+      if (sarOp <= 0.12) { sarOp = 0.12; sarDir = 1; }
+      map.setPaintProperty('sar-fill', 'fill-opacity', sarOp);
+      map.setPaintProperty('sar-line', 'line-opacity', Math.min(1, sarOp * 1.8));
+    }, 40);
+  } else {
+    btn.textContent = 'Activar Capa SAR (Faro Protocol)';
+    btn.classList.remove('active');
+    if (sarInterval) clearInterval(sarInterval);
+    map.setPaintProperty('sar-fill', 'fill-opacity', 0);
+    map.setPaintProperty('sar-line', 'line-opacity', 0);
+  }
+});
+
+map.on('mousemove', (e) => {
+  const lat = e.lngLat.lat.toFixed(5);
+  const lon = e.lngLat.lng.toFixed(5);
+  document.getElementById('coords').textContent =
+    `LAT ${Math.abs(lat)}°${lat < 0 ? 'S' : 'N'} · LON ${Math.abs(lon)}°${lon < 0 ? 'W' : 'E'}`;
+});
+
+map.addControl(new mapboxgl.NavigationControl({ visualizePitch: true }), 'bottom-right');
+</script>
+</body>
+</html>
