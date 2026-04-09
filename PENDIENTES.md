@@ -8,7 +8,7 @@
 ## CORRECCIONES SISTEMA
 
 - [ ] Agregar sector `tierras_raras` en `faro_stress_index.py`
-- [ ] Crear área `punta_colorada` para Emiliano González
+- [x] Crear área `punta_colorada` para Emiliano González — Score 41, SAR -11.7 dB, NDVI 0.098 (2026-04-09)
 - [ ] Separar Minería de Tierras Raras como sector independiente
 
 ---
@@ -31,7 +31,7 @@
   - `malacca`        — Shipping
   - `pilbara`        — Minería
 - [ ] Una zona por sector: O&G · Energía · Marítimo · Shipping · Minería/Tierras Raras
-- [ ] Crear área `punta_colorada` en `faro_areas/` antes de hacer el onboarding
+- [x] Crear área `punta_colorada` en `faro_areas/` antes de hacer el onboarding — ✅ completado (2026-04-09)
 
 Comando cuando esté listo:
 ```bash

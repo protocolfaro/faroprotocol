@@ -1,12 +1,12 @@
 {
   "_meta": {
     "nota": "Generado automaticamente por faro_engine.py",
-    "generado_en": "2026-04-07 17:46",
+    "generado_en": "2026-04-09 09:31",
     "generado_por": "faro_engine.py",
     "protocolo": "Cero Footprint v1"
   },
   "pipeline": {
-    "ultimo_run": "2026-04-07 17:46",
+    "ultimo_run": "2026-04-09 09:31",
     "cordoba": {
       "estado": "ALERTA",
       "ndvi_medio": 0.4444,
@@ -38,8 +38,8 @@
       "ndvi_medio": 0.5328,
       "sar_medio_db": 15.4836,
       "indice_fusion_medio": 0.7599,
-      "sha256": "29fcdbb039e62d86...",
-      "ultimo_run": "2026-04-07 17:26",
+      "sha256": "5233ec238815393a...",
+      "ultimo_run": "2026-04-08 02:06",
       "pixeles_analizados": 124077285,
       "score_faro": 69.5,
       "rinde_estimado_tha": 2.8,
@@ -123,6 +123,19 @@
       "rinde_estimado_tha": null,
       "indice_actividad": 51.9,
       "pct_anomalia": 0.0
+    },
+    "punta_colorada": {
+      "estado": "OK",
+      "ultimo_run": "2026-04-09 09:31",
+      "ndvi_medio": 0.098,
+      "sar_medio_db": -11.704,
+      "indice_fusion_medio": 0.5057,
+      "pixeles_analizados": 5066733,
+      "sha256": "55f69af4dd11972a...",
+      "score_faro": 41.2,
+      "rinde_estimado_tha": null,
+      "indice_actividad": 42.0,
+      "pct_anomalia": 0.0
     }
   },
   "_interno": {
@@ -146,11 +159,11 @@
       "pixeles_analizados": 124077285,
       "pct_anomalia": 0.0,
       "reporte_png": "faro_reporte_fusion_balcarce.png",
-      "sha256_completo": "29fcdbb039e62d862609cdd4a399e0ff459d9863bb647473878f6424a6027f78",
+      "sha256_completo": "5233ec238815393a6e98fdb11b42a9f86574df9586258b16c34980f26f4a8f7d",
       "tiene_sar": true,
       "tiene_ndvi": true,
       "tiene_vision": false,
-      "ultimo_run": "2026-04-07 17:26"
+      "ultimo_run": "2026-04-08 02:06"
     },
     "vaca_muerta": {
       "sar_medio_db": -10.4093,
@@ -242,6 +255,19 @@
       "tiene_ndvi": true,
       "tiene_vision": false,
       "ultimo_run": "2026-04-07 17:46"
+    },
+    "punta_colorada": {
+      "sar_medio_db": -11.704,
+      "ndvi_medio": 0.098,
+      "indice_fusion_medio": 0.5057,
+      "pixeles_analizados": 5066733,
+      "pct_anomalia": 0.0,
+      "reporte_png": "faro_reporte_fusion_punta_colorada.png",
+      "sha256_completo": "55f69af4dd11972ab9f9a95b8150ecdd95cb50ed7e6c86d2aac2040f72a8ebef",
+      "tiene_sar": true,
+      "tiene_ndvi": true,
+      "tiene_vision": false,
+      "ultimo_run": "2026-04-09 09:31"
     }
   },
   "insights": {
@@ -276,7 +302,7 @@
     "balcarce": {
       "zona": "Balcarce, Buenos Aires, Argentina",
       "vertical": "agro",
-      "fecha": "2026-04-07 17:26",
+      "fecha": "2026-04-08 02:06",
       "rinde_estimado_tha": 2.8,
       "indice_actividad": null,
       "score_faro": 69.5,
@@ -284,8 +310,8 @@
       "estado": "OK",
       "alerta": null,
       "pct_anomalia": 0.0,
-      "sha256_reporte": "29fcdbb039e62d86...",
-      "sello_datos": "135c1c086c783176e4288bd5fdcb21cb45abcca89a3d76bacddcef24282f14aa"
+      "sha256_reporte": "5233ec238815393a...",
+      "sello_datos": "62ee182a3514d394c001fd380b7ac8eea40b97718de3ce8bf4e903f7f35d99ee"
     },
     "indiana": {
       "zona": "Corn Belt, Indiana, EE.UU.",
@@ -370,12 +396,26 @@
       "pct_anomalia": 0.0,
       "sha256_reporte": "0172f62bea82a695...",
       "sello_datos": "0e9e8391ec44b7791614794f485bbf1bb4ffeed20369d13811bd2ee6b5ea7cc5"
+    },
+    "punta_colorada": {
+      "zona": "Punta Colorada, Río Negro, Argentina",
+      "vertical": "oil_gas",
+      "fecha": "2026-04-09 09:31",
+      "rinde_estimado_tha": null,
+      "indice_actividad": 42.0,
+      "score_faro": 41.2,
+      "confianza": "Alta",
+      "estado": "OK",
+      "alerta": null,
+      "pct_anomalia": 0.0,
+      "sha256_reporte": "55f69af4dd11972a...",
+      "sello_datos": "34d6f85d6a2d7704ec59c519b541a54e9629505840599b92b7a3f8bf5007dae3"
     }
   },
   "resumen": {
-    "ultimo_run": "2026-04-07 17:46",
-    "areas_activas": 9,
-    "score_promedio": 48.7,
+    "ultimo_run": "2026-04-09 09:31",
+    "areas_activas": 10,
+    "score_promedio": 47.9,
     "estado_global": "ALERTA",
     "areas_en_alerta": [
       "cordoba",

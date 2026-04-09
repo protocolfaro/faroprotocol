@@ -7,7 +7,7 @@
 
 ## Estado del sistema — V12 (2026-04-08) — Netlify live · Firebase live · primer cliente
 
-### Pipeline operativo — 9 áreas globales
+### Pipeline operativo — 10 áreas globales
 
 | Área | Vertical | Score | FSI | NDVI | SAR dB | Estado | SHA-256 |
 |------|----------|-------|-----|------|--------|--------|---------|
@@ -20,13 +20,14 @@
 | amazonas | deforestacion | 66 | 36.0 Leve | 0.2834 | -5.4 | ✅ OK | 22dbb6ac... |
 | indiana | agro | 38 | — | 0.2594 | -9.3 | ⚠️ ALERTA | 950dd57c... |
 | malacca | shipping | 42 | — | — | — | ✅ OK | c3a33f4b... |
+| punta_colorada | oil_gas | 41 | — | 0.0980 | -11.7 | ✅ OK | 55f69af4... |
 
 **Nota Córdoba:** Score 49 (ALERTA). SAR calibrado en -13.9 dB. Rinde 2.02 t/ha vs histórico 3.44 t/ha (MAGyP, Marcos Juárez). FSI 49.7 (Moderado) confirma estrés real — revisar con campo antes del pitch.
 **Nota rotterdam:** vertical corregida de 'energia' → 'maritimo' (2026-04-08).
 
 ### Quality Gate — Certificados externos
 Áreas con score ≥ 50 y sin ALERTA reciben Sello Verde: **balcarce, permian, amazonas**.
-Áreas excluidas de outputs externos (score < 50 o ALERTA): cordoba, indiana, malacca, pilbara, rotterdam, vaca_muerta.
+Áreas excluidas de outputs externos (score < 50 o ALERTA): cordoba, indiana, malacca, pilbara, rotterdam, vaca_muerta, punta_colorada.
 Usar `mode='internal'` para auditoría interna de todas las áreas.
 
 ---

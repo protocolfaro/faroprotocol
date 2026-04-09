@@ -1,0 +1,13 @@
+{
+  "name": "punta_colorada",
+  "label": "Punta Colorada, Río Negro, Argentina",
+  "vertical": "oil_gas",
+  "country_code": "AR",
+  "country_name": "Argentina",
+  "hectareas_ref": 50000,
+  "polygon": "POLYGON((-65.5 -41,-64.5 -41,-64.5 -40,-65.5 -40,-65.5 -41))",
+  "bounds": [-65.5, -41.0, -64.5, -40.0],
+  "ndvi_tif": "FaroProtocol_NDVI_limpio_PuntaColorada.tif",
+  "sar_output": "sar_punta_colorada_georef.tif",
+  "report_png": "faro_reporte_fusion_punta_colorada.png"
+}

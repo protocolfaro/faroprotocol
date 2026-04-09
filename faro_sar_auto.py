@@ -324,9 +324,12 @@ def pipeline_area(area_name: str,
     insight = engine._generar_insight(area, crudos)
     engine._publicar(crudos, insight)
 
-    # Certificado
-    from faro_certificado import generar_certificado
-    generar_certificado(area_name, PROJECT_ROOT)
+    # Certificado (bloqueado por QualityGate si score < 50)
+    try:
+        from faro_certificado import generar_certificado
+        generar_certificado(area_name, PROJECT_ROOT)
+    except Exception as e:
+        print(f'  [✗] Certificado omitido: {e}')
 
     ndvi_modo = 'S2 real' if stats.get('ndvi_disponible') else 'SAR-only'
     print()
