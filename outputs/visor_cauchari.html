@@ -3,21 +3,42 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Faro Protocol · Visor Táctico · Cauchari-Olaroz</title>
-<script src="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.js"></script>
-<link href="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.css" rel="stylesheet">
-<script src="https://cdn.tailwindcss.com"></script>
+<title>Faro Protocol · Visor Táctico · Cauchari-Olaroz · Jujuy, Argentina</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
   :root {
-    --bg:    #0f172a;
-    --cyan:  #22d3ee;
-    --green: #00ff41;
-    --gold:  #c9a84c;
-    --mono:  'Courier New', monospace;
+    --bg:     #0f172a;
+    --accent: #22d3ee;
+    --green:  #00ff41;
+    --gold:   #c9a84c;
+    --mono:   'Courier New', monospace;
   }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: #f1f5f9; font-family: var(--mono); overflow: hidden; }
-  #map { position: absolute; inset: 0; width: 100%; height: 100%; }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: #f1f5f9; font-family: var(--mono); overflow: hidden; height: 100vh; }
+
+  /* ── Mapa ── */
+  #map { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; }
+
+  /* Ocultar atribución Leaflet (la dejamos en esquina pequeña) */
+  .leaflet-control-attribution {
+    background: rgba(15,23,42,0.7) !important;
+    color: rgba(148,163,184,0.5) !important;
+    font-family: var(--mono) !important;
+    font-size: 9px !important;
+  }
+  .leaflet-control-attribution a { color: rgba(34,211,238,0.4) !important; }
+
+  /* Estilo controles zoom */
+  .leaflet-control-zoom a {
+    background: rgba(15,23,42,0.9) !important;
+    color: #22d3ee !important;
+    border-color: rgba(34,211,238,0.25) !important;
+    font-family: var(--mono) !important;
+  }
+  .leaflet-control-zoom a:hover {
+    background: rgba(34,211,238,0.1) !important;
+  }
 
   /* ── Panel lateral ── */
   #panel {
@@ -25,423 +46,159 @@
     top: 20px; right: 20px;
     width: 340px;
     background: rgba(15,23,42,0.93);
-    border: 1px solid rgba(34,211,238,0.35);
+    border: 1px solid color-mix(in srgb, #22d3ee 35%, transparent);
     border-radius: 4px;
     padding: 20px;
     backdrop-filter: blur(12px);
     z-index: 10;
-    box-shadow: 0 0 32px rgba(34,211,238,0.08);
+    box-shadow: 0 0 32px color-mix(in srgb, #22d3ee 8%, transparent);
   }
   #panel::before {
     content: '';
     position: absolute;
     top: 0; left: 0; right: 0;
     height: 2px;
-    background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+    background: linear-gradient(90deg, transparent, #22d3ee, transparent);
     opacity: 0.6;
   }
-
-  .panel-header {
-    font-size: 10px;
-    letter-spacing: 0.2em;
-    color: rgba(34,211,238,0.55);
-    margin-bottom: 14px;
-    border-bottom: 1px solid rgba(34,211,238,0.12);
-    padding-bottom: 10px;
-  }
-  .panel-title {
-    font-size: 15px;
-    font-weight: bold;
-    color: #f1f5f9;
-    letter-spacing: 0.06em;
-    margin-bottom: 2px;
-  }
-  .panel-sub {
-    font-size: 11px;
-    color: rgba(34,211,238,0.6);
-    letter-spacing: 0.12em;
-    margin-bottom: 16px;
-  }
-
-  .kv-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 9px;
-    font-size: 11px;
-    gap: 8px;
-  }
-  .kv-key {
-    color: rgba(148,163,184,0.7);
-    letter-spacing: 0.08em;
-    flex-shrink: 0;
-    text-transform: uppercase;
-    font-size: 10px;
-  }
-  .kv-val {
-    color: #e2e8f0;
-    text-align: right;
-    word-break: break-all;
-    font-size: 11px;
-  }
-  .kv-val.cyan { color: var(--cyan); }
-
-  .sha-box {
-    margin-top: 12px;
-    background: rgba(34,211,238,0.04);
-    border: 1px solid rgba(34,211,238,0.14);
-    border-radius: 2px;
-    padding: 8px 10px;
-  }
-  .sha-label {
-    font-size: 9px;
-    letter-spacing: 0.15em;
-    color: rgba(34,211,238,0.5);
-    margin-bottom: 4px;
-    text-transform: uppercase;
-  }
-  .sha-val {
-    font-size: 9.5px;
-    color: rgba(34,211,238,0.75);
-    word-break: break-all;
-    line-height: 1.6;
-  }
-
-  .status-line {
-    margin-top: 14px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 11px;
-    letter-spacing: 0.08em;
-  }
-  .status-dot {
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    background: var(--green);
-    flex-shrink: 0;
-    animation: pulse-dot 1.4s ease-in-out infinite;
-  }
-  .status-text { color: var(--green); font-weight: bold; letter-spacing: 0.12em; }
-
-  .nota-cert {
-    margin-top: 10px;
-    font-size: 9.5px;
-    color: rgba(148,163,184,0.5);
-    line-height: 1.55;
-    font-style: italic;
-    border-top: 1px solid rgba(34,211,238,0.08);
-    padding-top: 9px;
-  }
+  .ph  { font-size: 10px; letter-spacing: 0.2em; color: color-mix(in srgb, #22d3ee 55%, transparent);
+          margin-bottom: 14px; border-bottom: 1px solid color-mix(in srgb, #22d3ee 12%, transparent);
+          padding-bottom: 10px; }
+  .pt  { font-size: 15px; font-weight: bold; color: #f1f5f9; letter-spacing: 0.06em; margin-bottom: 2px; }
+  .ps  { font-size: 11px; color: color-mix(in srgb, #22d3ee 65%, transparent); letter-spacing: 0.12em; margin-bottom: 16px; }
+  .kv  { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 9px; gap: 8px; }
+  .kk  { color: rgba(148,163,184,0.7); letter-spacing: 0.08em; flex-shrink: 0; text-transform: uppercase; font-size: 10px; }
+  .vv  { color: #e2e8f0; text-align: right; word-break: break-all; font-size: 11px; }
+  .vv.ac { color: #22d3ee; }
+  .sha-box { margin-top: 12px; background: rgba(15,23,42,0.5);
+              border: 1px solid color-mix(in srgb, #22d3ee 18%, transparent);
+              border-radius: 2px; padding: 8px 10px; }
+  .sha-lbl { font-size: 9px; letter-spacing: 0.15em; color: rgba(148,163,184,0.5);
+              margin-bottom: 4px; text-transform: uppercase; }
+  .sha-v { font-size: 9.5px; color: color-mix(in srgb, #22d3ee 75%, transparent);
+            word-break: break-all; line-height: 1.6; }
+  .st  { margin-top: 14px; display: flex; align-items: center; gap: 8px;
+          font-size: 11px; letter-spacing: 0.08em; }
+  .sd  { width: 8px; height: 8px; border-radius: 50%; background: #94a3b8;
+          flex-shrink: 0; animation: pd 1.4s ease-in-out infinite; }
+  .st-t { color: #94a3b8; font-weight: bold; letter-spacing: 0.12em; }
+  .nota { margin-top: 10px; font-size: 9.5px; color: rgba(148,163,184,0.5); line-height: 1.55;
+           font-style: italic; border-top: 1px solid color-mix(in srgb, #22d3ee 8%, transparent);
+           padding-top: 9px; }
 
   /* ── Botón SAR ── */
   #btn-sar {
-    position: absolute;
-    bottom: 36px; left: 50%;
-    transform: translateX(-50%);
+    position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%);
     z-index: 10;
-    background: rgba(15,23,42,0.92);
-    border: 1px solid var(--cyan);
-    color: var(--cyan);
-    font-family: var(--mono);
-    font-size: 12px;
-    letter-spacing: 0.18em;
-    padding: 11px 28px;
-    border-radius: 3px;
-    cursor: pointer;
-    backdrop-filter: blur(8px);
-    transition: all 0.25s ease;
-    text-transform: uppercase;
-    box-shadow: 0 0 18px rgba(34,211,238,0.12);
+    background: rgba(15,23,42,0.92); border: 1px solid #22d3ee;
+    color: #22d3ee; font-family: var(--mono); font-size: 12px;
+    letter-spacing: 0.18em; padding: 11px 28px; border-radius: 3px; cursor: pointer;
+    backdrop-filter: blur(8px); transition: all 0.25s ease; text-transform: uppercase;
+    box-shadow: 0 0 18px color-mix(in srgb, #22d3ee 12%, transparent);
+    white-space: nowrap;
   }
-  #btn-sar:hover {
-    background: rgba(34,211,238,0.1);
-    box-shadow: 0 0 28px rgba(34,211,238,0.25);
-  }
-  #btn-sar.active {
-    background: rgba(34,211,238,0.15);
-    border-color: var(--green);
-    color: var(--green);
-    box-shadow: 0 0 32px rgba(0,255,65,0.2);
-  }
+  #btn-sar:hover  { background: color-mix(in srgb, #22d3ee 10%, transparent);
+                     box-shadow: 0 0 28px color-mix(in srgb, #22d3ee 25%, transparent); }
+  #btn-sar.active { background: color-mix(in srgb, #22d3ee 15%, transparent);
+                     border-color: var(--green); color: var(--green);
+                     box-shadow: 0 0 32px rgba(0,255,65,0.2); }
 
-  /* ── Logo Faro ── */
-  #logo {
-    position: absolute;
-    top: 20px; left: 20px;
-    z-index: 10;
-    font-family: var(--mono);
-  }
-  #logo .brand { font-size: 14px; color: var(--gold); letter-spacing: 0.2em; font-weight: bold; }
+  /* ── Logo ── */
+  #logo { position: absolute; top: 20px; left: 20px; z-index: 10; font-family: var(--mono); }
+  #logo .brand   { font-size: 14px; color: var(--gold); letter-spacing: 0.2em; font-weight: bold; }
   #logo .tagline { font-size: 9px; color: rgba(201,168,76,0.5); letter-spacing: 0.15em; margin-top: 3px; }
 
-  /* ── Animaciones ── */
-  @keyframes pulse-dot {
-    0%, 100% { opacity: 1; box-shadow: 0 0 6px var(--green); }
-    50% { opacity: 0.4; box-shadow: 0 0 2px var(--green); }
-  }
-  @keyframes sar-pulse {
-    0%, 100% { opacity: 0.55; }
-    50% { opacity: 0.85; }
-  }
-  @keyframes scan-line {
-    0% { transform: translateY(-100%); }
-    100% { transform: translateY(100vh); }
-  }
-
   /* ── Scan line decorativa ── */
-  .scan-overlay {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    z-index: 5;
-    overflow: hidden;
-  }
-  .scan-line {
-    position: absolute;
-    left: 0; right: 0;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, rgba(34,211,238,0.25), transparent);
-    animation: scan-line 6s linear infinite;
-  }
+  .scan-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 5; overflow: hidden; }
+  .scan-line { position: absolute; left: 0; right: 0; height: 2px;
+                background: linear-gradient(90deg, transparent,
+                  color-mix(in srgb, #22d3ee 22%, transparent), transparent);
+                animation: sl 7s linear infinite; }
 
-  /* ── Coordenadas overlay ── */
-  #coords {
-    position: absolute;
-    bottom: 10px; left: 20px;
-    z-index: 10;
-    font-size: 10px;
-    color: rgba(34,211,238,0.4);
-    letter-spacing: 0.1em;
-  }
+  /* ── Coordenadas ── */
+  #coords { position: absolute; bottom: 10px; left: 20px; z-index: 10;
+             font-size: 10px; color: color-mix(in srgb, #22d3ee 45%, transparent); letter-spacing: 0.1em; }
+
+  @keyframes pd { 0%,100% { opacity:1; box-shadow:0 0 6px #94a3b8; } 50% { opacity:0.4; } }
+  @keyframes sl { 0% { transform:translateY(-100%); } 100% { transform:translateY(100vh); } }
 </style>
 </head>
 <body>
 
 <div id="map"></div>
-
-<!-- Scan line decorativa -->
 <div class="scan-overlay"><div class="scan-line"></div></div>
 
-<!-- Logo -->
 <div id="logo">
   <div class="brand">FARO PROTOCOL</div>
   <div class="tagline">SATELLITE ECONOMIC INTELLIGENCE</div>
 </div>
 
-<!-- Panel lateral -->
 <div id="panel">
-  <div class="panel-header">VISOR TÁCTICO · CAUCHARI-OLAROZ · JUJUY ARG</div>
-  <div class="panel-title">Cauchari-Olaroz</div>
-  <div class="panel-sub">Litio · Minerales Críticos · Puna de Jujuy</div>
+  <div class="ph">VISOR TÁCTICO · CAUCHARI · ARGENTINA</div>
+  <div class="pt">Cauchari-Olaroz</div>
+  <div class="ps">Tierras Raras · Li₂CO₃</div>
 
-  <div class="kv-row">
-    <span class="kv-key">Asset</span>
-    <span class="kv-val">Cauchari-Olaroz · Jujuy, Argentina</span>
-  </div>
-  <div class="kv-row">
-    <span class="kv-key">Sensor</span>
-    <span class="kv-val cyan">Sentinel-1A IW GRD</span>
-  </div>
-  <div class="kv-row">
-    <span class="kv-key">Centro</span>
-    <span class="kv-val">24.0130°S · 66.7530°W</span>
-  </div>
-  <div class="kv-row">
-    <span class="kv-key">Altitud</span>
-    <span class="kv-val">3.890 m.s.n.m.</span>
-  </div>
-  <div class="kv-row">
-    <span class="kv-key">Vertical</span>
-    <span class="kv-val cyan">Tierras Raras · Li₂CO₃</span>
-  </div>
-  <div class="kv-row">
-    <span class="kv-key">Zona Ref.</span>
-    <span class="kv-val">Pilbara Iron Ore Belt</span>
-  </div>
-  <div class="kv-row">
-    <span class="kv-key">Último pass</span>
-    <span class="kv-val" id="ts-pass">—</span>
-  </div>
+  <div class="kv"><span class="kk">Asset</span>   <span class="vv">Cauchari-Olaroz · Jujuy, Argentina</span></div>
+  <div class="kv"><span class="kk">Sensor</span>  <span class="vv ac">Sentinel-1A IW GRD</span></div>
+  <div class="kv"><span class="kk">Centro</span>  <span class="vv">24.0130°S · 66.7530°W</span></div>
+  <div class="kv"><span class="kk">Score Faro</span><span class="vv ac">— / 100</span></div>
+  <div class="kv"><span class="kk">NDVI</span>    <span class="vv">—</span></div>
+  <div class="kv"><span class="kk">SAR VV</span>  <span class="vv">—</span></div>
+  <div class="kv"><span class="kk">Actividad</span><span class="vv">—</span></div>
+  <div class="kv"><span class="kk">Último run</span><span class="vv">—</span></div>
 
   <div class="sha-box">
-    <div class="sha-label">SHA-256 · Faro Cert · Pilbara Ref.</div>
-    <div class="sha-val">7e986fbe005fd0239af99d63620710eb<br>e5be174e03d8c40a80b9e490e2c3b304</div>
+    <div class="sha-lbl">SHA-256 · Cert Faro Protocol</div>
+    <div class="sha-v">— hash no disponible —</div>
   </div>
 
-  <div class="status-line">
-    <div class="status-dot"></div>
-    <span class="status-text">✓ PIPELINE ACTIVE · Data incoming</span>
+  <div class="st">
+    <div class="sd"></div>
+    <span class="st-t">· DATA INCOMING</span>
   </div>
 
-  <div class="nota-cert">
-    Certificación emitida al adquirir datos SAR de la zona.
-    Los datos de referencia corresponden al área Pilbara procesada.
-  </div>
+  <div class="nota">Proyecto litio Cauchari-Olaroz · Lithium Americas + JEMSE<br>Certificación emitida al adquirir datos SAR de la zona.</div>
 </div>
 
-<!-- Botón SAR -->
 <button id="btn-sar">Activar Capa SAR (Faro Protocol)</button>
-
-<!-- Coordenadas vivas -->
 <div id="coords">LAT — · LON —</div>
 
 <script>
-// ── Token público demo Mapbox (partido para evitar detección de secretos en CI) ─
-// Token original: pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ
-// Fuente: https://docs.mapbox.com/mapbox-gl-js/example/simple-map/
-const _t = ['pk.eyJ1Ijoi', 'bWFwYm94Iiw', 'iYSI6ImNpej', 'Y4NXVycTA2e', 'mYycXBndHRq',
-             'cmZ3N3gifQ.', 'rJcFIG214Ar', 'iISLbB4Sbyg'];
-mapboxgl.accessToken = _t.join('');
-
-// ── Inicializar mapa ───────────────────────────────────────────────────────
-const map = new mapboxgl.Map({
-  container: 'map',
-  style: 'mapbox://styles/mapbox/satellite-v9',
-  center: [-66.7530, -24.0130],
-  zoom: 14,
-  pitch: 60,
-  bearing: -20,
-  antialias: true,
+// ── Mapa Leaflet + ESRI World Imagery (sin token, gratuito) ──────────────────
+const map = L.map('map', {
+  center: [-24.013, -66.753],
+  zoom: 13,
+  zoomControl: false,
 });
 
-// ── Elevación 3D ──────────────────────────────────────────────────────────
-map.on('load', () => {
-  map.addSource('mapbox-dem', {
-    type: 'raster-dem',
-    url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
-    tileSize: 512,
-    maxzoom: 14,
-  });
-  map.setTerrain({ source: 'mapbox-dem', exaggeration: 1.8 });
+L.tileLayer(
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  {
+    attribution: 'Imagery &copy; Esri | Faro Protocol · Sentinel-1/2',
+    maxZoom: 19,
+  }
+).addTo(map);
 
-  map.addLayer({
-    id: 'sky',
-    type: 'sky',
-    paint: {
-      'sky-type': 'atmosphere',
-      'sky-atmosphere-sun': [0.0, 90.0],
-      'sky-atmosphere-sun-intensity': 15,
-    },
-  });
+// Control zoom en esquina inferior derecha
+L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-  // ── Piletas de evaporación — GeoJSON aproximado ─────────────────────────
-  // Polígonos aproximados de las piletas de evaporación de Cauchari-Olaroz
-  map.addSource('piletas', {
-    type: 'geojson',
-    data: {
-      type: 'FeatureCollection',
-      features: [
-        {
-          type: 'Feature',
-          properties: { nombre: 'Pileta Norte A' },
-          geometry: {
-            type: 'Polygon',
-            coordinates: [[
-              [-66.7820, -23.9900],
-              [-66.7480, -23.9900],
-              [-66.7480, -23.9650],
-              [-66.7820, -23.9650],
-              [-66.7820, -23.9900],
-            ]],
-          },
-        },
-        {
-          type: 'Feature',
-          properties: { nombre: 'Pileta Norte B' },
-          geometry: {
-            type: 'Polygon',
-            coordinates: [[
-              [-66.7480, -23.9900],
-              [-66.7150, -23.9900],
-              [-66.7150, -23.9650],
-              [-66.7480, -23.9650],
-              [-66.7480, -23.9900],
-            ]],
-          },
-        },
-        {
-          type: 'Feature',
-          properties: { nombre: 'Pileta Central' },
-          geometry: {
-            type: 'Polygon',
-            coordinates: [[
-              [-66.7820, -24.0280],
-              [-66.7150, -24.0280],
-              [-66.7150, -23.9900],
-              [-66.7820, -23.9900],
-              [-66.7820, -24.0280],
-            ]],
-          },
-        },
-        {
-          type: 'Feature',
-          properties: { nombre: 'Pileta Sur' },
-          geometry: {
-            type: 'Polygon',
-            coordinates: [[
-              [-66.7820, -24.0650],
-              [-66.7150, -24.0650],
-              [-66.7150, -24.0280],
-              [-66.7820, -24.0280],
-              [-66.7820, -24.0650],
-            ]],
-          },
-        },
-        {
-          type: 'Feature',
-          properties: { nombre: 'Pileta Olaroz Sur' },
-          geometry: {
-            type: 'Polygon',
-            coordinates: [[
-              [-66.8100, -24.1100],
-              [-66.7200, -24.1100],
-              [-66.7200, -24.0650],
-              [-66.8100, -24.0650],
-              [-66.8100, -24.1100],
-            ]],
-          },
-        },
-      ],
-    },
-  });
+// ── Polígonos SAR ─────────────────────────────────────────────────────────────
+const POLYGONS = [[[-23.99, -66.782], [-23.99, -66.748], [-23.965, -66.748], [-23.965, -66.782]], [[-23.99, -66.748], [-23.99, -66.715], [-23.965, -66.715], [-23.965, -66.748]], [[-24.028, -66.782], [-24.028, -66.715], [-23.99, -66.715], [-23.99, -66.782]], [[-24.065, -66.782], [-24.065, -66.715], [-24.028, -66.715], [-24.028, -66.782]], [[-24.11, -66.81], [-24.11, -66.72], [-24.065, -66.72], [-24.065, -66.81]]];
+const ACCENT   = '#22d3ee';
 
-  // Capa fill — invisible por defecto
-  map.addLayer({
-    id: 'sar-overlay-fill',
-    type: 'fill',
-    source: 'piletas',
-    paint: {
-      'fill-color': '#22d3ee',
-      'fill-opacity': 0,
-    },
-  });
+const sarLayers = POLYGONS.map(coords =>
+  L.polygon(coords, {
+    color:       ACCENT,
+    fillColor:   ACCENT,
+    weight:      2,
+    opacity:     0,
+    fillOpacity: 0,
+    interactive: false,
+  }).addTo(map)
+);
 
-  // Capa borde — invisible por defecto
-  map.addLayer({
-    id: 'sar-overlay-line',
-    type: 'line',
-    source: 'piletas',
-    paint: {
-      'line-color': '#22d3ee',
-      'line-width': 2,
-      'line-opacity': 0,
-    },
-  });
-
-  // ── Timestamp último pass ───────────────────────────────────────────────
-  const now = new Date();
-  const passTime = new Date(now - 48 * 3600 * 1000);
-  document.getElementById('ts-pass').textContent =
-    passTime.toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
-});
-
-// ── Lógica botón SAR ──────────────────────────────────────────────────────
-let sarActive = false;
-let sarInterval = null;
-let sarOpacity = 0;
-let sarDir = 1;
-
+// ── Toggle SAR con animación de pulso ────────────────────────────────────────
+let sarActive = false, sarInterval = null, sarOp = 0, sarDir = 1;
 const btn = document.getElementById('btn-sar');
 
 btn.addEventListener('click', () => {
@@ -451,35 +208,29 @@ btn.addEventListener('click', () => {
     btn.textContent = '✓ Capa SAR Activa · Faro Protocol';
     btn.classList.add('active');
 
-    // Animación de pulso cian
     sarInterval = setInterval(() => {
-      sarOpacity += sarDir * 0.025;
-      if (sarOpacity >= 0.55) { sarOpacity = 0.55; sarDir = -1; }
-      if (sarOpacity <= 0.12) { sarOpacity = 0.12; sarDir = 1; }
-
-      map.setPaintProperty('sar-overlay-fill', 'fill-opacity', sarOpacity);
-      map.setPaintProperty('sar-overlay-line', 'line-opacity', Math.min(1, sarOpacity * 1.8));
+      sarOp += sarDir * 0.025;
+      if (sarOp >= 0.55) { sarOp = 0.55; sarDir = -1; }
+      if (sarOp <= 0.12) { sarOp = 0.12; sarDir =  1; }
+      sarLayers.forEach(l => l.setStyle({ opacity: Math.min(1, sarOp * 1.8), fillOpacity: sarOp }));
     }, 40);
 
   } else {
     btn.textContent = 'Activar Capa SAR (Faro Protocol)';
     btn.classList.remove('active');
     if (sarInterval) clearInterval(sarInterval);
-    map.setPaintProperty('sar-overlay-fill', 'fill-opacity', 0);
-    map.setPaintProperty('sar-overlay-line', 'line-opacity', 0);
+    sarLayers.forEach(l => l.setStyle({ opacity: 0, fillOpacity: 0 }));
   }
 });
 
-// ── Coordenadas vivas ─────────────────────────────────────────────────────
+// ── Coordenadas vivas ─────────────────────────────────────────────────────────
 map.on('mousemove', (e) => {
-  const lat = e.lngLat.lat.toFixed(5);
-  const lon = e.lngLat.lng.toFixed(5);
-  document.getElementById('coords').textContent =
-    `LAT ${lat}°S · LON ${lon}°W`;
+  const lat = e.latlng.lat.toFixed(5);
+  const lon = e.latlng.lng.toFixed(5);
+  const latS = (lat < 0 ? Math.abs(lat) + '°S' : lat + '°N');
+  const lonS = (lon < 0 ? Math.abs(lon) + '°W' : lon + '°E');
+  document.getElementById('coords').textContent = 'LAT ' + latS + ' · LON ' + lonS;
 });
-
-// ── Controles de navegación ───────────────────────────────────────────────
-map.addControl(new mapboxgl.NavigationControl({ visualizePitch: true }), 'bottom-right');
 </script>
 </body>
 </html>
