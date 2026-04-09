@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Faro Protocol · Visor 3D · Vaca Muerta</title>
+
+<!-- CesiumJS 1.104 — última versión con API sincrónica estable (sin cambios breaking) -->
+<script src="https://cesium.com/downloads/cesiumjs/releases/1.104/Build/Cesium/Cesium.js"></script>
+<link href="https://cesium.com/downloads/cesiumjs/releases/1.104/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+
+<style>
+  :root {
+    --bg:    #0f172a;
+    --cyan:  #22d3ee;
+    --green: #00ff41;
+    --gold:  #c9a84c;
+    --mono:  'Courier New', monospace;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden;
+               background: var(--bg); font-family: var(--mono); }
+
+  /* ── Cesium container ── */
+  #cesiumContainer { position: fixed; inset: 0; }
+
+  /* ── Override estilos Cesium → tema oscuro Faro ── */
+  .cesium-widget-credits,
+  .cesium-credit-logoContainer { display: none !important; }
+
+  .cesium-credit-textContainer {
+    font-family: var(--mono) !important;
+    font-size: 9px !important;
+    color: rgba(148,163,184,0.4) !important;
+    background: rgba(15,23,42,0.7) !important;
+  }
+
+  /* Ocultar toolbar nativa de Cesium que no usamos */
+  .cesium-viewer-toolbar { display: none !important; }
+
+  /* ── Capa UI: encima del globe, sin transforms ── */
+  #ui {
+    position: fixed; inset: 0;
+    z-index: 100;
+    pointer-events: none;
+  }
+  #ui > * { pointer-events: auto; }
+
+  /* ── Logo ── */
+  #logo { position: absolute; top: 20px; left: 20px; }
+  #logo .brand   { font-size: 14px; color: var(--gold); letter-spacing: 0.2em; font-weight: bold; }
+  #logo .tagline { font-size: 9px; color: rgba(201,168,76,0.5); letter-spacing: 0.15em; margin-top: 3px; }
+
+  /* ── Panel lateral ── */
+  #panel {
+    position: absolute; top: 20px; right: 20px;
+    width: 340px;
+    background: rgba(15,23,42,0.92);
+    border: 1px solid rgba(34,211,238,0.3);
+    border-radius: 4px; padding: 20px;
+    backdrop-filter: blur(14px);
+    box-shadow: 0 0 40px rgba(34,211,238,0.06);
+  }
+  #panel::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+    opacity: 0.65;
+  }
+  .ph {
+    font-size: 10px; letter-spacing: 0.2em; color: rgba(34,211,238,0.5);
+    margin-bottom: 14px;
+    border-bottom: 1px solid rgba(34,211,238,0.12); padding-bottom: 10px;
+  }
+  .pt { font-size: 15px; font-weight: bold; color: #f1f5f9; letter-spacing: 0.06em; margin-bottom: 2px; }
+  .ps { font-size: 11px; color: rgba(34,211,238,0.6); letter-spacing: 0.12em; margin-bottom: 16px; }
+  .kv { display: flex; justify-content: space-between; align-items: flex-start;
+        margin-bottom: 9px; gap: 8px; }
+  .kk { color: rgba(148,163,184,0.7); letter-spacing: 0.08em; flex-shrink: 0;
+        text-transform: uppercase; font-size: 10px; }
+  .vv { color: #e2e8f0; text-align: right; word-break: break-all; font-size: 11px; }
+  .vv.cy { color: var(--cyan); }
+  .sha-box {
+    margin-top: 12px; background: rgba(15,23,42,0.5);
+    border: 1px solid rgba(34,211,238,0.15); border-radius: 2px; padding: 8px 10px;
+  }
+  .sha-lbl { font-size: 9px; letter-spacing: 0.15em; color: rgba(148,163,184,0.5);
+             margin-bottom: 4px; text-transform: uppercase; }
+  .sha-v   { font-size: 9.5px; color: rgba(34,211,238,0.7);
+             word-break: break-all; line-height: 1.6; }
+  .st { margin-top: 14px; display: flex; align-items: center; gap: 8px;
+        font-size: 11px; letter-spacing: 0.08em; }
+  .sd { width: 8px; height: 8px; border-radius: 50%; background: var(--green);
+        flex-shrink: 0; animation: pd 1.4s ease-in-out infinite; }
+  .st-t { color: var(--green); font-weight: bold; letter-spacing: 0.12em; }
+  .nota { margin-top: 10px; font-size: 9.5px; color: rgba(148,163,184,0.5); line-height: 1.55;
+          font-style: italic; border-top: 1px solid rgba(34,211,238,0.08); padding-top: 9px; }
+
+  /* ── Controles inferiores ── */
+  #controls {
+    position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 12px; align-items: center;
+  }
+
+  /* Botón SAR */
+  #btn-sar {
+    background: rgba(15,23,42,0.92); border: 1px solid var(--cyan);
+    color: var(--cyan); font-family: var(--mono); font-size: 12px;
+    letter-spacing: 0.16em; padding: 11px 24px; border-radius: 3px; cursor: pointer;
+    backdrop-filter: blur(8px); transition: all 0.25s ease; text-transform: uppercase;
+    box-shadow: 0 0 20px rgba(34,211,238,0.12); white-space: nowrap;
+  }
+  #btn-sar:hover  { background: rgba(34,211,238,0.1); box-shadow: 0 0 30px rgba(34,211,238,0.25); }
+  #btn-sar.active { background: rgba(34,211,238,0.12); border-color: var(--green);
+                    color: var(--green); box-shadow: 0 0 30px rgba(0,255,65,0.2); }
+
+  /* Botón reset cámara */
+  #btn-reset {
+    background: rgba(15,23,42,0.85); border: 1px solid rgba(148,163,184,0.25);
+    color: rgba(148,163,184,0.7); font-family: var(--mono); font-size: 11px;
+    letter-spacing: 0.12em; padding: 11px 18px; border-radius: 3px; cursor: pointer;
+    backdrop-filter: blur(8px); transition: all 0.2s ease; text-transform: uppercase;
+    white-space: nowrap;
+  }
+  #btn-reset:hover { background: rgba(148,163,184,0.1); color: #e2e8f0; }
+
+  /* ── Instrucciones de navegación ── */
+  #nav-hint {
+    position: absolute; bottom: 90px; left: 50%; transform: translateX(-50%);
+    font-size: 9px; color: rgba(148,163,184,0.35); letter-spacing: 0.15em;
+    text-align: center; pointer-events: none; white-space: nowrap;
+    text-transform: uppercase;
+  }
+
+  /* ── Coordenadas ── */
+  #coords {
+    position: absolute; bottom: 10px; left: 20px;
+    font-size: 10px; color: rgba(34,211,238,0.4); letter-spacing: 0.1em;
+    pointer-events: none;
+  }
+
+  /* ── Indicador modo SAR activo ── */
+  #sar-badge {
+    position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+    background: rgba(15,23,42,0.9); border: 1px solid var(--cyan);
+    color: var(--cyan); font-family: var(--mono); font-size: 10px;
+    letter-spacing: 0.2em; padding: 6px 16px; border-radius: 2px;
+    backdrop-filter: blur(8px); text-transform: uppercase;
+    display: none; align-items: center; gap: 8px;
+    animation: badge-pulse 1.8s ease-in-out infinite;
+  }
+  #sar-badge.visible { display: flex; }
+  .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--cyan);
+               animation: pd 1s ease-in-out infinite; }
+
+  /* ── Scan line decorativa sobre UI ── */
+  #scan { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+  #scan::after {
+    content: ''; position: absolute; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(34,211,238,0.15), transparent);
+    animation: sl 8s linear infinite;
+  }
+
+  @keyframes pd { 0%,100% { opacity:1; } 50% { opacity:0.35; } }
+  @keyframes sl { 0% { top:-1px; } 100% { top:100%; } }
+  @keyframes badge-pulse {
+    0%,100% { box-shadow: 0 0 8px rgba(34,211,238,0.2); }
+    50%      { box-shadow: 0 0 18px rgba(34,211,238,0.5); }
+  }
+</style>
+</head>
+<body>
+
+<!-- Cesium Globe -->
+<div id="cesiumContainer"></div>
+
+<!-- UI layer — fija, encima del globe -->
+<div id="ui">
+  <div id="scan"></div>
+
+  <!-- Logo -->
+  <div id="logo">
+    <div class="brand">FARO PROTOCOL</div>
+    <div class="tagline">SATELLITE ECONOMIC INTELLIGENCE · 3D</div>
+  </div>
+
+  <!-- Badge SAR activo -->
+  <div id="sar-badge">
+    <div class="badge-dot"></div>
+    SAR SCAN ACTIVO · VACA MUERTA
+  </div>
+
+  <!-- Panel de datos -->
+  <div id="panel">
+    <div class="ph">VISOR 3D · VACA MUERTA · ARGENTINA</div>
+    <div class="pt">Vaca Muerta</div>
+    <div class="ps">Energía · Oil & Gas · Upstream</div>
+
+    <div class="kv"><span class="kk">Asset</span>     <span class="vv">Vaca Muerta, Neuquén, Argentina</span></div>
+    <div class="kv"><span class="kk">Sensor</span>    <span class="vv cy">Sentinel-1 IW GRD</span></div>
+    <div class="kv"><span class="kk">Centro</span>    <span class="vv">37.5000°S · 69.0000°W</span></div>
+    <div class="kv"><span class="kk">Score Faro</span><span class="vv cy">42.1 / 100</span></div>
+    <div class="kv"><span class="kk">NDVI</span>      <span class="vv">0.0941</span></div>
+    <div class="kv"><span class="kk">SAR VV</span>    <span class="vv">-10.41 dB</span></div>
+    <div class="kv"><span class="kk">Actividad</span> <span class="vv">50.6 / 100</span></div>
+    <div class="kv"><span class="kk">Último run</span><span class="vv">2026-04-07 17:26</span></div>
+    <div class="kv"><span class="kk">Terreno</span>   <span class="vv cy">ESRI 3D Terrain · Real</span></div>
+
+    <div class="sha-box">
+      <div class="sha-lbl">SHA-256 · Faro Cert · Vaca Muerta</div>
+      <div class="sha-v">7352764a56df311a447dfe3c61f2c635<br>ff6a0564429e5cae7c9a5cc824615d17</div>
+    </div>
+
+    <div class="st">
+      <div class="sd"></div>
+      <span class="st-t">✓ PIPELINE ACTIVE · OK</span>
+    </div>
+
+    <div class="nota">Score calibrado para zona industrial.<br>
+    FSI 0 = operacion normal. Datos Sentinel-1/2 verificados SHA-256.</div>
+  </div>
+
+  <!-- Controles -->
+  <div id="nav-hint">
+    ARRASTRAR · rotar &nbsp;|&nbsp; SCROLL · zoom &nbsp;|&nbsp; CTRL+drag · inclinar
+  </div>
+  <div id="controls">
+    <button id="btn-sar">Activar Capa SAR (Faro Protocol)</button>
+    <button id="btn-reset">Reset Cámara</button>
+  </div>
+
+  <!-- Coordenadas vivas -->
+  <div id="coords">LAT — · LON — · ALT —</div>
+</div>
+
+<script>
+// ── Sin Ion: usamos ESRI imagery + ESRI terrain (100% gratuito, sin token) ──
+// Cesium World Terrain requiere Ion token → sustituido por ESRI Terrain3D
+// que entrega elevaciones reales idénticas para la región de Vaca Muerta.
+
+// Suprimir advertencia de token en consola — no usamos servicios Ion
+Cesium.Ion.defaultAccessToken = 'dummy_no_ion_resources_used';
+
+// ── Viewer ────────────────────────────────────────────────────────────────────
+const viewer = new Cesium.Viewer('cesiumContainer', {
+  // ESRI World Imagery satelital — gratuito, sin token
+  imageryProvider: new Cesium.ArcGisMapServerImageryProvider({
+    url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer',
+  }),
+
+  // ESRI 3D Terrain real — mismo proveedor que Cesium World Terrain para AR
+  terrainProvider: new Cesium.ArcGISTiledElevationTerrainProvider({
+    url: 'https://elevation3d.arcgis.com/arcgis/rest/services/WorldElevation3D/Terrain3D/ImageServer',
+  }),
+
+  // Ocultar controles nativos — usamos los nuestros
+  baseLayerPicker:        false,
+  geocoder:               false,
+  homeButton:             false,
+  sceneModePicker:        false,
+  navigationHelpButton:   false,
+  animation:              false,
+  timeline:               false,
+  fullscreenButton:       false,
+  infoBox:                false,
+  selectionIndicator:     false,
+  creditContainer:        document.createElement('div'), // oculta créditos Cesium
+});
+
+// ── Ajustes de escena ─────────────────────────────────────────────────────────
+const scene  = viewer.scene;
+const globe  = scene.globe;
+const camera = viewer.camera;
+
+scene.backgroundColor                = Cesium.Color.fromCssColorString('#0f172a');
+globe.baseColor                      = Cesium.Color.fromCssColorString('#0f172a');
+globe.depthTestAgainstTerrain        = true;
+globe.enableLighting                 = true;       // iluminación solar
+scene.fog.enabled                    = true;
+scene.fog.density                    = 0.0003;
+scene.skyAtmosphere.show             = true;
+scene.skyAtmosphere.brightnessShift  = -0.3;       // atmósfera más oscura
+
+// Ajuste visual: atmósfera y niebla con tonos azul oscuro
+scene.skyAtmosphere.atmosphereLightIntensity = 0.6;
+
+// ── Posición inicial de cámara ────────────────────────────────────────────────
+const HOME = {
+  destination: Cesium.Cartesian3.fromDegrees(-69.0, -37.5, 8500),
+  orientation: {
+    heading: Cesium.Math.toRadians(0.0),
+    pitch:   Cesium.Math.toRadians(-32.0),  // vista oblicua ~32°
+    roll:    0.0,
+  },
+};
+camera.setView(HOME);
+
+// ── Bounds del área Vaca Muerta ───────────────────────────────────────────────
+// bounds: [-70.0, -38.0, -68.0, -37.0] (lon_min, lat_min, lon_max, lat_max)
+const VM_LON_MIN = -70.0, VM_LAT_MIN = -38.0;
+const VM_LON_MAX = -68.0, VM_LAT_MAX = -37.0;
+
+// ── Entidad polígono SAR (no visible al inicio) ───────────────────────────────
+const sarPolygon = viewer.entities.add({
+  show: false,
+  name: 'SAR Zone — Vaca Muerta',
+  polygon: {
+    hierarchy: new Cesium.PolygonHierarchy(
+      Cesium.Cartesian3.fromDegreesArray([
+        VM_LON_MIN, VM_LAT_MIN,
+        VM_LON_MAX, VM_LAT_MIN,
+        VM_LON_MAX, VM_LAT_MAX,
+        VM_LON_MIN, VM_LAT_MAX,
+      ])
+    ),
+    material:      Cesium.Color.fromCssColorString('#22d3ee').withAlpha(0.28),
+    outline:       true,
+    outlineColor:  Cesium.Color.fromCssColorString('#22d3ee').withAlpha(0.85),
+    outlineWidth:  2,
+    height:        0,
+    closeTop:      true,
+    closeBottom:   true,
+  },
+});
+
+// ── Entidad scan line (radar sweep) ──────────────────────────────────────────
+let _scanLat = VM_LAT_MIN;
+
+const scanLine = viewer.entities.add({
+  show: false,
+  name: 'SAR Scan Line',
+  polyline: {
+    positions: new Cesium.CallbackProperty(function() {
+      return Cesium.Cartesian3.fromDegreesArray([
+        VM_LON_MIN, _scanLat,
+        VM_LON_MAX, _scanLat,
+      ]);
+    }, false),
+    width: 3,
+    material: new Cesium.PolylineGlowMaterialProperty({
+      glowPower: 0.45,
+      color: Cesium.Color.fromCssColorString('#22d3ee').withAlpha(0.95),
+    }),
+    clampToGround: true,
+  },
+});
+
+// ── Glow trail (línea fantasma detrás del scan) ───────────────────────────────
+let _trailLat = VM_LAT_MIN;
+const scanTrail = viewer.entities.add({
+  show: false,
+  name: 'SAR Scan Trail',
+  polyline: {
+    positions: new Cesium.CallbackProperty(function() {
+      return Cesium.Cartesian3.fromDegreesArray([
+        VM_LON_MIN, _trailLat,
+        VM_LON_MAX, _trailLat,
+      ]);
+    }, false),
+    width: 18,
+    material: new Cesium.PolylineGlowMaterialProperty({
+      glowPower: 0.08,
+      color: Cesium.Color.fromCssColorString('#22d3ee').withAlpha(0.25),
+    }),
+    clampToGround: true,
+  },
+});
+
+// ── Animación radar ───────────────────────────────────────────────────────────
+let sarActive  = false;
+let _lastTime  = 0;
+const SCAN_SPEED = 0.18; // grados/segundo → cruza 1° de latitud en ~5.5s
+
+viewer.clock.shouldAnimate = true;
+viewer.clock.onTick.addEventListener(function(clock) {
+  if (!sarActive) return;
+
+  const now  = performance.now() / 1000;
+  const dt   = Math.min(now - _lastTime, 0.1);
+  _lastTime  = now;
+
+  // Mover línea de scan
+  _scanLat  += SCAN_SPEED * dt;
+  _trailLat  = _scanLat - 0.04;
+  if (_scanLat > VM_LAT_MAX) {
+    _scanLat  = VM_LAT_MIN;
+    _trailLat = VM_LAT_MIN;
+  }
+
+  // Pulsar opacidad del polígono
+  const alpha = 0.18 + 0.12 * Math.sin(now * 2.5);
+  sarPolygon.polygon.material = Cesium.Color.fromCssColorString('#22d3ee').withAlpha(alpha);
+});
+
+// ── Toggle SAR ────────────────────────────────────────────────────────────────
+const btnSar   = document.getElementById('btn-sar');
+const sarBadge = document.getElementById('sar-badge');
+
+btnSar.addEventListener('click', function() {
+  sarActive = !sarActive;
+
+  sarPolygon.show  = sarActive;
+  scanLine.show    = sarActive;
+  scanTrail.show   = sarActive;
+
+  if (sarActive) {
+    _scanLat  = VM_LAT_MIN;
+    _trailLat = VM_LAT_MIN;
+    _lastTime = performance.now() / 1000;
+    this.textContent = 'SAR Activo · Faro Protocol  [ON]';
+    this.classList.add('active');
+    sarBadge.classList.add('visible');
+  } else {
+    this.textContent = 'Activar Capa SAR (Faro Protocol)';
+    this.classList.remove('active');
+    sarBadge.classList.remove('visible');
+  }
+});
+
+// ── Reset cámara ─────────────────────────────────────────────────────────────
+document.getElementById('btn-reset').addEventListener('click', function() {
+  camera.flyTo({
+    destination: HOME.destination,
+    orientation: HOME.orientation,
+    duration:    2.0,
+    easingFunction: Cesium.EasingFunction.CUBIC_IN_OUT,
+  });
+});
+
+// ── Coordenadas vivas ─────────────────────────────────────────────────────────
+const coordsEl = document.getElementById('coords');
+const handler  = new Cesium.ScreenSpaceEventHandler(scene.canvas);
+
+handler.setInputAction(function(movement) {
+  const cartesian = viewer.camera.pickEllipsoid(movement.endPosition, scene.globe.ellipsoid);
+  if (!cartesian) return;
+
+  const carto = Cesium.Cartographic.fromCartesian(cartesian);
+  const lat   = Cesium.Math.toDegrees(carto.latitude);
+  const lon   = Cesium.Math.toDegrees(carto.longitude);
+  const alt   = (carto.height / 1000).toFixed(1);
+
+  const latS  = Math.abs(lat).toFixed(4) + (lat < 0 ? '°S' : '°N');
+  const lonS  = Math.abs(lon).toFixed(4) + (lon < 0 ? '°W' : '°E');
+  coordsEl.textContent = `LAT ${latS} · LON ${lonS} · ALT ${alt} km`;
+}, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+</script>
+</body>
+</html>
