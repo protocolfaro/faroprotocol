@@ -480,6 +480,15 @@ def render_dashboard(area_cfg: dict, metrics: dict,
         ax_eco.add_patch(plt.Rectangle((0.08, 0.72), 0.84 * score / 100, 0.03,
             transform=ax_eco.transAxes, facecolor=s_col, alpha=0.7, zorder=4))
 
+    # Nota contextual para zonas industriales con score bajo
+    _SECTORES_IND = {'oil_gas', 'energia', 'mineria', 'mining_iron',
+                     'tierras_raras', 'maritimo', 'shipping'}
+    if sector in _SECTORES_IND and (score or 0) < 55:
+        ax_eco.text(0.08, 0.67,
+                    'Score calibrado para zona industrial.  FSI 0 = operación normal.',
+                    fontsize=5.5, color=col_l, alpha=0.65,
+                    fontfamily='monospace', transform=ax_eco.transAxes, va='top')
+
     # Variables económicas relevantes del ROI
     eco_items = []
     if 'rinde_estimado_tha' in roi:

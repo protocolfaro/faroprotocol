@@ -299,6 +299,7 @@ def generar_certificado(area_name: str, output_dir: Path = None,
         'shipping': 'Maritime Shipping Intelligence',
         'mineria': 'Mining Intelligence',
         'mining_iron': 'Iron Ore Mining Intelligence',
+        'tierras_raras': 'Critical Minerals Intelligence',
         'deforestacion': 'Forest Cover Intelligence',
     }.get(sector, sector.title() + ' Intelligence')
     ax.text(0.33, 0.81, sector_label, fontsize=7, color=v_col_l,
@@ -344,6 +345,19 @@ def generar_certificado(area_name: str, output_dir: Path = None,
                 transform=ax.transAxes, zorder=5)
         ax.text(x + 0.04, y - 0.038, val_m, fontsize=11, fontweight='bold',
                 color=WHITE, ha='center', va='top',
+                transform=ax.transAxes, zorder=5)
+
+    # ── Nota contextual para zonas industriales con score bajo ───────────────
+    SECTORES_INDUSTRIALES = {'oil_gas', 'energia', 'mineria', 'mining_iron',
+                             'tierras_raras', 'maritimo', 'shipping'}
+    if sector in SECTORES_INDUSTRIALES and score is not None and score < 55:
+        nota = 'Score calibrado para zona industrial.  FSI 0 = operación normal.'
+        ax.add_patch(FancyBboxPatch((0.31, 0.30), 0.67, 0.055,
+            boxstyle='round,pad=0.008', linewidth=0.4,
+            edgecolor=GOLD + '40', facecolor='#0d131a',
+            transform=ax.transAxes, zorder=4))
+        ax.text(0.645, 0.332, nota, fontsize=5.5, color=GOLD_L, alpha=0.75,
+                fontfamily='monospace', ha='center', va='center',
                 transform=ax.transAxes, zorder=5)
 
     # ── Sección SHA-256 / Sello ───────────────────────────────────────────────
