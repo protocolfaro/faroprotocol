@@ -665,15 +665,15 @@ def build_section5(m: FaroManualCanvas, name: str, areas: list,
     y -= 12*mm
 
     planes = [
-        ('Starter', 'USD 199/mes', '1 área · Reporte semanal · SHA-256 · Portal'),
-        ('Professional', 'USD 499/mes', '3 áreas · Alertas tiempo real · Dashboard avanzado'),
-        ('Enterprise', 'A convenir', 'Áreas ilimitadas · API · White label · SLA'),
+        ('Observer',   'USD 2.500/mes',       '1 área · Reporte semanal · SHA-256 · Portal',                   False),
+        ('Analyst',    'USD 9.000/mes',        '3 áreas · Alertas tiempo real · Dashboard · API básica',        True),
+        ('Sovereign',  'USD 17.000/mes',       'Áreas ilimitadas · API completa · White label · SLA',           False),
+        ('Enterprise', 'USD 3.200/sector/mes', 'Multi-sector · White label · SLA dedicado · Integración',       False),
     ]
-    col_w = CONTENT_W / 3
+    col_w = CONTENT_W / 4
 
-    for i, (plan_name, price, features) in enumerate(planes):
+    for i, (plan_name, price, features, is_rec) in enumerate(planes):
         px = MARGIN_L + i * col_w
-        is_rec = (i == 1)
         box_color = HexColor('#0d1410') if is_rec else BG2
         border_color = GOLD if is_rec else HexColor('#1e1e2e')
         m.fill_rect(px + 2, y - 46, col_w - 4, 58, box_color)
@@ -683,15 +683,15 @@ def build_section5(m: FaroManualCanvas, name: str, areas: list,
             m.text(px + col_w / 2 + 2, y + 16, 'MÁS POPULAR',
                    font='Helvetica-Bold', size=7, color=BG, align='center')
         m.text(px + col_w / 2 + 2, y, plan_name,
-               font='Helvetica-Bold', size=12, color=GOLD_L, align='center')
-        m.text(px + col_w / 2 + 2, y - 14, price,
-               font='Helvetica-Bold', size=10, color=WHITE, align='center')
+               font='Helvetica-Bold', size=10, color=GOLD_L, align='center')
+        m.text(px + col_w / 2 + 2, y - 13, price,
+               font='Helvetica-Bold', size=8, color=WHITE, align='center')
         # Features
-        cy = y - 28
+        cy = y - 26
         for feat in features.split(' · '):
             m.text(px + col_w / 2 + 2, cy, feat,
-                   font='Helvetica', size=7, color=GREY, align='center')
-            cy -= 10
+                   font='Helvetica', size=6, color=GREY, align='center')
+            cy -= 9
 
     m.page_footer(6)
     m.new_page()
