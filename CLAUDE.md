@@ -1,5 +1,5 @@
 # FARO PROTOCOL — Guía para Claude Code
-> Última actualización: 2026-04-08 — V12 · Netlify live · Firebase live · primer cliente Verónica
+> Última actualización: 2026-04-08 — V12 · SISTEMA 100% LIVE · https://faroprotocol.netlify.app
 > Arquitecto del sistema: Emilio (hijo)
 > Conocimiento de campo y contactos: Padre (fundador)
 
@@ -342,21 +342,22 @@ python gen_portal_key.py --check-expiry
 ✅ Service Account descargada → firebase-service-account.json (gitignoreado)
 ✅ .env local: FIREBASE_SERVICE_ACCOUNT=firebase-service-account.json
 ✅ Config pública integrada en faro_client_portal.html
-☐ Authentication → Email/Password → Habilitar (acción en Firebase Console)
-☐ Authorized domains → agregar faroprotocol.netlify.app
-☐ Firestore → Crear DB → producción → southamerica-east1
-☐ Firestore → Rules → publicar (ver reglas abajo)
+✅ Authentication → Email/Password → Habilitado
+✅ Authorized domains → faroprotocol.netlify.app autorizado
+✅ Firestore → DB creada → producción → southamerica-east1
+✅ Firestore → Security Rules publicadas
 ```
 
 **Netlify Dashboard (app.netlify.com → Site → Environment variables):**
 ```
-☐ FIREBASE_SERVICE_ACCOUNT  = [base64 del service account — generado hoy con python]
-☐ FIREBASE_PROJECT_ID       = faro-protocol-906a5
-☐ SIGNED_URL_SECRET         = 1ee45256a5233da6ccc7f1ade9568bfd823ea4c5f3593069353bf22c796d0cb0
-☐ GMAIL_USER                = protocolfaro@gmail.com
-☐ GMAIL_APP_PASS            = [ver .env local]
-☐ ADMIN_EMAIL               = protocolfaro@gmail.com
-☐ PORTAL_URL                = https://faroprotocol.netlify.app
+✅ FIREBASE_SERVICE_ACCOUNT  = [base64 del service account]
+✅ FIREBASE_PROJECT_ID       = faro-protocol-906a5
+✅ SIGNED_URL_SECRET         = 1ee45256a5233da6ccc7f1ade9568bfd823ea4c5f3593069353bf22c796d0cb0
+✅ GMAIL_USER                = protocolfaro@gmail.com
+✅ GMAIL_APP_PASS            = [configurado]
+✅ ADMIN_EMAIL               = protocolfaro@gmail.com
+✅ PORTAL_URL                = https://faroprotocol.netlify.app
+✅ Deploy activo → https://faroprotocol.netlify.app
 ```
 
 **Nota:** Las Netlify Functions esperan `FIREBASE_SERVICE_ACCOUNT` en base64.
@@ -380,26 +381,19 @@ service cloud.firestore {
 
 #### Primer cliente — Verónica (Smart Future Labs)
 ```
-Email  : veronica@smartfuturelabs.com
-UID    : SgsDkLAk2xfsQcab9m2qfsdbtpg1
-Áreas  : rotterdam · amazonas · vaca_muerta · malacca
-Expira : 2026-04-15 (Faro Week 7 días)
-Manual : faro_manual_veronica.pdf (SHA-256: b697914a...e6841b4b)
-Email  : enviado con link de primer acceso (válido 48h)
+✅ Email  : veronica@smartfuturelabs.com
+✅ UID    : SgsDkLAk2xfsQcab9m2qfsdbtpg1
+✅ Áreas  : rotterdam · amazonas · vaca_muerta · malacca
+✅ Expira : 2026-04-15 (Faro Week 7 días)
+✅ Manual : faro_manual_veronica.pdf (SHA-256: b697914a...e6841b4b)
+✅ Email de bienvenida enviado con link de primer acceso
 ```
 
 ## Pendientes técnicos prioritarios
 
-### 🔴 Activar Firebase + Netlify (próximo paso inmediato)
-```
-1. Firebase Console → Authentication → Email/Password → Habilitar
-2. Firebase Console → Authorized domains → faroprotocol.netlify.app
-3. Firebase Console → Firestore → Crear DB → southamerica-east1
-4. Firebase Console → Firestore → Rules → publicar (ver reglas arriba)
-5. Netlify Dashboard → Environment variables → agregar las 7 vars (ver arriba)
-6. Netlify Dashboard → Deploy → trigger manual o push a master
-```
-Una vez hecho: el portal está 100% operativo para clientes reales.
+### ✅ Firebase + Netlify — COMPLETADO (2026-04-08)
+El portal está 100% operativo en https://faroprotocol.netlify.app
+Firebase Auth, Firestore y las 9 capas de seguridad están activas en producción.
 
 ### 🔴 Datos de campo (Padre → acción inmediata)
 ```bash
