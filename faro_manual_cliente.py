@@ -357,9 +357,9 @@ def build_section1(m: FaroManualCanvas, name: str, areas: list):
         'SHA-256 sellado — cada reporte es verificable e inmutable',
         'Alertas automáticas — te avisamos antes de que salgan los datos oficiales',
     ], title='En tres líneas')
-    y -= 65
+    y -= 80
 
-    y -= 8*mm
+    y -= 14*mm
     m.h2(MARGIN_L, y, f'Tus áreas asignadas')
     y -= 12*mm
 
@@ -423,17 +423,17 @@ def build_section2(m: FaroManualCanvas):
             y = PH - MARGIN_T - 20*mm
 
         # Box por indicador
-        box_h = 52
-        m.fill_rect(MARGIN_L, y - box_h + 8, CONTENT_W, box_h, BG2)
-        m.stroke_rect(MARGIN_L, y - box_h + 8, CONTENT_W, box_h, HexColor('#1e1e2e'), lw=0.4)
-        m.fill_rect(MARGIN_L, y - box_h + 8, 3, box_h, color)
+        box_h = 64
+        m.fill_rect(MARGIN_L, y - box_h + 10, CONTENT_W, box_h, BG2)
+        m.stroke_rect(MARGIN_L, y - box_h + 10, CONTENT_W, box_h, HexColor('#1e1e2e'), lw=0.4)
+        m.fill_rect(MARGIN_L, y - box_h + 10, 3, box_h, color)
 
         m.text(MARGIN_L + 10, y, name_i, font='Helvetica-Bold', size=11, color=color)
         m.text(PW - MARGIN_R - 20, y, unit, font='Helvetica', size=9, color=GREY, align='right')
-        m.text(MARGIN_L + 10, y - 14, desc1, font='Helvetica', size=9, color=WHITE)
-        m.text(MARGIN_L + 10, y - 26, desc2, font='Helvetica', size=8, color=GREY)
+        m.text(MARGIN_L + 10, y - 15, desc1, font='Helvetica', size=9, color=WHITE)
+        m.text(MARGIN_L + 10, y - 29, desc2, font='Helvetica', size=8, color=GREY)
 
-        y -= box_h + 6
+        y -= box_h + 14
 
     # Sello Verde
     y -= 4*mm
@@ -780,7 +780,7 @@ def generate_manual(
     email      = email.strip().lower()
     name       = name or email.split('@')[0].replace('.', ' ').title()
     areas      = areas or ['cordoba']
-    portal_url = portal_url or os.getenv('PORTAL_URL', 'https://faroprotocol.netlify.app')
+    portal_url = portal_url or os.getenv('PORTAL_URL', 'https://faro-protocol.netlify.app')
     expiry     = datetime.now(timezone.utc) + timedelta(days=7)
 
     # Nombre de archivo
@@ -853,7 +853,7 @@ def main():
     parser.add_argument('--output', default='.',
                         help='Directorio de salida (default: directorio actual)')
     parser.add_argument('--portal-url',
-                        default=os.getenv('PORTAL_URL', 'https://faroprotocol.netlify.app'),
+                        default=os.getenv('PORTAL_URL', 'https://faro-protocol.netlify.app'),
                         help='URL del portal Faro')
 
     args = parser.parse_args()
