@@ -1,5 +1,5 @@
 # FARO PROTOCOL — Guía para Claude Code
-> Última actualización: 2026-04-08 — V12 · SISTEMA 100% LIVE · https://faro-protocol.netlify.app
+> Última actualización: 2026-04-08 — V13 · SISTEMA 100% LIVE · https://faro-protocol.netlify.app
 > Arquitecto del sistema: Emilio (hijo)
 > Conocimiento de campo y contactos: Padre (fundador)
 
@@ -350,14 +350,14 @@ python gen_portal_key.py --check-expiry
 
 **Netlify Dashboard (app.netlify.com → Site → Environment variables):**
 ```
-✅ FIREBASE_SERVICE_ACCOUNT  = [base64 del service account]
+✅ FIREBASE_SERVICE_ACCOUNT  = [base64 del service account — corregido y republicado]
 ✅ FIREBASE_PROJECT_ID       = faro-protocol-906a5
 ✅ SIGNED_URL_SECRET         = 1ee45256a5233da6ccc7f1ade9568bfd823ea4c5f3593069353bf22c796d0cb0
 ✅ GMAIL_USER                = protocolfaro@gmail.com
 ✅ GMAIL_APP_PASS            = [configurado]
 ✅ ADMIN_EMAIL               = protocolfaro@gmail.com
-✅ PORTAL_URL                = https://faro-protocol.netlify.app
-✅ Deploy activo → https://faro-protocol.netlify.app
+✅ PORTAL_URL                = https://faro-protocol.netlify.app  ← corregido (tenía faro sin guión)
+✅ Deploy final publicado → https://faro-protocol.netlify.app
 ```
 
 **Nota:** Las Netlify Functions esperan `FIREBASE_SERVICE_ACCOUNT` en base64.
