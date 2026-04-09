@@ -32,6 +32,7 @@ RED      = (176, 48,  48)
 
 W, H  = 1920, 1080
 FPS   = 24
+PNG_Y_TOP = 175   # salta el área de título matplotlib (evita contenido cortado abajo)
 
 # ── Fuentes ──────────────────────────────────────────────────────────────────
 def _font(path, size):
@@ -113,8 +114,10 @@ def load_asset(name):
     img = Image.open(p).convert('RGB')
     return img
 
-def fit_into(img, target_w, target_h):
-    """Escala preservando aspecto y centra en target."""
+def fit_into(img, target_w, target_h, crop_top=PNG_Y_TOP):
+    """Escala preservando aspecto y centra en target. Recorta crop_top px arriba (área de título matplotlib)."""
+    if crop_top > 0 and img.height > crop_top:
+        img = img.crop((0, crop_top, img.width, img.height))
     rw = target_w / img.width
     rh = target_h / img.height
     r  = min(rw, rh)
@@ -628,13 +631,13 @@ def build_video():
     print('Construyendo segmentos...')
 
     segments = [
-        ('Logo (0–5s)',      5.0,  seg1_logo),
-        ('Mapa (5–15s)',     10.0, seg2_map),
-        ('Balcarce (15–25s)',10.0, seg3_balcarce),
-        ('Amazonas (25–35s)',10.0, seg4_amazonas),
-        ('Sello (35–45s)',   10.0, seg5_sello),
-        ('Frases (45–55s)',  10.0, seg6_frases),
-        ('Outro (55–60s)',    5.0, seg7_outro),
+        ('Logo (0–3s)',      3.0,  seg1_logo),
+        ('Mapa (3–11s)',     8.0,  seg2_map),
+        ('Balcarce (11–18s)',7.0,  seg3_balcarce),
+        ('Amazonas (18–25s)',7.0,  seg4_amazonas),
+        ('Sello (25–35s)',   10.0, seg5_sello),
+        ('Frases (35–45s)',  10.0, seg6_frases),
+        ('Outro (45–50s)',    5.0, seg7_outro),
     ]
 
     clips = []
