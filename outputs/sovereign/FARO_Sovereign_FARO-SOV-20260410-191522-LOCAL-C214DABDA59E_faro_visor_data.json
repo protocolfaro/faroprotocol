@@ -1,0 +1,91 @@
+{
+  "config": {
+    "sensor": "Sentinel-1A IW GRD",
+    "frecuencia": "5.405 GHz (C-band)",
+    "resolucion": "10m x 10m",
+    "modo": "Interferometría DInSAR",
+    "asset": "Plataforma_Offshore_Alpha",
+    "sector": "Oil & Gas"
+  },
+  "puntos_monitoreo": [
+    {
+      "id": "SAR_001",
+      "coordenadas": "-38.7250°, -68.7768°",
+      "desplazamiento_mm": 0.71,
+      "direccion": "Lateral N-S",
+      "coherencia": 0.774,
+      "fecha_adquisicion": "2026-04-10T19:15:22.006959+00:00",
+      "estado": "NORMAL"
+    },
+    {
+      "id": "SAR_002",
+      "coordenadas": "-38.2593°, -68.4546°",
+      "desplazamiento_mm": 0.7,
+      "direccion": "Lateral N-S",
+      "coherencia": 0.847,
+      "fecha_adquisicion": "2026-04-10T19:15:22.006959+00:00",
+      "estado": "NORMAL"
+    },
+    {
+      "id": "SAR_003",
+      "coordenadas": "-38.4946°, -68.9735°",
+      "desplazamiento_mm": 1.21,
+      "direccion": "Vertical",
+      "coherencia": 0.915,
+      "fecha_adquisicion": "2026-04-10T19:15:22.006959+00:00",
+      "estado": "NORMAL"
+    },
+    {
+      "id": "SAR_004",
+      "coordenadas": "-38.2987°, -68.5805°",
+      "desplazamiento_mm": 0.88,
+      "direccion": "Lateral E-W",
+      "coherencia": 0.886,
+      "fecha_adquisicion": "2026-04-10T19:15:22.006959+00:00",
+      "estado": "NORMAL"
+    },
+    {
+      "id": "SAR_005",
+      "coordenadas": "-38.1942°, -68.3019°",
+      "desplazamiento_mm": 0.82,
+      "direccion": "Lateral E-W",
+      "coherencia": 0.814,
+      "fecha_adquisicion": "2026-04-10T19:15:22.006959+00:00",
+      "estado": "NORMAL"
+    },
+    {
+      "id": "SAR_006",
+      "coordenadas": "-38.7847°, -68.2365°",
+      "desplazamiento_mm": 0.74,
+      "direccion": "Vertical",
+      "coherencia": 0.771,
+      "fecha_adquisicion": "2026-04-10T19:15:22.006959+00:00",
+      "estado": "NORMAL"
+    },
+    {
+      "id": "SAR_007",
+      "coordenadas": "-38.3963°, -68.1929°",
+      "desplazamiento_mm": 1.76,
+      "direccion": "Lateral N-S",
+      "coherencia": 0.856,
+      "fecha_adquisicion": "2026-04-10T19:15:22.006959+00:00",
+      "estado": "NORMAL"
+    },
+    {
+      "id": "SAR_008",
+      "coordenadas": "-38.8752°, -68.0777°",
+      "desplazamiento_mm": 1.46,
+      "direccion": "Vertical",
+      "coherencia": 0.877,
+      "fecha_adquisicion": "2026-04-10T19:15:22.006959+00:00",
+      "estado": "NORMAL"
+    }
+  ],
+  "metricas": {
+    "max_desplazamiento_mm": 1.76,
+    "promedio_desplazamiento_mm": 1.03,
+    "puntos_en_alerta": 0,
+    "umbral_citic_mm": 2.0,
+    "conformidad_citic": "APROBADO"
+  }
+}

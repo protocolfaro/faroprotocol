@@ -346,6 +346,9 @@
       <div class="logo-sub">Visor 3D · Inteligencia Satelital</div>
     </div>
   </div>
+  <div id="cert-display" style="font-family: var(--mono); font-size: 11px; color: var(--gold); letter-spacing: 1px;">
+    Auditado por Faro Protocol · <span id="cert-id">Cargando...</span>
+  </div>
   <div id="clock">--:--:-- UTC</div>
 </div>
 
@@ -535,6 +538,16 @@ async function init() {
     dataJson  = await res.json();
   } catch (e) {
     console.warn('data.json no disponible — usando valores demo');
+  }
+
+  // Leer Certificado ID desde URL (?cert=FARO-SOV-xxx)
+  const urlParams = new URLSearchParams(window.location.search);
+  const certId = urlParams.get('cert');
+  if (certId) {
+    document.getElementById('cert-id').textContent = 'ID: ' + certId;
+    document.getElementById('cert-display').style.display = 'block';
+  } else {
+    document.getElementById('cert-display').style.display = 'none';
   }
 
   setupRenderer();
