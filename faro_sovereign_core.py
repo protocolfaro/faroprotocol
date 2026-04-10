@@ -193,7 +193,11 @@ class FaroSovereignCore:
 **Asset Monitoreado:** `{file_name}`
 **Vertical:** {datos_sar['config']['sector']}
 
-**🔗 ACCESO 3D EN VIVO:** [Abrir Visor Satelital](faro_visor.html?cert={cert_id})
+### 🎯 ACCESO AL VISOR 3D INMUTABLE
+
+🔗 **[ABRIR VISOR 3D CERTIFICADO](faro_visor.html?cert_id={cert_id}&asset={file_name}&timestamp={self.timestamp.strftime('%Y%m%d%H%M%S')})**
+
+*El visor 3D cargará con la marca de auditoría correspondiente a este certificado.*
 
 </div>
 

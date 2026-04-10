@@ -346,8 +346,9 @@
       <div class="logo-sub">Visor 3D · Inteligencia Satelital</div>
     </div>
   </div>
-  <div id="cert-display" style="font-family: var(--mono); font-size: 11px; color: var(--gold); letter-spacing: 1px;">
-    Auditado por Faro Protocol · <span id="cert-id">Cargando...</span>
+  <div id="cert-watermark" style="display:none;text-align:center;">
+    <div style="font-family:var(--mono);font-size:10px;color:var(--gold);letter-spacing:2px;">AUDITADO POR FARO PROTOCOL</div>
+    <div id="cert-id-display" style="font-family:var(--mono);font-size:9px;color:var(--w3);">—</div>
   </div>
   <div id="clock">--:--:-- UTC</div>
 </div>
@@ -538,16 +539,6 @@ async function init() {
     dataJson  = await res.json();
   } catch (e) {
     console.warn('data.json no disponible — usando valores demo');
-  }
-
-  // Leer Certificado ID desde URL (?cert=FARO-SOV-xxx)
-  const urlParams = new URLSearchParams(window.location.search);
-  const certId = urlParams.get('cert');
-  if (certId) {
-    document.getElementById('cert-id').textContent = 'ID: ' + certId;
-    document.getElementById('cert-display').style.display = 'block';
-  } else {
-    document.getElementById('cert-display').style.display = 'none';
   }
 
   setupRenderer();
@@ -972,8 +963,32 @@ function fbm(x, z, rng, octaves) {
 }
 
 
+// ─── Marca de Agua del Certificado ──────────────────────────────────────────────
+function initCertWatermark() {
+  const params    = new URLSearchParams(window.location.search);
+  const certId    = params.get('cert_id');
+  const asset     = params.get('asset');
+  const timestamp = params.get('timestamp');
+
+  if (certId) {
+    const watermark = document.getElementById('cert-watermark');
+    const certDisplay = document.getElementById('cert-id-display');
+
+    if (watermark && certDisplay) {
+      watermark.style.display = 'block';
+      certDisplay.textContent = `ID: ${certId}`;
+
+      // También agregar a la consola para auditoría
+      console.log('[FARO PROTOCOL] Certificado verificado:', certId);
+      console.log('[FARO PROTOCOL] Asset:', asset || 'N/A');
+      console.log('[FARO PROTOCOL] Timestamp:', timestamp || 'N/A');
+    }
+  }
+}
+
 // ─── Arranque ──────────────────────────────────────────────────────────────────
 init();
+initCertWatermark();
 
 </script>
 
