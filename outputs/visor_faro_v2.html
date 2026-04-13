@@ -632,27 +632,38 @@ function buildSidebar() {
 fetch('../data.json')
   .then(r => r.json())
   .then(d => {
-    const resumen = d.resumen || {};
-    const scoreGlobal = resumen.score_promedio;
-    const areasActivas = resumen.areas_activas || 0;
-    const alertas = (resumen.areas_en_alerta || []).length;
-    const estadoGlobal = resumen.estado_global || 'OK';
+    const pipeline   = d.pipeline  || {};
+    const resumen    = d.resumen   || {};
+    const areasActivas = resumen.areas_activas || Object.keys(pipeline).length || 0;
+
+    // ── Score global: calcular promedio real de todos los activos ──
+    const scores = Object.values(pipeline)
+      .map(a => a && a.score_faro)
+      .filter(s => s != null && s > 0);
+    const scoreGlobal = scores.length > 0
+      ? scores.reduce((a, b) => a + b, 0) / scores.length
+      : resumen.score_promedio;
 
     if (scoreGlobal != null) {
-      document.getElementById('sb-global-score').textContent = scoreGlobal.toFixed(1);
       const gsv = document.getElementById('sb-global-score');
+      gsv.textContent = scoreGlobal.toFixed(1);
       gsv.style.color = scoreGlobal >= 60 ? '#00ff41' : scoreGlobal >= 45 ? '#c9a84c' : '#f97316';
     }
 
     const statusTxt = document.getElementById('sb-status-txt');
     if (statusTxt) statusTxt.textContent = `Pipeline Active · ${areasActivas} Áreas`;
 
-    // Mostrar strip de alertas del sistema (áreas fuera de los 6 sectores)
-    if (alertas > 0) {
+    // ── Alertas: score < 40, estado ALERTA, o pct_anomalia > 0 ──
+    const alertAreas = Object.entries(pipeline).filter(([, a]) =>
+      a && (a.score_faro < 40 || a.estado === 'ALERTA' || a.pct_anomalia > 0)
+    );
+    const alertCount = alertAreas.length;
+
+    if (alertCount > 0) {
       const strip = document.getElementById('sb-alert-strip');
       strip.classList.add('visible');
       document.getElementById('sb-alert-txt').textContent =
-        `${alertas} ALERTA${alertas > 1 ? 'S' : ''} EN SISTEMA`;
+        `${alertCount} ALERTA${alertCount > 1 ? 'S' : ''} EN SISTEMA`;
     }
   })
   .catch(() => {});  // data.json no disponible: mantener valores por defecto

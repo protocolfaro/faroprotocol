@@ -246,15 +246,9 @@ def _post_pipeline(dry_run: bool = False):
     _log.info(f"  [Post-pipeline] git add → commit → push origin master ({ts})...")
 
     try:
-        # Stagear reportes, certificados, bricolage y data.json
+        # Stagear todo — git add . (equivalente a lo generado por el pipeline)
         subprocess.run(
-            ['git', 'add',
-             'outputs/', 'data.json',
-             'faro_bricolage_linkedin.png',
-             'faro_cert_*.png',
-             'faro_reporte_fusion_*.png', 'faro_reporte_fusion_*.sha256',
-             'faro_report_*.png', 'faro_report_*.sha256',
-             'faro_dashboard_*.png'],
+            ['git', 'add', '.'],
             cwd=str(PROJECT_ROOT), timeout=30, capture_output=True,
         )
 
