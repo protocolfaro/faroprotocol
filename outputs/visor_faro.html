@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FARO PROTOCOL — Visor Táctico · 6 Sectores</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+  :root {
+    --bg:    #0a0a1a;
+    --bg2:   #0c0c1f;
+    --gold:  #c9a84c;
+    --green: #00ff41;
+    --w:     #f2ede4;
+    --w2:    rgba(242,237,228,0.75);
+    --w3:    rgba(242,237,228,0.38);
+    --mono: 'JetBrains Mono','Fira Code','Courier New',monospace;
+    --sans: 'Inter','Segoe UI',system-ui,sans-serif;
+    --sw:    262px;
+    --accent: #f97316;   /* actualizado por JS al cambiar sector */
+  }
+
+  html, body {
+    width:100%; height:100%;
+    background: var(--bg);
+    color: var(--w);
+    font-family: var(--sans);
+    overflow: hidden;
+  }
+
+  /* ══ MAPA con perspectiva CSS ══ */
+  #tilt-wrap {
+    position: fixed; inset: 0;
+    perspective: 900px;
+    perspective-origin: 50% 100%;
+    background: #000;
+  }
+  #map {
+    position: absolute; inset: 0;
+    width: 100%; height: 140%;
+    transform-origin: 50% 100%;
+    transition: transform 0.3s ease;
+    will-change: transform;
+  }
+
+  /* ══ Leaflet dark theme ══ */
+  .leaflet-control-attribution {
+    background: rgba(10,10,26,0.78) !important;
+    color: rgba(200,196,220,0.4) !important;
+    font-size: 9px !important;
+    font-family: var(--mono) !important;
+  }
+  .leaflet-control-attribution a { color: rgba(34,211,238,0.4) !important; }
+  .leaflet-control-zoom a {
+    background: rgba(10,10,26,0.9) !important;
+    border-color: rgba(255,255,255,0.1) !important;
+    color: var(--accent) !important;
+    font-family: var(--mono) !important;
+    transition: color 0.2s;
+  }
+  .leaflet-control-zoom a:hover { background: rgba(255,255,255,0.07) !important; }
+
+  /* ══ UI LAYER (sin distorsión tilt) ══ */
+  #ui {
+    position: fixed; inset: 0;
+    z-index: 100;
+    pointer-events: none;
+  }
+  #ui > * { pointer-events: auto; }
+
+  /* ══ SIDEBAR ══ */
+  #sidebar {
+    position: absolute; top:0; left:0; bottom:0;
+    width: var(--sw);
+    background: linear-gradient(180deg,#09091d 0%,#07071a 100%);
+    border-right: 1px solid rgba(255,255,255,0.055);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+
+  .sb-logo-row {
+    padding: 17px 15px 13px;
+    border-bottom: 1px solid rgba(255,255,255,0.055);
+    flex-shrink: 0;
+  }
+  .sb-logo {
+    font-family: var(--mono);
+    font-size: 10.5px; font-weight:700;
+    letter-spacing: 3px; color: var(--gold);
+    text-transform: uppercase;
+  }
+  .sb-sub {
+    font-size: 8px; letter-spacing: 1.5px;
+    color: var(--w3); text-transform: uppercase; margin-top: 3px;
+  }
+  .sb-sec-lbl {
+    padding: 13px 15px 6px;
+    font-size: 7.5px; letter-spacing: 2.5px;
+    color: var(--w3); text-transform: uppercase; flex-shrink:0;
+  }
+
+  #sector-list { flex:1; overflow-y:auto; padding-bottom:6px; scrollbar-width:none; }
+  #sector-list::-webkit-scrollbar { display:none; }
+
+  .s-btn {
+    margin: 2px 9px;
+    padding: 10px 11px;
+    border-radius: 7px; cursor: pointer;
+    border: 1px solid transparent;
+    background: transparent;
+    transition: background 0.15s, border-color 0.15s;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .s-btn:hover { background:rgba(255,255,255,0.032); border-color:rgba(255,255,255,0.07); }
+  .s-btn.active { background:rgba(255,255,255,0.065); border-color:rgba(255,255,255,0.13); }
+  .s-btn.active .s-icon { box-shadow: 0 0 9px currentColor; }
+
+  .s-icon {
+    width:35px; height:35px; border-radius:7px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:16px; flex-shrink:0; border:1px solid;
+    transition: box-shadow 0.2s;
+  }
+  .s-info { flex:1; min-width:0; }
+  .s-name { font-size:10.5px; font-weight:600; color:var(--w); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:2px; }
+  .s-area { font-size:9px; color:var(--w3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .s-score {
+    font-family:var(--mono); font-size:11px; font-weight:700;
+    padding:2px 7px; border-radius:4px; flex-shrink:0; border:1px solid;
+  }
+
+  .sb-footer {
+    padding:11px 15px; border-top:1px solid rgba(255,255,255,0.055);
+    flex-shrink:0;
+  }
+  .sb-dot {
+    display:inline-block; width:6px; height:6px; border-radius:50%;
+    background:var(--green); margin-right:6px;
+    box-shadow:0 0 6px var(--green);
+    animation: dot-pulse 2s ease-in-out infinite;
+  }
+  .sb-status { font-family:var(--mono); font-size:8px; color:var(--green); letter-spacing:1px; text-transform:uppercase; }
+
+  /* ══ HUD SUPERIOR DERECHO ══ */
+  #hud {
+    position: absolute; top:14px; right:14px;
+    width: 306px;
+    background: rgba(9,9,24,0.93);
+    backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 10px;
+    padding: 14px 16px 13px;
+    font-family: var(--mono);
+    transition: border-color 0.3s;
+  }
+  .hud-top {
+    display:flex; align-items:flex-start; justify-content:space-between;
+    margin-bottom:12px; padding-bottom:10px;
+    border-bottom:1px solid rgba(255,255,255,0.07); gap:8px;
+  }
+  .hud-asset { font-size:12.5px; font-weight:700; color:var(--w); letter-spacing:0.4px; line-height:1.2; }
+  .hud-country { font-size:8.5px; color:var(--w3); margin-top:3px; }
+  .hud-badge {
+    font-size:8px; padding:3px 9px; border-radius:4px;
+    background:rgba(0,255,65,0.09); color:var(--green);
+    border:1px solid rgba(0,255,65,0.2); white-space:nowrap;
+    flex-shrink:0; margin-top:1px; letter-spacing:0.3px;
+  }
+  .hud-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+  .hud-lbl { font-size:7.5px; color:var(--w3); letter-spacing:1.2px; text-transform:uppercase; }
+  .hud-val { font-size:10.5px; color:var(--w); font-weight:600; }
+
+  .hud-score-num { font-size:21px; font-weight:800; line-height:1; margin-bottom:5px; transition:color 0.3s; }
+  .hud-score-bar { height:3px; background:rgba(255,255,255,0.08); border-radius:2px; overflow:hidden; margin-bottom:9px; }
+  .hud-score-fill { height:100%; border-radius:2px; transition: width 0.8s ease, background 0.3s; }
+
+  .hud-div { height:1px; background:rgba(255,255,255,0.06); margin:9px 0; }
+  .hud-sha-lbl { font-size:7.5px; color:var(--w3); letter-spacing:1.2px; text-transform:uppercase; margin-bottom:4px; }
+  .hud-sha-val { font-size:8.5px; word-break:break-all; line-height:1.6; transition:color 0.3s; opacity:0.85; }
+  .hud-sha-ts { font-size:7.5px; color:var(--w3); margin-top:4px; }
+  .hud-nota { font-size:7.5px; color:rgba(249,115,22,0.65); margin-top:5px; font-style:italic; }
+
+  /* ══ TOP LABEL (encima del mapa) ══ */
+  #top-label {
+    position: absolute;
+    top: 14px;
+    left: calc(var(--sw) + 14px);
+    pointer-events: none;
+  }
+  .top-lbl-inner {
+    font-family:var(--mono); font-size:9px; letter-spacing:1.5px;
+    text-transform:uppercase; padding:5px 12px;
+    background:rgba(9,9,24,0.85); border:1px solid rgba(255,255,255,0.08);
+    border-radius:4px; backdrop-filter:blur(8px);
+    transition:color 0.3s, border-color 0.3s;
+  }
+
+  /* ══ COORDS ══ */
+  #coords {
+    position: absolute; bottom:12px; left:calc(var(--sw) + 14px);
+    font-family:var(--mono); font-size:9.5px; letter-spacing:0.8px;
+    pointer-events:none;
+    transition: color 0.3s;
+  }
+
+  /* ══ BARRA INFERIOR CENTRAL ══ */
+  #ctrl-bar {
+    position: absolute;
+    bottom: 14px;
+    left: calc(var(--sw) + (100% - var(--sw)) / 2);
+    transform: translateX(-50%);
+    display: flex; align-items:center; gap:8px;
+  }
+
+  .c-btn {
+    padding: 7px 15px;
+    border-radius: 5px;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(9,9,24,0.9);
+    color: var(--w2);
+    font-family: var(--mono); font-size:9px; letter-spacing:1px;
+    cursor: pointer; text-transform:uppercase;
+    backdrop-filter: blur(8px);
+    transition: all 0.18s; user-select:none; white-space:nowrap;
+  }
+  .c-btn:hover { background:rgba(255,255,255,0.065); border-color:rgba(255,255,255,0.18); }
+  .c-btn.sar-on {
+    border-color: rgba(34,211,238,0.5); color: #22d3ee;
+    background: rgba(34,211,238,0.10);
+    box-shadow: 0 0 14px rgba(34,211,238,0.18);
+  }
+
+  .tilt-wrap {
+    display:flex; align-items:center; gap:8px;
+    padding:7px 12px; border-radius:5px;
+    border:1px solid rgba(255,255,255,0.1);
+    background:rgba(9,9,24,0.88); backdrop-filter:blur(8px);
+  }
+  .tilt-lbl { font-family:var(--mono); font-size:8px; letter-spacing:1.5px; color:var(--w3); text-transform:uppercase; white-space:nowrap; }
+  #tilt-slider {
+    -webkit-appearance:none; appearance:none;
+    width:100px; height:2px;
+    background:rgba(255,255,255,0.12);
+    border-radius:1px; outline:none; cursor:pointer;
+  }
+  #tilt-slider::-webkit-slider-thumb {
+    -webkit-appearance:none; appearance:none;
+    width:12px; height:12px; border-radius:50%;
+    background:var(--accent); cursor:pointer;
+    box-shadow:0 0 8px var(--accent);
+    transition: background 0.3s;
+  }
+  #tilt-slider::-moz-range-thumb {
+    width:12px; height:12px; border-radius:50%; border:none;
+    background:var(--accent); cursor:pointer;
+  }
+  #tilt-val { font-family:var(--mono); font-size:9px; color:var(--w3); min-width:26px; text-align:right; }
+
+  /* ══ SCAN LINE ══ */
+  #scan { position:absolute; inset:0; pointer-events:none; overflow:hidden; }
+  #scan::after {
+    content:''; position:absolute; left:0; right:0; height:2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0.18;
+    animation: scan-anim 8s linear infinite;
+  }
+
+  /* ══ LOADING ══ */
+  #loading {
+    position:fixed; inset:0; background:var(--bg);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:14px; z-index:999; transition:opacity 0.6s;
+  }
+  .ld-logo { font-family:var(--mono); font-size:13px; letter-spacing:4px; color:var(--gold); text-transform:uppercase; }
+  .ld-sub  { font-family:var(--mono); font-size:8px;  letter-spacing:2.5px; color:var(--w3); text-transform:uppercase; }
+  .ld-bar  { width:200px; height:1px; background:rgba(255,255,255,0.08); overflow:hidden; }
+  .ld-fill { height:100%; background:var(--gold); animation:ld-anim 1.8s cubic-bezier(.4,0,.2,1) forwards; }
+
+  /* ══ KEYFRAMES ══ */
+  @keyframes dot-pulse  { 0%,100%{opacity:1;} 50%{opacity:0.35;} }
+  @keyframes scan-anim  { 0%{top:-2px;} 100%{top:100%;} }
+  @keyframes ld-anim    { from{width:0} to{width:100%} }
+</style>
+</head>
+<body>
+
+<!-- MAP TILT CONTAINER -->
+<div id="tilt-wrap">
+  <div id="map"></div>
+</div>
+
+<!-- UI LAYER (no tilt) -->
+<div id="ui">
+  <div id="scan"></div>
+
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div class="sb-logo-row">
+      <div class="sb-logo">FARO PROTOCOL</div>
+      <div class="sb-sub">Visor Táctico · 6 Sectores</div>
+    </div>
+    <div class="sb-sec-lbl">Sectores</div>
+    <div id="sector-list"></div>
+    <div class="sb-footer">
+      <span class="sb-dot"></span>
+      <span class="sb-status">Pipeline Active · 10 Áreas</span>
+    </div>
+  </div>
+
+  <!-- HUD -->
+  <div id="hud">
+    <div class="hud-top">
+      <div>
+        <div class="hud-asset" id="h-asset">— —</div>
+        <div class="hud-country" id="h-country">—</div>
+      </div>
+      <div class="hud-badge">✓ PIPELINE ACTIVE</div>
+    </div>
+
+    <div class="hud-row" style="margin-bottom:4px">
+      <span class="hud-lbl">Score Faro</span>
+      <span class="hud-score-num" id="h-score">—</span>
+    </div>
+    <div class="hud-score-bar"><div class="hud-score-fill" id="h-score-fill"></div></div>
+
+    <div class="hud-row">
+      <span class="hud-lbl">NDVI</span>
+      <span class="hud-val" id="h-ndvi">—</span>
+    </div>
+    <div class="hud-row">
+      <span class="hud-lbl">SAR σ°</span>
+      <span class="hud-val" id="h-sar">—</span>
+    </div>
+    <div class="hud-row">
+      <span class="hud-lbl">Fusión</span>
+      <span class="hud-val" id="h-fusion">—</span>
+    </div>
+    <div class="hud-row">
+      <span class="hud-lbl">Píxeles</span>
+      <span class="hud-val" id="h-pixels">—</span>
+    </div>
+    <div class="hud-row">
+      <span class="hud-lbl">Último run</span>
+      <span class="hud-val" id="h-run">—</span>
+    </div>
+    <div class="hud-row" id="h-extra-row" style="display:none">
+      <span class="hud-lbl" id="h-extra-lbl">—</span>
+      <span class="hud-val" id="h-extra-val">—</span>
+    </div>
+
+    <div class="hud-div"></div>
+    <div class="hud-sha-lbl">SHA-256 · Estado de Escena</div>
+    <div class="hud-sha-val" id="h-sha">computando…</div>
+    <div class="hud-sha-ts"  id="h-sha-ts">—</div>
+    <div class="hud-nota"    id="h-nota" style="display:none"></div>
+  </div>
+
+  <!-- TOP LABEL -->
+  <div id="top-label">
+    <div class="top-lbl-inner" id="top-lbl">— Seleccionar sector</div>
+  </div>
+
+  <!-- COORDS -->
+  <div id="coords">LAT — · LON —</div>
+
+  <!-- BOTTOM CONTROLS -->
+  <div id="ctrl-bar">
+    <div class="c-btn" id="btn-sar" onclick="toggleSAR()">◉ SAR OFF</div>
+    <div class="tilt-wrap">
+      <span class="tilt-lbl">Tilt</span>
+      <input type="range" id="tilt-slider" min="0" max="42" value="0" step="1">
+      <span id="tilt-val">0°</span>
+    </div>
+  </div>
+</div>
+
+<!-- LOADING -->
+<div id="loading">
+  <div class="ld-logo">FARO PROTOCOL</div>
+  <div class="ld-sub">Satellite Intelligence · Mapa Táctico</div>
+  <div class="ld-bar"><div class="ld-fill"></div></div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+//  DATOS REALES — data.json + faro_areas/*.json
+// ════════════════════════════════════════════════════════════
+const SECTORS = [
+  {
+    id: 'og', icon: '⛽', label: 'Energía O&G',
+    area: 'Vaca Muerta', pais: 'Neuquén, Argentina',
+    color: '#f97316',
+    // Leaflet: [lat, lon]
+    mapCenter: [-37.5, -69.0], mapZoom: 10,
+    // Polígonos SAR [[lat,lon],...]
+    polygons: [
+      [[-38.0,-70.0],[-38.0,-68.0],[-37.0,-68.0],[-37.0,-70.0]]
+    ],
+    score_faro: 42.1, ndvi: 0.0941, sar_db: -10.4093, fusion: 0.4212,
+    pixeles: 13392000, actividad: 50.6, rinde: null, estado: 'OK',
+    ultimo_run: '2026-04-07 17:26',
+    sha256: 'fd2a23ebe1b3759b993951f7f8360bb7d9b8f4892cef63a0753db25fb6655e6a',
+    nota: null
+  },
+  {
+    id: 'agro', icon: '🌾', label: 'Agroindustria',
+    area: 'Balcarce', pais: 'Buenos Aires, Argentina',
+    color: '#c9a84c',
+    mapCenter: [-37.8, -58.0], mapZoom: 11,
+    polygons: [
+      [[-38.3,-58.5],[-38.3,-57.5],[-37.3,-57.5],[-37.3,-58.5]]
+    ],
+    score_faro: 69.5, ndvi: 0.5328, sar_db: 15.4836, fusion: 0.7599,
+    pixeles: 124077285, actividad: null, rinde: 2.8, estado: 'OK',
+    ultimo_run: '2026-04-08 02:06',
+    sha256: '5233ec238815393a6e98fdb11b42a9f86574df9586258b16c34980f26f4a8f7d',
+    nota: null
+  },
+  {
+    id: 'maritimo', icon: '⚓', label: 'Marítimo',
+    area: 'Rotterdam', pais: 'Países Bajos',
+    color: '#22d3ee',
+    mapCenter: [51.9, 4.4], mapZoom: 12,
+    polygons: [
+      [[51.8,4.1],[51.8,4.7],[52.0,4.7],[52.0,4.1]]
+    ],
+    score_faro: 38.3, ndvi: 0.2799, sar_db: -11.9645, fusion: 0.4543,
+    pixeles: 3967488, actividad: 40.2, rinde: null, estado: 'OK',
+    ultimo_run: '2026-04-07 17:30',
+    sha256: '99fa9be2368cc7c9265b917d5f1b9148e3e86d6e97ba461d5b795a5fcb28c9f9',
+    nota: null
+  },
+  {
+    id: 'infra', icon: '⚙️', label: 'Infraestructura',
+    area: 'Punta Colorada', pais: 'Río Negro, Argentina',
+    color: '#8b5cf6',
+    mapCenter: [-40.5, -65.0], mapZoom: 11,
+    polygons: [
+      [[-41.0,-65.5],[-41.0,-64.5],[-40.0,-64.5],[-40.0,-65.5]]
+    ],
+    score_faro: 41.2, ndvi: 0.098, sar_db: -11.704, fusion: 0.5057,
+    pixeles: 5066733, actividad: 42.0, rinde: null, estado: 'OK',
+    ultimo_run: '2026-04-09 09:31',
+    sha256: '55f69af4dd11972ab9f9a95b8150ecdd95cb50ed7e6c86d2aac2040f72a8ebef',
+    nota: null
+  },
+  {
+    id: 'mineria', icon: '⬡', label: 'Minería',
+    area: 'Cauchari (Litio)', pais: 'Jujuy, Argentina',
+    color: '#a78bfa',
+    mapCenter: [-24.04, -66.75], mapZoom: 13,
+    // Piletas de evaporación (de visor_tactico.py)
+    polygons: [
+      [[-23.990,-66.782],[-23.990,-66.748],[-23.965,-66.748],[-23.965,-66.782]],
+      [[-23.990,-66.748],[-23.990,-66.715],[-23.965,-66.715],[-23.965,-66.748]],
+      [[-24.028,-66.782],[-24.028,-66.715],[-23.990,-66.715],[-23.990,-66.782]],
+      [[-24.065,-66.782],[-24.065,-66.715],[-24.028,-66.715],[-24.028,-66.782]],
+      [[-24.110,-66.810],[-24.110,-66.720],[-24.065,-66.720],[-24.065,-66.810]]
+    ],
+    score_faro: 44.7, ndvi: 0.052, sar_db: -9.81, fusion: 0.4890,
+    pixeles: 8200000, actividad: 55.3, rinde: null, estado: 'OK',
+    ultimo_run: '2026-04-07 17:36',
+    sha256: '54789e08ae0db3765af03c0b5ea50a998cd9b268e4d906f5dd94513eca1bab6a',
+    nota: 'Cauchari-Olaroz · piletas de evaporación'
+  },
+  {
+    id: 'esg', icon: '◈', label: 'ESG',
+    area: 'Amazonas', pais: 'Mato Grosso, Brasil',
+    color: '#00ff41',
+    mapCenter: [-11.8, -55.5], mapZoom: 9,
+    polygons: [
+      [[-13.0,-57.0],[-13.0,-54.0],[-10.6,-54.0],[-10.6,-57.0]]
+    ],
+    score_faro: 66.3, ndvi: 0.2834, sar_db: -5.3823, fusion: 0.6073,
+    pixeles: 15200000, actividad: 84.1, rinde: null, estado: 'OK',
+    ultimo_run: '2026-04-07 17:42',
+    sha256: '22dbb6ac3400bf0935251210f6067f5bdc5e4e3033edebbbe73eea518639e05b',
+    nota: null
+  }
+];
+
+// ════════════════════════════════════════════════════════════
+//  SHA-256 via Web Crypto API
+// ════════════════════════════════════════════════════════════
+async function sha256(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+// ════════════════════════════════════════════════════════════
+//  LEAFLET INIT — ESRI World Imagery (gratuito, sin token)
+// ════════════════════════════════════════════════════════════
+const map = L.map('map', {
+  center: [-37.5, -69.0],
+  zoom: 10,
+  zoomControl: false,
+  preferCanvas: false,
+});
+
+L.tileLayer(
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  {
+    attribution: 'Imagery &copy; Esri · Faro Protocol · Sentinel-1/2',
+    maxZoom: 19
+  }
+).addTo(map);
+
+L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+// ════════════════════════════════════════════════════════════
+//  LAYERS STATE
+// ════════════════════════════════════════════════════════════
+let zoneLayer  = null;   // outline siempre visible
+let sarLayer   = null;   // fill animado, solo cuando SAR ON
+let sarActive  = false;
+let sarRaf     = null;
+let sarFill    = 0.30;
+let sarDir     = 1;
+let activeSector = null;
+
+// ── Construye capas para el sector seleccionado ──
+function buildLayers(sd) {
+  // Limpia capas anteriores
+  if (zoneLayer) { map.removeLayer(zoneLayer); zoneLayer = null; }
+  if (sarLayer)  { map.removeLayer(sarLayer);  sarLayer  = null; }
+  cancelAnimationFrame(sarRaf);
+
+  // Outline permanente (dashed)
+  zoneLayer = L.layerGroup(
+    sd.polygons.map(pts => L.polygon(pts, {
+      color: sd.color, weight: 1.5, dashArray: '5,6',
+      opacity: 0.45, fillOpacity: 0, interactive: false
+    }))
+  ).addTo(map);
+
+  // Filled layer para SAR
+  sarFill = 0.30; sarDir = 1;
+  sarLayer = L.layerGroup(
+    sd.polygons.map(pts => L.polygon(pts, {
+      color: sd.color, fillColor: sd.color,
+      weight: 2.2, opacity: 0.85, fillOpacity: 0.30,
+      interactive: false
+    }))
+  );
+
+  // Si SAR ya estaba ON, re-agrega inmediatamente
+  if (sarActive) {
+    sarLayer.addTo(map);
+    sarRaf = requestAnimationFrame(animateSar);
+  }
+}
+
+// ── Pulso SAR ──
+function animateSar() {
+  sarFill += sarDir * 0.009;
+  if (sarFill >= 0.58) { sarFill = 0.58; sarDir = -1; }
+  if (sarFill <= 0.18) { sarFill = 0.18; sarDir =  1; }
+  if (sarLayer) sarLayer.eachLayer(l => l.setStyle({ fillOpacity: sarFill }));
+  sarRaf = requestAnimationFrame(animateSar);
+}
+
+// ════════════════════════════════════════════════════════════
+//  SIDEBAR
+// ════════════════════════════════════════════════════════════
+function buildSidebar() {
+  const list = document.getElementById('sector-list');
+  SECTORS.forEach(sd => {
+    const sc = sd.score_faro >= 60 ? '#00ff41' : sd.score_faro >= 45 ? sd.color : '#f97316';
+    const btn = document.createElement('div');
+    btn.className = 's-btn'; btn.id = `sb-${sd.id}`;
+    btn.innerHTML = `
+      <div class="s-icon" style="color:${sd.color};border-color:${sd.color}44;background:${sd.color}13">${sd.icon}</div>
+      <div class="s-info">
+        <div class="s-name">${sd.label}</div>
+        <div class="s-area">${sd.area}</div>
+      </div>
+      <div class="s-score" style="color:${sc};background:${sc}17;border-color:${sc}40">${sd.score_faro.toFixed(0)}</div>
+    `;
+    btn.addEventListener('click', () => selectSector(sd.id));
+    list.appendChild(btn);
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+//  SELECT SECTOR
+// ════════════════════════════════════════════════════════════
+function selectSector(id) {
+  const sd = SECTORS.find(s => s.id === id);
+  if (!sd || sd === activeSector) return;
+  activeSector = sd;
+
+  // Sidebar active
+  document.querySelectorAll('.s-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`sb-${sd.id}`).classList.add('active');
+
+  // CSS accent variable (scan line, tilt thumb, zoom controls)
+  document.documentElement.style.setProperty('--accent', sd.color);
+
+  // Top label
+  const lbl = document.getElementById('top-lbl');
+  lbl.textContent = `${sd.label}  ·  ${sd.area}  ·  ${sd.pais}`;
+  lbl.style.color = sd.color;
+  lbl.parentElement.style.borderColor = `${sd.color}33`;
+
+  // HUD border
+  document.getElementById('hud').style.borderColor = `${sd.color}44`;
+
+  // Coords color
+  document.getElementById('coords').style.color = `${sd.color}99`;
+
+  // Fly to area
+  map.flyTo(sd.mapCenter, sd.mapZoom, { duration: 1.4, easeLinearity: 0.3 });
+
+  // Rebuild map layers
+  buildLayers(sd);
+
+  // Update HUD
+  updateHUD(sd);
+}
+
+// ════════════════════════════════════════════════════════════
+//  HUD UPDATE
+// ════════════════════════════════════════════════════════════
+async function updateHUD(sd) {
+  document.getElementById('h-asset').textContent   = sd.area.toUpperCase();
+  document.getElementById('h-country').textContent = sd.pais;
+  document.getElementById('h-ndvi').textContent    = sd.ndvi.toFixed(4);
+  document.getElementById('h-sar').textContent     = sd.sar_db.toFixed(2) + ' dB';
+  document.getElementById('h-fusion').textContent  = sd.fusion.toFixed(4);
+  document.getElementById('h-pixels').textContent  = (sd.pixeles / 1e6).toFixed(2) + 'M px';
+  document.getElementById('h-run').textContent     = sd.ultimo_run;
+
+  const scoreEl = document.getElementById('h-score');
+  scoreEl.textContent = sd.score_faro.toFixed(1);
+  scoreEl.style.color = sd.color;
+
+  const fill = document.getElementById('h-score-fill');
+  fill.style.width      = sd.score_faro + '%';
+  fill.style.background = sd.color;
+
+  // Métrica extra
+  const eRow = document.getElementById('h-extra-row');
+  if (sd.rinde != null) {
+    eRow.style.display = 'flex';
+    document.getElementById('h-extra-lbl').textContent = 'Rinde Est.';
+    document.getElementById('h-extra-val').textContent = sd.rinde.toFixed(2) + ' t/ha';
+  } else if (sd.actividad != null) {
+    eRow.style.display = 'flex';
+    document.getElementById('h-extra-lbl').textContent = 'Actividad';
+    document.getElementById('h-extra-val').textContent = sd.actividad.toFixed(1);
+  } else {
+    eRow.style.display = 'none';
+  }
+
+  // Nota
+  const notaEl = document.getElementById('h-nota');
+  if (sd.nota) { notaEl.style.display = 'block'; notaEl.textContent = '⚑ ' + sd.nota; }
+  else          { notaEl.style.display = 'none'; }
+
+  // SHA-256 real-time del estado de la escena
+  const now  = new Date().toISOString();
+  const str  = `${now.split('T')[0]}|${sd.area}|${sd.score_faro}|${sd.sar_db}|${sd.ndvi}|${sd.fusion}`;
+  const hash = await sha256(str);
+  document.getElementById('h-sha').textContent = hash;
+  document.getElementById('h-sha').style.color = sd.color;
+  document.getElementById('h-sha-ts').textContent = `Generado: ${now.replace('T',' ').slice(0,19)} UTC`;
+}
+
+// Refresca SHA cada 60s
+setInterval(() => { if (activeSector) updateHUD(activeSector); }, 60000);
+
+// ════════════════════════════════════════════════════════════
+//  SAR TOGGLE
+// ════════════════════════════════════════════════════════════
+function toggleSAR() {
+  sarActive = !sarActive;
+  const btn = document.getElementById('btn-sar');
+
+  if (sarActive) {
+    btn.textContent = '◉ SAR ON';
+    btn.className = 'c-btn sar-on';
+    if (sarLayer) { sarLayer.addTo(map); sarRaf = requestAnimationFrame(animateSar); }
+  } else {
+    btn.textContent = '◉ SAR OFF';
+    btn.className = 'c-btn';
+    cancelAnimationFrame(sarRaf);
+    if (sarLayer) map.removeLayer(sarLayer);
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+//  TILT 3D
+// ════════════════════════════════════════════════════════════
+const mapEl    = document.getElementById('map');
+const tiltSlid = document.getElementById('tilt-slider');
+const tiltValEl= document.getElementById('tilt-val');
+
+tiltSlid.addEventListener('input', function() {
+  const deg = parseInt(this.value, 10);
+  tiltValEl.textContent = deg + '°';
+  mapEl.style.transform = deg > 0 ? `rotateX(-${deg}deg)` : 'none';
+  setTimeout(() => map.invalidateSize(), 350);
+});
+
+// ════════════════════════════════════════════════════════════
+//  COORDENADAS VIVAS
+// ════════════════════════════════════════════════════════════
+map.on('mousemove', function(e) {
+  const la  = e.latlng.lat, lo = e.latlng.lng;
+  const lat = (la < 0 ? Math.abs(la).toFixed(5) + '°S' : la.toFixed(5) + '°N');
+  const lon = (lo < 0 ? Math.abs(lo).toFixed(5) + '°W' : lo.toFixed(5) + '°E');
+  document.getElementById('coords').textContent = `LAT ${lat}  ·  LON ${lon}`;
+});
+
+// ════════════════════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════════════════════
+buildSidebar();
+selectSector('og');   // sector por defecto
+
+setTimeout(() => {
+  const ld = document.getElementById('loading');
+  ld.style.opacity = '0';
+  setTimeout(() => ld.remove(), 600);
+}, 1600);
+</script>
+</body>
+</html>
