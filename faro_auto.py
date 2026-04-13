@@ -239,7 +239,32 @@ def _post_pipeline(dry_run: bool = False):
     else:
         _log.warning("  [Post-pipeline] faro_certificado.py no encontrado — saltando")
 
-    # 3. Git commit + push — publica reportes nuevos a Netlify vía origin/master
+    # 3. Notificaciones WhatsApp para anomalías críticas (score < 40)
+    _log.info("  [Post-pipeline] Verificando anomalías críticas...")
+    try:
+        import json as _json
+        data_path = PROJECT_ROOT / 'data.json'
+        if data_path.exists():
+            data = _json.loads(data_path.read_text(encoding='utf-8'))
+            pipeline_data = data.get('pipeline', {})
+            for area_name, area_data in pipeline_data.items():
+                if not isinstance(area_data, dict):
+                    continue
+                score   = area_data.get('score_faro', 100)
+                estado  = area_data.get('estado', 'OK')
+                anomaly = area_data.get('pct_anomalia', 0) or 0
+                if score < 40 or estado == 'ALERTA' or anomaly > 0:
+                    alerta_txt = area_data.get('alerta') or f'score_faro={score:.1f}'
+                    _log.warning(f"  [ALERTA] {area_name}: score={score:.1f} estado={estado}")
+                    try:
+                        from faro_notifier import notify_critical_anomaly
+                        notify_critical_anomaly(area_name, score, str(alerta_txt)[:200])
+                    except Exception as e:
+                        _log.warning(f"  [Notifier] Error enviando alerta {area_name}: {e}")
+    except Exception as e:
+        _log.warning(f"  [Post-pipeline] Error leyendo data.json para alertas: {e}")
+
+    # 4. Git commit + push — publica reportes nuevos a Netlify vía origin/master
     from datetime import timezone, timedelta
     ART = timezone(timedelta(hours=-3))
     ts  = datetime.now(ART).strftime('%Y-%m-%d %H:%M ART')

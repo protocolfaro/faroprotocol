@@ -270,7 +270,33 @@
   @keyframes sl         { 0%{top:-1px} 100%{top:100%} }
   @keyframes badge-pulse{ 0%,100%{box-shadow:0 0 8px rgba(0,0,0,0.3)} 50%{box-shadow:0 0 20px var(--accent)} }
   @keyframes ld-anim    { from{width:0} to{width:100%} }
+
+  /* Auth guard overlay */
+  #auth-guard {
+    position: fixed; inset: 0; z-index: 99999;
+    background: #0a0a1a;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 18px;
+  }
+  #auth-guard .ag-logo {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px; letter-spacing: 0.35em;
+    color: #c9a84c; text-transform: uppercase; font-weight: 300;
+  }
+  #auth-guard .ag-msg {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px; color: rgba(242,237,228,0.32);
+    letter-spacing: 1.5px; text-transform: uppercase;
+  }
+  #auth-guard .ag-dot {
+    width: 6px; height: 6px; border-radius: 50%; background: #c9a84c;
+    animation: pd 1s ease-in-out infinite;
+  }
 </style>
+<!-- Firebase compat SDK (no requiere módulos ES) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
 
@@ -357,6 +383,13 @@
 
   <!-- Coords vivas -->
   <div id="coords">LAT — · LON — · ALT —</div>
+</div>
+
+<!-- Auth guard overlay — visible hasta que Firebase confirme sesión activa -->
+<div id="auth-guard">
+  <div class="ag-logo">FARO PROTOCOL</div>
+  <div class="ag-dot"></div>
+  <div class="ag-msg">Verificando sesión · Satellite Intelligence</div>
 </div>
 
 <!-- Loading -->
@@ -823,16 +856,104 @@ evtHandler.setInputAction(function (mov) {
 }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
 // ════════════════════════════════════════════════════════════
-//  INIT
+//  FIREBASE AUTH GUARD
+//  Verifica sesión antes de mostrar el visor.
+//  En localhost/127.0.0.1: modo dev, sin verificación.
+//  En producción: redirige a pricing si no hay sesión activa.
 // ════════════════════════════════════════════════════════════
-buildSidebar();
-selectSector('og');   // sector por defecto: Vaca Muerta
+const _FB_CFG = {
+  apiKey:            'AIzaSyBWxpKBjdHj3k7K1SLQV78L55p27UY-PZY',
+  authDomain:        'faro-protocol-906a5.firebaseapp.com',
+  projectId:         'faro-protocol-906a5',
+  storageBucket:     'faro-protocol-906a5.firebasestorage.app',
+  messagingSenderId: '423899630238',
+  appId:             '1:423899630238:web:489ede6df61da3d8ca898f',
+};
+const _PRICING_URL = '../faro_website.html#pricing';
 
-setTimeout(() => {
-  const ld = document.getElementById('loading');
-  ld.style.opacity = '0';
-  setTimeout(() => ld.remove(), 600);
-}, 2200);
+// Mapa area → sector ID (para filtrar sidebar según áreas del cliente)
+const _AREA_TO_SECTOR = {
+  vaca_muerta:    'og',
+  balcarce:       'agro',
+  rotterdam:      'maritimo',
+  punta_colorada: 'infra',
+  pilbara:        'mineria',
+  amazonas:       'esg',
+};
+
+async function _faroAuthAndInit() {
+  const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+  let profile = null;
+
+  if (!isLocal) {
+    try {
+      const fbApp  = firebase.apps.length
+        ? firebase.app()
+        : firebase.initializeApp(_FB_CFG);
+      const fbAuth = firebase.auth(fbApp);
+      const fbDb   = firebase.firestore(fbApp);
+
+      // Esperar resolución de auth state (timeout 6s)
+      const user = await new Promise((resolve) => {
+        const unsub = fbAuth.onAuthStateChanged(u => { unsub(); resolve(u); });
+        setTimeout(() => resolve(null), 6000);
+      });
+
+      if (!user) {
+        window.location.href = _PRICING_URL;
+        return;
+      }
+
+      const snap = await fbDb.collection('clients').doc(user.uid).get();
+      if (!snap.exists) {
+        window.location.href = _PRICING_URL;
+        return;
+      }
+
+      profile = snap.data();
+      const isActive = (
+        profile.status === 'active' ||
+        profile.active_subscription === true
+      );
+      if (!isActive) {
+        window.location.href = _PRICING_URL;
+        return;
+      }
+
+    } catch (err) {
+      console.warn('[Faro Auth] Error:', err.message || err);
+      window.location.href = _PRICING_URL;
+      return;
+    }
+  } else {
+    console.info('[Faro Auth] Dev mode (localhost) — sin verificación Firebase');
+  }
+
+  // ── Filtrar SECTORS por áreas del cliente (si aplica) ──
+  if (profile && profile.areas && !profile.areas.includes('*')) {
+    const allowed = new Set(
+      profile.areas.map(a => _AREA_TO_SECTOR[a] || a)
+    );
+    // Eliminar sectores no permitidos (iterar al revés para splice seguro)
+    for (let i = SECTORS.length - 1; i >= 0; i--) {
+      if (!allowed.has(SECTORS[i].id)) SECTORS.splice(i, 1);
+    }
+  }
+
+  // ── Remover auth guard y mostrar visor ──
+  const ag = document.getElementById('auth-guard');
+  if (ag) { ag.style.opacity = '0'; setTimeout(() => ag.remove(), 400); }
+
+  buildSidebar();
+  selectSector(SECTORS[0]?.id ?? 'og');
+
+  setTimeout(() => {
+    const ld = document.getElementById('loading');
+    if (ld) { ld.style.opacity = '0'; setTimeout(() => ld.remove(), 600); }
+  }, 2200);
+}
+
+_faroAuthAndInit();
 </script>
 </body>
 </html>
