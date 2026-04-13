@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FARO PROTOCOL — Visor 3D · 6 Sectores</title>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg:      #0a0a1a;
+    --bg2:     #0c0c1e;
+    --bg3:     #111128;
+    --gold:    #c9a84c;
+    --gl:      #e2c97e;
+    --cyan:    #22d3ee;
+    --orange:  #f97316;
+    --green:   #00ff41;
+    --violet:  #a78bfa;
+    --purple:  #8b5cf6;
+    --w:       #f2ede4;
+    --w2:      rgba(242,237,228,0.75);
+    --w3:      rgba(242,237,228,0.4);
+    --mono:   'JetBrains Mono','Fira Code','Cascadia Code',monospace;
+    --sans:   'Inter','Segoe UI',system-ui,sans-serif;
+    --sw: 264px;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--bg);
+    color: var(--w);
+    font-family: var(--sans);
+    overflow: hidden;
+  }
+
+  /* ────────── CANVAS ────────── */
+  #canvas3d {
+    position: fixed;
+    top: 0;
+    left: var(--sw);
+    width: calc(100% - var(--sw));
+    height: 100%;
+    display: block;
+  }
+
+  /* ────────── SIDEBAR ────────── */
+  #sidebar {
+    position: fixed;
+    top: 0; left: 0;
+    width: var(--sw);
+    height: 100%;
+    background: linear-gradient(180deg, #09091c 0%, #07071a 100%);
+    border-right: 1px solid rgba(255,255,255,0.055);
+    display: flex;
+    flex-direction: column;
+    z-index: 100;
+    overflow: hidden;
+  }
+
+  .sb-logo-row {
+    padding: 18px 16px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.055);
+    flex-shrink: 0;
+  }
+  .sb-logo {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: var(--gold);
+    text-transform: uppercase;
+  }
+  .sb-sub {
+    font-size: 8.5px;
+    letter-spacing: 1.5px;
+    color: var(--w3);
+    text-transform: uppercase;
+    margin-top: 3px;
+  }
+
+  .sb-section-lbl {
+    padding: 14px 16px 6px;
+    font-size: 7.5px;
+    letter-spacing: 2.5px;
+    color: var(--w3);
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+
+  #sector-list {
+    flex: 1;
+    overflow-y: auto;
+    padding-bottom: 8px;
+    scrollbar-width: none;
+  }
+  #sector-list::-webkit-scrollbar { display: none; }
+
+  .s-btn {
+    margin: 2px 10px;
+    padding: 10px 12px;
+    border-radius: 7px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    background: transparent;
+    transition: background 0.18s, border-color 0.18s;
+    display: flex;
+    align-items: center;
+    gap: 11px;
+  }
+  .s-btn:hover {
+    background: rgba(255,255,255,0.035);
+    border-color: rgba(255,255,255,0.07);
+  }
+  .s-btn.active {
+    background: rgba(255,255,255,0.065);
+    border-color: rgba(255,255,255,0.13);
+  }
+
+  .s-icon {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 17px;
+    flex-shrink: 0;
+    border: 1px solid;
+    transition: box-shadow 0.2s;
+  }
+  .s-btn.active .s-icon { box-shadow: 0 0 10px currentColor; }
+
+  .s-info { flex: 1; min-width: 0; }
+  .s-name {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--w);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 2px;
+  }
+  .s-area {
+    font-size: 9px;
+    color: var(--w3);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .s-score {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    border: 1px solid;
+  }
+
+  .sb-footer {
+    padding: 12px 16px;
+    border-top: 1px solid rgba(255,255,255,0.055);
+    flex-shrink: 0;
+  }
+  .sb-status-dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+    margin-right: 6px;
+    box-shadow: 0 0 6px var(--green);
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+  @keyframes pulse-dot {
+    0%,100% { opacity: 1; } 50% { opacity: 0.4; }
+  }
+  .sb-status-txt {
+    font-family: var(--mono);
+    font-size: 8.5px;
+    color: var(--green);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  /* ────────── HUD ────────── */
+  #hud {
+    position: fixed;
+    top: 14px; right: 14px;
+    width: 308px;
+    background: rgba(9,9,24,0.93);
+    backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px;
+    padding: 15px 17px 14px;
+    z-index: 200;
+    font-family: var(--mono);
+    transition: border-color 0.3s;
+  }
+
+  .hud-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 13px;
+    padding-bottom: 11px;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    gap: 10px;
+  }
+  .hud-asset-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--w);
+    letter-spacing: 0.5px;
+    line-height: 1.2;
+  }
+  .hud-country {
+    font-size: 9px;
+    color: var(--w3);
+    margin-top: 3px;
+    letter-spacing: 0.3px;
+  }
+  .hud-badge {
+    font-size: 8.5px;
+    padding: 3px 9px;
+    border-radius: 4px;
+    background: rgba(0,255,65,0.09);
+    color: var(--green);
+    border: 1px solid rgba(0,255,65,0.2);
+    letter-spacing: 0.4px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .hud-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 7px;
+  }
+  .hud-lbl {
+    font-size: 8px;
+    color: var(--w3);
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+  }
+  .hud-val {
+    font-size: 11px;
+    color: var(--w);
+    font-weight: 600;
+  }
+
+  .hud-score-wrap { margin-bottom: 10px; }
+  .hud-score-num {
+    font-size: 22px;
+    font-weight: 800;
+    line-height: 1;
+    margin-bottom: 5px;
+    transition: color 0.3s;
+  }
+  .hud-score-bar {
+    height: 3px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .hud-score-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.8s ease, background 0.3s;
+  }
+
+  .hud-div {
+    height: 1px;
+    background: rgba(255,255,255,0.06);
+    margin: 10px 0;
+  }
+
+  .hud-sha-lbl {
+    font-size: 7.5px;
+    color: var(--w3);
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+  }
+  .hud-sha-val {
+    font-size: 8.5px;
+    word-break: break-all;
+    line-height: 1.6;
+    transition: color 0.3s;
+    opacity: 0.85;
+  }
+  .hud-sha-ts {
+    font-size: 7.5px;
+    color: var(--w3);
+    margin-top: 4px;
+    letter-spacing: 0.3px;
+  }
+
+  .hud-nota {
+    font-size: 8px;
+    color: rgba(249,115,22,0.7);
+    margin-top: 6px;
+    letter-spacing: 0.3px;
+    font-style: italic;
+  }
+
+  /* ────────── TOP LABEL ────────── */
+  #top-label {
+    position: fixed;
+    top: 14px;
+    left: calc(var(--sw) + 14px);
+    z-index: 200;
+  }
+  .top-label-inner {
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 6px 13px;
+    background: rgba(9,9,24,0.85);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 5px;
+    backdrop-filter: blur(8px);
+    transition: color 0.3s, border-color 0.3s;
+  }
+
+  /* ────────── CONTROLS BAR ────────── */
+  #ctrl-bar {
+    position: fixed;
+    bottom: 16px;
+    left: calc(var(--sw) + 50%);
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    z-index: 200;
+  }
+  .c-btn {
+    padding: 7px 15px;
+    border-radius: 5px;
+    border: 1px solid rgba(255,255,255,0.11);
+    background: rgba(9,9,24,0.88);
+    color: var(--w2);
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: 1px;
+    cursor: pointer;
+    text-transform: uppercase;
+    backdrop-filter: blur(8px);
+    transition: all 0.18s;
+    user-select: none;
+  }
+  .c-btn:hover {
+    background: rgba(255,255,255,0.07);
+    border-color: rgba(255,255,255,0.18);
+  }
+  .c-btn.sar-on {
+    border-color: rgba(34,211,238,0.5);
+    color: var(--cyan);
+    background: rgba(34,211,238,0.1);
+    box-shadow: 0 0 14px rgba(34,211,238,0.18);
+  }
+
+  /* ────────── LOADING ────────── */
+  #loading {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 14px;
+    z-index: 999;
+    transition: opacity 0.6s;
+  }
+  .ld-logo {
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 4px;
+    color: var(--gold);
+    text-transform: uppercase;
+  }
+  .ld-sub {
+    font-family: var(--mono);
+    font-size: 8.5px;
+    letter-spacing: 2px;
+    color: var(--w3);
+    text-transform: uppercase;
+  }
+  .ld-bar {
+    width: 220px; height: 1px;
+    background: rgba(255,255,255,0.08);
+    position: relative; overflow: hidden;
+  }
+  .ld-fill {
+    position: absolute; top: 0; left: 0; height: 100%;
+    background: var(--gold);
+    animation: ldAnim 1.8s cubic-bezier(0.4,0,0.2,1) forwards;
+  }
+  @keyframes ldAnim { from { width:0 } to { width:100% } }
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loading">
+  <div class="ld-logo">FARO PROTOCOL</div>
+  <div class="ld-sub">Satellite · SAR · Multi-Sector</div>
+  <div class="ld-bar"><div class="ld-fill"></div></div>
+</div>
+
+<!-- SIDEBAR -->
+<div id="sidebar">
+  <div class="sb-logo-row">
+    <div class="sb-logo">FARO PROTOCOL</div>
+    <div class="sb-sub">Visor 3D · 6 Sectores Activos</div>
+  </div>
+  <div class="sb-section-lbl">Sectores</div>
+  <div id="sector-list"></div>
+  <div class="sb-footer">
+    <span class="sb-status-dot"></span>
+    <span class="sb-status-txt">Pipeline Active · 10 Areas</span>
+  </div>
+</div>
+
+<!-- CANVAS -->
+<canvas id="canvas3d"></canvas>
+
+<!-- TOP LABEL -->
+<div id="top-label">
+  <div class="top-label-inner" id="top-lbl-txt">— Seleccionar sector</div>
+</div>
+
+<!-- HUD -->
+<div id="hud">
+  <div class="hud-top">
+    <div>
+      <div class="hud-asset-name" id="h-asset">— —</div>
+      <div class="hud-country" id="h-country">—</div>
+    </div>
+    <div class="hud-badge">✓ PIPELINE ACTIVE</div>
+  </div>
+
+  <div class="hud-score-wrap">
+    <div class="hud-row" style="margin-bottom:4px">
+      <span class="hud-lbl">Score Faro</span>
+      <span class="hud-score-num" id="h-score">—</span>
+    </div>
+    <div class="hud-score-bar">
+      <div class="hud-score-fill" id="h-score-fill"></div>
+    </div>
+  </div>
+
+  <div class="hud-row">
+    <span class="hud-lbl">NDVI</span>
+    <span class="hud-val" id="h-ndvi">—</span>
+  </div>
+  <div class="hud-row">
+    <span class="hud-lbl">SAR σ°</span>
+    <span class="hud-val" id="h-sar">—</span>
+  </div>
+  <div class="hud-row">
+    <span class="hud-lbl">Fusión</span>
+    <span class="hud-val" id="h-fusion">—</span>
+  </div>
+  <div class="hud-row">
+    <span class="hud-lbl">Píxeles</span>
+    <span class="hud-val" id="h-pixels">—</span>
+  </div>
+  <div class="hud-row">
+    <span class="hud-lbl">Último run</span>
+    <span class="hud-val" id="h-run">—</span>
+  </div>
+  <div class="hud-row" id="h-extra-row" style="display:none">
+    <span class="hud-lbl" id="h-extra-lbl">—</span>
+    <span class="hud-val" id="h-extra-val">—</span>
+  </div>
+
+  <div class="hud-div"></div>
+
+  <div class="hud-sha-lbl">SHA-256 · Estado de Escena</div>
+  <div class="hud-sha-val" id="h-sha">computando…</div>
+  <div class="hud-sha-ts" id="h-sha-ts">—</div>
+  <div class="hud-nota" id="h-nota" style="display:none"></div>
+</div>
+
+<!-- CONTROLS -->
+<div id="ctrl-bar">
+  <div class="c-btn" id="btn-sar" onclick="window._toggleSAR()">◉ SAR OFF</div>
+  <div class="c-btn" onclick="window._resetCam()">⟲ Reset Cámara</div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ═══════════════════════════════════════════════════════
+//  DATOS REALES — extraídos de data.json
+// ═══════════════════════════════════════════════════════
+const SECTORS = [
+  {
+    id: 'og',
+    icon: '⛽',
+    label: 'Energía O&G',
+    area: 'Vaca Muerta',
+    pais: 'Neuquén, Argentina',
+    color: '#f97316',
+    score_faro: 42.1,
+    ndvi: 0.0941,
+    sar_db: -10.4093,
+    fusion: 0.4212,
+    pixeles: 13392000,
+    actividad: 50.6,
+    rinde: null,
+    estado: 'OK',
+    ultimo_run: '2026-04-07 17:26',
+    sha256_orig: 'fd2a23ebe1b3759b993951f7f8360bb7d9b8f4892cef63a0753db25fb6655e6a',
+    nota: null,
+    terrain: { seed: 42, amp: 2.6, freq: 0.7, rough: 0.38 },
+    feat: 'oil'
+  },
+  {
+    id: 'agro',
+    icon: '🌾',
+    label: 'Agroindustria',
+    area: 'Balcarce',
+    pais: 'Buenos Aires, Argentina',
+    color: '#c9a84c',
+    score_faro: 69.5,
+    ndvi: 0.5328,
+    sar_db: 15.4836,
+    fusion: 0.7599,
+    pixeles: 124077285,
+    actividad: null,
+    rinde: 2.8,
+    estado: 'OK',
+    ultimo_run: '2026-04-08 02:06',
+    sha256_orig: '5233ec238815393a6e98fdb11b42a9f86574df9586258b16c34980f26f4a8f7d',
+    nota: null,
+    terrain: { seed: 17, amp: 1.1, freq: 0.32, rough: 0.10 },
+    feat: 'agro'
+  },
+  {
+    id: 'maritimo',
+    icon: '⚓',
+    label: 'Marítimo',
+    area: 'Rotterdam',
+    pais: 'Países Bajos',
+    color: '#22d3ee',
+    score_faro: 38.3,
+    ndvi: 0.2799,
+    sar_db: -11.9645,
+    fusion: 0.4543,
+    pixeles: 3967488,
+    actividad: 40.2,
+    rinde: null,
+    estado: 'OK',
+    ultimo_run: '2026-04-07 17:30',
+    sha256_orig: '99fa9be2368cc7c9265b917d5f1b9148e3e86d6e97ba461d5b795a5fcb28c9f9',
+    nota: null,
+    terrain: { seed: 99, amp: 0.35, freq: 0.18, rough: 0.04 },
+    feat: 'port'
+  },
+  {
+    id: 'infra',
+    icon: '⚙️',
+    label: 'Infraestructura',
+    area: 'Punta Colorada',
+    pais: 'Río Negro, Argentina',
+    color: '#8b5cf6',
+    score_faro: 41.2,
+    ndvi: 0.098,
+    sar_db: -11.704,
+    fusion: 0.5057,
+    pixeles: 5066733,
+    actividad: 42.0,
+    rinde: null,
+    estado: 'OK',
+    ultimo_run: '2026-04-09 09:31',
+    sha256_orig: '55f69af4dd11972ab9f9a95b8150ecdd95cb50ed7e6c86d2aac2040f72a8ebef',
+    nota: null,
+    terrain: { seed: 55, amp: 4.2, freq: 0.65, rough: 0.44 },
+    feat: 'coastal'
+  },
+  {
+    id: 'mineria',
+    icon: '⬡',
+    label: 'Minería',
+    area: 'Cauchari (Litio)',
+    pais: 'Jujuy, Argentina',
+    color: '#a78bfa',
+    score_faro: 44.7,
+    ndvi: 0.052,
+    sar_db: -9.81,
+    fusion: 0.4890,
+    pixeles: 8200000,
+    actividad: 55.3,
+    rinde: null,
+    estado: 'OK',
+    ultimo_run: '2026-04-07 17:36',
+    sha256_orig: '54789e08ae0db3765af03c0b5ea50a998cd9b268e4d906f5dd94513eca1bab6a',
+    nota: 'Parámetros estimados — Puna salares similar a Pilbara',
+    terrain: { seed: 71, amp: 1.4, freq: 0.26, rough: 0.13 },
+    feat: 'salt_flat'
+  },
+  {
+    id: 'esg',
+    icon: '◈',
+    label: 'ESG',
+    area: 'Amazonas',
+    pais: 'Mato Grosso, Brasil',
+    color: '#00ff41',
+    score_faro: 66.3,
+    ndvi: 0.2834,
+    sar_db: -5.3823,
+    fusion: 0.6073,
+    pixeles: 15200000,
+    actividad: 84.1,
+    rinde: null,
+    estado: 'OK',
+    ultimo_run: '2026-04-07 17:42',
+    sha256_orig: '22dbb6ac3400bf0935251210f6067f5bdc5e4e3033edebbbe73eea518639e05b',
+    nota: null,
+    terrain: { seed: 33, amp: 5.2, freq: 1.08, rough: 0.62 },
+    feat: 'jungle'
+  }
+];
+
+// ═══════════════════════════════════════════════════════
+//  SHA-256 via Web Crypto API
+// ═══════════════════════════════════════════════════════
+async function sha256hex(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+//  NOISE — value noise 2D con semilla
+// ═══════════════════════════════════════════════════════
+function makeNoise(seed) {
+  const h = (x, z) => { let n = Math.sin(x*127.1 + z*311.7 + seed*91.3)*43758.5453; return n - Math.floor(n); };
+  const sm = t => t*t*(3-2*t);
+  const lp = (a,b,t) => a+(b-a)*t;
+  const n2 = (x,z) => {
+    const ix=Math.floor(x), iz=Math.floor(z);
+    const fx=sm(x-ix), fz=sm(z-iz);
+    return lp(lp(h(ix,iz),h(ix+1,iz),fx), lp(h(ix,iz+1),h(ix+1,iz+1),fx), fz)*2-1;
+  };
+  const fbm = (x, z, oct=6) => {
+    let v=0, a=0.5, f=1;
+    for(let i=0;i<oct;i++){v+=n2(x*f,z*f)*a; a*=0.5; f*=2.07;}
+    return v;
+  };
+  return { fbm };
+}
+
+// ═══════════════════════════════════════════════════════
+//  SHADERS SAR
+// ═══════════════════════════════════════════════════════
+const VERT = `
+  varying vec2 vUv;
+  varying vec3 vNormal;
+  varying float vHeight;
+  void main() {
+    vUv = uv;
+    vNormal = normalize(normalMatrix * normal);
+    vHeight = position.y;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0);
+  }
+`;
+
+const FRAG = `
+  uniform float uTime;
+  uniform int   uSAR;
+  uniform vec3  uAccent;
+  uniform float uMaxH;
+  uniform int   uFeat;
+
+  varying vec2  vUv;
+  varying vec3  vNormal;
+  varying float vHeight;
+
+  float h2(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
+  float vn(vec2 p){
+    vec2 i=floor(p), f=fract(p);
+    f=f*f*(3.0-2.0*f);
+    return mix(mix(h2(i),h2(i+vec2(1,0)),f.x),
+               mix(h2(i+vec2(0,1)),h2(i+vec2(1,1)),f.x),f.y);
+  }
+  float fbm5(vec2 p){float v=0.0,a=0.5;for(int i=0;i<5;i++){v+=vn(p)*a;p*=2.07;a*=0.5;}return v;}
+
+  void main(){
+    // ── SAR backscatter model ──
+    float spk  = vn(vUv*72.0)*0.45 + vn(vUv*144.0)*0.18;   // coherent speckle
+    float lrg  = fbm5(vUv*7.0);                              // large-scale structure
+
+    // Side-looking SAR illumination (azimuth from left)
+    vec3 sarDir = normalize(vec3(-1.2, 2.8, 0.4));
+    float diff  = max(dot(vNormal, sarDir), 0.0);
+    float spec  = pow(max(dot(reflect(-sarDir, vNormal), vec3(0,0,1)), 0.0), 24.0);
+    float shd   = smoothstep(-0.15, 0.05, dot(vNormal, sarDir)); // foreshortening/shadow
+
+    float bs = (0.18 + lrg*0.28 + spk*0.38 + diff*0.16 + spec*0.06) * shd;
+    bs = clamp(bs, 0.0, 1.0);
+
+    vec3 col;
+
+    // Feature-specific SAR signatures
+    if(uFeat == 2){ // agro: slight warm from vegetation
+      float veg = vn(vUv*5.0 + 2.3)*0.4;
+      col = mix(vec3(bs*0.96, bs*0.98, bs*0.90), vec3(bs*0.92, bs, bs*0.88), veg);
+    } else if(uFeat == 3){ // port: bright metallic returns on structures
+      float strct = step(0.72, vn(vUv*14.0));
+      bs = mix(bs, min(bs*2.8, 1.0), strct*0.65);
+      col = vec3(bs);
+    } else if(uFeat == 5){ // salt flat: low backscatter, specular mirror
+      bs = bs*0.5 + 0.06;
+      col = vec3(bs+0.03, bs+0.03, bs+0.05);
+    } else if(uFeat == 6){ // jungle: volume scattering
+      float vol = fbm5(vUv*18.0 + 5.1);
+      bs = 0.20 + vol*0.52;
+      col = vec3(bs*0.94, bs, bs*0.91);
+    } else {
+      col = vec3(bs);
+    }
+
+    // Elevation tint
+    float hn = clamp(vHeight / max(uMaxH, 0.01), 0.0, 1.0);
+    col += hn * 0.07;
+
+    // ── SAR ACTIVE OVERLAY ──
+    if(uSAR == 1){
+      // Zone of interest mask (blob pattern)
+      float zoi = fbm5(vUv*4.2 + vec2(1.7, 0.9));
+      float zoiM  = smoothstep(0.53, 0.62, zoi);
+      float zoiEd = smoothstep(0.48, 0.53, zoi) * (1.0 - smoothstep(0.62, 0.70, zoi));
+
+      // Pulse animations
+      float p1 = 0.35 + 0.65*abs(sin(uTime*1.9));
+      float p2 = 0.5  + 0.5 *sin(uTime*3.1 + vUv.x*7.0 + vUv.y*5.0);
+
+      // Radar scanline sweep
+      float sw  = mod(uTime*0.38, 1.0);
+      float scn = smoothstep(0.0, 0.008, abs(mod(vUv.y - sw + 0.5, 1.0) - 0.5) - 0.492);
+      float glw = smoothstep(0.04, 0.0, abs(mod(vUv.y - sw + 0.5, 1.0) - 0.5));
+
+      col = mix(col, uAccent * p1, zoiM  * 0.58);
+      col = mix(col, uAccent,       zoiEd * p2 * 0.82);
+      col = mix(col, uAccent * 0.75, glw  * 0.22);
+      col += uAccent * scn * 0.12;
+
+      // Bright edge ring
+      col += uAccent * zoiEd * 0.3 * p1;
+    }
+
+    gl_FragColor = vec4(col, 1.0);
+  }
+`;
+
+const FEAT_ID = { oil:1, agro:2, port:3, coastal:4, salt_flat:5, jungle:6 };
+
+// ═══════════════════════════════════════════════════════
+//  RENDERER / SCENE / CAMERA / CONTROLS
+// ═══════════════════════════════════════════════════════
+const SIDEBAR_W = 264;
+const canvas    = document.getElementById('canvas3d');
+
+const renderer  = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setClearColor(0x0a0a1a);
+
+const scene  = new THREE.Scene();
+scene.background = new THREE.Color(0x0a0a1a);
+scene.fog = new THREE.FogExp2(0x0a0a1a, 0.022);
+
+const camera = new THREE.PerspectiveCamera(52, 1, 0.1, 600);
+camera.position.set(0, 20, 30);
+camera.lookAt(0, 0, 0);
+
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping  = true;
+controls.dampingFactor  = 0.07;
+controls.maxPolarAngle  = Math.PI * 0.47;
+controls.minDistance    = 4;
+controls.maxDistance    = 90;
+controls.target.set(0, 1, 0);
+
+// Subtle ambient + directional for spec highlights
+scene.add(new THREE.AmbientLight(0x10102a, 0.4));
+const dir = new THREE.DirectionalLight(0x223355, 0.45);
+dir.position.set(-12, 20, 8);
+scene.add(dir);
+
+function resize() {
+  const w = window.innerWidth - SIDEBAR_W;
+  const h = window.innerHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ═══════════════════════════════════════════════════════
+//  SCENE STATE
+// ═══════════════════════════════════════════════════════
+let activeGroup   = null;
+let sarMaterials  = [];
+let sarActive     = false;
+let activeSector  = null;
+const clock       = new THREE.Clock();
+
+// ═══════════════════════════════════════════════════════
+//  BUILD 3D SCENE PER SECTOR
+// ═══════════════════════════════════════════════════════
+function buildScene(sd) {
+  // Dispose previous
+  if (activeGroup) {
+    activeGroup.traverse(o => {
+      if (o.geometry) o.geometry.dispose();
+      if (o.material) [].concat(o.material).forEach(m => m.dispose());
+    });
+    scene.remove(activeGroup);
+  }
+  sarMaterials = [];
+
+  const group = new THREE.Group();
+  const ns    = makeNoise(sd.terrain.seed);
+  const SZ    = 44;
+  const RES   = 128;
+
+  // ── TERRAIN ──
+  const geo = new THREE.PlaneGeometry(SZ, SZ, RES-1, RES-1);
+  geo.rotateX(-Math.PI/2);
+  const pos = geo.attributes.position;
+  let maxH = 0;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i)/SZ;
+    const z = pos.getZ(i)/SZ;
+    const y = ns.fbm(x*sd.terrain.freq*9+sd.terrain.seed*0.07,
+                     z*sd.terrain.freq*9+sd.terrain.seed*0.07) * sd.terrain.amp;
+    pos.setY(i, y);
+    if (Math.abs(y) > maxH) maxH = Math.abs(y);
+  }
+  pos.needsUpdate = true;
+  geo.computeVertexNormals();
+
+  const accent = new THREE.Color(sd.color);
+  const mat = new THREE.ShaderMaterial({
+    vertexShader: VERT,
+    fragmentShader: FRAG,
+    uniforms: {
+      uTime:   { value: 0.0 },
+      uSAR:    { value: 0 },
+      uAccent: { value: accent },
+      uMaxH:   { value: maxH },
+      uFeat:   { value: FEAT_ID[sd.feat] || 0 }
+    }
+  });
+  sarMaterials.push(mat);
+  group.add(new THREE.Mesh(geo, mat));
+
+  // ── SUBTLE GRID ──
+  const grid = new THREE.GridHelper(SZ, 22);
+  grid.material.opacity = 0.035;
+  grid.material.transparent = true;
+  grid.material.color = accent;
+  grid.position.y = -0.08;
+  group.add(grid);
+
+  // ── FEATURE DECORATIONS ──
+  addDecor(group, sd, ns, SZ, maxH);
+
+  // ── ATMOSPHERE PARTICLES ──
+  addParticles(group, sd);
+
+  scene.add(group);
+  activeGroup = group;
+
+  // Reset camera
+  camera.position.set(0, 20, 30);
+  controls.target.set(0, 1, 0);
+  controls.update();
+}
+
+// ── Terrain height query ──
+function terrH(ns, wx, wz, sd, SZ) {
+  return ns.fbm((wx/SZ)*sd.terrain.freq*9+sd.terrain.seed*0.07,
+                (wz/SZ)*sd.terrain.freq*9+sd.terrain.seed*0.07) * sd.terrain.amp;
+}
+
+// ── Feature meshes per sector ──
+function addDecor(group, sd, ns, SZ, maxH) {
+  const ac  = new THREE.Color(sd.color);
+  const mat0 = (c, op=0.70) => new THREE.MeshBasicMaterial({ color:c, transparent:true, opacity:op });
+  const lmat = (c, op=0.50) => new THREE.LineBasicMaterial({ color:c, transparent:true, opacity:op });
+  const box  = (w,h,d) => new THREE.BoxGeometry(w,h,d);
+  const cyl  = (rt,rb,h,s=8) => new THREE.CylinderGeometry(rt,rb,h,s);
+
+  // Seeded placement helper
+  let rs = sd.terrain.seed * 1234.5;
+  const rnd = () => { rs=Math.sin(rs)*43758.5453; return rs-Math.floor(rs); };
+  const rndR = (a,b) => a+(b-a)*rnd();
+  const rndPos = (range=20) => [(rnd()-0.5)*range, (rnd()-0.5)*range];
+
+  if (sd.feat === 'oil') {
+    // Drilling pads + derricks
+    for (let i=0; i<9; i++) {
+      const [x,z] = rndPos(34);
+      const gh = terrH(ns, x, z, sd, SZ);
+      // Platform
+      const pad = new THREE.Mesh(box(2.2,0.15,2.2), mat0(0x222233,0.85));
+      pad.position.set(x, gh+0.08, z);
+      group.add(pad);
+      // Mast
+      const mH = rndR(2,4);
+      const mast = new THREE.Mesh(cyl(0.06,0.14,mH,5), mat0(ac,0.75));
+      mast.position.set(x, gh+mH/2+0.15, z);
+      group.add(mast);
+      // Flare
+      const flare = new THREE.Mesh(cyl(0.04,0.04,0.5,4), mat0(new THREE.Color('#f97316').multiplyScalar(1.5),0.6));
+      flare.position.set(x+0.5, gh+mH+0.4, z);
+      group.add(flare);
+    }
+    // Pipeline
+    const pts = [];
+    for (let t=0; t<=30; t++) pts.push(new THREE.Vector3(-15+t, terrH(ns,-15+t,0,sd,SZ)+0.2, 0));
+    group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), lmat(ac,0.35)));
+
+  } else if (sd.feat === 'agro') {
+    // Crop strips
+    for (let row=-8; row<=8; row++) {
+      const c = new THREE.Color(sd.color).multiplyScalar(0.35+Math.abs(row)/28);
+      const strip = new THREE.Mesh(new THREE.PlaneGeometry(40,2.1),
+        new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:0.28,side:THREE.DoubleSide}));
+      strip.rotation.x = -Math.PI/2;
+      strip.position.set(0, 0.06, row*2.6);
+      group.add(strip);
+    }
+    // Grain silos
+    for (let i=0; i<3; i++) {
+      const x=8+i*3, z=7;
+      const gh=terrH(ns,x,z,sd,SZ);
+      group.add(new THREE.Mesh(cyl(1.0,1.0,4.5,10), mat0(0x777788,0.75)));
+      group.children[group.children.length-1].position.set(x,gh+2.25,z);
+      const roof = new THREE.Mesh(new THREE.ConeGeometry(1.05,1.2,10), mat0(0x555566,0.7));
+      roof.position.set(x,gh+4.5+0.6,z);
+      group.add(roof);
+    }
+    // Wind station
+    const [wx,wz]=[rndR(-16,16),rndR(-16,16)];
+    const wgh=terrH(ns,wx,wz,sd,SZ);
+    group.add(Object.assign(new THREE.Mesh(cyl(0.12,0.18,5,6),mat0(ac,0.55)),{position:new THREE.Vector3(wx,wgh+2.5,wz)}));
+
+  } else if (sd.feat === 'port') {
+    // Containers
+    const colors=[0x223344,0x334422,0x443322,0x224433,0x332244];
+    for (let i=0; i<22; i++) {
+      const [x,z]=rndPos(36);
+      const stack=Math.floor(rnd()*3)+1;
+      for (let s=0;s<stack;s++) {
+        const cb=new THREE.Mesh(box(rndR(2,3.5),0.9,rndR(0.9,1.1)),
+          mat0(new THREE.Color(colors[i%5]).lerp(ac,0.15+rnd()*0.2),0.8));
+        cb.position.set(x, 0.45+s*0.9, z);
+        group.add(cb);
+      }
+    }
+    // Gantry cranes ×2
+    for (let cr=0;cr<2;cr++) {
+      const cx=4+cr*10-7;
+      group.add(Object.assign(new THREE.Mesh(box(0.4,10,0.4),mat0(ac,0.6)),{position:new THREE.Vector3(cx,5,2)}));
+      group.add(Object.assign(new THREE.Mesh(box(0.4,10,0.4),mat0(ac,0.6)),{position:new THREE.Vector3(cx,5,-2)}));
+      group.add(Object.assign(new THREE.Mesh(box(10,0.35,0.35),mat0(ac,0.6)),{position:new THREE.Vector3(cx+5,9.8,0)}));
+    }
+    // Water plane
+    const water = new THREE.Mesh(new THREE.PlaneGeometry(50,50),
+      new THREE.MeshBasicMaterial({color:new THREE.Color(sd.color).multiplyScalar(0.18),transparent:true,opacity:0.55}));
+    water.rotation.x=-Math.PI/2;
+    water.position.y=-0.25;
+    group.add(water);
+
+  } else if (sd.feat === 'coastal') {
+    // Transmission towers
+    for (let i=0;i<5;i++) {
+      const x=-9+i*4.5, z=2+Math.sin(i)*3;
+      const gh=terrH(ns,x,z,sd,SZ);
+      const tH=rndR(5,8);
+      group.add(Object.assign(new THREE.Mesh(cyl(0.18,0.28,tH,6),mat0(ac,0.6)),
+        {position:new THREE.Vector3(x,gh+tH/2,z)}));
+      // Cross arms
+      group.add(Object.assign(new THREE.Mesh(box(3,0.2,0.2),mat0(ac,0.45)),
+        {position:new THREE.Vector3(x,gh+tH-1,z)}));
+    }
+    // Cables
+    for (let i=0;i<4;i++) {
+      const pts=[];
+      for (let t=0;t<=20;t++) pts.push(new THREE.Vector3(-9+i*4.5+(t/20)*4.5, terrH(ns,-9+i*4.5,2,sd,SZ)+rndR(5,8)-1+Math.sin(t*0.3)*0.3, 2+Math.sin(i)*3));
+      group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),lmat(ac,0.3)));
+    }
+    // Coastal wall
+    const wall=new THREE.Mesh(box(44,1.2,0.6),mat0(0x334455,0.65));
+    wall.position.set(0,0.6,18);
+    group.add(wall);
+
+  } else if (sd.feat === 'salt_flat') {
+    // Lithium brine pond grid
+    const grid2=[...Array(8)].map((_,r)=>[...Array(8)].map((_,c)=>[c,r])).flat();
+    grid2.forEach(([c,r])=>{
+      const x=(c-3.5)*4.8, z=(r-3.5)*4.8;
+      const col=new THREE.Color(sd.color).multiplyScalar(0.05+rnd()*0.18);
+      const cell=new THREE.Mesh(new THREE.PlaneGeometry(4.5,4.5),
+        new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:0.15+rnd()*0.2,side:THREE.DoubleSide}));
+      cell.rotation.x=-Math.PI/2; cell.position.set(x,0.02,z);
+      group.add(cell);
+      // Frame lines
+      const pts=[new THREE.Vector3(-2.2,0.03,-2.2),new THREE.Vector3(2.2,0.03,-2.2),
+                 new THREE.Vector3(2.2,0.03,2.2),new THREE.Vector3(-2.2,0.03,2.2)];
+      const lp=new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts),lmat(ac,0.22));
+      lp.position.set(x,0,z); group.add(lp);
+    });
+    // Extraction station
+    group.add(Object.assign(new THREE.Mesh(box(5,0.8,5),mat0(0x333344,0.7)),{position:new THREE.Vector3(0,0.4,0)}));
+    for(let p=0;p<6;p++){
+      group.add(Object.assign(new THREE.Mesh(cyl(0.15,0.2,2.5,6),mat0(ac,0.6)),
+        {position:new THREE.Vector3((p-2.5)*1.5,1.65,0)}));
+    }
+
+  } else if (sd.feat === 'jungle') {
+    // Dense canopy with tree clusters
+    for (let i=0;i<55;i++){
+      const [x,z]=rndPos(40);
+      const gh=terrH(ns,x,z,sd,SZ);
+      const tH=rndR(2,5);
+      // Trunk
+      group.add(Object.assign(new THREE.Mesh(cyl(0.06,0.12,tH,5),mat0(0x3a2818,0.75)),
+        {position:new THREE.Vector3(x,gh+tH/2,z)}));
+      // Canopy layers
+      for (let lyr=0;lyr<2;lyr++){
+        const cr=rndR(0.7,1.5)-lyr*0.2;
+        const ch=rndR(1.5,2.5);
+        const cc=new THREE.Color(sd.color).multiplyScalar(0.22+rnd()*0.25);
+        group.add(Object.assign(new THREE.Mesh(new THREE.ConeGeometry(cr,ch,6),mat0(cc,0.55+rnd()*0.2)),
+          {position:new THREE.Vector3(x,gh+tH+ch/2+lyr*0.8,z)}));
+      }
+    }
+    // Deforestation patch (cleared area — ESG monitoring zone)
+    const clrMat=new THREE.MeshBasicMaterial({color:new THREE.Color(sd.color).multiplyScalar(0.12),transparent:true,opacity:0.4,side:THREE.DoubleSide});
+    const clr=new THREE.Mesh(new THREE.PlaneGeometry(12,10),clrMat);
+    clr.rotation.x=-Math.PI/2; clr.position.set(8,0.05,8);
+    group.add(clr);
+  }
+}
+
+function addParticles(group, sd) {
+  const N=250, pos=new Float32Array(N*3);
+  for(let i=0;i<N;i++){
+    pos[i*3]  =(Math.random()-0.5)*55;
+    pos[i*3+1]=Math.random()*32+4;
+    pos[i*3+2]=(Math.random()-0.5)*55;
+  }
+  const pg=new THREE.BufferGeometry();
+  pg.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  group.add(new THREE.Points(pg,new THREE.PointsMaterial({
+    color: new THREE.Color(sd.color), size:0.11, transparent:true, opacity:0.25
+  })));
+}
+
+// ═══════════════════════════════════════════════════════
+//  SIDEBAR
+// ═══════════════════════════════════════════════════════
+function buildSidebar() {
+  const list = document.getElementById('sector-list');
+  SECTORS.forEach(sd => {
+    const scoreC = sd.score_faro>=60 ? '#00ff41' : sd.score_faro>=45 ? sd.color : '#f97316';
+    const btn = document.createElement('div');
+    btn.className='s-btn'; btn.id=`sb-${sd.id}`;
+    btn.innerHTML=`
+      <div class="s-icon" style="color:${sd.color};border-color:${sd.color}44;background:${sd.color}14">${sd.icon}</div>
+      <div class="s-info">
+        <div class="s-name">${sd.label}</div>
+        <div class="s-area">${sd.area}</div>
+      </div>
+      <div class="s-score" style="color:${scoreC};background:${scoreC}16;border-color:${scoreC}40">${sd.score_faro.toFixed(0)}</div>
+    `;
+    btn.onclick=()=>selectSector(sd.id);
+    list.appendChild(btn);
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  SELECT SECTOR
+// ═══════════════════════════════════════════════════════
+function selectSector(id) {
+  const sd = SECTORS.find(s=>s.id===id);
+  if (!sd) return;
+  activeSector = sd;
+
+  // Sidebar active state
+  document.querySelectorAll('.s-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById(`sb-${id}`).classList.add('active');
+
+  // Top label
+  const lbl=document.getElementById('top-lbl-txt');
+  lbl.textContent=`${sd.label} · ${sd.area} · ${sd.pais}`;
+  lbl.style.color=sd.color;
+
+  // HUD border accent
+  document.getElementById('hud').style.borderColor=`${sd.color}44`;
+
+  // Reset SAR
+  sarActive=false;
+  updateSARBtn();
+  sarMaterials.forEach(m=>m.uniforms.uSAR.value=0);
+
+  buildScene(sd);
+  updateHUD(sd);
+}
+
+// ═══════════════════════════════════════════════════════
+//  HUD UPDATE
+// ═══════════════════════════════════════════════════════
+async function updateHUD(sd) {
+  document.getElementById('h-asset').textContent  = sd.area.toUpperCase();
+  document.getElementById('h-country').textContent = sd.pais;
+  document.getElementById('h-ndvi').textContent    = sd.ndvi.toFixed(4);
+  document.getElementById('h-sar').textContent     = sd.sar_db.toFixed(2)+' dB';
+  document.getElementById('h-fusion').textContent  = sd.fusion.toFixed(4);
+  document.getElementById('h-pixels').textContent  = (sd.pixeles/1e6).toFixed(2)+'M px';
+  document.getElementById('h-run').textContent     = sd.ultimo_run;
+
+  const scoreEl = document.getElementById('h-score');
+  scoreEl.textContent = sd.score_faro.toFixed(1);
+  scoreEl.style.color = sd.color;
+
+  const fill = document.getElementById('h-score-fill');
+  fill.style.width    = sd.score_faro+'%';
+  fill.style.background = sd.color;
+
+  // Extra metric
+  const eRow=document.getElementById('h-extra-row');
+  if (sd.rinde != null) {
+    eRow.style.display='flex';
+    document.getElementById('h-extra-lbl').textContent='Rinde Est.';
+    document.getElementById('h-extra-val').textContent=sd.rinde.toFixed(2)+' t/ha';
+  } else if (sd.actividad != null) {
+    eRow.style.display='flex';
+    document.getElementById('h-extra-lbl').textContent='Actividad';
+    document.getElementById('h-extra-val').textContent=sd.actividad.toFixed(1);
+  } else {
+    eRow.style.display='none';
+  }
+
+  // Nota
+  const notaEl=document.getElementById('h-nota');
+  if(sd.nota){ notaEl.style.display='block'; notaEl.textContent='⚠ '+sd.nota; }
+  else        { notaEl.style.display='none'; }
+
+  // SHA-256 real-time del estado de escena
+  const now=new Date().toISOString();
+  const stateStr=`${now.split('T')[0]}|${sd.area}|${sd.score_faro}|${sd.sar_db}|${sd.ndvi}|${sd.fusion}`;
+  const hash=await sha256hex(stateStr);
+  document.getElementById('h-sha').textContent = hash;
+  document.getElementById('h-sha').style.color = sd.color;
+  document.getElementById('h-sha-ts').textContent = `Generado: ${now.replace('T',' ').substring(0,19)} UTC`;
+}
+
+// Refresh SHA every 60s to show real-time
+setInterval(()=>{ if(activeSector) updateHUD(activeSector); }, 60000);
+
+// ═══════════════════════════════════════════════════════
+//  SAR TOGGLE / RESET CAM  (exposed to onclick)
+// ═══════════════════════════════════════════════════════
+window._toggleSAR = function() {
+  sarActive = !sarActive;
+  sarMaterials.forEach(m=>m.uniforms.uSAR.value = sarActive ? 1 : 0);
+  updateSARBtn();
+};
+
+window._resetCam = function() {
+  camera.position.set(0, 20, 30);
+  controls.target.set(0, 1, 0);
+  controls.update();
+};
+
+function updateSARBtn() {
+  const b=document.getElementById('btn-sar');
+  if (sarActive) { b.textContent='◉ SAR ON';  b.className='c-btn sar-on'; }
+  else            { b.textContent='◉ SAR OFF'; b.className='c-btn'; }
+}
+
+// ═══════════════════════════════════════════════════════
+//  ANIMATE LOOP — locked to rAF, ~60fps
+// ═══════════════════════════════════════════════════════
+function animate() {
+  requestAnimationFrame(animate);
+  const t = clock.getElapsedTime();
+  sarMaterials.forEach(m => m.uniforms.uTime.value = t);
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+// ═══════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════
+buildSidebar();
+selectSector('og');  // default: Energía O&G · Vaca Muerta
+
+// Remove loading screen after init
+setTimeout(() => {
+  const ld=document.getElementById('loading');
+  ld.style.opacity='0';
+  setTimeout(()=>ld.remove(), 600);
+}, 1700);
+
+animate();
+</script>
+</body>
+</html>
