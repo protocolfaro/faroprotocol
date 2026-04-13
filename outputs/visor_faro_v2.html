@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FARO PROTOCOL — Visor 3D · 6 Sectores</title>
+
+<script src="https://cesium.com/downloads/cesiumjs/releases/1.104/Build/Cesium/Cesium.js"></script>
+<link href="https://cesium.com/downloads/cesiumjs/releases/1.104/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+
+<style>
+  :root {
+    --bg:     #0f172a;
+    --accent: #f97316;
+    --green:  #00ff41;
+    --gold:   #c9a84c;
+    --mono:  'Courier New', monospace;
+    --sans:  'Inter', 'Segoe UI', system-ui, sans-serif;
+    --sw:     262px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg); }
+
+  /* ── Cesium container ── */
+  #cesiumContainer { position: fixed; inset: 0; }
+
+  /* Ocultar créditos y toolbar nativos */
+  .cesium-widget-credits,
+  .cesium-credit-logoContainer { display: none !important; }
+  .cesium-credit-textContainer {
+    font-family: var(--mono) !important; font-size: 9px !important;
+    color: rgba(148,163,184,0.4) !important;
+    background: rgba(15,23,42,0.7) !important;
+  }
+  .cesium-viewer-toolbar { display: none !important; }
+
+  /* ── UI layer: encima del globe, sin transforms ── */
+  #ui { position: fixed; inset: 0; z-index: 100; pointer-events: none; }
+  #ui > * { pointer-events: auto; }
+
+  /* ══════════════════════════════════════════════
+     SIDEBAR
+  ══════════════════════════════════════════════ */
+  #sidebar {
+    position: absolute; top: 0; left: 0; bottom: 0; width: var(--sw);
+    background: linear-gradient(180deg, rgba(9,9,29,0.97) 0%, rgba(7,7,22,0.97) 100%);
+    border-right: 1px solid rgba(255,255,255,0.055);
+    backdrop-filter: blur(18px);
+    display: flex; flex-direction: column;
+  }
+  .sb-logo-row {
+    padding: 18px 16px 13px;
+    border-bottom: 1px solid rgba(255,255,255,0.055); flex-shrink: 0;
+  }
+  .sb-logo {
+    font-family: var(--mono); font-size: 11px; font-weight: 700;
+    letter-spacing: 3px; color: var(--gold); text-transform: uppercase;
+  }
+  .sb-sub {
+    font-size: 8px; letter-spacing: 1.5px; margin-top: 3px;
+    color: rgba(242,237,228,0.32); text-transform: uppercase;
+  }
+  .sb-sec-lbl {
+    padding: 13px 16px 7px; font-family: var(--mono);
+    font-size: 7.5px; letter-spacing: 2.5px;
+    color: rgba(242,237,228,0.32); text-transform: uppercase; flex-shrink: 0;
+  }
+  #sector-list { flex: 1; overflow-y: auto; padding-bottom: 8px; scrollbar-width: none; }
+  #sector-list::-webkit-scrollbar { display: none; }
+
+  .s-btn {
+    margin: 2px 10px; padding: 10px 11px; border-radius: 7px; cursor: pointer;
+    border: 1px solid transparent; background: transparent;
+    transition: background 0.15s, border-color 0.15s;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .s-btn:hover { background: rgba(255,255,255,0.034); border-color: rgba(255,255,255,0.07); }
+  .s-btn.active { background: rgba(255,255,255,0.065); border-color: rgba(255,255,255,0.13); }
+  .s-btn.active .s-icon { box-shadow: 0 0 10px currentColor; }
+
+  .s-icon {
+    width: 36px; height: 36px; border-radius: 7px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 17px; border: 1px solid; transition: box-shadow 0.2s;
+  }
+  .s-info { flex: 1; min-width: 0; }
+  .s-name {
+    font-size: 10.5px; font-weight: 600; color: #f2ede4;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px;
+  }
+  .s-area {
+    font-size: 9px; color: rgba(242,237,228,0.37);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .s-score {
+    font-family: var(--mono); font-size: 11px; font-weight: 700;
+    padding: 2px 7px; border-radius: 4px; flex-shrink: 0; border: 1px solid;
+  }
+  .sb-footer {
+    padding: 11px 16px; border-top: 1px solid rgba(255,255,255,0.055); flex-shrink: 0;
+  }
+  .sb-dot {
+    display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--green); margin-right: 6px;
+    box-shadow: 0 0 6px var(--green); animation: pd 2s ease-in-out infinite;
+  }
+  .sb-status { font-family: var(--mono); font-size: 8px; color: var(--green); letter-spacing: 1px; text-transform: uppercase; }
+
+  /* ══════════════════════════════════════════════
+     HUD PANEL (derecho)
+  ══════════════════════════════════════════════ */
+  #panel {
+    position: absolute; top: 20px; right: 20px;
+    width: 338px;
+    background: rgba(15,23,42,0.92);
+    border: 1px solid rgba(251,115,22,0.30);   /* overridden per sector via JS */
+    border-radius: 4px; padding: 18px 20px;
+    backdrop-filter: blur(14px);
+    box-shadow: 0 0 40px rgba(0,0,0,0.25);
+    font-family: var(--mono);
+    transition: border-color 0.35s, box-shadow 0.35s;
+  }
+  /* Línea superior de color — usa var(--accent) para transicionar */
+  #panel::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0.65; border-radius: 4px 4px 0 0; transition: background 0.35s;
+  }
+  .ph {
+    font-size: 9.5px; letter-spacing: 0.2em;
+    color: var(--accent); opacity: 0.6;
+    margin-bottom: 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.07); padding-bottom: 10px;
+    transition: color 0.3s;
+  }
+  .pt { font-size: 14.5px; font-weight: bold; color: #f1f5f9; letter-spacing: 0.06em; margin-bottom: 2px; }
+  .ps { font-size: 10.5px; color: var(--accent); opacity: 0.65; letter-spacing: 0.12em; margin-bottom: 12px; transition: color 0.3s; }
+
+  /* Score grande */
+  .score-wrap { margin-bottom: 10px; }
+  .score-row  { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+  .score-lbl  { font-size: 9px; color: rgba(148,163,184,0.65); letter-spacing: 0.12em; text-transform: uppercase; }
+  .score-num  { font-size: 23px; font-weight: 800; color: var(--accent); transition: color 0.3s; line-height: 1; }
+  .score-bar  { height: 3px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; }
+  .score-fill { height: 100%; border-radius: 2px; background: var(--accent); transition: width 0.8s ease, background 0.35s; }
+
+  /* Key-value rows */
+  .kv { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 7px; gap: 8px; }
+  .kk { color: rgba(148,163,184,0.65); letter-spacing: 0.08em; flex-shrink: 0; text-transform: uppercase; font-size: 9.5px; }
+  .vv { color: #e2e8f0; text-align: right; word-break: break-all; font-size: 10.5px; }
+  .vv.ac { color: var(--accent); transition: color 0.3s; }
+
+  /* SHA box */
+  .sha-box {
+    margin-top: 10px; background: rgba(15,23,42,0.5);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 2px; padding: 8px 10px;
+    transition: border-color 0.35s;
+  }
+  .sha-lbl { font-size: 8.5px; letter-spacing: 0.15em; color: rgba(148,163,184,0.45); margin-bottom: 4px; text-transform: uppercase; }
+  .sha-v   { font-size: 9px; color: var(--accent); word-break: break-all; line-height: 1.6; opacity: 0.8; transition: color 0.3s; }
+  .sha-ts  { font-size: 8px; color: rgba(148,163,184,0.38); margin-top: 3px; }
+
+  /* Status row */
+  .st { margin-top: 11px; display: flex; align-items: center; gap: 8px; font-size: 10.5px; letter-spacing: 0.08em; }
+  .sd { width: 7px; height: 7px; border-radius: 50%; background: var(--green); flex-shrink: 0; animation: pd 1.4s ease-in-out infinite; }
+  .st-t { color: var(--green); font-weight: bold; letter-spacing: 0.12em; }
+  .nota { margin-top: 9px; font-size: 8.5px; color: rgba(148,163,184,0.4); line-height: 1.5; font-style: italic; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 8px; }
+
+  /* ══════════════════════════════════════════════
+     SAR BADGE (centro arriba del mapa)
+  ══════════════════════════════════════════════ */
+  #sar-badge {
+    position: absolute; top: 20px;
+    left: calc((var(--sw) + 100%) / 2); transform: translateX(-50%);
+    background: rgba(15,23,42,0.92);
+    border: 1px solid var(--accent); color: var(--accent);
+    font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.2em;
+    padding: 6px 16px; border-radius: 2px;
+    backdrop-filter: blur(8px); text-transform: uppercase;
+    display: none; align-items: center; gap: 8px;
+    transition: border-color 0.3s, color 0.3s;
+    animation: badge-pulse 1.8s ease-in-out infinite;
+  }
+  #sar-badge.visible { display: flex; }
+  .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: pd 1s ease-in-out infinite; transition: background 0.3s; }
+
+  /* ══════════════════════════════════════════════
+     CONTROLS + NAV HINT (centro abajo del mapa)
+  ══════════════════════════════════════════════ */
+  #nav-hint {
+    position: absolute; bottom: 82px;
+    left: calc((var(--sw) + 100%) / 2); transform: translateX(-50%);
+    font-family: var(--mono); font-size: 8.5px;
+    color: rgba(148,163,184,0.28); letter-spacing: 0.15em;
+    pointer-events: none; white-space: nowrap; text-transform: uppercase;
+  }
+  #controls {
+    position: absolute; bottom: 28px;
+    left: calc((var(--sw) + 100%) / 2); transform: translateX(-50%);
+    display: flex; gap: 10px; align-items: center;
+  }
+  #btn-sar {
+    background: rgba(15,23,42,0.92); border: 1px solid var(--accent);
+    color: var(--accent); font-family: var(--mono); font-size: 11px;
+    letter-spacing: 0.16em; padding: 10px 22px; border-radius: 3px; cursor: pointer;
+    backdrop-filter: blur(8px); transition: all 0.25s ease; text-transform: uppercase;
+    box-shadow: 0 0 18px rgba(0,0,0,0.2); white-space: nowrap;
+  }
+  #btn-sar:hover { opacity: 0.82; }
+  #btn-sar.active { border-color: var(--green); color: var(--green); box-shadow: 0 0 24px rgba(0,255,65,0.18); }
+  #btn-reset {
+    background: rgba(15,23,42,0.85); border: 1px solid rgba(148,163,184,0.22);
+    color: rgba(148,163,184,0.6); font-family: var(--mono); font-size: 10.5px;
+    letter-spacing: 0.12em; padding: 10px 16px; border-radius: 3px; cursor: pointer;
+    backdrop-filter: blur(8px); transition: all 0.2s; text-transform: uppercase; white-space: nowrap;
+  }
+  #btn-reset:hover { background: rgba(148,163,184,0.08); color: #e2e8f0; }
+
+  /* ══════════════════════════════════════════════
+     COORDS + SCAN + LOADING
+  ══════════════════════════════════════════════ */
+  #coords {
+    position: absolute; bottom: 10px; left: calc(var(--sw) + 16px);
+    font-family: var(--mono); font-size: 9.5px;
+    color: var(--accent); opacity: 0.45; letter-spacing: 0.1em;
+    pointer-events: none; transition: color 0.3s;
+  }
+  #scan { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+  #scan::after {
+    content: ''; position: absolute; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0.11; animation: sl 9s linear infinite;
+  }
+  #loading {
+    position: fixed; inset: 0; background: var(--bg);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 14px; z-index: 999; transition: opacity 0.6s;
+  }
+  .ld-logo { font-family: var(--mono); font-size: 13px; letter-spacing: 4px; color: var(--gold); text-transform: uppercase; }
+  .ld-sub  { font-family: var(--mono); font-size: 8px; letter-spacing: 2.5px; color: rgba(242,237,228,0.3); text-transform: uppercase; }
+  .ld-bar  { width: 200px; height: 1px; background: rgba(255,255,255,0.08); overflow: hidden; }
+  .ld-fill { height: 100%; background: var(--gold); animation: ld-anim 2s cubic-bezier(.4,0,.2,1) forwards; }
+
+  @keyframes pd         { 0%,100%{opacity:1} 50%{opacity:0.35} }
+  @keyframes sl         { 0%{top:-1px} 100%{top:100%} }
+  @keyframes badge-pulse{ 0%,100%{box-shadow:0 0 8px rgba(0,0,0,0.3)} 50%{box-shadow:0 0 20px var(--accent)} }
+  @keyframes ld-anim    { from{width:0} to{width:100%} }
+</style>
+</head>
+<body>
+
+<!-- Cesium Globe -->
+<div id="cesiumContainer"></div>
+
+<!-- UI layer -->
+<div id="ui">
+  <div id="scan"></div>
+
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div class="sb-logo-row">
+      <div class="sb-logo">FARO PROTOCOL</div>
+      <div class="sb-sub">Visor 3D · Terrain Real · 6 Sectores</div>
+    </div>
+    <div class="sb-sec-lbl">Sectores</div>
+    <div id="sector-list"></div>
+    <div class="sb-footer">
+      <span class="sb-dot"></span>
+      <span class="sb-status">Pipeline Active · 10 Áreas</span>
+    </div>
+  </div>
+
+  <!-- SAR badge (centro mapa) -->
+  <div id="sar-badge">
+    <div class="badge-dot" id="badge-dot"></div>
+    <span id="sar-badge-txt">SAR SCAN ACTIVO</span>
+  </div>
+
+  <!-- HUD panel derecho -->
+  <div id="panel">
+    <div class="ph" id="p-head">VISOR 3D · — · —</div>
+    <div class="pt" id="p-title">—</div>
+    <div class="ps" id="p-sub">—</div>
+
+    <div class="score-wrap">
+      <div class="score-row">
+        <span class="score-lbl">Score Faro</span>
+        <span class="score-num" id="p-score">—</span>
+      </div>
+      <div class="score-bar"><div class="score-fill" id="p-score-fill" style="width:0%"></div></div>
+    </div>
+
+    <div class="kv"><span class="kk">Asset</span>     <span class="vv"    id="p-asset">—</span></div>
+    <div class="kv"><span class="kk">Sensor</span>    <span class="vv ac" id="p-sensor">—</span></div>
+    <div class="kv"><span class="kk">Centro</span>    <span class="vv"    id="p-centro">—</span></div>
+    <div class="kv"><span class="kk">NDVI</span>      <span class="vv"    id="p-ndvi">—</span></div>
+    <div class="kv"><span class="kk">SAR VV</span>    <span class="vv"    id="p-sar">—</span></div>
+    <div class="kv" id="p-xrow"><span class="kk" id="p-xlbl">—</span><span class="vv ac" id="p-xval">—</span></div>
+    <div class="kv"><span class="kk">Último run</span><span class="vv"    id="p-run">—</span></div>
+    <div class="kv"><span class="kk">Terreno</span>   <span class="vv ac">ESRI 3D Terrain · Real</span></div>
+
+    <div class="sha-box" id="sha-box">
+      <div class="sha-lbl">SHA-256 · Cert Faro Protocol</div>
+      <div class="sha-v"  id="p-sha">computando…</div>
+      <div class="sha-ts" id="p-sha-ts">—</div>
+    </div>
+
+    <div class="st">
+      <div class="sd"></div>
+      <span class="st-t">✓ PIPELINE ACTIVE · OK</span>
+    </div>
+
+    <div class="nota" id="p-nota"></div>
+  </div>
+
+  <!-- Nav hint -->
+  <div id="nav-hint">ARRASTRAR · rotar &nbsp;|&nbsp; SCROLL · zoom &nbsp;|&nbsp; CTRL+drag · inclinar</div>
+
+  <!-- Controls -->
+  <div id="controls">
+    <button id="btn-sar">Activar Capa SAR (Faro Protocol)</button>
+    <button id="btn-reset">⟲ Reset Cámara</button>
+  </div>
+
+  <!-- Coords vivas -->
+  <div id="coords">LAT — · LON — · ALT —</div>
+</div>
+
+<!-- Loading -->
+<div id="loading">
+  <div class="ld-logo">FARO PROTOCOL</div>
+  <div class="ld-sub">3D Terrain Real · Satellite Intelligence</div>
+  <div class="ld-bar"><div class="ld-fill"></div></div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+//  DATOS REALES — data.json + faro_areas/*.json
+// ════════════════════════════════════════════════════════════
+const SECTORS = [
+  {
+    id: 'og', icon: '⛽', label: 'Energía O&G',
+    area: 'Vaca Muerta', pais: 'Neuquén, Argentina',
+    color: '#f97316',
+    cam: { lon: -69.0, lat: -37.5, alt: 9000, heading: 0, pitch: -32 },
+    poly: { lnMin: -70.0, ltMin: -38.0, lnMax: -68.0, ltMax: -37.0 },
+    score_faro: 42.1, ndvi: 0.0941, sar_db: -10.4093, fusion: 0.4212,
+    pixeles: 13392000, actividad: 50.6, rinde: null, estado: 'OK',
+    ultimo_run: '2026-04-07 17:26',
+    sha256: 'fd2a23ebe1b3759b993951f7f8360bb7d9b8f4892cef63a0753db25fb6655e6a',
+    sensor: 'Sentinel-1 IW GRD',
+    vertical: 'Energía · Oil & Gas · Upstream',
+    centro: '37.5000°S · 69.0000°W',
+    nota: 'Score calibrado para zona industrial. FSI 0 = operación normal. Datos Sentinel-1/2 verificados SHA-256.'
+  },
+  {
+    id: 'agro', icon: '🌾', label: 'Agroindustria',
+    area: 'Balcarce', pais: 'Buenos Aires, Argentina',
+    color: '#c9a84c',
+    cam: { lon: -58.0, lat: -37.8, alt: 6500, heading: 8, pitch: -36 },
+    poly: { lnMin: -58.5, ltMin: -38.3, lnMax: -57.5, ltMax: -37.3 },
+    score_faro: 69.5, ndvi: 0.5328, sar_db: 15.4836, fusion: 0.7599,
+    pixeles: 124077285, actividad: null, rinde: 2.8, estado: 'OK',
+    ultimo_run: '2026-04-08 02:06',
+    sha256: '5233ec238815393a6e98fdb11b42a9f86574df9586258b16c34980f26f4a8f7d',
+    sensor: 'Sentinel-1 IW GRD + S2',
+    vertical: 'Agricultura · Monitoreo de Cultivos',
+    centro: '37.8000°S · 58.0000°W',
+    nota: 'Rinde estimado 2.8 t/ha · Alta confianza. SAR +15.5 dB = suelo húmedo / cultivo activo.'
+  },
+  {
+    id: 'maritimo', icon: '⚓', label: 'Marítimo',
+    area: 'Rotterdam', pais: 'Países Bajos',
+    color: '#22d3ee',
+    cam: { lon: 4.4, lat: 51.9, alt: 5000, heading: 12, pitch: -40 },
+    poly: { lnMin: 4.1, ltMin: 51.8, lnMax: 4.7, ltMax: 52.0 },
+    score_faro: 38.3, ndvi: 0.2799, sar_db: -11.9645, fusion: 0.4543,
+    pixeles: 3967488, actividad: 40.2, rinde: null, estado: 'OK',
+    ultimo_run: '2026-04-07 17:30',
+    sha256: '99fa9be2368cc7c9265b917d5f1b9148e3e86d6e97ba461d5b795a5fcb28c9f9',
+    sensor: 'Sentinel-1 IW GRD',
+    vertical: 'Marítimo · Tráfico Portuario',
+    centro: '51.9000°N · 4.4000°E',
+    nota: 'Puerto de Rotterdam. Actividad 40.2. Sentinel-1 detecta buques y grúas activas.'
+  },
+  {
+    id: 'infra', icon: '⚙️', label: 'Infraestructura',
+    area: 'Punta Colorada', pais: 'Río Negro, Argentina',
+    color: '#8b5cf6',
+    cam: { lon: -65.0, lat: -40.5, alt: 7500, heading: 5, pitch: -30 },
+    poly: { lnMin: -65.5, ltMin: -41.0, lnMax: -64.5, ltMax: -40.0 },
+    score_faro: 41.2, ndvi: 0.098, sar_db: -11.704, fusion: 0.5057,
+    pixeles: 5066733, actividad: 42.0, rinde: null, estado: 'OK',
+    ultimo_run: '2026-04-09 09:31',
+    sha256: '55f69af4dd11972ab9f9a95b8150ecdd95cb50ed7e6c86d2aac2040f72a8ebef',
+    sensor: 'Sentinel-1 IW GRD',
+    vertical: 'Infraestructura · Oil & Gas · Costera',
+    centro: '40.5000°S · 65.0000°W',
+    nota: 'Instalaciones portuarias e infraestructura energética. Costa Patagónica, Río Negro.'
+  },
+  {
+    id: 'mineria', icon: '⬡', label: 'Minería',
+    area: 'Cauchari (Litio)', pais: 'Jujuy, Argentina',
+    color: '#a78bfa',
+    cam: { lon: -66.75, lat: -24.04, alt: 4800, heading: 0, pitch: -38 },
+    poly: { lnMin: -66.82, ltMin: -24.11, lnMax: -66.71, ltMax: -23.96 },
+    score_faro: 44.7, ndvi: 0.052, sar_db: -9.81, fusion: 0.4890,
+    pixeles: 8200000, actividad: 55.3, rinde: null, estado: 'OK',
+    ultimo_run: '2026-04-07 17:36',
+    sha256: '54789e08ae0db3765af03c0b5ea50a998cd9b268e4d906f5dd94513eca1bab6a',
+    sensor: 'Sentinel-1 IW GRD',
+    vertical: 'Minería · Litio · Salar Cauchari-Olaroz',
+    centro: '24.0400°S · 66.7500°W',
+    nota: 'Cauchari-Olaroz · Lithium Americas + JEMSE. Piletas de evaporación. Altitud ~3800 m s.n.m.'
+  },
+  {
+    id: 'esg', icon: '◈', label: 'ESG',
+    area: 'Amazonas', pais: 'Mato Grosso, Brasil',
+    color: '#00ff41',
+    cam: { lon: -55.5, lat: -11.8, alt: 18000, heading: 0, pitch: -25 },
+    poly: { lnMin: -57.0, ltMin: -13.0, lnMax: -54.0, ltMax: -10.6 },
+    score_faro: 66.3, ndvi: 0.2834, sar_db: -5.3823, fusion: 0.6073,
+    pixeles: 15200000, actividad: 84.1, rinde: null, estado: 'OK',
+    ultimo_run: '2026-04-07 17:42',
+    sha256: '22dbb6ac3400bf0935251210f6067f5bdc5e4e3033edebbbe73eea518639e05b',
+    sensor: 'Sentinel-1 IW GRD',
+    vertical: 'ESG · Deforestación · Cobertura Forestal',
+    centro: '11.8000°S · 55.5000°W',
+    nota: 'Cuiabá / Sorriso, Mato Grosso. Actividad deforestación 84.1. Fusión confirma pérdida de cobertura.'
+  }
+];
+
+// ════════════════════════════════════════════════════════════
+//  SHA-256 via Web Crypto API
+// ════════════════════════════════════════════════════════════
+async function sha256(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// ════════════════════════════════════════════════════════════
+//  CESIUM INIT — ESRI imagery + ESRI terrain (sin token Ion)
+// ════════════════════════════════════════════════════════════
+Cesium.Ion.defaultAccessToken = 'dummy_no_ion_resources_used';
+
+const viewer = new Cesium.Viewer('cesiumContainer', {
+  imageryProvider: new Cesium.ArcGisMapServerImageryProvider({
+    url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer',
+  }),
+  terrainProvider: new Cesium.ArcGISTiledElevationTerrainProvider({
+    url: 'https://elevation3d.arcgis.com/arcgis/rest/services/WorldElevation3D/Terrain3D/ImageServer',
+  }),
+  baseLayerPicker: false, geocoder: false, homeButton: false,
+  sceneModePicker: false, navigationHelpButton: false,
+  animation: false, timeline: false, fullscreenButton: false,
+  infoBox: false, selectionIndicator: false,
+  creditContainer: document.createElement('div'),
+});
+
+const scene  = viewer.scene;
+const globe  = scene.globe;
+const camera = viewer.camera;
+
+scene.backgroundColor               = Cesium.Color.fromCssColorString('#0f172a');
+globe.baseColor                     = Cesium.Color.fromCssColorString('#0f172a');
+globe.depthTestAgainstTerrain       = true;
+globe.enableLighting                = true;
+scene.fog.enabled                   = true;
+scene.fog.density                   = 0.0003;
+scene.skyAtmosphere.show            = true;
+scene.skyAtmosphere.brightnessShift = -0.3;
+scene.skyAtmosphere.atmosphereLightIntensity = 0.6;
+
+// ════════════════════════════════════════════════════════════
+//  CESIUM ENTITIES — SAR polygon + scan line (reutilizables)
+// ════════════════════════════════════════════════════════════
+
+// Estado compartido para la animación del scan
+const scan = { lonMin: -70, lonMax: -68, latMin: -38, latMax: -37, lat: -38, trail: -38 };
+
+// Polígono SAR
+const sarPoly = viewer.entities.add({
+  show: false,
+  polygon: {
+    hierarchy: new Cesium.PolygonHierarchy(
+      Cesium.Cartesian3.fromDegreesArray([-70,-38, -68,-38, -68,-37, -70,-37])
+    ),
+    material:     Cesium.Color.fromCssColorString('#f97316').withAlpha(0.25),
+    outline:      true,
+    outlineColor: Cesium.Color.fromCssColorString('#f97316').withAlpha(0.88),
+    outlineWidth: 2,
+    height: 0, closeTop: true, closeBottom: true,
+  },
+});
+
+// Scan line principal
+const sarLine = viewer.entities.add({
+  show: false,
+  polyline: {
+    positions: new Cesium.CallbackProperty(() =>
+      Cesium.Cartesian3.fromDegreesArray([scan.lonMin, scan.lat, scan.lonMax, scan.lat]), false),
+    width: 3,
+    material: new Cesium.PolylineGlowMaterialProperty({
+      glowPower: 0.45,
+      color: Cesium.Color.fromCssColorString('#22d3ee').withAlpha(0.95),
+    }),
+    clampToGround: true,
+  },
+});
+
+// Trail
+const sarTrail = viewer.entities.add({
+  show: false,
+  polyline: {
+    positions: new Cesium.CallbackProperty(() =>
+      Cesium.Cartesian3.fromDegreesArray([scan.lonMin, scan.trail, scan.lonMax, scan.trail]), false),
+    width: 18,
+    material: new Cesium.PolylineGlowMaterialProperty({
+      glowPower: 0.07,
+      color: Cesium.Color.fromCssColorString('#22d3ee').withAlpha(0.22),
+    }),
+    clampToGround: true,
+  },
+});
+
+// ════════════════════════════════════════════════════════════
+//  SAR ANIMATION TICK
+// ════════════════════════════════════════════════════════════
+let sarActive  = false;
+let _lastTime  = 0;
+let _activeSd  = null;
+
+viewer.clock.shouldAnimate = true;
+viewer.clock.onTick.addEventListener(function() {
+  if (!sarActive || !_activeSd) return;
+  const now = performance.now() / 1000;
+  const dt  = Math.min(now - _lastTime, 0.1);
+  _lastTime = now;
+
+  const range = scan.latMax - scan.latMin;
+  const speed = range / 6;         // traverses polygon in ~6s
+  scan.lat   += speed * dt;
+  scan.trail  = scan.lat - range * 0.04;
+  if (scan.lat > scan.latMax) { scan.lat = scan.latMin; scan.trail = scan.latMin; }
+
+  // Pulse fill opacity with sector color
+  const alpha = 0.15 + 0.12 * Math.sin(now * 2.5);
+  sarPoly.polygon.material = Cesium.Color.fromCssColorString(_activeSd.color).withAlpha(alpha);
+
+  // Pulse scan line color with sector color
+  sarLine.polyline.material = new Cesium.PolylineGlowMaterialProperty({
+    glowPower: 0.4 + 0.15 * Math.abs(Math.sin(now * 3)),
+    color: Cesium.Color.fromCssColorString(_activeSd.color).withAlpha(0.92),
+  });
+  sarTrail.polyline.material = new Cesium.PolylineGlowMaterialProperty({
+    glowPower: 0.06,
+    color: Cesium.Color.fromCssColorString(_activeSd.color).withAlpha(0.20),
+  });
+});
+
+// ════════════════════════════════════════════════════════════
+//  BUILD SIDEBAR
+// ════════════════════════════════════════════════════════════
+function buildSidebar() {
+  const list = document.getElementById('sector-list');
+  SECTORS.forEach(sd => {
+    const sc = sd.score_faro >= 60 ? '#00ff41' : sd.score_faro >= 45 ? sd.color : '#f97316';
+    const btn = document.createElement('div');
+    btn.className = 's-btn'; btn.id = `sb-${sd.id}`;
+    btn.innerHTML = `
+      <div class="s-icon" style="color:${sd.color};border-color:${sd.color}44;background:${sd.color}13">${sd.icon}</div>
+      <div class="s-info">
+        <div class="s-name">${sd.label}</div>
+        <div class="s-area">${sd.area}</div>
+      </div>
+      <div class="s-score" style="color:${sc};background:${sc}17;border-color:${sc}40">${sd.score_faro.toFixed(0)}</div>
+    `;
+    btn.addEventListener('click', () => selectSector(sd.id));
+    list.appendChild(btn);
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+//  SELECT SECTOR — cambia escena + HUD + SAR entities
+// ════════════════════════════════════════════════════════════
+function selectSector(id) {
+  const sd = SECTORS.find(s => s.id === id);
+  if (!sd) return;
+  _activeSd = sd;
+
+  // ── Sidebar active state ──
+  document.querySelectorAll('.s-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`sb-${sd.id}`).classList.add('active');
+
+  // ── CSS accent (actualiza todas las referencias a var(--accent)) ──
+  document.documentElement.style.setProperty('--accent', sd.color);
+
+  // ── Panel border + sha-box border (específicos, con opacidad) ──
+  const panel  = document.getElementById('panel');
+  const shaBox = document.getElementById('sha-box');
+  panel.style.borderColor  = sd.color + '45';
+  panel.style.boxShadow    = `0 0 40px ${sd.color}08`;
+  shaBox.style.borderColor = sd.color + '30';
+
+  // ── Fly to sector ──
+  camera.flyTo({
+    destination: Cesium.Cartesian3.fromDegrees(sd.cam.lon, sd.cam.lat, sd.cam.alt),
+    orientation: {
+      heading: Cesium.Math.toRadians(sd.cam.heading),
+      pitch:   Cesium.Math.toRadians(sd.cam.pitch),
+      roll:    0.0,
+    },
+    duration: 2.2,
+    easingFunction: Cesium.EasingFunction.CUBIC_IN_OUT,
+  });
+
+  // ── Update SAR Cesium entities ──
+  const p = sd.poly;
+  sarPoly.polygon.hierarchy = new Cesium.PolygonHierarchy(
+    Cesium.Cartesian3.fromDegreesArray([
+      p.lnMin, p.ltMin,  p.lnMax, p.ltMin,
+      p.lnMax, p.ltMax,  p.lnMin, p.ltMax,
+    ])
+  );
+  sarPoly.polygon.material     = Cesium.Color.fromCssColorString(sd.color).withAlpha(0.25);
+  sarPoly.polygon.outlineColor = Cesium.Color.fromCssColorString(sd.color).withAlpha(0.88);
+
+  // Reset scan bounds + position
+  scan.lonMin = p.lnMin; scan.lonMax = p.lnMax;
+  scan.latMin = p.ltMin; scan.latMax = p.ltMax;
+  scan.lat    = p.ltMin; scan.trail  = p.ltMin;
+
+  // ── SAR badge text ──
+  document.getElementById('sar-badge-txt').textContent = `SAR SCAN ACTIVO · ${sd.area.toUpperCase()}`;
+
+  // ── Update HUD ──
+  updateHUD(sd);
+}
+
+// ════════════════════════════════════════════════════════════
+//  HUD UPDATE
+// ════════════════════════════════════════════════════════════
+async function updateHUD(sd) {
+  document.getElementById('p-head').textContent    = `VISOR 3D · ${sd.area.toUpperCase()} · ${sd.pais.toUpperCase()}`;
+  document.getElementById('p-title').textContent   = sd.area;
+  document.getElementById('p-sub').textContent     = sd.vertical;
+  document.getElementById('p-score').textContent   = sd.score_faro.toFixed(1);
+  document.getElementById('p-score-fill').style.width = sd.score_faro + '%';
+  document.getElementById('p-asset').textContent   = `${sd.area}, ${sd.pais}`;
+  document.getElementById('p-sensor').textContent  = sd.sensor;
+  document.getElementById('p-centro').textContent  = sd.centro;
+  document.getElementById('p-ndvi').textContent    = sd.ndvi.toFixed(4);
+  document.getElementById('p-sar').textContent     = sd.sar_db.toFixed(2) + ' dB';
+  document.getElementById('p-run').textContent     = sd.ultimo_run;
+  document.getElementById('p-nota').textContent    = sd.nota;
+
+  const xRow = document.getElementById('p-xrow');
+  if (sd.rinde != null) {
+    xRow.style.display = 'flex';
+    document.getElementById('p-xlbl').textContent = 'RINDE EST.';
+    document.getElementById('p-xval').textContent = sd.rinde.toFixed(2) + ' t/ha';
+  } else if (sd.actividad != null) {
+    xRow.style.display = 'flex';
+    document.getElementById('p-xlbl').textContent = 'ACTIVIDAD';
+    document.getElementById('p-xval').textContent = sd.actividad.toFixed(1) + ' / 100';
+  } else {
+    xRow.style.display = 'none';
+  }
+
+  // SHA-256 real-time del estado de la escena
+  const now = new Date().toISOString();
+  const str = `${now.split('T')[0]}|${sd.area}|${sd.score_faro}|${sd.sar_db}|${sd.ndvi}|${sd.fusion}`;
+  const hash = await sha256(str);
+  document.getElementById('p-sha').innerHTML = hash.slice(0,32) + '<br>' + hash.slice(32);
+  document.getElementById('p-sha-ts').textContent = `Gen: ${now.replace('T',' ').slice(0,19)} UTC`;
+}
+setInterval(() => { if (_activeSd) updateHUD(_activeSd); }, 60000);
+
+// ════════════════════════════════════════════════════════════
+//  SAR TOGGLE
+// ════════════════════════════════════════════════════════════
+const btnSar   = document.getElementById('btn-sar');
+const sarBadge = document.getElementById('sar-badge');
+
+btnSar.addEventListener('click', function () {
+  sarActive = !sarActive;
+  sarPoly.show  = sarActive;
+  sarLine.show  = sarActive;
+  sarTrail.show = sarActive;
+
+  if (sarActive) {
+    if (_activeSd) { scan.lat = scan.latMin; scan.trail = scan.latMin; }
+    _lastTime = performance.now() / 1000;
+    this.textContent = 'SAR Activo · Faro Protocol  [ON]';
+    this.classList.add('active');
+    sarBadge.classList.add('visible');
+  } else {
+    this.textContent = 'Activar Capa SAR (Faro Protocol)';
+    this.classList.remove('active');
+    sarBadge.classList.remove('visible');
+  }
+});
+
+// ════════════════════════════════════════════════════════════
+//  RESET CÁMARA
+// ════════════════════════════════════════════════════════════
+document.getElementById('btn-reset').addEventListener('click', function () {
+  if (!_activeSd) return;
+  camera.flyTo({
+    destination: Cesium.Cartesian3.fromDegrees(_activeSd.cam.lon, _activeSd.cam.lat, _activeSd.cam.alt),
+    orientation: {
+      heading: Cesium.Math.toRadians(_activeSd.cam.heading),
+      pitch:   Cesium.Math.toRadians(_activeSd.cam.pitch),
+      roll:    0.0,
+    },
+    duration: 2.0,
+    easingFunction: Cesium.EasingFunction.CUBIC_IN_OUT,
+  });
+});
+
+// ════════════════════════════════════════════════════════════
+//  COORDENADAS VIVAS
+// ════════════════════════════════════════════════════════════
+const coordsEl = document.getElementById('coords');
+const evtHandler = new Cesium.ScreenSpaceEventHandler(scene.canvas);
+evtHandler.setInputAction(function (mov) {
+  const cart = viewer.camera.pickEllipsoid(mov.endPosition, scene.globe.ellipsoid);
+  if (!cart) return;
+  const carto = Cesium.Cartographic.fromCartesian(cart);
+  const lat   = Cesium.Math.toDegrees(carto.latitude);
+  const lon   = Cesium.Math.toDegrees(carto.longitude);
+  const alt   = (carto.height / 1000).toFixed(1);
+  coordsEl.textContent =
+    `LAT ${Math.abs(lat).toFixed(4)}°${lat<0?'S':'N'} · LON ${Math.abs(lon).toFixed(4)}°${lon<0?'W':'E'} · ALT ${alt} km`;
+}, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+
+// ════════════════════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════════════════════
+buildSidebar();
+selectSector('og');   // sector por defecto: Vaca Muerta
+
+setTimeout(() => {
+  const ld = document.getElementById('loading');
+  ld.style.opacity = '0';
+  setTimeout(() => ld.remove(), 600);
+}, 2200);
+</script>
+</body>
+</html>
