@@ -927,10 +927,24 @@ footer{padding:32px 48px;border-top:1px solid var(--border);display:flex;align-i
     <div class="cap-kicker" data-en="Institutional access" data-es="Acceso institucional">Institutional access</div>
     <h2 class="cap-h2"><span data-en="Access is not sold." data-es="El acceso no se vende.">Access is not sold.</span><br><em data-en="It is granted." data-es="Se otorga.">It is granted.</em></h2>
     <p class="cap-sub" data-en="Submit your institutional email and receive the Due Diligence Pack — full methodology, legal framework, compliance documentation and sample data." data-es="Enviá tu email institucional y recibí el Pack de Due Diligence — metodología completa, marco legal, documentación de cumplimiento y datos de muestra.">Submit your institutional email and receive the Due Diligence Pack — full methodology, legal framework, compliance documentation and sample data.</p>
-    <div class="cap-form" style="justify-content:center;">
-      <a href="mailto:protocolfaro@gmail.com?subject=Due%20Diligence%20Pack%20Request&body=Hola%2C%20quiero%20recibir%20el%20Pack%20de%20Due%20Diligence.%0A%0AOrganizaci%C3%B3n%3A%20%5BEscribir%5D%0A%C3%81rea%20de%20inter%C3%A9s%3A%20%5BEscribir%20zona%20o%20sector%5D%0AMensaje%3A%20" class="cap-btn" style="text-decoration:none;display:inline-block;padding:13px 32px;" data-en="Request Due Diligence Pack →" data-es="Solicitar Pack de Due Diligence →">Request Due Diligence Pack →</a>
-    </div>
-    <div class="cap-note" data-en="First response within 24 hours — protocolfaro@gmail.com" data-es="Primera respuesta en 24 horas — protocolfaro@gmail.com">First response within 24 hours — protocolfaro@gmail.com</div>
+    <form name="due-diligence" method="POST" data-netlify="true" class="cap-form" style="flex-direction:column;gap:0;" onsubmit="return handleFormSubmit(event)">
+      <input type="hidden" name="form-name" value="due-diligence" />
+      <div style="display:flex;width:100%;max-width:460px;margin:0 auto;">
+        <select name="sector" class="cap-sel">
+          <option value="" data-en="Sector..." data-es="Sector...">Sector...</option>
+          <option data-en="Agriculture" data-es="Agricultura">Agriculture</option>
+          <option data-en="Energy / O&G" data-es="Energía / O&G">Energy / O&G</option>
+          <option data-en="Maritime" data-es="Marítimo">Maritime</option>
+          <option data-en="Mining" data-es="Minería">Mining</option>
+          <option data-en="ESG / Deforestation" data-es="ESG / Deforestación">ESG / Deforestation</option>
+        </select>
+        <input id="emailIn" name="email" type="email" class="cap-in" required
+          data-en-placeholder="Institutional email" data-es-placeholder="Email institucional"
+          placeholder="Institutional email" />
+        <button type="submit" class="cap-btn" data-en="Request Pack →" data-es="Solicitar Pack →">Request Pack →</button>
+      </div>
+    </form>
+    <div class="cap-note" id="form-feedback" data-en="First response within 24 hours — protocolfaro@gmail.com" data-es="Primera respuesta en 24 horas — protocolfaro@gmail.com">First response within 24 hours — protocolfaro@gmail.com</div>
 
     <div style="margin-top:18px;text-align:center;">
       <div style="font-family:var(--mono);font-size:8px;color:var(--w4);letter-spacing:0.12em;margin-bottom:10px;" data-en="OR CONTACT DIRECTLY VIA WHATSAPP" data-es="O CONTACTO DIRECTO POR WHATSAPP">OR CONTACT DIRECTLY VIA WHATSAPP</div>
@@ -948,7 +962,7 @@ footer{padding:32px 48px;border-top:1px solid var(--border);display:flex;align-i
       </button>
     </div>
     <div class="cap-stats">
-      <div class="cs"><div class="cs-val">1</div><div class="cs-lbl" data-en="Pilot client (Córdoba)" data-es="Cliente piloto (Córdoba)">Pilot client (Córdoba)</div></div>
+      <div class="cs"><div class="cs-val" id="cs-pilots">1</div><div class="cs-lbl" data-en="Active pilot" data-es="Piloto activo">Active pilot</div></div>
       <div class="cs"><div class="cs-val">$0</div><div class="cs-lbl" data-en="Setup fee" data-es="Costo de alta">Setup fee</div></div>
       <div class="cs"><div class="cs-val">24h</div><div class="cs-lbl" data-en="First response" data-es="Primera respuesta">First response</div></div>
       <div class="cs"><div class="cs-val">48h</div><div class="cs-lbl" data-en="Data advantage" data-es="Ventaja temporal">Data advantage</div></div>
@@ -1285,27 +1299,65 @@ window.smoothTo=smoothTo;window.downloadBrief=downloadBrief;
 window.selectOpt=selectOpt;window.calcRequest=calcRequest;window.updateCalc=updateCalc;
 </script>
 
-<!-- FARO PROTOCOL — Valores dinamicos desde data.json (actualizado por faro_pipeline.py) -->
+<!-- FARO PROTOCOL — Valores dinámicos desde data.json (actualizado por faro_pipeline.py) -->
 <script>
 (function(){
   function set(id,val){var e=document.getElementById(id);if(e&&val!=null)e.textContent=val;}
+
   fetch('data.json')
     .then(function(r){return r.json();})
     .then(function(d){
-      set('data-vm-prod',    d.vaca_muerta  && d.vaca_muerta.production);
-      set('data-vm-delta',   d.vaca_muerta  && d.vaca_muerta.change_7d);
-      set('data-li-conc',    d.lithium_puna && d.lithium_puna.concentration);
-      set('data-li-delta',   d.lithium_puna && d.lithium_puna.change_7d);
-      set('data-faro-score', d.faro_arg_score);
-      set('pred-count',      d.readings_verified);
-      if(d.accuracy_pct!=null){
-        set('data-accuracy', d.accuracy_pct+'%');
-        var f=document.getElementById('data-acc-fill');
-        if(f) f.style.width=d.accuracy_pct+'%';
+      var pipeline = d.pipeline || {};
+      var resumen  = d.resumen  || {};
+
+      // Score global del sistema
+      var scoreGlobal = resumen.score_promedio;
+      set('data-faro-score', scoreGlobal != null ? scoreGlobal.toFixed(1) : null);
+
+      // Áreas activas como conteo de lecturas verificadas
+      set('pred-count', resumen.areas_activas || null);
+
+      // Mejor score del pipeline → barra de "accuracy"
+      var bestScore = 0;
+      Object.keys(pipeline).forEach(function(k){
+        var s = pipeline[k] && pipeline[k].score_faro;
+        if(s && s > bestScore) bestScore = s;
+      });
+      if(bestScore > 0){
+        set('data-accuracy', bestScore.toFixed(1));
+        var f = document.getElementById('data-acc-fill');
+        if(f) f.style.width = bestScore + '%';
       }
+
+      // Pilotos activos = áreas con estado OK
+      var activos = Object.values(pipeline).filter(function(a){ return a && a.estado === 'OK'; }).length;
+      set('cs-pilots', activos || null);
     })
-    .catch(function(){}); /* data.json no disponible: mantener valores estaticos */
+    .catch(function(){}); /* data.json no disponible: mantener valores estáticos */
 })();
+
+// Netlify Form handler — feedback visual sin recargar página
+function handleFormSubmit(e){
+  e.preventDefault();
+  var form = e.target;
+  var data = new FormData(form);
+  fetch('/', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body: new URLSearchParams(data).toString() })
+    .then(function(){
+      var fb = document.getElementById('form-feedback');
+      if(fb){
+        fb.textContent = (document.documentElement.lang === 'es')
+          ? '✓ Solicitud recibida — respuesta en 24h'
+          : '✓ Request received — response within 24h';
+        fb.style.color = '#2d8c5e';
+      }
+      form.reset();
+    })
+    .catch(function(){
+      window.location.href = 'mailto:protocolfaro@gmail.com?subject=Due%20Diligence%20Pack%20Request';
+    });
+  return false;
+}
 </script>
 </body>
 </html>

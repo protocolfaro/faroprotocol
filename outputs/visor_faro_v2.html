@@ -105,6 +105,30 @@
     box-shadow: 0 0 6px var(--green); animation: pd 2s ease-in-out infinite;
   }
   .sb-status { font-family: var(--mono); font-size: 8px; color: var(--green); letter-spacing: 1px; text-transform: uppercase; }
+  .sb-global-score {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 7px; padding-bottom: 7px;
+    border-bottom: 1px solid rgba(255,255,255,0.055);
+  }
+  .sb-gs-lbl { font-family: var(--mono); font-size: 7px; color: rgba(242,237,228,0.35); letter-spacing: 1.5px; text-transform: uppercase; }
+  .sb-gs-val { font-family: var(--mono); font-size: 12px; font-weight: 700; color: #f97316; }
+  .sb-alert-strip {
+    display: none; align-items: center; gap: 5px;
+    background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3);
+    border-radius: 4px; padding: 4px 8px; margin-bottom: 7px;
+    font-family: var(--mono); font-size: 7.5px; color: #ef4444;
+    letter-spacing: 1px; text-transform: uppercase;
+    animation: badge-pulse 2s ease-in-out infinite;
+  }
+  .sb-alert-strip.visible { display: flex; }
+  .sb-alert-dot { width: 5px; height: 5px; border-radius: 50%; background: #ef4444; flex-shrink: 0; animation: pd 1s ease-in-out infinite; }
+  .s-alerta-badge {
+    font-family: var(--mono); font-size: 7px; font-weight: 700;
+    background: rgba(239,68,68,0.15); color: #ef4444;
+    border: 1px solid rgba(239,68,68,0.35); border-radius: 3px;
+    padding: 1px 4px; flex-shrink: 0; letter-spacing: 0.5px;
+    animation: badge-pulse 1.8s ease-in-out infinite;
+  }
 
   /* ══════════════════════════════════════════════
      HUD PANEL (derecho)
@@ -266,8 +290,16 @@
     <div class="sb-sec-lbl">Sectores</div>
     <div id="sector-list"></div>
     <div class="sb-footer">
+      <div class="sb-alert-strip" id="sb-alert-strip">
+        <div class="sb-alert-dot"></div>
+        <span id="sb-alert-txt">— ALERTAS EN SISTEMA</span>
+      </div>
+      <div class="sb-global-score">
+        <span class="sb-gs-lbl">Score Global</span>
+        <span class="sb-gs-val" id="sb-global-score">—</span>
+      </div>
       <span class="sb-dot"></span>
-      <span class="sb-status">Pipeline Active · 10 Áreas</span>
+      <span class="sb-status" id="sb-status-txt">Pipeline Active · 10 Áreas</span>
     </div>
   </div>
 
@@ -564,8 +596,14 @@ viewer.clock.onTick.addEventListener(function() {
 // ════════════════════════════════════════════════════════════
 function buildSidebar() {
   const list = document.getElementById('sector-list');
+  let alertCount = 0;
   SECTORS.forEach(sd => {
     const sc = sd.score_faro >= 60 ? '#00ff41' : sd.score_faro >= 45 ? sd.color : '#f97316';
+    const isAlerta = sd.estado === 'ALERTA';
+    if (isAlerta) alertCount++;
+    const alertBadge = isAlerta
+      ? `<span class="s-alerta-badge">ALERTA</span>`
+      : '';
     const btn = document.createElement('div');
     btn.className = 's-btn'; btn.id = `sb-${sd.id}`;
     btn.innerHTML = `
@@ -574,12 +612,50 @@ function buildSidebar() {
         <div class="s-name">${sd.label}</div>
         <div class="s-area">${sd.area}</div>
       </div>
+      ${alertBadge}
       <div class="s-score" style="color:${sc};background:${sc}17;border-color:${sc}40">${sd.score_faro.toFixed(0)}</div>
     `;
     btn.addEventListener('click', () => selectSector(sd.id));
     list.appendChild(btn);
   });
+
+  // Mostrar strip de alertas si hay alguna
+  if (alertCount > 0) {
+    const strip = document.getElementById('sb-alert-strip');
+    strip.classList.add('visible');
+    document.getElementById('sb-alert-txt').textContent =
+      `${alertCount} ALERTA${alertCount > 1 ? 'S' : ''} EN SISTEMA`;
+  }
 }
+
+// Cargar score global y estado de alertas desde data.json
+fetch('../data.json')
+  .then(r => r.json())
+  .then(d => {
+    const resumen = d.resumen || {};
+    const scoreGlobal = resumen.score_promedio;
+    const areasActivas = resumen.areas_activas || 0;
+    const alertas = (resumen.areas_en_alerta || []).length;
+    const estadoGlobal = resumen.estado_global || 'OK';
+
+    if (scoreGlobal != null) {
+      document.getElementById('sb-global-score').textContent = scoreGlobal.toFixed(1);
+      const gsv = document.getElementById('sb-global-score');
+      gsv.style.color = scoreGlobal >= 60 ? '#00ff41' : scoreGlobal >= 45 ? '#c9a84c' : '#f97316';
+    }
+
+    const statusTxt = document.getElementById('sb-status-txt');
+    if (statusTxt) statusTxt.textContent = `Pipeline Active · ${areasActivas} Áreas`;
+
+    // Mostrar strip de alertas del sistema (áreas fuera de los 6 sectores)
+    if (alertas > 0) {
+      const strip = document.getElementById('sb-alert-strip');
+      strip.classList.add('visible');
+      document.getElementById('sb-alert-txt').textContent =
+        `${alertas} ALERTA${alertas > 1 ? 'S' : ''} EN SISTEMA`;
+    }
+  })
+  .catch(() => {});  // data.json no disponible: mantener valores por defecto
 
 // ════════════════════════════════════════════════════════════
 //  SELECT SECTOR — cambia escena + HUD + SAR entities

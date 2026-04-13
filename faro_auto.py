@@ -1,8 +1,9 @@
 """
 FARO PROTOCOL — Auto-runner semanal
 
-Corre el pipeline completo para todas las áreas activas cada lunes a las 07:00 ART,
-valida con Hermes, y entrega los reportes aprobados a los clientes via email.
+Corre el pipeline completo para todas las áreas activas cada lunes a las 10:00 ART
+(hora local Windows = UTC-3 = 13:00 UTC), valida con Hermes, entrega los reportes
+aprobados a los clientes via email, genera bricolage/certificados y hace git push.
 
 Uso:
     python faro_auto.py                     # correr ahora (todas las áreas)
@@ -192,6 +193,97 @@ def entregar(area_name: str, dry_run: bool = False):
         _log.warning(f"  [{area_name}] Error en entrega: {e}")
 
 
+# ── Post-pipeline (bricolage + certificados + git push) ──────────────────────
+
+def _post_pipeline(dry_run: bool = False):
+    """Genera outputs de difusión y publica cambios en git tras el pipeline."""
+    if dry_run:
+        _log.info("  [DRY-RUN] Post-pipeline — bricolage/certificados/git omitidos")
+        return
+
+    # 1. Bricolage LinkedIn
+    bricolage = PROJECT_ROOT / 'faro_bricolage.py'
+    if bricolage.exists():
+        _log.info("  [Post-pipeline] Ejecutando faro_bricolage.py...")
+        try:
+            res = subprocess.run(
+                [sys.executable, str(bricolage)],
+                capture_output=True, text=True, encoding='utf-8',
+                errors='replace', cwd=str(PROJECT_ROOT), timeout=120,
+            )
+            if res.returncode == 0:
+                _log.info("  [Bricolage] OK")
+            else:
+                _log.warning(f"  [Bricolage] Falló (rc={res.returncode}): {res.stderr[-200:]}")
+        except Exception as e:
+            _log.warning(f"  [Bricolage] Error: {e}")
+    else:
+        _log.warning("  [Post-pipeline] faro_bricolage.py no encontrado — saltando")
+
+    # 2. Certificados (solo áreas que pasan QualityGate; el script maneja la lógica internamente)
+    certificado = PROJECT_ROOT / 'faro_certificado.py'
+    if certificado.exists():
+        _log.info("  [Post-pipeline] Ejecutando faro_certificado.py --all...")
+        try:
+            res = subprocess.run(
+                [sys.executable, str(certificado), '--all'],
+                capture_output=True, text=True, encoding='utf-8',
+                errors='replace', cwd=str(PROJECT_ROOT), timeout=120,
+            )
+            if res.returncode == 0:
+                _log.info("  [Certificado] OK")
+            else:
+                _log.warning(f"  [Certificado] Falló (rc={res.returncode}): {res.stderr[-200:]}")
+        except Exception as e:
+            _log.warning(f"  [Certificado] Error: {e}")
+    else:
+        _log.warning("  [Post-pipeline] faro_certificado.py no encontrado — saltando")
+
+    # 3. Git commit + push — publica reportes nuevos a Netlify vía origin/master
+    from datetime import timezone, timedelta
+    ART = timezone(timedelta(hours=-3))
+    ts  = datetime.now(ART).strftime('%Y-%m-%d %H:%M ART')
+    _log.info(f"  [Post-pipeline] git add → commit → push origin master ({ts})...")
+
+    try:
+        # Stagear reportes, certificados, bricolage y data.json
+        subprocess.run(
+            ['git', 'add',
+             'outputs/', 'data.json',
+             'faro_bricolage_linkedin.png',
+             'faro_cert_*.png',
+             'faro_reporte_fusion_*.png', 'faro_reporte_fusion_*.sha256',
+             'faro_report_*.png', 'faro_report_*.sha256',
+             'faro_dashboard_*.png'],
+            cwd=str(PROJECT_ROOT), timeout=30, capture_output=True,
+        )
+
+        msg = f'chore: pipeline auto {ts}'
+        commit_res = subprocess.run(
+            ['git', 'commit', '-m', msg],
+            capture_output=True, text=True, encoding='utf-8',
+            cwd=str(PROJECT_ROOT), timeout=30,
+        )
+
+        stdout_lower = commit_res.stdout.lower()
+        if 'nothing to commit' in stdout_lower or 'nothing added' in stdout_lower:
+            _log.info("  [Git] Sin cambios nuevos — push omitido")
+        elif commit_res.returncode == 0:
+            push_res = subprocess.run(
+                ['git', 'push', 'origin', 'master'],
+                capture_output=True, text=True, encoding='utf-8',
+                cwd=str(PROJECT_ROOT), timeout=60,
+            )
+            if push_res.returncode == 0:
+                _log.info("  [Git] Push OK → origin/master")
+            else:
+                _log.warning(f"  [Git] Push falló: {push_res.stderr[-200:]}")
+        else:
+            _log.warning(f"  [Git] Commit falló: {commit_res.stderr[-200:]}")
+    except Exception as e:
+        _log.warning(f"  [Git] Error inesperado: {e}")
+
+
 # ── Main run ──────────────────────────────────────────────────────────────────
 
 def run(solo_area: str = None, dry_run: bool = False):
@@ -243,11 +335,17 @@ def run(solo_area: str = None, dry_run: bool = False):
         _log.info(f"  {estado_tag} {r['area']}{score_s} — {r['estado']}")
     _log.info("=" * 60)
 
+    # Post-pipeline: bricolage + certificados + git push
+    _log.info(f"\n{'─' * 60}")
+    _log.info("  Post-pipeline: bricolage · certificados · git push")
+    _log.info('─' * 60)
+    _post_pipeline(dry_run=dry_run)
+
 
 # ── Task Scheduler ────────────────────────────────────────────────────────────
 
 def instalar_scheduler():
-    """Registra el auto-runner en Windows Task Scheduler — lunes 07:00 ART (UTC-3)."""
+    """Registra el auto-runner en Windows Task Scheduler — lunes 10:00 ART (hora local Windows = 13:00 UTC)."""
     python_exe = str(Path(sys.executable).resolve())
     script     = str(Path(__file__).resolve())
 
@@ -255,7 +353,7 @@ def instalar_scheduler():
     tr_value = f'"{python_exe}" "{script}"'
 
     print(f"\nRegistrando: {TASK_NAME}")
-    print(f"Horario    : Lunes 07:00 ART")
+    print(f"Horario    : Lunes 10:00 ART (hora local Windows; UTC-3 = 13:00 UTC)")
     print(f"Comando    : {tr_value}\n")
 
     ps_script = f"""

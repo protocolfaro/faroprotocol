@@ -531,6 +531,24 @@ class FaroSecurityTest:
             json.dump(report, f, indent=2, ensure_ascii=False)
         print(f"\n  Reporte JSON: {report_path}")
 
+        # Registrar ejecución en audit_log.jsonl (append-only)
+        audit_path = Path(__file__).parent / 'audit_log.jsonl'
+        audit_entry = {
+            'ts':       report['ts'],
+            'event':    'security_test_run',
+            'target':   self.base,
+            'passed':   self.passed,
+            'failed':   self.failed,
+            'warnings': self.warnings,
+            'ready':    self.failed == 0,
+        }
+        try:
+            with open(audit_path, 'a', encoding='utf-8') as f:
+                f.write(json.dumps(audit_entry, ensure_ascii=False) + '\n')
+            print(f"  Audit log: {audit_path}")
+        except Exception as e:
+            print(f"  [WARN] No se pudo escribir audit_log.jsonl: {e}")
+
         return self.failed == 0
 
 
