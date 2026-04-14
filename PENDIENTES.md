@@ -1,7 +1,34 @@
 # PENDIENTES — Faro Protocol
-> ⚠️ NO tocar nada hasta que Verónica use el portal y confirme que funciona.
-> Para cambios en el portal: solo de noche (Argentina) para no afectar sesiones activas.
-> Usar `python faro_admin.py` para verificar si hay sesiones activas antes de tocar algo.
+> Última actualización: 2026-04-14
+
+---
+
+## COMPLETADO HOY (2026-04-14)
+
+- [x] Railway webhook live: https://faroprotocol-production.up.railway.app
+- [x] Lemon Squeezy tienda creada: https://faroprotocol.lemonsqueezy.com
+- [x] Producto Observer USD 2.500/mes creado en Lemon Squeezy
+- [x] `faro_webhook.py` reconstruido (estaba 0 bytes) — Flask server completo
+- [x] `main.py` + `Procfile` + `railway.json` para deploy Railway
+- [x] `_WEBHOOK_URL` en visor apunta a Railway production
+- [x] CORS Netlify functions corregido (faro-protocol.netlify.app)
+- [x] Arquitectura global V14: cliente dibuja zona en mapa, pipeline 24h
+
+---
+
+## PENDIENTES MAÑANA (2026-04-15)
+
+### Lemon Squeezy
+- [ ] Crear producto **Analyst** — USD 9.000/mes
+- [ ] Crear producto **Sovereign** — USD 17.000/mes
+- [ ] Crear producto **Enterprise** — USD 3.200/sector/mes
+- [ ] Copiar IDs de los 4 productos al `faro_website.html` (reemplazar `LEMON_PRODUCT_ID_*`)
+- [ ] Configurar webhook URL en Lemon Squeezy Dashboard → `https://faroprotocol-production.up.railway.app/webhooks/lemon`
+- [ ] Copiar Webhook Secret al `.env` Railway como `LEMON_SQUEEZY_SECRET`
+- [ ] Conectar banco para pagos reales
+
+### Comercial
+- [ ] Responder a Verónica con demo del visor 3D
 
 ---
 

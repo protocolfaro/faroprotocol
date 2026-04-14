@@ -1,5 +1,7 @@
 # FARO PROTOCOL — Guía para Claude Code
 > Última actualización: 2026-04-14 — V14 · Arquitectura Global · https://faro-protocol.netlify.app
+> Webhook Railway: https://faroprotocol-production.up.railway.app
+> Tienda Lemon Squeezy: https://faroprotocol.lemonsqueezy.com
 > Arquitecto del sistema: Emilio (hijo)
 > Conocimiento de campo y contactos: Padre (fundador)
 
@@ -163,6 +165,30 @@ python gen_portal_key.py --list
 
 # Security test
 python faro_security_test.py --url https://faro-protocol.netlify.app
+```
+
+---
+
+## Railway + Lemon Squeezy — Estado (2026-04-14)
+
+```
+✅ Railway webhook live: https://faroprotocol-production.up.railway.app
+✅ Lemon Squeezy tienda: https://faroprotocol.lemonsqueezy.com
+✅ Producto Observer USD 2.500/mes creado
+⏳ Analyst / Sovereign / Enterprise — pendiente crear en Lemon Squeezy
+⏳ Webhook URL en Lemon Squeezy — pendiente configurar
+⏳ Conexión bancaria — pendiente
+```
+
+**Variables de entorno Railway (.env o Railway Dashboard):**
+```
+LEMON_SQUEEZY_SECRET=<webhook secret del dashboard>
+FIREBASE_SERVICE_ACCOUNT=<JSON string del service account>
+TWILIO_ACCOUNT_SID=...
+TWILIO_AUTH_TOKEN=...
+TWILIO_WHATSAPP_FROM=whatsapp:+14155238886
+TWILIO_WHATSAPP_TO=whatsapp:+54911XXXXXXXX
+PORT=5000
 ```
 
 ---
