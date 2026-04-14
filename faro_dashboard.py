@@ -46,6 +46,11 @@ if hasattr(sys.stderr, 'reconfigure'):
 from faro_areas import load_area, list_areas
 
 ROOT      = Path(__file__).parent
+
+# Engine privado (SAR/NDVI) — no en git
+_ENGINE_DIR = ROOT / 'engine'
+if _ENGINE_DIR.exists() and str(_ENGINE_DIR) not in sys.path:
+    sys.path.insert(0, str(_ENGINE_DIR))
 DATA_JSON = ROOT / 'data.json'
 
 # ── Paleta ────────────────────────────────────────────────────────────────────

@@ -20,11 +20,85 @@ Uso:
 import argparse
 import hashlib
 import json
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
 
 from faro_areas import load_area, list_areas
+
+# ── Engine path (no expuesto en git) ──────────────────────────────────────────
+_ENGINE_DIR = Path(__file__).parent / 'engine'
+if _ENGINE_DIR.exists() and str(_ENGINE_DIR) not in sys.path:
+    sys.path.insert(0, str(_ENGINE_DIR))
+
+
+# ── Geofencing / cuota ────────────────────────────────────────────────────────
+
+def _check_client_auth(uid: str, areas_requested: list) -> None:
+    """
+    Verifica que el cliente tiene autorización para procesar las áreas solicitadas.
+    Compara contra `zones` en Firestore y valida cuota max_assets.
+    Termina con sys.exit(3) si hay violación (equivalente a HTTP 403).
+    """
+    try:
+        import firebase_admin
+        from firebase_admin import credentials, firestore as fb_fs
+
+        sa_path = os.getenv('FIREBASE_SERVICE_ACCOUNT', '')
+        if not firebase_admin._apps:
+            if sa_path and Path(sa_path).exists():
+                cred = credentials.Certificate(sa_path)
+                firebase_admin.initialize_app(cred)
+            else:
+                print(f"[WARN] FIREBASE_SERVICE_ACCOUNT no configurado — geofencing omitido")
+                return
+
+        db      = fb_fs.client()
+        snap    = db.collection('clients').doc(uid).get()
+        if not snap.exists:
+            print(f"[ERROR 403] Cliente {uid!r} no encontrado en Firestore.")
+            sys.exit(3)
+
+        profile    = snap.data()
+        status     = profile.get('status', '')
+        is_active  = profile.get('active_subscription') or status == 'active'
+
+        if not is_active:
+            print(f"[ERROR 403] Cliente {uid!r} sin suscripción activa.")
+            sys.exit(3)
+
+        max_assets = profile.get('max_assets', 1)
+        zones_used = profile.get('zones', {})
+
+        # Cuota total: ¿el cliente intenta procesar más áreas de las que le corresponden?
+        all_authorized = set(zones_used.keys())
+
+        # Para sovereign/enterprise (max_assets >= 999) no validamos zona por zona
+        if max_assets < 999 and all_authorized:
+            unauthorized = [a for a in areas_requested if a not in all_authorized]
+            if unauthorized:
+                print(f"[ERROR 403] Área(s) no autorizadas para el cliente {uid!r}:")
+                for a in unauthorized:
+                    print(f"  · {a}")
+                print(f"  Zonas autorizadas: {sorted(all_authorized)}")
+                sys.exit(3)
+
+        # Cuota numérica
+        total_intentado = len(set(list(zones_used.keys()) + list(areas_requested)))
+        if max_assets < 999 and total_intentado > max_assets:
+            print(f"[ERROR 403] Cuota excedida: plan permite {max_assets} activo(s), "
+                  f"se intentaron {total_intentado}.")
+            sys.exit(3)
+
+        print(f"  [Auth OK] Cliente {uid!r} · plan='{profile.get('plan','?')}' "
+              f"· {len(zones_used)}/{max_assets} activos usados")
+
+    except SystemExit:
+        raise
+    except Exception as e:
+        print(f"[WARN] Verificación de autorización falló ({e}) — continuando sin geofencing")
+
 
 DATA_JSON = Path(__file__).parent / 'data.json'
 
@@ -105,7 +179,15 @@ def main():
         '--skip-vision', action='store_true',
         help='Omitir clasificación de vigor'
     )
+    parser.add_argument(
+        '--client-uid', metavar='UID',
+        help='UID Firebase del cliente (activa geofencing y verificación de cuota)'
+    )
     args = parser.parse_args()
+
+    # ── Geofencing: verificar autorización del cliente ──
+    if args.client_uid:
+        _check_client_auth(args.client_uid, args.area)
 
     # Modo multi-área: delegar en faro_sar_auto.pipeline_area()
     if len(args.area) > 1 or (len(args.area) == 1 and not args.sar_file and not args.only_search):

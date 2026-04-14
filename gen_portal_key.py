@@ -59,29 +59,20 @@ GMAIL_PASS  = os.getenv('GMAIL_APP_PASS', '')
 ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', GMAIL_USER)
 SA_PATH     = os.getenv('FIREBASE_SERVICE_ACCOUNT', '')
 
-AREAS_AVAILABLE = [
-    'cordoba', 'balcarce', 'vaca_muerta', 'rotterdam',
-    'permian', 'pilbara', 'amazonas', 'indiana', 'malacca', 'punta_colorada',
-]
-
-# Mapeo plan Lemon Squeezy → áreas (None = todas)
-PLAN_AREAS = {
-    'observer':   AREAS_AVAILABLE[:1],   # 1 área
-    'analyst':    AREAS_AVAILABLE[:3],   # 3 áreas
-    'sovereign':  None,                  # ilimitado
-    'enterprise': None,                  # sectores completos
+# Cuota de activos (zonas) por plan — se persiste como max_assets en Firestore
+PLAN_MAX_ASSETS = {
+    'observer':   1,    # 1 zona a elección
+    'analyst':    3,    # 3 zonas a elección
+    'sovereign':  999,  # ilimitado práctico
+    'enterprise': 999,  # sectores completos
 }
 
-AREA_LABELS = {
-    'cordoba':     'Córdoba (Agro · Marcos Juárez)',
-    'balcarce':    'Balcarce (Agro)',
-    'vaca_muerta': 'Vaca Muerta (Energía)',
-    'rotterdam':   'Rotterdam (Marítimo)',
-    'permian':     'Permian Basin (O&G)',
-    'pilbara':     'Pilbara (Minería de hierro)',
-    'amazonas':    'Amazonas (Deforestación)',
-    'indiana':     'Indiana (Agro)',
-    'malacca':     'Estrecho de Malacca (Shipping)',
+# Plan labels para email de bienvenida
+PLAN_LABELS = {
+    'observer':   'Observer — USD 2.500/mes · 1 zona a elección',
+    'analyst':    'Analyst — USD 9.000/mes · 3 zonas a elección',
+    'sovereign':  'Sovereign — USD 17.000/mes · zonas ilimitadas',
+    'enterprise': 'Enterprise — USD 3.200/sector/mes',
 }
 
 # ── Firebase Admin ────────────────────────────────────────────────────────────
@@ -316,17 +307,17 @@ a{{color:#c9a84c;text-decoration:none;}}
 def create_from_payment(email: str, plan: str, name: str = None):
     """
     Llamado por faro_webhook.py cuando Lemon Squeezy confirma un pago.
-    Crea el usuario Firebase con áreas según el plan y activa active_subscription=True.
+    Crea el usuario Firebase y activa active_subscription=True.
+    Las zonas las elige el cliente en el visor después de autenticarse.
 
     Planes:
-      observer   → 1 área  (USD 2.500/mes)
-      analyst    → 3 áreas (USD 9.000/mes)
-      sovereign  → todas   (USD 17.000/mes)
-      enterprise → todas   (USD 3.200/sector/mes)
+      observer   → 1 zona a elección  (USD 2.500/mes)
+      analyst    → 3 zonas a elección (USD 9.000/mes)
+      sovereign  → ilimitadas         (USD 17.000/mes)
+      enterprise → sectores completos (USD 3.200/sector/mes)
     """
     plan = plan.lower().strip()
-    max_areas = PLAN_AREAS.get(plan)
-    areas = AREAS_AVAILABLE[:] if max_areas is None else max_areas[:]
+    max_assets = PLAN_MAX_ASSETS.get(plan)
 
     _init_firebase()
     email = email.strip().lower()
@@ -334,7 +325,7 @@ def create_from_payment(email: str, plan: str, name: str = None):
 
     print(f"\n[FARO] Activando cliente (Lemon Squeezy): {email}")
     print(f"  Plan  : {plan}")
-    print(f"  Áreas : {', '.join(areas)}")
+    print(f"  Cuota : {'ilimitadas' if max_assets >= 999 else max_assets} zona(s) a elección")
 
     # 1. Crear o actualizar usuario en Firebase Auth
     temp_password = _gen_temp_password()
@@ -354,22 +345,23 @@ def create_from_payment(email: str, plan: str, name: str = None):
             print(f"  [ERROR] Firebase Auth: {e}")
             raise
 
-    # 2. Custom claims con plan y áreas
+    # 2. Custom claims con plan
     auth.set_custom_user_claims(user.uid, {
-        'areas':               areas,
         'plan':                plan,
+        'max_assets':           max_assets,
         'active_subscription': True,
     })
 
-    # 3. Firestore — perfil activo sin expiración de Faro Week
+    # 3. Firestore — perfil activo, zonas vacías (el cliente las dibuja en el visor)
     db  = firestore.client()
     now = datetime.now(timezone.utc)
     db.collection('clients').document(user.uid).set({
         'email':               email,
         'name':                name,
         'uid':                 user.uid,
-        'areas':               areas,
         'plan':                plan,
+        'max_assets':           max_assets,
+        'zones':               {},   # el cliente elige sus zonas en el visor
         'active_subscription': True,
         'status':              'active',
         'createdAt':           now,
@@ -377,7 +369,7 @@ def create_from_payment(email: str, plan: str, name: str = None):
         'knownIPs':            [],
         'source':              'lemon_squeezy',
     }, merge=True)
-    print(f"  Firestore: perfil actualizado (active_subscription=True)")
+    print(f"  Firestore: perfil activado (plan={plan}, max_assets={max_assets})")
 
     # 4. Link de primer acceso (48h)
     try:
@@ -386,36 +378,29 @@ def create_from_payment(email: str, plan: str, name: str = None):
             auth.ActionCodeSettings(url=PORTAL_URL, handle_code_in_app=False),
         )
     except Exception as e:
-        reset_link = f"{PORTAL_URL}/faro_client_portal.html"
+        reset_link = PORTAL_URL
         print(f"  [WARN] Link de reset: {e}")
 
     # 5. Audit log
     _audit_log({
-        'type':  'client_activated_lemon',
-        'email': email,
-        'uid':   user.uid,
-        'plan':  plan,
-        'areas': areas,
+        'type':      'client_activated_lemon',
+        'email':     email,
+        'uid':       user.uid,
+        'plan':      plan,
+        'max_assets': max_assets,
     })
 
     # 6. Email de bienvenida
-    areas_html = '\n'.join(
-        f'    <div class="area-item">&#9658; {AREA_LABELS.get(a, a)}</div>'
-        for a in areas
-    )
-    plan_label = {
-        'observer':   'Observer — USD 2.500/mes',
-        'analyst':    'Analyst — USD 9.000/mes',
-        'sovereign':  'Sovereign — USD 17.000/mes',
-        'enterprise': 'Enterprise — USD 3.200/sector/mes',
-    }.get(plan, plan.title())
+    plan_label = PLAN_LABELS.get(plan, plan.title())
+    quota_txt  = 'ilimitadas' if max_assets >= 999 else str(max_assets)
+    areas_html = f'<div class="area-item">&#9658; {quota_txt} zona(s) a elección · dibujá en el visor</div>'
 
     html = _WELCOME_HTML.format(
         name=name,
         email=email,
         areas_html=areas_html,
         login_link=reset_link,
-        expiry_date=f'Suscripción activa · Plan {plan_label}',
+        expiry_date=f'Suscripción activa · {plan_label}',
         portal_url=PORTAL_URL,
     )
     sent = _send_email(email, 'Bienvenido/a a Faro Protocol — Acceso activado', html)
@@ -424,7 +409,7 @@ def create_from_payment(email: str, plan: str, name: str = None):
 
     print(f"\n  ✓ Cliente activado via Lemon Squeezy")
     print(f"    UID  : {user.uid}")
-    print(f"    Plan : {plan} → {len(areas)} área(s)")
+    print(f"    Plan : {plan} → cuota {quota_txt} zona(s)")
 
 
 # ── Acciones principales ──────────────────────────────────────────────────────
@@ -728,8 +713,8 @@ def main():
     )
     parser.add_argument('email', nargs='?',
                         help='Email del cliente a crear')
-    parser.add_argument('--areas', default='cordoba',
-                        help='Áreas separadas por coma (default: cordoba)')
+    parser.add_argument('--areas', default='',
+                        help='Áreas separadas por coma (opcional — el cliente las elige en el visor)')
     parser.add_argument('--name',
                         help='Nombre de la empresa o persona')
     parser.add_argument('--manual', action='store_true',
@@ -756,17 +741,19 @@ def main():
     elif args.check_expiry:
         check_expiry()
     elif args.email:
-        areas = [a.strip() for a in args.areas.split(',') if a.strip()]
-        unknown = [a for a in areas if a not in AREAS_AVAILABLE]
+        from faro_areas import list_areas as _list_areas
+        available = _list_areas()
+        areas = [a.strip() for a in args.areas.split(',') if a.strip()] if args.areas else []
+        unknown = [a for a in areas if a not in available]
         if unknown:
             print(f"[ERROR] Áreas desconocidas: {unknown}")
-            print(f"  Disponibles: {', '.join(AREAS_AVAILABLE)}")
+            print(f"  Disponibles: {', '.join(available)}")
             sys.exit(1)
         create_client(args.email, areas, args.name, args.manual)
     else:
         parser.print_help()
         print('\nEjemplos:')
-        print('  python gen_portal_key.py cliente@empresa.com --areas cordoba,balcarce --manual')
+        print('  python gen_portal_key.py cliente@empresa.com --name "Empresa SA" --manual')
         print('  python gen_portal_key.py --extend cliente@empresa.com --days 7')
         print('  python gen_portal_key.py --list')
         print('  python gen_portal_key.py --check-expiry')

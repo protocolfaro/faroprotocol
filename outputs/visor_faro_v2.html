@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FARO PROTOCOL — Visor 3D · 6 Sectores</title>
+<title>FARO PROTOCOL — Visor 3D · Global</title>
 
 <script src="https://cesium.com/downloads/cesiumjs/releases/1.104/Build/Cesium/Cesium.js"></script>
 <link href="https://cesium.com/downloads/cesiumjs/releases/1.104/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
@@ -271,6 +271,103 @@
   @keyframes badge-pulse{ 0%,100%{box-shadow:0 0 8px rgba(0,0,0,0.3)} 50%{box-shadow:0 0 20px var(--accent)} }
   @keyframes ld-anim    { from{width:0} to{width:100%} }
 
+  /* ══════════════════════════════════════════════
+     NUEVA ZONA — Drawing mode + modal
+  ══════════════════════════════════════════════ */
+  #btn-new-zone {
+    background: rgba(15,23,42,0.92); border: 1px solid var(--gold);
+    color: var(--gold); font-family: var(--mono); font-size: 11px;
+    letter-spacing: 0.16em; padding: 10px 20px; border-radius: 3px; cursor: pointer;
+    backdrop-filter: blur(8px); transition: all 0.25s; text-transform: uppercase;
+    white-space: nowrap;
+  }
+  #btn-new-zone:hover { opacity: 0.82; box-shadow: 0 0 18px rgba(201,168,76,0.25); }
+  #btn-new-zone.drawing {
+    border-color: #f59e0b; color: #f59e0b; animation: badge-pulse 1.5s ease-in-out infinite;
+  }
+
+  #draw-toolbar {
+    display: none; position: absolute; top: 20px;
+    left: calc((var(--sw) + 100%) / 2); transform: translateX(-50%);
+    background: rgba(15,23,42,0.95); border: 1px solid #f59e0b;
+    border-radius: 4px; padding: 8px 16px; backdrop-filter: blur(12px);
+    align-items: center; gap: 14px; font-family: var(--mono); z-index: 200;
+  }
+  #draw-toolbar-txt { font-size: 9.5px; color: #f59e0b; letter-spacing: 0.15em; }
+  #draw-count       { font-size: 9px; color: rgba(242,237,228,0.45); }
+  #btn-draw-finish  {
+    background: #f59e0b; color: #06080b; border: none;
+    font-family: var(--mono); font-size: 9px; font-weight: 700;
+    letter-spacing: 0.12em; padding: 5px 14px; border-radius: 2px; cursor: pointer;
+    text-transform: uppercase;
+  }
+  #btn-draw-finish:disabled { opacity: 0.4; cursor: not-allowed; }
+  #btn-draw-cancel  {
+    background: transparent; border: 1px solid rgba(148,163,184,0.3);
+    color: rgba(148,163,184,0.6); font-family: var(--mono); font-size: 9px;
+    padding: 5px 12px; border-radius: 2px; cursor: pointer; text-transform: uppercase;
+  }
+
+  /* Modal de confirmación de zona */
+  #zone-modal {
+    display: none; position: fixed; inset: 0; z-index: 9999;
+    background: rgba(10,10,26,0.85); backdrop-filter: blur(8px);
+    align-items: center; justify-content: center;
+  }
+  .zm-box {
+    background: #0d1117; border: 1px solid rgba(201,168,76,0.3);
+    border-top: 2px solid var(--gold); border-radius: 4px;
+    padding: 28px 32px; width: 360px; font-family: var(--mono);
+  }
+  .zm-title { font-size: 11px; color: var(--gold); letter-spacing: 2px;
+              text-transform: uppercase; margin-bottom: 20px; }
+  .zm-label { font-size: 9px; color: rgba(242,237,228,0.45); letter-spacing: 1px;
+              text-transform: uppercase; margin-bottom: 5px; margin-top: 14px; }
+  .zm-input, .zm-select {
+    width: 100%; background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 3px;
+    color: #f2ede4; font-family: var(--mono); font-size: 11px;
+    padding: 9px 12px; outline: none; box-sizing: border-box;
+  }
+  .zm-input:focus, .zm-select:focus { border-color: rgba(201,168,76,0.5); }
+  .zm-select option { background: #0d1117; }
+  .zm-note { font-size: 8.5px; color: rgba(242,237,228,0.28); margin-top: 14px; line-height: 1.6; }
+  .zm-actions { display: flex; gap: 10px; margin-top: 20px; }
+  .zm-btn {
+    flex: 1; background: var(--gold); color: #06080b; border: none;
+    font-family: var(--mono); font-size: 10px; font-weight: 700;
+    letter-spacing: 0.1em; padding: 11px; border-radius: 2px;
+    cursor: pointer; text-transform: uppercase;
+  }
+  .zm-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .zm-btn-cancel {
+    flex: 1; background: transparent; border: 1px solid rgba(148,163,184,0.25);
+    color: rgba(148,163,184,0.55); font-family: var(--mono); font-size: 10px;
+    padding: 11px; border-radius: 2px; cursor: pointer; text-transform: uppercase;
+  }
+  /* Quota badge en sidebar footer */
+  .sb-quota {
+    font-family: var(--mono); font-size: 8px; color: rgba(242,237,228,0.35);
+    letter-spacing: 1px; margin-bottom: 8px; display: flex; justify-content: space-between;
+  }
+  .sb-quota-val { color: var(--gold); }
+  /* Toast */
+  #toast {
+    position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+    background: rgba(15,23,42,0.97); border: 1px solid rgba(201,168,76,0.4);
+    color: #f2ede4; font-family: var(--mono); font-size: 10px;
+    padding: 10px 20px; border-radius: 3px; z-index: 99999;
+    opacity: 0; transition: opacity 0.3s; pointer-events: none;
+    letter-spacing: 0.05em; white-space: nowrap;
+  }
+  #toast.show { opacity: 1; }
+  /* Estado PROCESANDO en sidebar */
+  .s-processing {
+    font-family: var(--mono); font-size: 7px; color: #f59e0b;
+    border: 1px solid rgba(245,158,11,0.35); border-radius: 3px;
+    padding: 1px 4px; flex-shrink: 0; letter-spacing: 0.5px;
+  }
+
   /* Auth guard overlay */
   #auth-guard {
     position: fixed; inset: 0; z-index: 99999;
@@ -311,7 +408,7 @@
   <div id="sidebar">
     <div class="sb-logo-row">
       <div class="sb-logo">FARO PROTOCOL</div>
-      <div class="sb-sub">Visor 3D · Terrain Real · 6 Sectores</div>
+      <div class="sb-sub">Visor 3D · Global · Cualquier Zona</div>
     </div>
     <div class="sb-sec-lbl">Sectores</div>
     <div id="sector-list"></div>
@@ -324,8 +421,12 @@
         <span class="sb-gs-lbl">Score Global</span>
         <span class="sb-gs-val" id="sb-global-score">—</span>
       </div>
+      <div class="sb-quota" id="sb-quota" style="display:none;">
+        <span>CUOTA</span>
+        <span class="sb-quota-val" id="sb-quota-txt">—</span>
+      </div>
       <span class="sb-dot"></span>
-      <span class="sb-status" id="sb-status-txt">Pipeline Active · 10 Áreas</span>
+      <span class="sb-status" id="sb-status-txt">Pipeline Active</span>
     </div>
   </div>
 
@@ -372,18 +473,59 @@
     <div class="nota" id="p-nota"></div>
   </div>
 
+  <!-- Drawing toolbar (aparece en modo dibujo) -->
+  <div id="draw-toolbar">
+    <span id="draw-toolbar-txt">MODO DIBUJO · CLIC PARA AGREGAR VÉRTICES</span>
+    <span id="draw-count">0 puntos</span>
+    <button id="btn-draw-finish" disabled>Finalizar</button>
+    <button id="btn-draw-cancel">Cancelar</button>
+  </div>
+
   <!-- Nav hint -->
   <div id="nav-hint">ARRASTRAR · rotar &nbsp;|&nbsp; SCROLL · zoom &nbsp;|&nbsp; CTRL+drag · inclinar</div>
 
   <!-- Controls -->
   <div id="controls">
+    <button id="btn-new-zone">+ Nueva Zona</button>
     <button id="btn-sar">Activar Capa SAR (Faro Protocol)</button>
-    <button id="btn-reset">⟲ Reset Cámara</button>
+    <button id="btn-reset">⟲ Reset</button>
   </div>
 
   <!-- Coords vivas -->
   <div id="coords">LAT — · LON — · ALT —</div>
 </div>
+
+<!-- Modal: confirmar nueva zona -->
+<div id="zone-modal">
+  <div class="zm-box">
+    <div class="zm-title">Registrar nueva zona</div>
+    <div class="zm-label">Nombre de la zona</div>
+    <input id="zone-name-input" class="zm-input" type="text"
+           placeholder="Ej: Campo Norte, Bloque 7, Puerto X..." maxlength="60" />
+    <div class="zm-label">Tipo de activo</div>
+    <select id="zone-vertical-select" class="zm-select">
+      <option value="agro">Agroindustria</option>
+      <option value="energia">Energía · O&amp;G</option>
+      <option value="maritimo">Marítimo · Portuario</option>
+      <option value="mineria">Minería</option>
+      <option value="infra">Infraestructura</option>
+      <option value="esg">ESG · Forestal</option>
+      <option value="shipping">Shipping</option>
+      <option value="general">General</option>
+    </select>
+    <div class="zm-note">
+      El pipeline Sentinel-1/2 correrá en las próximas 24 horas.
+      Recibirás una notificación cuando los datos estén listos.
+    </div>
+    <div class="zm-actions">
+      <button class="zm-btn-cancel" id="btn-zone-cancel">Cancelar</button>
+      <button class="zm-btn" id="btn-zone-confirm">Confirmar zona →</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast de confirmación -->
+<div id="toast"></div>
 
 <!-- Auth guard overlay — visible hasta que Firebase confirme sesión activa -->
 <div id="auth-guard">
@@ -401,100 +543,99 @@
 
 <script>
 // ════════════════════════════════════════════════════════════
-//  DATOS REALES — data.json + faro_areas/*.json
+//  SECTORES — cargados dinámicamente desde Firestore + data.json
+//  Array mutable: se actualiza cuando el cliente agrega zonas
 // ════════════════════════════════════════════════════════════
-const SECTORS = [
-  {
-    id: 'og', icon: '⛽', label: 'Energía O&G',
-    area: 'Vaca Muerta', pais: 'Neuquén, Argentina',
-    color: '#f97316',
-    cam: { lon: -69.0, lat: -37.5, alt: 9000, heading: 0, pitch: -32 },
-    poly: { lnMin: -70.0, ltMin: -38.0, lnMax: -68.0, ltMax: -37.0 },
-    score_faro: 42.1, ndvi: 0.0941, sar_db: -10.4093, fusion: 0.4212,
-    pixeles: 13392000, actividad: 50.6, rinde: null, estado: 'OK',
-    ultimo_run: '2026-04-07 17:26',
-    sha256: 'fd2a23ebe1b3759b993951f7f8360bb7d9b8f4892cef63a0753db25fb6655e6a',
-    sensor: 'Sentinel-1 IW GRD',
-    vertical: 'Energía · Oil & Gas · Upstream',
-    centro: '37.5000°S · 69.0000°W',
-    nota: 'Score calibrado para zona industrial. FSI 0 = operación normal. Datos Sentinel-1/2 verificados SHA-256.'
-  },
-  {
-    id: 'agro', icon: '🌾', label: 'Agroindustria',
-    area: 'Balcarce', pais: 'Buenos Aires, Argentina',
-    color: '#c9a84c',
-    cam: { lon: -58.0, lat: -37.8, alt: 6500, heading: 8, pitch: -36 },
-    poly: { lnMin: -58.5, ltMin: -38.3, lnMax: -57.5, ltMax: -37.3 },
-    score_faro: 69.5, ndvi: 0.5328, sar_db: 15.4836, fusion: 0.7599,
-    pixeles: 124077285, actividad: null, rinde: 2.8, estado: 'OK',
-    ultimo_run: '2026-04-08 02:06',
-    sha256: '5233ec238815393a6e98fdb11b42a9f86574df9586258b16c34980f26f4a8f7d',
-    sensor: 'Sentinel-1 IW GRD + S2',
-    vertical: 'Agricultura · Monitoreo de Cultivos',
-    centro: '37.8000°S · 58.0000°W',
-    nota: 'Rinde estimado 2.8 t/ha · Alta confianza. SAR +15.5 dB = suelo húmedo / cultivo activo.'
-  },
-  {
-    id: 'maritimo', icon: '⚓', label: 'Marítimo',
-    area: 'Rotterdam', pais: 'Países Bajos',
-    color: '#22d3ee',
-    cam: { lon: 4.4, lat: 51.9, alt: 5000, heading: 12, pitch: -40 },
-    poly: { lnMin: 4.1, ltMin: 51.8, lnMax: 4.7, ltMax: 52.0 },
-    score_faro: 38.3, ndvi: 0.2799, sar_db: -11.9645, fusion: 0.4543,
-    pixeles: 3967488, actividad: 40.2, rinde: null, estado: 'OK',
-    ultimo_run: '2026-04-07 17:30',
-    sha256: '99fa9be2368cc7c9265b917d5f1b9148e3e86d6e97ba461d5b795a5fcb28c9f9',
-    sensor: 'Sentinel-1 IW GRD',
-    vertical: 'Marítimo · Tráfico Portuario',
-    centro: '51.9000°N · 4.4000°E',
-    nota: 'Puerto de Rotterdam. Actividad 40.2. Sentinel-1 detecta buques y grúas activas.'
-  },
-  {
-    id: 'infra', icon: '⚙️', label: 'Infraestructura',
-    area: 'Punta Colorada', pais: 'Río Negro, Argentina',
-    color: '#8b5cf6',
-    cam: { lon: -65.0, lat: -40.5, alt: 7500, heading: 5, pitch: -30 },
-    poly: { lnMin: -65.5, ltMin: -41.0, lnMax: -64.5, ltMax: -40.0 },
-    score_faro: 41.2, ndvi: 0.098, sar_db: -11.704, fusion: 0.5057,
-    pixeles: 5066733, actividad: 42.0, rinde: null, estado: 'OK',
-    ultimo_run: '2026-04-09 09:31',
-    sha256: '55f69af4dd11972ab9f9a95b8150ecdd95cb50ed7e6c86d2aac2040f72a8ebef',
-    sensor: 'Sentinel-1 IW GRD',
-    vertical: 'Infraestructura · Oil & Gas · Costera',
-    centro: '40.5000°S · 65.0000°W',
-    nota: 'Instalaciones portuarias e infraestructura energética. Costa Patagónica, Río Negro.'
-  },
-  {
-    id: 'mineria', icon: '⬡', label: 'Minería',
-    area: 'Cauchari (Litio)', pais: 'Jujuy, Argentina',
-    color: '#a78bfa',
-    cam: { lon: -66.75, lat: -24.04, alt: 4800, heading: 0, pitch: -38 },
-    poly: { lnMin: -66.82, ltMin: -24.11, lnMax: -66.71, ltMax: -23.96 },
-    score_faro: 44.7, ndvi: 0.052, sar_db: -9.81, fusion: 0.4890,
-    pixeles: 8200000, actividad: 55.3, rinde: null, estado: 'OK',
-    ultimo_run: '2026-04-07 17:36',
-    sha256: '54789e08ae0db3765af03c0b5ea50a998cd9b268e4d906f5dd94513eca1bab6a',
-    sensor: 'Sentinel-1 IW GRD',
-    vertical: 'Minería · Litio · Salar Cauchari-Olaroz',
-    centro: '24.0400°S · 66.7500°W',
-    nota: 'Cauchari-Olaroz · Lithium Americas + JEMSE. Piletas de evaporación. Altitud ~3800 m s.n.m.'
-  },
-  {
-    id: 'esg', icon: '◈', label: 'ESG',
-    area: 'Amazonas', pais: 'Mato Grosso, Brasil',
-    color: '#00ff41',
-    cam: { lon: -55.5, lat: -11.8, alt: 18000, heading: 0, pitch: -25 },
-    poly: { lnMin: -57.0, ltMin: -13.0, lnMax: -54.0, ltMax: -10.6 },
-    score_faro: 66.3, ndvi: 0.2834, sar_db: -5.3823, fusion: 0.6073,
-    pixeles: 15200000, actividad: 84.1, rinde: null, estado: 'OK',
-    ultimo_run: '2026-04-07 17:42',
-    sha256: '22dbb6ac3400bf0935251210f6067f5bdc5e4e3033edebbbe73eea518639e05b',
-    sensor: 'Sentinel-1 IW GRD',
-    vertical: 'ESG · Deforestación · Cobertura Forestal',
-    centro: '11.8000°S · 55.5000°W',
-    nota: 'Cuiabá / Sorriso, Mato Grosso. Actividad deforestación 84.1. Fusión confirma pérdida de cobertura.'
-  }
-];
+let SECTORS = [];
+
+// Iconos y colores por tipo de vertical
+const _VERT_ICON = {
+  agro:'🌾', energia:'⛽', oil_gas:'⛽', maritimo:'⚓',
+  mineria:'⬡', mining_iron:'⬡', esg:'◈', deforestacion:'◈',
+  infra:'⚙️', shipping:'⚓', general:'📍', tierras_raras:'💎',
+};
+const _VERT_COLOR = {
+  agro:'#c9a84c', energia:'#f97316', oil_gas:'#f97316', maritimo:'#22d3ee',
+  mineria:'#a78bfa', mining_iron:'#a78bfa', esg:'#00ff41', deforestacion:'#00ff41',
+  infra:'#8b5cf6', shipping:'#22d3ee', general:'#94a3b8', tierras_raras:'#e879f9',
+};
+const _VERT_LABEL = {
+  agro:'Agroindustria', energia:'Energía · O&G', oil_gas:'O&G · Upstream',
+  maritimo:'Marítimo · Portuario', mineria:'Minería', mining_iron:'Minería',
+  esg:'ESG · Forestal', deforestacion:'ESG · Deforestación',
+  infra:'Infraestructura', shipping:'Shipping', general:'General',
+  tierras_raras:'Minería · Tierras Raras',
+};
+
+/**
+ * Construye un objeto de sector a partir de datos de un área (drawn o de Firestore).
+ * bounds: [lon_min, lat_min, lon_max, lat_max]
+ * center: [lat, lon]
+ */
+function _buildSectorFromZone(slug, zoneName, vertical, bounds, center, pipelineData) {
+  const b  = bounds  || [-10, -10, 10, 10];
+  const cc = center  || [0, 0];                  // [lat, lon]
+  const pd = pipelineData || {};
+  const [lonMin, latMin, lonMax, latMax] = b;
+  const [cLat, cLon] = cc;
+  const span = Math.max(lonMax - lonMin, latMax - latMin);
+  const alt  = Math.max(span * 111000 * 2.5, 4000);
+  const vert = (vertical || 'general').toLowerCase();
+
+  return {
+    id:         slug,
+    icon:       _VERT_ICON[vert]  || '📍',
+    label:      zoneName || slug.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+    area:       zoneName || slug,
+    pais:       pd.pais || '',
+    color:      _VERT_COLOR[vert] || '#94a3b8',
+    cam:        { lon: cLon, lat: cLat, alt, heading: 0, pitch: -35 },
+    poly:       { lnMin: lonMin, ltMin: latMin, lnMax: lonMax, ltMax: latMax },
+    score_faro: pd.score_faro  || 0,
+    ndvi:       pd.ndvi_medio  || pd.ndvi || 0,
+    sar_db:     pd.sar_medio_db || pd.sar_db || 0,
+    fusion:     pd.indice_fusion_medio || pd.fusion || 0,
+    actividad:  pd.indice_actividad ?? pd.actividad ?? null,
+    rinde:      pd.rinde_estimado_tha ?? pd.rinde ?? null,
+    estado:     pd.estado || 'PROCESANDO',
+    ultimo_run: pd.ultimo_run || '—',
+    sha256:     pd.sha256 || '',
+    sensor:     'Sentinel-1 IW GRD',
+    vertical:   _VERT_LABEL[vert] || vert,
+    centro:     `${Math.abs(cLat).toFixed(4)}°${cLat < 0 ? 'S' : 'N'} · ${Math.abs(cLon).toFixed(4)}°${cLon < 0 ? 'W' : 'E'}`,
+    nota:       pd.nota || (pd.estado === 'PROCESANDO' || !pd.score_faro
+                  ? 'Zona registrada. Pipeline Sentinel-1/2 en procesamiento (~24 horas).'
+                  : `Score Faro ${pd.score_faro} · ${_VERT_LABEL[vert] || vert}`),
+    pixeles:    pd.pixeles_analizados || 0,
+  };
+}
+
+/**
+ * Construye SECTORS desde data.json (modo demo / Sovereign sin zonas aún).
+ * Usa faro_areas/*.json para bounds/center via la API de zonas.
+ */
+async function _buildSectorsFromDataJson(pipeline) {
+  // Mapeo área → config conocida (bounds/center desde data/pipeline knowledge)
+  const _AREA_CONFIG = {
+    cordoba:        { bounds: [-65.5,-33.5,-63.5,-30.5], center: [-33.5,-64.5], vertical:'agro' },
+    balcarce:       { bounds: [-58.5,-38.3,-57.5,-37.3], center: [-37.8,-58.0], vertical:'agro' },
+    vaca_muerta:    { bounds: [-70.0,-38.0,-68.0,-37.0], center: [-37.5,-69.0], vertical:'energia' },
+    rotterdam:      { bounds: [4.1,51.8,4.7,52.0],       center: [51.9,4.4],   vertical:'maritimo' },
+    permian:        { bounds: [-103.0,31.0,-100.0,33.0],  center: [32.0,-101.5],vertical:'oil_gas' },
+    pilbara:        { bounds: [117.0,-23.5,120.0,-21.5],  center: [-22.5,118.5],vertical:'mining_iron' },
+    amazonas:       { bounds: [-57.0,-13.0,-54.0,-10.6],  center: [-11.8,-55.5],vertical:'deforestacion' },
+    indiana:        { bounds: [-87.0,39.0,-85.0,41.0],    center: [40.0,-86.0], vertical:'agro' },
+    malacca:        { bounds: [99.0,1.0,104.0,5.0],       center: [3.0,101.5],  vertical:'shipping' },
+    punta_colorada: { bounds: [-65.5,-41.0,-64.5,-40.0],  center: [-40.5,-65.0],vertical:'infra' },
+  };
+  return Object.entries(pipeline).map(([slug, pd]) => {
+    const cfg = _AREA_CONFIG[slug] || {};
+    return _buildSectorFromZone(
+      slug, pd.label || slug, cfg.vertical || 'general',
+      cfg.bounds, cfg.center, pd,
+    );
+  });
+}
 
 // ════════════════════════════════════════════════════════════
 //  SHA-256 via Web Crypto API
@@ -871,19 +1012,61 @@ const _FB_CFG = {
 };
 const _PRICING_URL = '../faro_website.html#pricing';
 
-// Mapa area → sector ID (para filtrar sidebar según áreas del cliente)
-const _AREA_TO_SECTOR = {
-  vaca_muerta:    'og',
-  balcarce:       'agro',
-  rotterdam:      'maritimo',
-  punta_colorada: 'infra',
-  pilbara:        'mineria',
-  amazonas:       'esg',
-};
+// ════════════════════════════════════════════════════════════
+//  WEBHOOK URL — servidor faro_webhook.py
+//  Cambiar a la URL real al hacer deploy (Railway/Fly.io)
+// ════════════════════════════════════════════════════════════
+const _WEBHOOK_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  ? 'http://localhost:5000'
+  : 'https://faro-webhook.fly.dev';   // reemplazar con URL real al hacer deploy
 
+// ════════════════════════════════════════════════════════════
+//  QUOTA DISPLAY — "X/Y activos usados"
+// ════════════════════════════════════════════════════════════
+let _clientProfile  = null;   // perfil Firestore del cliente autenticado
+let _clientMaxAssets = 1;     // cuota máxima del plan
+
+function _updateQuotaBar() {
+  const used    = SECTORS.filter(s => s.estado !== 'DEMO').length;
+  const maxA    = _clientMaxAssets;
+  const isUnlim = maxA >= 999;
+  const el      = document.getElementById('sb-quota');
+  const val     = document.getElementById('sb-quota-txt');
+  if (!el || !val) return;
+
+  el.style.display = 'flex';
+  val.textContent  = isUnlim
+    ? `${used} / ∞ activos`
+    : `${used} / ${maxA} activos`;
+
+  // Color de alerta cuando está al límite
+  val.style.color = (!isUnlim && used >= maxA)
+    ? '#ef4444'   // rojo: límite
+    : used >= maxA * 0.8
+      ? '#f59e0b' // ámbar: cerca del límite
+      : 'var(--gold)';
+
+  // Mostrar/ocultar botón "Nueva Zona"
+  const btnNZ = document.getElementById('btn-new-zone');
+  if (btnNZ) {
+    const canAdd = isUnlim || used < maxA;
+    btnNZ.style.display    = _clientProfile ? 'block' : 'none';
+    btnNZ.disabled         = !canAdd;
+    btnNZ.title            = canAdd ? 'Dibujar nueva zona' : `Límite alcanzado (${used}/${maxA})`;
+    btnNZ.style.opacity    = canAdd ? '1' : '0.4';
+    btnNZ.style.cursor     = canAdd ? 'pointer' : 'not-allowed';
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+//  FIREBASE AUTH GUARD — GLOBAL ARCHITECTURE
+//  1. Dev mode (localhost): sin verificación, usa data.json
+//  2. Prod: verifica Firebase → carga zonas de Firestore
+//     · zones (nuevo): cada zona es un activo dibujado por el cliente
+//     · sin zones: modo Sovereign/demo — carga todo de data.json
+// ════════════════════════════════════════════════════════════
 async function _faroAuthAndInit() {
   const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
-  let profile = null;
 
   if (!isLocal) {
     try {
@@ -894,30 +1077,54 @@ async function _faroAuthAndInit() {
       const fbDb   = firebase.firestore(fbApp);
 
       // Esperar resolución de auth state (timeout 6s)
-      const user = await new Promise((resolve) => {
+      const user = await new Promise(resolve => {
         const unsub = fbAuth.onAuthStateChanged(u => { unsub(); resolve(u); });
         setTimeout(() => resolve(null), 6000);
       });
 
-      if (!user) {
-        window.location.href = _PRICING_URL;
-        return;
-      }
+      if (!user) { window.location.href = _PRICING_URL; return; }
 
       const snap = await fbDb.collection('clients').doc(user.uid).get();
-      if (!snap.exists) {
-        window.location.href = _PRICING_URL;
-        return;
-      }
+      if (!snap.exists) { window.location.href = _PRICING_URL; return; }
 
-      profile = snap.data();
-      const isActive = (
-        profile.status === 'active' ||
-        profile.active_subscription === true
-      );
-      if (!isActive) {
-        window.location.href = _PRICING_URL;
-        return;
+      const profile = snap.data();
+      const isActive = profile.status === 'active' || profile.active_subscription === true;
+      if (!isActive) { window.location.href = _PRICING_URL; return; }
+
+      _clientProfile   = profile;
+      _clientMaxAssets = (typeof profile.max_assets === 'number')
+        ? profile.max_assets
+        : 1;
+
+      // ── Construir SECTORS desde zonas del cliente (nueva arquitectura global) ──
+      const clientZones = profile.zones || {};   // { slug: { name, vertical, bounds, center, status } }
+      const hasZones    = Object.keys(clientZones).length > 0;
+
+      // Fetch data.json para scores en tiempo real
+      let pipelineData = {};
+      try {
+        const dj = await fetch('../data.json').then(r => r.json());
+        pipelineData = dj.pipeline || {};
+      } catch (_) {}
+
+      if (hasZones) {
+        // Arquitectura nueva: sectores = zonas elegidas por el cliente
+        SECTORS = Object.entries(clientZones).map(([slug, zd]) => {
+          const pd = pipelineData[slug] || {};
+          return _buildSectorFromZone(
+            slug,
+            zd.name   || slug,
+            zd.vertical || 'general',
+            zd.bounds || null,
+            zd.center || null,
+            Object.assign({}, pd, { estado: pd.score_faro ? pd.estado : (zd.status || 'PROCESANDO') }),
+          );
+        });
+      } else {
+        // Sin zonas aún (cliente nuevo, o sovereign sin dibujar)
+        SECTORS = await _buildSectorsFromDataJson(pipelineData);
+        // Marcarlos como DEMO para que no cuenten en la cuota
+        SECTORS.forEach(s => { s.estado = s.estado || 'DEMO'; });
       }
 
     } catch (err) {
@@ -925,27 +1132,59 @@ async function _faroAuthAndInit() {
       window.location.href = _PRICING_URL;
       return;
     }
-  } else {
-    console.info('[Faro Auth] Dev mode (localhost) — sin verificación Firebase');
-  }
 
-  // ── Filtrar SECTORS por áreas del cliente (si aplica) ──
-  if (profile && profile.areas && !profile.areas.includes('*')) {
-    const allowed = new Set(
-      profile.areas.map(a => _AREA_TO_SECTOR[a] || a)
-    );
-    // Eliminar sectores no permitidos (iterar al revés para splice seguro)
-    for (let i = SECTORS.length - 1; i >= 0; i--) {
-      if (!allowed.has(SECTORS[i].id)) SECTORS.splice(i, 1);
+  } else {
+    // ── Dev mode: cargar todo desde data.json ──
+    console.info('[Faro Auth] Dev mode — sin verificación Firebase');
+    _clientMaxAssets = 999;
+    try {
+      const dj = await fetch('../data.json').then(r => r.json());
+      SECTORS  = await _buildSectorsFromDataJson(dj.pipeline || {});
+    } catch (_) {
+      // Sin data.json: sector vacío de ejemplo
+      SECTORS = [_buildSectorFromZone('demo','Demo Zone','general',[-10,-10,10,10],[0,0],{score_faro:0})];
     }
   }
+
+  // ── Actualizar score global desde data.json (todos los sectores) ──
+  try {
+    const dj = await fetch('../data.json').then(r => r.json()).catch(() => ({}));
+    const pipeline = dj.pipeline || {};
+    const scores   = Object.values(pipeline).map(a => a && a.score_faro).filter(s => s > 0);
+    if (scores.length) {
+      const avg  = scores.reduce((a,b) => a+b, 0) / scores.length;
+      const gsEl = document.getElementById('sb-global-score');
+      if (gsEl) {
+        gsEl.textContent = avg.toFixed(1);
+        gsEl.style.color = avg >= 60 ? '#00ff41' : avg >= 45 ? '#c9a84c' : '#f97316';
+      }
+    }
+    const statusEl = document.getElementById('sb-status-txt');
+    if (statusEl) statusEl.textContent = `Pipeline Active · ${SECTORS.length} zona${SECTORS.length !== 1 ? 's' : ''}`;
+
+    // Strip de alertas
+    const alertCount = Object.values(pipeline).filter(
+      a => a && (a.score_faro < 40 || a.estado === 'ALERTA' || a.pct_anomalia > 0)
+    ).length;
+    if (alertCount > 0) {
+      const strip = document.getElementById('sb-alert-strip');
+      if (strip) {
+        strip.classList.add('visible');
+        const txt = document.getElementById('sb-alert-txt');
+        if (txt) txt.textContent = `${alertCount} ALERTA${alertCount > 1 ? 'S' : ''} EN SISTEMA`;
+      }
+    }
+  } catch (_) {}
 
   // ── Remover auth guard y mostrar visor ──
   const ag = document.getElementById('auth-guard');
   if (ag) { ag.style.opacity = '0'; setTimeout(() => ag.remove(), 400); }
 
+  // ── Barra de cuota ──
+  _updateQuotaBar();
+
   buildSidebar();
-  selectSector(SECTORS[0]?.id ?? 'og');
+  if (SECTORS.length) selectSector(SECTORS[0].id);
 
   setTimeout(() => {
     const ld = document.getElementById('loading');
@@ -953,6 +1192,173 @@ async function _faroAuthAndInit() {
   }, 2200);
 }
 
+// ════════════════════════════════════════════════════════════
+//  ZONA DRAWING MODE
+// ════════════════════════════════════════════════════════════
+let _drawMode   = false;
+let _drawPoints = [];
+let _drawPoly   = null;
+let _drawMarkers= [];
+
+function _enterDrawMode() {
+  if (!_clientProfile) { _showToast('Iniciá sesión para agregar zonas'); return; }
+  const used = SECTORS.filter(s => s.estado !== 'DEMO').length;
+  if (used >= _clientMaxAssets && _clientMaxAssets < 999) {
+    _showToast(`Límite alcanzado (${used}/${_clientMaxAssets}). Actualizá tu plan.`); return;
+  }
+  _drawMode = true;
+  _drawPoints = [];
+  _clearDrawing();
+  document.getElementById('draw-toolbar').style.display = 'flex';
+  document.getElementById('draw-count').textContent = '0 puntos — clic para agregar';
+  viewer.container.style.cursor = 'crosshair';
+  document.getElementById('btn-new-zone').classList.add('drawing');
+}
+
+function _exitDrawMode() {
+  _drawMode = false;
+  _clearDrawing();
+  document.getElementById('draw-toolbar').style.display = 'none';
+  document.getElementById('zone-modal').style.display   = 'none';
+  viewer.container.style.cursor = '';
+  document.getElementById('btn-new-zone').classList.remove('drawing');
+}
+
+function _clearDrawing() {
+  _drawPoints = [];
+  if (_drawPoly) { viewer.entities.remove(_drawPoly); _drawPoly = null; }
+  _drawMarkers.forEach(m => viewer.entities.remove(m));
+  _drawMarkers = [];
+}
+
+function _updateDrawPoly() {
+  if (_drawPoints.length < 2) return;
+  const positions = Cesium.Cartesian3.fromDegreesArray(_drawPoints.flatMap(p => [p.lon, p.lat]));
+  if (_drawPoly) {
+    _drawPoly.polygon.hierarchy = new Cesium.PolygonHierarchy(positions);
+  } else {
+    _drawPoly = viewer.entities.add({
+      polygon: {
+        hierarchy:    new Cesium.PolygonHierarchy(positions),
+        material:     Cesium.Color.fromCssColorString('#f59e0b').withAlpha(0.2),
+        outline:      true,
+        outlineColor: Cesium.Color.fromCssColorString('#f59e0b').withAlpha(0.9),
+        outlineWidth: 2,
+        height: 0, clampToGround: true,
+      },
+    });
+  }
+}
+
+// Manejador de clicks en modo dibujo
+const _drawHandler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+_drawHandler.setInputAction(function(click) {
+  if (!_drawMode) return;
+  const cart = viewer.camera.pickEllipsoid(click.position, viewer.scene.globe.ellipsoid);
+  if (!cart) return;
+  const carto = Cesium.Cartographic.fromCartesian(cart);
+  const pt    = { lon: Cesium.Math.toDegrees(carto.longitude), lat: Cesium.Math.toDegrees(carto.latitude) };
+  _drawPoints.push(pt);
+  _drawMarkers.push(viewer.entities.add({
+    position: Cesium.Cartesian3.fromDegrees(pt.lon, pt.lat),
+    point: { pixelSize: 8, color: Cesium.Color.fromCssColorString('#f59e0b'),
+             outlineColor: Cesium.Color.fromCssColorString('#1e293b'), outlineWidth: 2 },
+  }));
+  _updateDrawPoly();
+  const n = _drawPoints.length;
+  document.getElementById('draw-count').textContent = `${n} punto${n>1?'s':''} · doble-clic para finalizar`;
+  document.getElementById('btn-draw-finish').disabled = n < 3;
+}, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+_drawHandler.setInputAction(function() {
+  if (!_drawMode || _drawPoints.length < 3) return;
+  document.getElementById('zone-modal').style.display = 'flex';
+  document.getElementById('zone-name-input').focus();
+}, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
+
+// Botones del toolbar de dibujo
+document.getElementById('btn-draw-finish').addEventListener('click', () => {
+  if (_drawPoints.length >= 3) {
+    document.getElementById('zone-modal').style.display = 'flex';
+    document.getElementById('zone-name-input').focus();
+  }
+});
+document.getElementById('btn-draw-cancel').addEventListener('click', _exitDrawMode);
+
+// Botón "Nueva Zona"
+document.getElementById('btn-new-zone').addEventListener('click', _enterDrawMode);
+document.getElementById('btn-new-zone').style.display = 'none'; // se muestra tras auth
+
+// Modal de confirmación
+document.getElementById('btn-zone-cancel').addEventListener('click', _exitDrawMode);
+document.getElementById('btn-zone-confirm').addEventListener('click', async () => {
+  const name     = document.getElementById('zone-name-input').value.trim();
+  const vertical = document.getElementById('zone-vertical-select').value;
+  if (!name) { alert('Ingresá un nombre para la zona.'); return; }
+  if (_drawPoints.length < 3) { alert('Dibujá al menos 3 puntos en el mapa.'); return; }
+
+  const coords = _drawPoints.map(p => `${p.lon} ${p.lat}`).join(',');
+  const first  = _drawPoints[0];
+  const wkt    = `POLYGON((${coords},${first.lon} ${first.lat}))`;
+  const lons   = _drawPoints.map(p => p.lon);
+  const lats   = _drawPoints.map(p => p.lat);
+  const bounds = [Math.min(...lons), Math.min(...lats), Math.max(...lons), Math.max(...lats)];
+  const center = [(bounds[1]+bounds[3])/2, (bounds[0]+bounds[2])/2];
+
+  const btn = document.getElementById('btn-zone-confirm');
+  btn.textContent = 'Registrando…'; btn.disabled = true;
+
+  try {
+    let idToken = '';
+    if (!isLocal && firebase.auth().currentUser) {
+      idToken = await firebase.auth().currentUser.getIdToken();
+    }
+    const resp = await fetch(_WEBHOOK_URL + '/api/zone/new', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json',
+                 ...(idToken ? { 'Authorization': 'Bearer ' + idToken } : {}) },
+      body: JSON.stringify({ name, vertical, polygon_wkt: wkt, bounds, center }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) {
+      if (data.error === 'quota_exceeded') {
+        alert(`Límite de activos alcanzado (${data.current}/${data.max} en plan ${data.plan}).\nActualizá tu plan en la página de precios.`);
+      } else {
+        alert('Error: ' + (data.error || resp.statusText));
+      }
+      return;
+    }
+    // Agregar al visor inmediatamente
+    const slug = data.zone_id;
+    const newS = _buildSectorFromZone(slug, name, vertical, bounds, center,
+                                       { estado: 'PROCESANDO', score_faro: 0 });
+    SECTORS.push(newS);
+    buildSidebar();
+    _updateQuotaBar();
+    _exitDrawMode();
+    selectSector(slug);
+    _showToast(`Zona "${name}" registrada. Datos en ~24 horas.`);
+  } catch(e) {
+    alert('Error de conexión: ' + e.message);
+  } finally {
+    btn.textContent = 'Confirmar zona →'; btn.disabled = false;
+  }
+});
+
+// ════════════════════════════════════════════════════════════
+//  TOAST
+// ════════════════════════════════════════════════════════════
+function _showToast(msg, ms = 4000) {
+  const t = document.getElementById('toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), ms);
+}
+
+// ════════════════════════════════════════════════════════════
+//  ARRANQUE
+// ════════════════════════════════════════════════════════════
 _faroAuthAndInit();
 </script>
 </body>

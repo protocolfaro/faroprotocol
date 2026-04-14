@@ -38,5 +38,8 @@ logs/*.log.*
 audit_log.jsonl
 faro_card_*.txt
 
+# Engine privado (algoritmos SAR/NDVI — no exponer públicamente)
+engine/
+
 # Claude interno
 .claude/
