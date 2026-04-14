@@ -1059,6 +1059,42 @@ function _updateQuotaBar() {
 }
 
 // ════════════════════════════════════════════════════════════
+//  NETLIFY FUNCTIONS — auth-monitor + generate-signed-url
+// ════════════════════════════════════════════════════════════
+const _NETLIFY_BASE = '/.netlify/functions';
+
+function _authMonitor(payload) {
+  // Fire-and-forget: no bloquea el flujo principal
+  fetch(_NETLIFY_BASE + '/auth-monitor', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }).catch(() => {});   // silencioso: no critico
+}
+
+async function _downloadReport(file) {
+  const user = firebase.auth ? firebase.auth().currentUser : null;
+  if (!user) { alert('Debes iniciar sesion para descargar reportes.'); return; }
+  try {
+    const idToken = await user.getIdToken();
+    const resp = await fetch(_NETLIFY_BASE + '/generate-signed-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken, file }),
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      alert('Error generando URL: ' + (err.error || resp.statusText));
+      return;
+    }
+    const { signedUrl } = await resp.json();
+    window.open(signedUrl, '_blank');
+  } catch (e) {
+    alert('Error de conexion: ' + e.message);
+  }
+}
+
+// ════════════════════════════════════════════════════════════
 //  FIREBASE AUTH GUARD — GLOBAL ARCHITECTURE
 //  1. Dev mode (localhost): sin verificación, usa data.json
 //  2. Prod: verifica Firebase → carga zonas de Firestore
@@ -1082,7 +1118,11 @@ async function _faroAuthAndInit() {
         setTimeout(() => resolve(null), 6000);
       });
 
-      if (!user) { window.location.href = _PRICING_URL; return; }
+      if (!user) {
+        _authMonitor({ event: 'login_failed', email: '', ip: '' });
+        window.location.href = _PRICING_URL;
+        return;
+      }
 
       const snap = await fbDb.collection('clients').doc(user.uid).get();
       if (!snap.exists) { window.location.href = _PRICING_URL; return; }
@@ -1090,6 +1130,9 @@ async function _faroAuthAndInit() {
       const profile = snap.data();
       const isActive = profile.status === 'active' || profile.active_subscription === true;
       if (!isActive) { window.location.href = _PRICING_URL; return; }
+
+      // Notificar login exitoso al auth-monitor (rate limit + IP tracking)
+      _authMonitor({ event: 'login_ok', email: user.email || '', uid: user.uid });
 
       _clientProfile   = profile;
       _clientMaxAssets = (typeof profile.max_assets === 'number')

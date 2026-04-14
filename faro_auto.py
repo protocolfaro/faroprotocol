@@ -106,7 +106,7 @@ def correr_pipeline(area: dict, dry_run: bool = False) -> dict:
         return {'ok': True, 'dry_run': True, 'area': nombre}
 
     _log.info(f"  Corriendo pipeline: {label}")
-    cmd = [sys.executable, str(PROJECT_ROOT / 'faro_engine.py'), '--area', nombre]
+    cmd = [sys.executable, str(PROJECT_ROOT / 'engine' / 'faro_engine.py'), '--area', nombre]
 
     try:
         result = subprocess.run(

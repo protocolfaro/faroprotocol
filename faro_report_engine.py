@@ -62,6 +62,11 @@ from faro_quality import QualityGate, print_quality_header, log_generation as _l
 
 ROOT       = Path(__file__).parent
 DATA_JSON  = ROOT / 'data.json'
+
+# Engine path (modulos privados en engine/)
+_ENGINE_DIR = ROOT / 'engine'
+if _ENGINE_DIR.exists() and str(_ENGINE_DIR) not in sys.path:
+    sys.path.insert(0, str(_ENGINE_DIR))
 AUDIT_LOG  = ROOT / 'audit_log.jsonl'
 
 # ── Paleta ────────────────────────────────────────────────────────────────────

@@ -181,7 +181,7 @@ export default async function handler(req, context) {
     // 5. Build signed URL
     const baseUrl = context.url
       ? new URL(context.url).origin
-      : 'https://faroprotocol.netlify.app';
+      : 'https://faro-protocol.netlify.app';
 
     const { url: signedUrl, expiresAt } = buildSignedUrl(file, uid, secret, baseUrl);
 
@@ -213,7 +213,7 @@ function json(data, status = 200) {
 
 function corsHeaders() {
   return {
-    'Access-Control-Allow-Origin':  'https://faroprotocol.netlify.app',
+    'Access-Control-Allow-Origin':  'https://faro-protocol.netlify.app',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
   };

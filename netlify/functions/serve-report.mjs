@@ -127,7 +127,7 @@ export default async function handler(req, context) {
       'X-Frame-Options':           'DENY',
       'Referrer-Policy':           'no-referrer',
       'X-Faro-Served':             'authenticated',
-      'Access-Control-Allow-Origin': 'https://faroprotocol.netlify.app',
+      'Access-Control-Allow-Origin': 'https://faro-protocol.netlify.app',
     },
   });
 }

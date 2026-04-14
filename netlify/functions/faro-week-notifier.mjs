@@ -92,9 +92,9 @@ a{color:#c9a84c;text-decoration:none;}
   <div class="plans">
     <div style="font-family:monospace;font-size:8px;color:rgba(201,168,76,0.4);
                 letter-spacing:0.2em;text-transform:uppercase;margin-bottom:14px;">Planes</div>
-    <div class="plan"><strong>Starter — USD 199/mes</strong><br>1 área · Reporte semanal · SHA-256 certificado</div>
-    <div class="plan"><strong>Professional — USD 499/mes</strong><br>3 áreas · Alertas en tiempo real · Dashboard</div>
-    <div class="plan"><strong>Enterprise — a convenir</strong><br>Áreas ilimitadas · API access · SLA</div>
+    <div class="plan"><strong>Observer — USD 2.500/mes</strong><br>1 zona · Reporte semanal · SHA-256 certificado</div>
+    <div class="plan"><strong>Analyst — USD 9.000/mes</strong><br>3 zonas · Alertas en tiempo real · Dashboard</div>
+    <div class="plan"><strong>Sovereign — USD 17.000/mes</strong><br>Zonas ilimitadas · API access · SLA</div>
   </div>
   <div class="footer">
     <div>Faro Protocol · protocolfaro@gmail.com</div>

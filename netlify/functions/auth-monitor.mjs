@@ -224,7 +224,7 @@ function json(data, status = 200) {
 
 function corsHeaders() {
   return {
-    'Access-Control-Allow-Origin':  'https://faroprotocol.netlify.app',
+    'Access-Control-Allow-Origin':  'https://faro-protocol.netlify.app',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
   };
