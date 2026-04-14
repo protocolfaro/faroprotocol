@@ -1,801 +1,972 @@
 #!/usr/bin/env python3
 """
-faro_demo_v2.py — Genera outputs/faro_demo_v2.mp4
-90 segundos · 1920×1080 · 24fps · sin audio
-moviepy 2.x API
+faro_demo_v2.py  -  outputs/faro_demo_v2.mp4
+60s · 1920×1080 · 30fps · sin audio
+Estilo: Bloomberg terminal meets satellite mission control
 """
 
-import os
-import math
+import os, math, random
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
 from moviepy import VideoClip, concatenate_videoclips
-from moviepy import vfx
 
-# ─────────────────────────────────────────────────────────────
-# Config
-# ─────────────────────────────────────────────────────────────
-W, H   = 1920, 1080
-FPS    = 24
-ROOT   = os.path.dirname(os.path.abspath(__file__))
-OUT    = os.path.join(ROOT, "outputs", "faro_demo_v2.mp4")
+# ═══════════════════════════════════════════════════════════════
+# CONFIGURACIÓN
+# ═══════════════════════════════════════════════════════════════
+W, H  = 1920, 1080
+FPS   = 30
+ROOT  = os.path.dirname(os.path.abspath(__file__))
+OUT   = os.path.join(ROOT, "outputs", "faro_demo_v2.mp4")
 
-# ─────────────────────────────────────────────────────────────
-# Paleta
-# ─────────────────────────────────────────────────────────────
-BG    = (10, 10, 26)
-GOLD  = (201, 168, 76)
-GOLD2 = (226, 201, 126)
-GREEN = (0, 255, 65)
-WHITE = (242, 237, 228)
-DIM   = (80, 74, 55)
-RED   = (176, 48, 48)
-BLUE  = (100, 160, 255)
-ORANGE= (255, 140, 50)
-PURPLE= (180, 100, 255)
-TEAL  = (0, 220, 160)
+BG     = (10,  10,  26)
+GOLD   = (201, 168, 76)
+GOLD2  = (226, 201, 126)
+GOLD3  = (140, 110, 45)
+GREEN  = (0,   255, 65)
+GREEN2 = (0,   200, 80)
+WHITE  = (242, 237, 228)
+DIM    = (50,  46,  32)
+ORANGE = (255, 140, 50)
+BLUE   = (80,  150, 255)
+PURPLE = (180, 100, 255)
+TEAL   = (0,   200, 160)
 
-# ─────────────────────────────────────────────────────────────
-# Fuentes
-# ─────────────────────────────────────────────────────────────
 _F = "C:/Windows/Fonts/"
+def _fnt(n, s):
+    try: return ImageFont.truetype(_F + n, s)
+    except: return ImageFont.load_default()
 
-def _fnt(name, size):
-    try:
-        return ImageFont.truetype(_F + name, size)
-    except Exception:
-        return ImageFont.load_default()
+# Tipografías
+FGB100 = _fnt("georgiab.ttf", 100)  # Serif bold grande — títulos hero
+FGB72  = _fnt("georgiab.ttf",  72)
+FG60   = _fnt("georgia.ttf",   60)
+FG48   = _fnt("georgia.ttf",   48)
+FG36   = _fnt("georgia.ttf",   36)
+FG28   = _fnt("georgia.ttf",   28)
+FM44   = _fnt("consola.ttf",   44)  # Mono — datos, scores
+FM32   = _fnt("consola.ttf",   32)
+FM24   = _fnt("consola.ttf",   24)
+FM18   = _fnt("consola.ttf",   18)
+FM14   = _fnt("consola.ttf",   14)
+FM12   = _fnt("consola.ttf",   12)
+FA28   = _fnt("arial.ttf",     28)
+FA22   = _fnt("arial.ttf",     22)
 
-FG80 = _fnt("georgia.ttf",  80)
-FG60 = _fnt("georgia.ttf",  60)
-FG48 = _fnt("georgia.ttf",  48)
-FG40 = _fnt("georgia.ttf",  40)
-FG32 = _fnt("georgia.ttf",  32)
-FM40 = _fnt("consola.ttf",  40)
-FM32 = _fnt("consola.ttf",  32)
-FM24 = _fnt("consola.ttf",  24)
-FM18 = _fnt("consola.ttf",  18)
-FM14 = _fnt("consola.ttf",  14)
-FA32 = _fnt("arial.ttf",    32)
-FA26 = _fnt("arial.ttf",    26)
-FA22 = _fnt("arial.ttf",    22)
-
-# ─────────────────────────────────────────────────────────────
-# Utilidades
-# ─────────────────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════
+# UTILIDADES
+# ═══════════════════════════════════════════════════════════════
 def ease(t):
-    t = max(0.0, min(1.0, t))
-    return t * t * (3 - 2 * t)
+    t = max(0., min(1., t))
+    return t*t*(3-2*t)
 
 def ease_out(t):
-    t = max(0.0, min(1.0, t))
-    return 1 - (1 - t) ** 3
+    t = max(0., min(1., t))
+    return 1-(1-t)**3
 
-def lerp(a, b, t):
-    return a + (b - a) * max(0, min(1, t))
+def lerp(a, b, t): return a + (b-a)*max(0.,min(1.,t))
 
-def bg_img():
+def bg():
     return Image.new("RGBA", (W, H), (*BG, 255))
 
-def add_grid(img, alpha=0.035):
-    draw = ImageDraw.Draw(img, "RGBA")
-    c = (*GOLD, int(255 * alpha))
-    for x in range(0, W + 1, 120):
-        draw.line([(x, 0), (x, H)], fill=c, width=1)
-    for y in range(0, H + 1, 120):
-        draw.line([(0, y), (W, y)], fill=c, width=1)
-
-def text_w(draw, text, font):
-    bb = draw.textbbox((0, 0), text, font=font)
-    return bb[2] - bb[0]
-
-def text_h(draw, text, font):
-    bb = draw.textbbox((0, 0), text, font=font)
-    return bb[3] - bb[1]
-
-def draw_centered(draw, text, y, font, color):
-    w = text_w(draw, text, font)
-    draw.text((W // 2 - w // 2, y), text, font=font, fill=color)
-
-def draw_centered_x(draw, text, x, y, font, color):
-    w = text_w(draw, text, font)
-    draw.text((x - w // 2, y), text, font=font, fill=color)
-
-def draw_scan_lines(draw, y1, y2, alpha=0.04):
-    c = (*GREEN, int(255 * alpha))
-    for y in range(y1, y2, 4):
-        draw.line([(0, y), (W, y)], fill=c, width=1)
-
-def img_frame(img):
+def npf(img):
     return np.array(img.convert("RGB"))
 
-def glow_dot(draw, cx, cy, r, color, alpha):
-    """Dot with soft glow rings"""
-    for ring in range(4, 0, -1):
-        rr = r + ring * 5
-        a_ring = int(255 * alpha * (0.12 / ring))
-        draw.ellipse(
-            [(cx - rr, cy - rr), (cx + rr, cy + rr)],
-            fill=(*color, a_ring)
-        )
-    a_dot = int(255 * alpha)
-    draw.ellipse(
-        [(cx - r, cy - r), (cx + r, cy + r)],
-        fill=(*color, a_dot)
-    )
+def tw(d, txt, fnt):
+    b = d.textbbox((0,0), txt, font=fnt); return b[2]-b[0]
 
-def horizontal_rule(draw, y, x1=None, x2=None, color=GOLD, alpha=0.35):
-    x1 = x1 or 60
-    x2 = x2 or W - 60
-    draw.line([(x1, y), (x2, y)], fill=(*color, int(255 * alpha)), width=1)
+def th(d, txt, fnt):
+    b = d.textbbox((0,0), txt, font=fnt); return b[3]-b[1]
 
-# SHA-256 real de Rotterdam
+def cx_text(d, txt, y, fnt, col, a=255):
+    w = tw(d, txt, fnt)
+    d.text(((W-w)//2, y), txt, font=fnt, fill=(*col[:3], a))
+
+def hline(d, y, x1=80, x2=None, col=GOLD, a=0.35, w=1):
+    if x2 is None: x2 = W-80
+    d.line([(x1,y),(x2,y)], fill=(*col, int(255*a)), width=w)
+
+def vline(d, x, y1=0, y2=None, col=GOLD, a=0.25, w=1):
+    if y2 is None: y2 = H
+    d.line([(x,y1),(x,y2)], fill=(*col, int(255*a)), width=w)
+
+def ring(d, cx, cy, r, col, a, w=1):
+    d.ellipse([(cx-r,cy-r),(cx+r,cy+r)], outline=(*col, int(255*a)), width=w)
+
+def dot(d, cx, cy, r, col, a):
+    d.ellipse([(cx-r,cy-r),(cx+r,cy+r)], fill=(*col, int(255*a)))
+
+def crosshair(d, cx, cy, size, col, a):
+    """Cruz de targeting tipo HUD"""
+    s, g = size, size//3
+    d.line([(cx-s,cy),(cx-g,cy)], fill=(*col,int(255*a)), width=1)
+    d.line([(cx+g,cy),(cx+s,cy)], fill=(*col,int(255*a)), width=1)
+    d.line([(cx,cy-s),(cx,cy-g)], fill=(*col,int(255*a)), width=1)
+    d.line([(cx,cy+g),(cx,cy+s)], fill=(*col,int(255*a)), width=1)
+
+def corner_brackets(d, x1, y1, x2, y2, col, a, sz=20):
+    """Brackets de esquina tipo targeting"""
+    c = (*col, int(255*a))
+    w = 1
+    # TL
+    d.line([(x1,y1),(x1+sz,y1)], fill=c, width=w)
+    d.line([(x1,y1),(x1,y1+sz)], fill=c, width=w)
+    # TR
+    d.line([(x2,y1),(x2-sz,y1)], fill=c, width=w)
+    d.line([(x2,y1),(x2,y1+sz)], fill=c, width=w)
+    # BL
+    d.line([(x1,y2),(x1+sz,y2)], fill=c, width=w)
+    d.line([(x1,y2),(x1,y2-sz)], fill=c, width=w)
+    # BR
+    d.line([(x2,y2),(x2-sz,y2)], fill=c, width=w)
+    d.line([(x2,y2),(x2,y2-sz)], fill=c, width=w)
+
+def scanline_overlay(d, a=0.025):
+    """Líneas horizontales finas — efecto CRT/monitor"""
+    c = (*GREEN, int(255*a))
+    for y in range(0, H, 4):
+        d.line([(0,y),(W,y)], fill=c, width=1)
+
+# ═══════════════════════════════════════════════════════════════
+# DATOS
+# ═══════════════════════════════════════════════════════════════
 SHA256 = "99fa9be2368cc7c9265b917d5f1b9148e3e86d6e97ba461d5b795a5fcb28c9f9"
+TIMESTAMP = "2026-04-04  08:32:17 UTC"
 
-# ─────────────────────────────────────────────────────────────
-# Zonas del mundo — (nombre, sector, lat, lon, color, data)
-# ─────────────────────────────────────────────────────────────
-ZONES = [
-    ("CÓRDOBA",      "Agro",          -31.4,  -64.2,  GOLD,   "Score 49  ⚠"),
-    ("BALCARCE",     "Agro",          -37.9,  -58.3,  GOLD,   "Score 70  ✓"),
-    ("VACA MUERTA",  "Energy / O&G",  -38.8,  -68.9,  ORANGE, "Score 42  ✓"),
-    ("ROTTERDAM",    "Maritime",       51.9,    4.5,   BLUE,   "Score 38  ✓"),
-    ("PERMIAN",      "Oil & Gas",      31.8, -102.4,  ORANGE, "Score 52  ✓"),
-    ("PILBARA",      "Mining",        -22.0,  118.0,  PURPLE, "Score 41  ✓"),
-    ("AMAZONAS",     "Deforestation",  -3.5,  -60.0,  TEAL,   "Score 66  ✓"),
-    ("INDIANA",      "Agro",           40.3,  -86.1,  GOLD,   "Score 38  ⚠"),
-    ("MALACCA",      "Shipping",        2.2,  102.2,  BLUE,   "Score 42  ✓"),
-    ("PUNTA COLORADA","Min./Tierras R.",-40.8, -65.0, PURPLE, "Score 41  ✓"),
+# Continentes — polylines (lon, lat) simplificadas Natural Earth 110m
+CONTINENTS = [
+    # Norteamérica
+    [(-168,71),(-165,64),(-162,60),(-153,58),(-148,61),(-141,60),
+     (-131,55),(-127,50),(-124,47),(-124,37),(-118,33),(-112,28),
+     (-106,24),(-97,20),(-90,16),(-85,11),(-79,9),
+     (-84,9),(-87,16),(-90,21),(-97,26),(-90,30),(-82,30),(-81,31),
+     (-75,35),(-74,41),(-70,42),(-66,44),(-60,47),(-53,47),
+     (-55,50),(-60,47),(-65,57),(-68,62),(-73,68),(-80,73),
+     (-90,73),(-100,73),(-110,72),(-125,72),(-140,70),(-157,70),(-168,71)],
+    # Groenlandia
+    [(-65,76),(-55,75),(-45,76),(-38,78),(-25,76),(-20,72),
+     (-23,68),(-28,65),(-37,63),(-43,63),(-52,65),(-57,66),(-62,67),(-65,71),(-65,76)],
+    # Sudamérica
+    [(-79,9),(-77,10),(-74,12),(-62,11),(-60,8),(-52,5),
+     (-49,0),(-35,-5),(-35,-10),(-37,-14),(-40,-20),(-43,-23),
+     (-48,-25),(-52,-32),(-52,-33),(-57,-38),(-62,-43),
+     (-65,-47),(-68,-53),(-72,-55),(-68,-56),(-65,-55),
+     (-57,-51),(-53,-33),(-49,-28),(-40,-20),(-35,-8),
+     (-35,-5),(-50,2),(-59,5),(-60,8),(-62,11),(-72,12),(-79,9)],
+    # Europa occidental
+    [(-9,36),(-5,36),(0,39),(3,41),(4,44),(7,44),(8,47),(10,47),
+     (13,46),(14,41),(15,41),(18,40),(20,38),(23,38),(26,39),
+     (28,41),(30,43),(29,46),(28,55),(24,57),(20,59),(18,60),
+     (15,58),(12,56),(10,57),(8,55),(5,52),(2,51),(0,50),
+     (-2,49),(-5,48),(-8,46),(-9,44),(-9,40),(-9,36)],
+    # Escandinavia
+    [(5,58),(10,57),(12,56),(18,56),(18,57),(20,59),(22,60),
+     (26,64),(28,68),(28,71),(24,70),(20,70),(18,70),(16,69),
+     (14,68),(15,65),(12,60),(10,58),(5,58)],
+    # Africa
+    [(-17,15),(-17,21),(-14,24),(-8,30),(-2,32),(0,33),(5,33),
+     (10,33),(14,32),(20,31),(25,30),(30,28),(32,25),(37,22),
+     (42,12),(44,12),(44,11),(43,7),(42,2),(41,-1),
+     (40,-10),(38,-18),(36,-22),(35,-27),(32,-30),(29,-32),
+     (27,-34),(25,-34),(20,-35),(18,-34),(17,-32),(14,-28),
+     (11,-18),(10,-8),(9,-1),(8,2),(3,4),(1,6),(-2,5),
+     (-5,5),(-8,5),(-12,7),(-15,12),(-17,15)],
+    # Asia principal
+    [(32,31),(35,30),(37,22),(45,12),(50,12),(56,22),(57,22),
+     (60,25),(63,27),(66,25),(70,21),(72,20),(74,20),(76,8),
+     (80,8),(80,10),(84,5),(88,5),(92,8),(95,10),(98,20),
+     (100,2),(104,2),(107,10),(110,12),(116,22),(120,24),
+     (122,30),(124,38),(128,38),(130,42),(132,44),(140,42),
+     (142,48),(140,54),(138,56),(135,58),(142,60),(140,62),
+     (142,67),(140,70),(120,72),(110,73),(100,73),(90,73),
+     (80,73),(70,73),(60,73),(50,73),(45,72),(40,72),
+     (35,70),(30,70),(28,68),(29,64),(32,58),(32,52),
+     (35,48),(36,42),(34,37),(32,34),(35,32),(35,30),(32,31)],
+    # Australia
+    [(114,-22),(115,-30),(118,-35),(122,-34),(126,-34),(130,-33),
+     (135,-35),(138,-36),(141,-38),(148,-38),(151,-34),(153,-28),
+     (153,-22),(148,-18),(145,-18),(142,-18),(138,-14),(136,-12),
+     (130,-12),(128,-14),(124,-16),(118,-20),(114,-22)],
+    # Nueva Zelanda
+    [(173,-35),(175,-38),(174,-42),(172,-44),(170,-46)],
+    [(172,-43),(174,-41),(176,-37),(175,-36),(173,-35)],
+    # Antártida (arco)
+    [(-180,-70),(-150,-72),(-120,-72),(-90,-70),(-60,-72),
+     (-30,-72),(0,-70),(30,-72),(60,-72),(90,-70),(120,-72),
+     (150,-72),(180,-70)],
 ]
 
-def latlon_to_xy(lat, lon, margin_x=140, margin_y=110):
-    """Equirectangular projection"""
-    x = int(margin_x + (lon + 180) / 360 * (W - 2 * margin_x))
-    y = int(margin_y + (90 - lat) / 180 * (H - 2 * margin_y))
+# Proyección
+MAP_MX, MAP_MY = 110, 80
+def ll2xy(lon, lat):
+    x = int(MAP_MX + (lon+180)/360*(W-2*MAP_MX))
+    y = int(MAP_MY + (90-lat)/180*(H-2*MAP_MY))
     return x, y
 
-# ─────────────────────────────────────────────────────────────
-# ESCENA 1 — Logo (0–5s)
-# ─────────────────────────────────────────────────────────────
-def make_logo(t):
-    img = bg_img()
-    add_grid(img)
-    draw = ImageDraw.Draw(img, "RGBA")
+# Pre-calcular segmentos
+_CONT_SEGS = []
+for poly in CONTINENTS:
+    pts = [ll2xy(lo,la) for lo,la in poly]
+    for i in range(len(pts)-1):
+        if abs(pts[i][0]-pts[i+1][0]) < W//3:
+            _CONT_SEGS.append((pts[i], pts[i+1]))
 
-    # Fade in 0→1.5s, hold, fade out 4→5s
-    if t < 1.5:
-        a = ease(t / 1.5)
-    elif t > 4.2:
-        a = ease((5.0 - t) / 0.8)
-    else:
-        a = 1.0
-
-    cy = H // 2
-
-    # Horizontal rule top
-    ry = cy - 120
-    draw.line([(W // 2 - 340, ry), (W // 2 + 340, ry)],
-              fill=(*GOLD, int(255 * a * 0.3)), width=1)
-
-    # Kicker
-    kicker = "▸  SATELLITE INTELLIGENCE PROTOCOL  ◂"
-    kw = text_w(draw, kicker, FM18)
-    draw.text((W // 2 - kw // 2, cy - 95), kicker,
-              font=FM18, fill=(*GOLD, int(255 * a * 0.55)))
-
-    # Title: FARO PROTOCOL
-    title = "FARO  PROTOCOL"
-    tw = text_w(draw, title, FG80)
-    draw.text((W // 2 - tw // 2, cy - 55), title,
-              font=FG80, fill=(*GOLD, int(255 * a)))
-
-    # Subtitle
-    sub = "Physical Truth from Orbit"
-    sw = text_w(draw, sub, FM32)
-    draw.text((W // 2 - sw // 2, cy + 55), sub,
-              font=FM32, fill=(*WHITE, int(255 * a * 0.85)))
-
-    # Horizontal rule bottom
-    draw.line([(W // 2 - 240, cy + 110), (W // 2 + 240, cy + 110)],
-              fill=(*GOLD, int(255 * a * 0.3)), width=1)
-
-    # Pulse dot
-    pulse = 0.5 + 0.5 * math.sin(t * 3.0)
-    glow_dot(draw, W // 2, cy + 145, 4, GOLD, a * (0.5 + 0.4 * pulse))
-
-    return img_frame(img)
-
-S1 = VideoClip(make_logo, duration=5)
-
-# ─────────────────────────────────────────────────────────────
-# ESCENA 2 — Mapa mundial con zonas (5–20s → duración 15s)
-# ─────────────────────────────────────────────────────────────
-def draw_world_grid(draw):
-    """Lat/lon grid lines — estilo satélite"""
-    c_minor = (*GOLD, 18)
-    c_major = (*GOLD, 35)
-    c_equator = (*TEAL, 55)
-
-    # Meridianos cada 30°
-    for lon in range(-180, 181, 30):
-        x, _ = latlon_to_xy(0, lon)
-        color = c_major if lon % 90 == 0 else c_minor
-        draw.line([(x, 110), (x, H - 110)], fill=color, width=1)
-
-    # Paralelos cada 30°
-    for lat in range(-90, 91, 30):
-        _, y = latlon_to_xy(lat, 0)
-        if not (110 <= y <= H - 110):
-            continue
-        color = c_equator if lat == 0 else (c_major if lat % 60 == 0 else c_minor)
-        draw.line([(140, y), (W - 140, y)], fill=color, width=1)
-
-    # Label ecuador
-    _, eq_y = latlon_to_xy(0, 0)
-    draw.text((145, eq_y + 4), "EQ", font=FM14, fill=(*TEAL, 80))
-
-
-def make_world_map(t):
-    """15s duration — zones appear one by one ~every 1.3s"""
-    img = bg_img()
-    add_grid(img)
-    draw = ImageDraw.Draw(img, "RGBA")
-    draw_world_grid(draw)
-
-    # Header
-    draw.text((60, 38), "FARO PROTOCOL  ·  GLOBAL COVERAGE",
-              font=FM18, fill=(*GOLD, 180))
-    draw.text((W - 60 - text_w(draw, "10 ACTIVE ZONES", FM18), 38),
-              "10 ACTIVE ZONES", font=FM18, fill=(*GOLD, 180))
-    draw.line([(60, 80), (W - 60, 80)], fill=(*GOLD, 50), width=1)
-
-    # Zones appear one per ~1.2s
-    zone_interval = 15.0 / len(ZONES)
-
-    for i, (name, sector, lat, lon, color, data) in enumerate(ZONES):
-        appear_t = i * zone_interval
-        local_t  = t - appear_t
-        if local_t < 0:
-            continue
-
-        a = min(1.0, ease(local_t / 0.6))
-        pulse = 0.5 + 0.5 * math.sin((t - appear_t) * 4.0)
-        dot_a  = a * (0.7 + 0.3 * pulse)
-
-        cx, cy = latlon_to_xy(lat, lon)
-
-        # Dot radius pulsante
-        r = int(lerp(14, 10, min(1, local_t - 0.3)))
-
-        glow_dot(draw, cx, cy, r, color, dot_a)
-
-        # Label (aparece medio segundo después)
-        if local_t > 0.4:
-            la = ease(min(1.0, (local_t - 0.4) / 0.5))
-            label_y = cy - 36 if cy > H // 2 else cy + 18
-            lw = text_w(draw, name, FM18)
-            lx = cx - lw // 2
-
-            # Fondo semitransparente para legibilidad
-            pad = 5
-            draw.rectangle(
-                [(lx - pad, label_y - 2), (lx + lw + pad, label_y + 22)],
-                fill=(*BG, int(200 * la))
-            )
-            draw.text((lx, label_y), name,
-                      font=FM18, fill=(*color, int(255 * la)))
-
-            # Sector y score debajo
-            if local_t > 0.8:
-                sa = ease(min(1.0, (local_t - 0.8) / 0.5))
-                sec_y = label_y + 24
-                sw2 = text_w(draw, sector, FM14)
-                sx2 = cx - sw2 // 2
-                draw.rectangle(
-                    [(sx2 - pad, sec_y - 1), (sx2 + sw2 + pad, sec_y + 18)],
-                    fill=(*BG, int(180 * sa))
-                )
-                draw.text((sx2, sec_y), sector,
-                          font=FM14, fill=(*WHITE, int(180 * sa)))
-
-    # Footer counter
-    n_visible = sum(1 for i in range(len(ZONES)) if t >= i * zone_interval)
-    counter = f"{n_visible} / {len(ZONES)}  zones online"
-    draw.text((W // 2 - text_w(draw, counter, FM18) // 2, H - 65),
-              counter, font=FM18, fill=(*GOLD, 140))
-    draw.line([(60, H - 85), (W - 60, H - 85)], fill=(*GOLD, 45), width=1)
-
-    return img_frame(img)
-
-S2 = VideoClip(make_world_map, duration=15)
-
-# ─────────────────────────────────────────────────────────────
-# ESCENA 3 — Reporte Balcarce (20–35s → 15s)
-# ─────────────────────────────────────────────────────────────
-_balcarce_raw = Image.open(
-    os.path.join(ROOT, "faro_reporte_fusion_balcarce.png")
-).convert("RGB")
-
-# Escalar para que quepa a la derecha (60% del ancho)
-_rpanel_w = int(W * 0.60)
-_rpanel_h = H - 140
-_rscale = min(_rpanel_w / _balcarce_raw.width, _rpanel_h / _balcarce_raw.height)
-_rw = int(_balcarce_raw.width  * _rscale)
-_rh = int(_balcarce_raw.height * _rscale)
-_balcarce = _balcarce_raw.resize((_rw, _rh), Image.LANCZOS)
-_rimg_x = W - _rw - 30
-_rimg_y = (H - _rh) // 2
-
-BALCARCE_STATS = [
-    ("NDVI",          "0.531",    TEAL),
-    ("SAR",           "-13.1 dB", BLUE),
-    ("Fusión",        "0.7115",   GOLD),
-    ("Rinde est.",    "3.32 t/ha",GREEN),
-    ("Score",         "70",       GREEN),
-    ("Estado",        "✓ NORMAL", GREEN),
+# Zonas
+ZONES = [
+    ("CÓRDOBA",      "Agro",          -31.4,  -64.2,  GOLD,   70, "⚠", False),
+    ("BALCARCE",     "Agro",          -37.9,  -58.3,  GOLD,   70, "✓", True),
+    ("VACA MUERTA",  "Energy/O&G",    -38.8,  -68.9,  ORANGE, 42, "✓", False),
+    ("ROTTERDAM",    "Maritime",       51.9,    4.5,  BLUE,   38, "✓", False),
+    ("PERMIAN",      "Oil & Gas",      31.8, -102.4,  ORANGE, 52, "✓", False),
+    ("PILBARA",      "Mining",        -22.0,  118.0,  PURPLE, 41, "✓", False),
+    ("AMAZONAS",     "ESG/Deforest.",  -3.5,  -60.0,  TEAL,   66, "✓", False),
+    ("INDIANA",      "Agro",           40.3,  -86.1,  GOLD,   38, "⚠", False),
+    ("MALACCA",      "Shipping",        2.2,  102.2,  BLUE,   42, "✓", False),
 ]
+_ZXY = [ll2xy(lo,la) for _,_,la,lo,_,_,_,_ in ZONES]
+
+# Scan: fracción del mapa en X para cada zona
+_SCAN_FRAC = [(x-MAP_MX)/(W-2*MAP_MX) for x,_ in _ZXY]
+
+# Posición del título (pre-cálculo de chars)
+_tmp = Image.new("RGBA",(10,10)); _td = ImageDraw.Draw(_tmp)
+_TITLE = "FARO  PROTOCOL"
+_TW = tw(_td, _TITLE, FGB100)
+_TX0 = (W-_TW)//2
+_CHAR_X = []
+_cx = 0
+for ch in _TITLE:
+    _CHAR_X.append(_TX0 + _cx)
+    _cx += tw(_td, ch, FGB100)
+del _tmp, _td
+
+# ═══════════════════════════════════════════════════════════════
+# ESCENA 1 — Intro (0–4s)
+# Punto de luz → streak horizontal → letras una por una
+# ═══════════════════════════════════════════════════════════════
+def make_intro(t):
+    img = bg()
+    d   = ImageDraw.Draw(img, "RGBA")
+    cy  = H//2
+
+    # ── Punto de luz central (0-1.0s) ──────────────────────────
+    if t < 1.4:
+        pt = ease(min(1., t/0.6))
+        # Expansión radial desde el centro
+        for r in [60, 40, 20, 8, 3]:
+            a_r = pt * (0.04 if r > 20 else (0.12 if r > 8 else 0.5))
+            d.ellipse([(W//2-r, cy-r), (W//2+r, cy+r)],
+                      fill=(*GOLD, int(255*a_r)))
+
+        # Halo exterior pulsante
+        hr = int(lerp(0, 120, ease(min(1., t/0.8))))
+        if hr > 0:
+            d.ellipse([(W//2-hr, cy-hr), (W//2+hr, cy+hr)],
+                      outline=(*GOLD, int(60*pt)), width=1)
+
+    # ── Streak horizontal (0.5-1.5s) ───────────────────────────
+    st = t - 0.5
+    if st > 0:
+        sa = ease(min(1., st/0.3))
+        fe = ease(max(0., min(1., 1.0 - (t-1.5)/0.4)))  # fade out del streak
+        streak_a = sa * fe
+
+        streak_w = int(lerp(0, W, ease(min(1., st/0.5))))
+        x1 = W//2 - streak_w//2
+        x2 = W//2 + streak_w//2
+
+        for dy, wa in [(0, 0.9), (-1, 0.4), (1, 0.4), (-2, 0.15), (2, 0.15)]:
+            d.line([(x1, cy+dy), (x2, cy+dy)],
+                   fill=(*GOLD, int(255*streak_a*wa)), width=1)
+
+    # ── Letras una por una (1.2–3.0s) ──────────────────────────
+    title_t = t - 1.2
+    chars_per_sec = len(_TITLE) / 1.4  # revela en 1.4s
+    ty = cy - 55
+
+    for i, (ch, cx2) in enumerate(zip(_TITLE, _CHAR_X)):
+        appear = title_t - i/chars_per_sec
+        if appear < 0: continue
+        ca = ease(min(1., appear/0.12))
+        # Flash inicial + settling
+        flash = max(0., 1.0 - appear/0.08)
+        col = (int(lerp(GOLD2[0],GOLD[0],min(1.,appear/0.3))),
+               int(lerp(GOLD2[1],GOLD[1],min(1.,appear/0.3))),
+               int(lerp(GOLD2[2],GOLD[2],min(1.,appear/0.3))))
+        d.text((cx2, ty), ch, font=FGB100, fill=(*col, int(255*ca)))
+        if flash > 0.01:
+            d.text((cx2, ty), ch, font=FGB100, fill=(*WHITE, int(255*flash*0.6)))
+
+    # ── Subtítulo (2.8-4.0s) ────────────────────────────────────
+    sub_t = t - 2.8
+    if sub_t > 0:
+        sub_a = ease(min(1., sub_t/0.4))
+        sub   = "Physical Truth from Orbit"
+        cx_text(d, sub, cy+65, FM32, WHITE, int(220*sub_a))
+        hline(d, cy+115, W//2-220, W//2+220, GOLD, 0.3*sub_a)
+
+    # ── Fade in del fondo (0-0.4s) ─────────────────────────────
+    if t < 0.4:
+        fade = 1.0 - ease(t/0.4)
+        black = Image.new("RGBA", (W, H), (0, 0, 0, int(255*fade)))
+        img   = Image.alpha_composite(img, black)
+
+    return npf(img)
+
+S1 = VideoClip(make_intro, duration=4)
+
+# ═══════════════════════════════════════════════════════════════
+# ESCENA 2 — Mapa global (4–18s → 14s)
+# Continentes dorados · radar scan · sonar pings · HUD
+# ═══════════════════════════════════════════════════════════════
+SCAN_START = 0.5
+SCAN_DUR   = 4.5   # el scan dura 4.5s
+
+def make_map(t):
+    img = bg()
+    d   = ImageDraw.Draw(img, "RGBA")
+
+    # Fade in escena
+    a_scene = ease(min(1., t/0.3))
+
+    # ── Continentes ───────────────────────────────────────────
+    a_cont = ease(min(1., t/0.5)) * a_scene
+    # Brillo base de los continentes (dorado tenue)
+    for (x1,y1),(x2,y2) in _CONT_SEGS:
+        d.line([(x1,y1),(x2,y2)], fill=(*GOLD3, int(55*a_cont)), width=1)
+
+    # Versión más brillante de los continentes ya escaneados
+    scan_prog = min(1., max(0., (t-SCAN_START)/SCAN_DUR))
+    x_scan    = int(MAP_MX + scan_prog*(W-2*MAP_MX))
+
+    for (x1,y1),(x2,y2) in _CONT_SEGS:
+        if x1 < x_scan or x2 < x_scan:
+            xmax = max(x1,x2)
+            # Brillo proporcional a cuánto fue escaneado
+            reveal = min(1., max(0., (x_scan - xmax)/60))
+            if reveal > 0:
+                d.line([(x1,y1),(x2,y2)],
+                       fill=(*GOLD, int(45*reveal*a_cont)), width=1)
+
+    # ── Radar scan line ───────────────────────────────────────
+    if SCAN_START < t < SCAN_START + SCAN_DUR + 0.5:
+        sa = min(1., max(0., 1.0-(t-SCAN_START-SCAN_DUR)/0.5))
+        # Estela (trail) verde a la izquierda del scan
+        for dx in range(80, 0, -2):
+            trail_x = x_scan - dx
+            if trail_x < MAP_MX: continue
+            ta = int(28 * (1-dx/80) * sa)
+            d.line([(trail_x, MAP_MY), (trail_x, H-MAP_MY)],
+                   fill=(*GREEN, ta), width=1)
+        # Línea principal
+        pulse_s = 0.6 + 0.4*math.sin(t*40)
+        d.line([(x_scan, MAP_MY),(x_scan, H-MAP_MY)],
+               fill=(*GREEN, int(220*sa*pulse_s)), width=2)
+        # Brillo lateral
+        for dx in (1,2,3,5,8):
+            ga = int(70*(1-dx/9)*sa)
+            for sx in (x_scan-dx, x_scan+dx):
+                if MAP_MX < sx < W-MAP_MX:
+                    d.line([(sx, MAP_MY),(sx, H-MAP_MY)],
+                           fill=(*GREEN, ga), width=1)
+
+    # ── Zonas ─────────────────────────────────────────────────
+    for i, (name, sector, lat, lon, color, score, status, _) in enumerate(ZONES):
+        zx, zy = _ZXY[i]
+        frac   = _SCAN_FRAC[i]
+        age    = (scan_prog - frac) * SCAN_DUR
+
+        if scan_prog < frac - 0.03: continue
+        a_zone = ease(min(1., age/0.3))
+
+        # Sonar rings — 2 rings por zona en diferentes fases
+        for ring_idx in range(2):
+            phase    = ring_idx * 0.9 + i * 0.4
+            ring_cyc = (t - SCAN_START + phase) % 2.2
+            rp       = ring_cyc / 2.2
+            rr       = int(rp * 52)
+            ra       = int(200*(1-rp)*a_zone*0.55)
+            if ra > 0 and rr > 2:
+                d.ellipse([(zx-rr,zy-rr),(zx+rr,zy+rr)],
+                          outline=(*color, ra), width=1)
+
+        # Crosshair (aparece solo al inicio)
+        ch_age = min(1., age/0.6)
+        if ch_age < 1:
+            crosshair(d, zx, zy, 22, color, (1-ch_age)*0.8*a_zone)
+
+        # Dot central
+        dot(d, zx, zy, 5, color, a_zone*0.9)
+        dot(d, zx, zy, 2, WHITE, a_zone*0.85)
+
+        # Label
+        if age > 0.25:
+            la = ease(min(1., (age-0.25)/0.25))
+            lw = tw(d, name, FM14)
+            lx = zx - lw//2
+
+            # Posicionar arriba/abajo según hemisferio
+            offset_y = -28 if zy < H//2 else 16
+
+            bg_box = (*BG, int(200*la))
+            d.rectangle([(lx-4,zy+offset_y-2),(lx+lw+4,zy+offset_y+18)], fill=bg_box)
+            d.text((lx, zy+offset_y), name, font=FM14,
+                   fill=(*color, int(255*la)))
+
+            if age > 0.6:
+                sa2   = ease(min(1., (age-0.6)/0.3))
+                s_col = GREEN if "✓" in status else ORANGE
+                stxt  = f"Score {score}"
+                sw    = tw(d, stxt, FM14)
+                sx2   = zx - sw//2
+                oy2   = offset_y + (18 if offset_y < 0 else -18)
+                d.rectangle([(sx2-4,zy+oy2-2),(sx2+sw+4,zy+oy2+16)],
+                             fill=(*BG, int(180*sa2)))
+                d.text((sx2, zy+oy2), stxt, font=FM14,
+                       fill=(*s_col, int(220*sa2)))
+
+    # ── HUD frame ─────────────────────────────────────────────
+    hline(d, 68, 80, W-80, GOLD, 0.2*a_scene)
+    hline(d, H-68, 80, W-80, GOLD, 0.2*a_scene)
+
+    d.text((85, 38), "FARO PROTOCOL  /  GLOBAL ASSET MONITORING",
+           font=FM18, fill=(*GOLD, int(160*a_scene)))
+
+    n_vis = sum(1 for i in range(len(ZONES))
+                if (scan_prog - _SCAN_FRAC[i]) > 0)
+    d.text((W-85-tw(d,f"{n_vis}/{len(ZONES)} ACTIVE",FM18), 38),
+           f"{n_vis}/{len(ZONES)} ACTIVE",
+           font=FM18, fill=(*GREEN, int(160*a_scene)))
+
+    # Coordenadas de zona en esquina
+    ts_txt = "SAR + NDVI  /  SENTINEL-1A  /  SENTINEL-2"
+    d.text((85, H-55), ts_txt, font=FM14, fill=(*GOLD, int(120*a_scene)))
+
+    # Fade in al inicio
+    if t < 0.3:
+        fade = 1.0 - ease(t/0.3)
+        black = Image.new("RGBA",(W,H),(0,0,0,int(255*fade)))
+        img   = Image.alpha_composite(img, black)
+
+    return npf(img)
+
+S2 = VideoClip(make_map, duration=14)
+
+# ═══════════════════════════════════════════════════════════════
+# ESCENA 3 — Reporte Balcarce (18–30s → 12s)
+# Imagen real + contadores animados
+# ═══════════════════════════════════════════════════════════════
+_bal_raw = Image.open(os.path.join(ROOT, "faro_reporte_fusion_balcarce.png")).convert("RGB")
+# Escalar al 55% del ancho, centrado a la derecha
+_RW  = int(W*0.55); _RH2 = H-110
+_rsc = min(_RW/_bal_raw.width, _RH2/_bal_raw.height)
+_RIW = int(_bal_raw.width*_rsc); _RIH = int(_bal_raw.height*_rsc)
+_bal = _bal_raw.resize((_RIW, _RIH), Image.LANCZOS)
+_RX  = W - _RIW - 20
+_RY  = (H - _RIH)//2
+
+BSTATS = [
+    ("NDVI",       0.531, "{:.3f}", TEAL),
+    ("SAR",       -13.1,  "{:.1f} dB", BLUE),
+    ("Score",      70.0,  "{:.0f}",   GREEN),
+    ("Rinde est.", 3.32,  "{:.2f} t/ha", GREEN),
+]
+
+def count_up(target, fmt, t, dur=1.8, start_delay=0.):
+    lt = t - start_delay
+    if lt < 0: return fmt.format(0 if target >= 0 else -0.0)
+    p = ease(min(1., lt/dur))
+    v = target * p
+    return fmt.format(v)
 
 def make_balcarce(t):
-    img = bg_img()
-    add_grid(img)
+    img = bg()
+    d   = ImageDraw.Draw(img, "RGBA")
+    scanline_overlay(d, 0.02)
 
-    # Fade in global
-    a_global = ease(min(1.0, t / 0.8))
+    # Imagen desliza desde derecha
+    slide = ease(min(1., t/0.35))
+    ix    = int(lerp(W+60, _RX, slide))
 
-    # Pegar imagen del reporte (aparece deslizando desde la derecha)
-    slide = ease(min(1.0, t / 1.2))
-    img_x = int(lerp(W + 50, _rimg_x, slide))
+    # Oscurecer imagen ligeramente para que los datos resalten
+    bal_dimmed = _bal.copy()
+    overlay_dim = Image.new("RGBA", _bal.size, (0,0,0,40))
+    bal_dimmed.paste(overlay_dim, mask=overlay_dim)
 
-    # Compositar reporte
-    report_overlay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    report_overlay.paste(_balcarce, (img_x, _rimg_y))
-    img = Image.alpha_composite(img, report_overlay)
+    rep = Image.new("RGBA", (W, H), (0,0,0,0))
+    rep.paste(bal_dimmed, (ix, _RY))
+    img = Image.alpha_composite(img, rep)
+    d   = ImageDraw.Draw(img, "RGBA")
 
-    draw = ImageDraw.Draw(img, "RGBA")
+    # Corner brackets alrededor de la imagen
+    br_a = ease(min(1., (t-0.2)/0.3))
+    corner_brackets(d, ix, _RY, ix+_RIW, _RY+_RIH, GOLD, 0.6*br_a, 30)
 
-    # Panel izquierdo
-    panel_x = 55
-    panel_w = W - _rw - 90
-
-    # Header
-    draw.text((panel_x, 45), "FARO PROTOCOL",
-              font=FM18, fill=(*GOLD, int(255 * a_global * 0.7)))
-    draw.text((panel_x, 70), "CERTIFIED FIELD REPORT",
-              font=FM14, fill=(*WHITE, int(255 * a_global * 0.5)))
-    draw.line([(panel_x, 105), (panel_x + panel_w - 20, 105)],
-              fill=(*GOLD, int(255 * a_global * 0.4)), width=1)
-
-    # Nombre de zona
-    name_a = ease(min(1.0, (t - 0.3) / 0.7))
-    draw.text((panel_x, 130), "BALCARCE",
-              font=FG60, fill=(*GOLD, int(255 * name_a)))
-    draw.text((panel_x, 210), "Región Pampeana · Argentina",
-              font=FA22, fill=(*WHITE, int(255 * name_a * 0.7)))
-    draw.text((panel_x, 245), "Vertical: AGRICULTURE",
-              font=FM18, fill=(*TEAL, int(255 * name_a * 0.8)))
-
-    # Stats uno por uno
-    stats_start_y = 310
-    row_h = 90
-    for i, (label, value, color) in enumerate(BALCARCE_STATS):
-        appear = (t - 0.8 - i * 0.25)
-        if appear < 0:
-            continue
-        sa = ease(min(1.0, appear / 0.4))
-        ry = stats_start_y + i * row_h
-        # Fondo de fila
-        draw.rectangle(
-            [(panel_x, ry), (panel_x + panel_w - 30, ry + 72)],
-            fill=(*BG, int(200 * sa))
-        )
-        draw.rectangle(
-            [(panel_x, ry), (panel_x + 4, ry + 72)],
-            fill=(*color, int(200 * sa))
-        )
-        draw.text((panel_x + 18, ry + 8), label,
-                  font=FM18, fill=(*WHITE, int(200 * sa)))
-        draw.text((panel_x + 18, ry + 32), value,
-                  font=FG40, fill=(*color, int(255 * sa)))
-
-    # SHA badge
-    sha_t = t - 2.5
-    if sha_t > 0:
-        sha_a = ease(min(1.0, sha_t / 0.5))
-        sha_y = H - 95
-        draw.rectangle([(panel_x, sha_y), (panel_x + panel_w - 30, sha_y + 50)],
-                       fill=(*BG, int(220 * sha_a)))
-        draw.rectangle([(panel_x, sha_y), (panel_x + panel_w - 30, sha_y + 50)],
-                       outline=(*GOLD, int(80 * sha_a)), width=1)
-        draw.text((panel_x + 10, sha_y + 7),
-                  "SHA-256 SEALED", font=FM14, fill=(*GOLD, int(255 * sha_a * 0.8)))
-        sha_txt = "© 2026 Faro Protocol · Cryptographic proof"
-        draw.text((panel_x + 10, sha_y + 28), sha_txt,
-                  font=FM14, fill=(*WHITE, int(180 * sha_a)))
-
-    return img_frame(img)
-
-S3 = VideoClip(make_balcarce, duration=15)
-
-# ─────────────────────────────────────────────────────────────
-# ESCENA 4 — Rotterdam / SHA-256 typewriter (35–50s → 15s)
-# ─────────────────────────────────────────────────────────────
-_rotterdam_raw = Image.open(
-    os.path.join(ROOT, "faro_reporte_fusion_rotterdam.png")
-).convert("RGB")
-_rotterdam = _rotterdam_raw.resize((_rw, _rh), Image.LANCZOS)
-
-ROTTERDAM_STATS = [
-    ("SECTOR",     "MARITIME",      BLUE),
-    ("SAR",        "-14.7 dB",      BLUE),
-    ("NDVI",       "0.112",         TEAL),
-    ("Score",      "38",            GREEN),
-    ("Estado",     "✓ NORMAL",      GREEN),
-]
-
-def make_rotterdam(t):
-    img = bg_img()
-    add_grid(img)
-
-    a_global = ease(min(1.0, t / 0.8))
-
-    # Reporte Rotterdam
-    slide = ease(min(1.0, t / 1.2))
-    img_x = int(lerp(W + 50, _rimg_x, slide))
-    report_overlay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    report_overlay.paste(_rotterdam, (img_x, _rimg_y))
-    img = Image.alpha_composite(img, report_overlay)
-
-    draw = ImageDraw.Draw(img, "RGBA")
-    panel_x = 55
-    panel_w = W - _rw - 90
+    PX = 55; PW = _RX - 75
 
     # Header
-    draw.text((panel_x, 45), "FARO PROTOCOL",
-              font=FM18, fill=(*GOLD, int(255 * a_global * 0.7)))
-    draw.text((panel_x, 70), "CERTIFIED FIELD REPORT",
-              font=FM14, fill=(*WHITE, int(255 * a_global * 0.5)))
-    draw.line([(panel_x, 105), (panel_x + panel_w - 20, 105)],
-              fill=(*GOLD, int(255 * a_global * 0.4)), width=1)
+    hline(d, 95, PX, PX+PW, GOLD, 0.35)
+    d.text((PX, 40), "FARO PROTOCOL  /  CERTIFIED FIELD REPORT",
+           font=FM18, fill=(*GOLD, 170))
 
-    name_a = ease(min(1.0, (t - 0.3) / 0.7))
-    draw.text((panel_x, 130), "ROTTERDAM",
-              font=FG60, fill=(*BLUE, int(255 * name_a)))
-    draw.text((panel_x, 210), "Port of Rotterdam · Netherlands",
-              font=FA22, fill=(*WHITE, int(255 * name_a * 0.7)))
-    draw.text((panel_x, 245), "Vertical: MARITIME",
-              font=FM18, fill=(*BLUE, int(255 * name_a * 0.8)))
+    # Nombre zona — letras por letra
+    zone_t = t - 0.1
+    zone_name = "BALCARCE"
+    chars_per_sec2 = len(zone_name)/0.5
+    for i, ch in enumerate(zone_name):
+        ap = zone_t - i/chars_per_sec2
+        if ap < 0: continue
+        ca = ease(min(1., ap/0.1))
+        # calc x (simple, letra por letra)
+        prefix_w = tw(d, zone_name[:i], FGB72)
+        d.text((PX + prefix_w, 112), ch,
+               font=FGB72, fill=(*GOLD, int(255*ca)))
 
-    # Stats
-    stats_start_y = 310
-    row_h = 88
-    for i, (label, value, color) in enumerate(ROTTERDAM_STATS):
-        appear = t - 0.8 - i * 0.25
-        if appear < 0:
-            continue
-        sa = ease(min(1.0, appear / 0.4))
-        ry = stats_start_y + i * row_h
-        draw.rectangle(
-            [(panel_x, ry), (panel_x + panel_w - 30, ry + 72)],
-            fill=(*BG, int(200 * sa))
-        )
-        draw.rectangle(
-            [(panel_x, ry), (panel_x + 4, ry + 72)],
-            fill=(*color, int(200 * sa))
-        )
-        draw.text((panel_x + 18, ry + 8), label,
-                  font=FM18, fill=(*WHITE, int(200 * sa)))
-        draw.text((panel_x + 18, ry + 32), value,
-                  font=FG40, fill=(*color, int(255 * sa)))
+    na = ease(min(1., (t-0.3)/0.25))
+    d.text((PX, 200), "Marcos Juarez  /  Cordoba  /  Argentina",
+           font=FA22, fill=(*WHITE, int(180*na)))
+    d.text((PX, 230), "VERTICAL: AGRICULTURE  /  SENTINEL-1A + 2",
+           font=FM18, fill=(*TEAL, int(160*na)))
 
-    # SHA-256 typewriter
-    sha_start = 3.0
-    sha_t = t - sha_start
+    hline(d, 265, PX, PX+PW, GOLD, 0.25*na)
+
+    # Stats con contador
+    SY = 285; ROW_H = (H-SY-90)//len(BSTATS)
+    for i, (label, target, fmt, color) in enumerate(BSTATS):
+        ta = ease(min(1., (t-0.4-i*0.2)/0.25))
+        if ta <= 0: continue
+        ry = SY + i*ROW_H
+
+        # Barra de acento
+        d.rectangle([(PX, ry), (PX+3, ry+ROW_H-12)],
+                    fill=(*color, int(200*ta)))
+
+        d.text((PX+16, ry+4), label.upper(),
+               font=FM18, fill=(*WHITE, int(180*ta)))
+
+        val_str = count_up(target, fmt, t, 1.6, 0.5+i*0.2)
+        val_w   = tw(d, val_str, FM44)
+        d.text((PX+16, ry+26), val_str,
+               font=FM44, fill=(*color, int(255*ta)))
+
+        # Unidad separada en gris si es numérico
+        hline(d, ry+ROW_H-14, PX, PX+PW-10, GOLD, 0.12*ta)
+
+    # SHA badge bottom
+    sha_t = t - 3.5
     if sha_t > 0:
-        sha_a = ease(min(1.0, sha_t / 0.4))
-        # Cuántos caracteres mostrar
-        chars_per_sec = 18
-        n_chars = min(len(SHA256), int(sha_t * chars_per_sec))
-        sha_display = SHA256[:n_chars]
-        if n_chars < len(SHA256):
-            sha_display += "_"  # cursor
+        sha_a = ease(min(1., sha_t/0.3))
+        BY = H - 95
+        d.rectangle([(PX, BY),(PX+PW,BY+55)], fill=(*BG, int(230*sha_a)))
+        d.rectangle([(PX, BY),(PX+PW,BY+55)],
+                    outline=(*GOLD, int(70*sha_a)), width=1)
+        d.text((PX+12, BY+8), "SHA-256 SEALED  -  Faro Protocol 2026",
+               font=FM14, fill=(*GOLD, int(255*sha_a*0.85)))
+        d.text((PX+12, BY+30), "Proof of data integrity before market open",
+               font=FM14, fill=(*WHITE, int(160*sha_a)))
 
-        sha_box_y = H - 155
-        draw.rectangle(
-            [(panel_x, sha_box_y), (panel_x + panel_w - 30, sha_box_y + 115)],
-            fill=(*BG, int(230 * sha_a))
-        )
-        draw.rectangle(
-            [(panel_x, sha_box_y), (panel_x + panel_w - 30, sha_box_y + 115)],
-            outline=(*GREEN, int(100 * sha_a)), width=1
-        )
-        draw.text((panel_x + 12, sha_box_y + 8),
-                  "SHA-256 FINGERPRINT", font=FM14,
-                  fill=(*GREEN, int(255 * sha_a * 0.9)))
-        draw.line(
-            [(panel_x + 12, sha_box_y + 33),
-             (panel_x + panel_w - 42, sha_box_y + 33)],
-            fill=(*GREEN, int(80 * sha_a)), width=1
-        )
+    # Fade in
+    if t < 0.3:
+        fade = 1.0-ease(t/0.3)
+        black = Image.new("RGBA",(W,H),(0,0,0,int(255*fade)))
+        img   = Image.alpha_composite(img, black)
 
-        # Mostrar hash en 2 líneas de 32 chars
-        h1 = sha_display[:32]
-        h2 = sha_display[32:] if len(sha_display) > 32 else ""
-        draw.text((panel_x + 12, sha_box_y + 42), h1,
-                  font=FM18, fill=(*GREEN, int(255 * sha_a)))
-        if h2:
-            draw.text((panel_x + 12, sha_box_y + 68), h2,
-                      font=FM18, fill=(*GREEN, int(255 * sha_a)))
+    return npf(img)
 
-        # Verified badge cuando el hash esté completo
-        if n_chars >= len(SHA256):
-            v_a = ease(min(1.0, (sha_t - len(SHA256) / chars_per_sec) / 0.5))
-            draw.text((panel_x + 12, sha_box_y + 94),
-                      "✓ BLOCKCHAIN TIMESTAMP VERIFIED",
-                      font=FM14, fill=(*GREEN, int(255 * v_a)))
+S3 = VideoClip(make_balcarce, duration=12)
 
-    return img_frame(img)
+# ═══════════════════════════════════════════════════════════════
+# ESCENA 4 — SHA-256 reveal (30–42s → 12s)
+# Chars ciclando → bloqueos → timestamp → badge VERIFIED
+# ═══════════════════════════════════════════════════════════════
+_HEX_CHARS = "0123456789abcdef"
+_RNG = random.Random(42)
 
-S4 = VideoClip(make_rotterdam, duration=15)
+# Pre-generar rain: 48 columnas de fondo
+_RAIN_COLS = 48
+_RAIN_CW   = W // _RAIN_COLS
+_RAIN_DATA = []
+for ci in range(_RAIN_COLS):
+    speed  = _RNG.uniform(5, 14)   # chars/sec
+    offset = _RNG.uniform(-4, 0)   # fase
+    chars  = [_RNG.choice(_HEX_CHARS) for _ in range(40)]
+    length = _RNG.randint(8, 20)
+    _RAIN_DATA.append((speed, offset, chars, length))
 
-# ─────────────────────────────────────────────────────────────
-# ESCENA 5 — Tres frases (50–70s → 20s)
-# ─────────────────────────────────────────────────────────────
+def draw_rain(d, t, alpha_mult=1.0):
+    """Rain de hex en el fondo — efecto muy sutil"""
+    for ci, (speed, offset, chars, length) in enumerate(_RAIN_DATA):
+        cx2 = ci * _RAIN_CW + 8
+        # posición de la cabeza
+        head_f = (offset + speed * t) % (H // 16 + length)
+        head_y = int(head_f * 16)
+        for j in range(length):
+            cy2 = head_y - j*16
+            if cy2 < 0 or cy2 > H: continue
+            brightness = max(0., 1 - j/length)
+            if j == 0:
+                col_c = (*GOLD2, int(180*brightness*alpha_mult))
+            else:
+                col_c = (*GOLD3, int(90*brightness*alpha_mult))
+            ch = chars[(int(head_f) + j) % len(chars)]
+            d.text((cx2, cy2), ch, font=FM12, fill=col_c)
+
+def sha_char_at(pos, t):
+    """Char que aparece en la posición pos del SHA256"""
+    lock_t = pos * 0.14   # cada char se bloquea 140ms después
+    lt     = t - lock_t
+    if lt < 0: return None, 0.
+    if lt < 0.25:
+        # Ciclando rápido antes de bloquearse
+        cycle  = int(lt * 28) % 16
+        return _HEX_CHARS[cycle], min(1., lt/0.08)
+    else:
+        return SHA256[pos], 1.0
+
+def make_sha(t):
+    img = bg()
+    d   = ImageDraw.Draw(img, "RGBA")
+
+    # Rain progresivo: aparece en los primeros 1.5s, luego se desvanece al final
+    if t < 1.5:
+        rain_a = ease(t/1.5)
+    elif t > 9.5:
+        rain_a = ease(max(0.,(11.-t)/1.5))
+    else:
+        rain_a = 1.0
+    draw_rain(d, t, rain_a * 0.55)
+
+    scanline_overlay(d, 0.015)
+
+    # SHA-256 reveal (empieza en t=0.8)
+    sha_t = t - 0.8
+    a_g   = ease(min(1., sha_t/0.3)) if sha_t > 0 else 0.
+
+    if a_g > 0:
+        # Header
+        hline(d, 85, 200, W-200, GOLD, 0.3*a_g)
+        cx_text(d, "CRYPTOGRAPHIC PROOF OF AUTHENTICITY", 46, FM18,
+                GOLD, int(160*a_g))
+
+        # Bloque SHA-256 centrado
+        CHAR_W = 30   # ancho de cada char monospace a FM24
+        LINE1 = SHA256[:32]; LINE2 = SHA256[32:]
+        TOTAL_W1 = len(LINE1)*CHAR_W
+        TOTAL_W2 = len(LINE2)*CHAR_W
+        x1_start = (W - TOTAL_W1)//2
+        x2_start = (W - TOTAL_W2)//2
+        y_sha1   = H//2 - 85
+        y_sha2   = y_sha1 + 60
+
+        # Label SHA-256
+        lbl = "SHA-256"
+        lw  = tw(d, lbl, FM24)
+        d.text(((W-lw)//2, y_sha1-38), lbl,
+               font=FM24, fill=(*GREEN, int(200*a_g)))
+
+        hline(d, y_sha1-10, W//2-250, W//2+250, GREEN, 0.3*a_g)
+
+        # Dibujar cada caracter
+        for pos in range(len(SHA256)):
+            ch, ca = sha_char_at(pos, sha_t)
+            if ch is None: continue
+
+            row = 0 if pos < 32 else 1
+            col = pos if pos < 32 else pos-32
+            x   = (x1_start if row == 0 else x2_start) + col*CHAR_W
+            y   = y_sha1 if row == 0 else y_sha2
+
+            # Color: ciclando = gold tenue, bloqueado = green brillante
+            locked = (ch == SHA256[pos] and ca >= 1.0)
+            col_c  = GREEN if locked else GOLD2
+            d.text((x, y), ch, font=FM24,
+                   fill=(*col_c, int(255*ca*a_g)))
+
+            # Flash en el momento de bloqueo
+            lock_age = sha_t - pos*0.14 - 0.25
+            if 0 < lock_age < 0.08:
+                fa = (1 - lock_age/0.08)*0.7
+                d.text((x, y), ch, font=FM24,
+                       fill=(*WHITE, int(255*fa*a_g)))
+
+        # Línea de separación entre las dos líneas
+        hline(d, y_sha2+50, W//2-250, W//2+250, GREEN, 0.2*a_g)
+
+        # Timestamp (aparece cuando el hash está completo ~64*0.14 = 9s)
+        ts_appear = sha_t - (64*0.14 + 0.3)
+        if ts_appear > 0:
+            ta = ease(min(1., ts_appear/0.4))
+
+            ts_w = tw(d, TIMESTAMP, FM32)
+            d.text(((W-ts_w)//2, y_sha2+70), TIMESTAMP,
+                   font=FM32, fill=(*GOLD2, int(220*ta)))
+
+            # VERIFIED badge
+            badge_t = ts_appear - 0.5
+            if badge_t > 0:
+                ba = ease(min(1., badge_t/0.35))
+                bw, bh = 380, 54
+                bx = (W-bw)//2; by = y_sha2 + 120
+
+                d.rectangle([(bx,by),(bx+bw,by+bh)],
+                             fill=(*BG, int(240*ba)))
+                d.rectangle([(bx,by),(bx+bw,by+bh)],
+                             outline=(*GREEN, int(180*ba)), width=1)
+                badge_txt = "VERIFIED  /  BLOCKCHAIN ANCHORED"
+                bw2 = tw(d, badge_txt, FM18)
+                d.text(((W-bw2)//2, by+14), badge_txt,
+                       font=FM18, fill=(*GREEN, int(255*ba)))
+
+    # Fade in
+    if t < 0.3:
+        fade = 1.0-ease(t/0.3)
+        black = Image.new("RGBA",(W,H),(0,0,0,int(255*fade)))
+        img   = Image.alpha_composite(img, black)
+
+    return npf(img)
+
+S4 = VideoClip(make_sha, duration=12)
+
+# ═══════════════════════════════════════════════════════════════
+# ESCENA 5 — Tres frases de impacto (42–52s → 10s)
+# Con motion blur horizontal simulado
+# ═══════════════════════════════════════════════════════════════
 PHRASES = [
-    ("48 hours before\nofficial data",
-     "Satellite analysis delivered before any\ngovernment or exchange report.",
-     GOLD),
-    ("Cryptographically\nverified",
-     "Every reading sealed with SHA-256.\nImmutable. Auditable. Legal-grade.",
-     GREEN),
-    ("Any asset.\nAny location.\nAny sector.",
-     "Agriculture · Energy · Maritime\nMining · Shipping · ESG",
-     BLUE),
+    ("48 hours before",   "official data.",   GOLD),
+    ("Cryptographically", "verified.",         GREEN),
+    ("Any asset.",        "Any location.\nAny sector.", BLUE),
 ]
+
+def draw_blur_text(d, text, x, y, font, color, alpha, blur=12, copies=7):
+    """Texto con motion blur horizontal simulado"""
+    for i in range(copies):
+        ox    = int(lerp(blur, 0, (i+1)/copies))
+        alpha_i = int(alpha * (i+1)/copies * 0.7)
+        d.text((x+ox, y), text, font=font, fill=(*color, alpha_i))
+    d.text((x, y), text, font=font, fill=(*color, int(alpha)))
 
 def make_phrases(t):
-    """20s — cada frase ~6s (2s appear, 2s hold, 2s fade out para siguiente)"""
-    phrase_dur = 20.0 / len(PHRASES)   # ~6.67s per phrase
+    pd    = 10.0 / len(PHRASES)
+    pi    = min(int(t/pd), len(PHRASES)-1)
+    lt    = t - pi*pd
 
-    # Frase activa
-    phrase_idx = int(t / phrase_dur)
-    phrase_idx = min(phrase_idx, len(PHRASES) - 1)
-    local_t    = t - phrase_idx * phrase_dur
+    img   = bg()
+    d     = ImageDraw.Draw(img, "RGBA")
+    scanline_overlay(d, 0.018)
 
-    img = bg_img()
-    add_grid(img)
-    draw = ImageDraw.Draw(img, "RGBA")
+    line1, line2, color = PHRASES[pi]
 
-    # Scanlines ambientales
-    draw_scan_lines(draw, 0, H, alpha=0.025)
+    # Alpha de la frase
+    if   lt < 0.25: a = ease(lt/0.25)
+    elif lt > pd-0.25: a = ease((pd-lt)/0.25)
+    else: a = 1.0
 
-    main_text, sub_text, color = PHRASES[phrase_idx]
-
-    # Alpha entrada/salida
-    if local_t < 1.2:
-        a = ease(local_t / 1.2)
-    elif local_t > phrase_dur - 1.0:
-        a = ease((phrase_dur - local_t) / 1.0)
-    else:
-        a = 1.0
+    # Motion blur decrece con el tiempo (el blur "se frena")
+    blur_t = max(0., 0.4 - lt)
+    blur_px = int(blur_t * 55)
 
     # Número de frase
-    num_str = f"{phrase_idx + 1}  /  {len(PHRASES)}"
-    draw.text((W // 2 - text_w(draw, num_str, FM18) // 2, 50),
-              num_str, font=FM18, fill=(*GOLD, int(255 * a * 0.4)))
+    num_str = f"0{pi+1} / 0{len(PHRASES)}"
+    d.text((85, 48), num_str, font=FM18,
+           fill=(*GOLD, int(200*a*0.5)))
 
-    # Frase principal — líneas
-    lines = main_text.split("\n")
-    total_h_main = sum(text_h(draw, l, FG60) + 12 for l in lines)
-    sub_lines = sub_text.split("\n")
-    total_h_sub = sum(text_h(draw, l, FA26) + 8 for l in sub_lines)
-    total_h = total_h_main + 50 + total_h_sub
-    y = H // 2 - total_h // 2
+    cy_base = H//2 - 60
 
-    for i, line in enumerate(lines):
-        # Slide in
-        slide_a = ease(min(1.0, (local_t - i * 0.15) / 0.9))
-        slide_x = int(lerp(60, 0, slide_a))
-        lw = text_w(draw, line, FG60)
-        lx = W // 2 - lw // 2 + slide_x
-        draw.text((lx, y), line,
-                  font=FG60, fill=(*color, int(255 * a * slide_a)))
-        y += text_h(draw, line, FG60) + 12
+    # Línea 1 (grande)
+    x1 = (W - tw(d, line1, FGB72))//2
+    draw_blur_text(d, line1, x1, cy_base, FGB72, color,
+                   int(255*a), blur_px, 8)
 
-    # Separador
-    y += 20
-    rule_a = ease(min(1.0, (local_t - 0.6) / 0.6))
-    draw.line([(W // 2 - 200, y), (W // 2 + 200, y)],
-              fill=(*color, int(255 * a * rule_a * 0.45)), width=1)
-    y += 30
+    # Línea 2 (grande)
+    lines2 = line2.split("\n")
+    y_off = th(d, line1, FGB72) + 18
+    for i2, ln in enumerate(lines2):
+        x2  = (W - tw(d, ln, FG60))//2
+        a2  = ease(min(1., (lt-0.07-i2*0.06)/0.2))
+        draw_blur_text(d, ln, x2, cy_base+y_off, FG60, color,
+                       int(255*a*a2), blur_px//2, 6)
+        y_off += th(d, ln, FG60) + 12
 
-    # Sub-texto
-    for i, line in enumerate(sub_lines):
-        sub_appear = ease(min(1.0, (local_t - 0.9 - i * 0.1) / 0.6))
-        lw = text_w(draw, line, FA26)
-        draw.text((W // 2 - lw // 2, y), line,
-                  font=FA26, fill=(*WHITE, int(200 * a * sub_appear)))
-        y += text_h(draw, line, FA26) + 8
+    # Línea decorativa
+    line_a = ease(min(1., (lt-0.15)/0.2))
+    hline(d, cy_base - 32, W//2-160, W//2+160, color, 0.35*a*line_a)
+    hline(d, cy_base + y_off + 10, W//2-100, W//2+100, color, 0.2*a*line_a)
 
-    # Contador de fondo (dots de progreso)
-    dot_y = H - 60
+    # Progress dots
     for di in range(len(PHRASES)):
-        dot_x = W // 2 + (di - len(PHRASES) // 2) * 30
-        dot_c = GOLD if di <= phrase_idx else DIM
-        glow_dot(draw, dot_x, dot_y, 5 if di == phrase_idx else 3, dot_c, 0.8)
+        dx2 = W//2 + (di-1)*30
+        col = color if di == pi else DIM
+        aa  = 0.85 if di == pi else 0.4
+        d.ellipse([(dx2-5,H-52-5),(dx2+5,H-52+5)],
+                  fill=(*col, int(255*aa)))
 
-    return img_frame(img)
+    # Fade in
+    if t < 0.25:
+        fade = 1.0-ease(t/0.25)
+        black = Image.new("RGBA",(W,H),(0,0,0,int(255*fade)))
+        img   = Image.alpha_composite(img, black)
 
-S5 = VideoClip(make_phrases, duration=20)
+    return npf(img)
 
-# ─────────────────────────────────────────────────────────────
-# ESCENA 6 — Seis sectores (70–80s → 10s)
-# ─────────────────────────────────────────────────────────────
+S5 = VideoClip(make_phrases, duration=10)
+
+# ═══════════════════════════════════════════════════════════════
+# ESCENA 6 — 6 sectores en grid con flash (52–58s → 6s)
+# ═══════════════════════════════════════════════════════════════
 SECTORS = [
-    ("🌾", "Agriculture",     "Crops · Yield · Stress",       GOLD),
-    ("⚡", "Energy / O&G",    "Permian · Vaca Muerta · DRC",  ORANGE),
-    ("🚢", "Maritime",        "Rotterdam · Port activity",     BLUE),
-    ("⛏",  "Mining",          "Pilbara · Iron · REE",         PURPLE),
-    ("🌳", "ESG / Deforest.", "Amazonas · Carbon · Land use", TEAL),
-    ("🛳", "Shipping",        "Malacca · Strait · Freight",   BLUE),
+    ("AGRICULTURE",    "Crops · Yield · Stress index",    GOLD,   "01"),
+    ("ENERGY / O&G",   "Permian · Vaca Muerta",           ORANGE, "02"),
+    ("MARITIME",       "Rotterdam · Port activity",        BLUE,   "03"),
+    ("MINING",         "Pilbara · Iron ore · REE",         PURPLE, "04"),
+    ("ESG / DEFOREST.","Amazonas · Carbon · Land use",    TEAL,   "05"),
+    ("SHIPPING",       "Malacca · Strait · Freight",       BLUE,   "06"),
 ]
 
 def make_sectors(t):
-    """10s — sectores aparecen uno por uno cada ~1.4s"""
-    img = bg_img()
-    add_grid(img)
-    draw = ImageDraw.Draw(img, "RGBA")
+    img = bg()
+    d   = ImageDraw.Draw(img, "RGBA")
+    scanline_overlay(d, 0.02)
 
-    # Header
-    a_hdr = ease(min(1.0, t / 0.5))
-    draw.text((W // 2 - text_w(draw, "COVERAGE  ·  6 SECTORS", FG48) // 2, 55),
-              "COVERAGE  ·  6 SECTORS",
-              font=FG48, fill=(*GOLD, int(255 * a_hdr)))
-    draw.line([(200, 120), (W - 200, 120)],
-              fill=(*GOLD, int(255 * a_hdr * 0.3)), width=1)
+    a_hdr = ease(min(1., t/0.2))
+    cx_text(d, "SECTOR COVERAGE", 45, FG48, GOLD, int(255*a_hdr))
+    hline(d, 108, 160, W-160, GOLD, 0.25*a_hdr)
 
-    # Grid 3 × 2
     cols, rows = 3, 2
-    cell_w = (W - 120) // cols
-    cell_h = (H - 200) // rows
-    interval = 10.0 / len(SECTORS)
+    CW = (W-120)//cols; CH = (H-165)//rows
+    interval = 6.0/len(SECTORS)
 
-    for i, (icon, name, desc, color) in enumerate(SECTORS):
-        col = i % cols
-        row = i // cols
-        appear = t - i * interval
-        if appear < 0:
-            continue
-        a = ease(min(1.0, appear / 0.6))
+    for i, (name, desc, color, num) in enumerate(SECTORS):
+        col = i%cols; row = i//cols
+        age = t - i*interval
+        if age < 0: continue
 
-        cx = 60 + col * cell_w + cell_w // 2
-        cy = 160 + row * cell_h + cell_h // 2
+        ta = ease(min(1., age/0.2))
+        bx1 = 60 + col*CW + 18
+        by1 = 128 + row*CH + 14
+        bx2 = bx1 + CW - 36
+        by2 = by1 + CH - 28
 
-        # Caja
-        bx1 = 60 + col * cell_w + 20
-        by1 = 160 + row * cell_h + 20
-        bx2 = bx1 + cell_w - 40
-        by2 = by1 + cell_h - 40
+        # Flash inicial
+        flash = max(0., 1.0 - age/0.12)
 
-        # Fondo de caja
-        draw.rectangle([(bx1, by1), (bx2, by2)],
-                       fill=(*BG, int(240 * a)))
-        draw.rectangle([(bx1, by1), (bx2, by2)],
-                       outline=(*color, int(80 * a)), width=1)
+        # Box background
+        d.rectangle([(bx1,by1),(bx2,by2)], fill=(*BG, int(250*ta)))
+
+        # Flash overlay
+        if flash > 0:
+            d.rectangle([(bx1,by1),(bx2,by2)],
+                        fill=(*color, int(80*flash)))
+
+        # Borde
+        d.rectangle([(bx1,by1),(bx2,by2)],
+                    outline=(*color, int(65*ta)), width=1)
         # Acento izquierdo
-        draw.rectangle([(bx1, by1), (bx1 + 4, by2)],
-                       fill=(*color, int(200 * a)))
+        d.rectangle([(bx1,by1),(bx1+4,by2)],
+                    fill=(*color, int(210*ta)))
+        # Corner brackets
+        corner_brackets(d, bx1, by1, bx2, by2, color, 0.6*ta, 16)
 
-        # Ícono
-        draw.text((bx1 + 22, by1 + 18), icon,
-                  font=FG40, fill=(*color, int(255 * a)))
+        # Número sector
+        d.text((bx2-tw(d,num,FM18)-12, by1+10), num,
+               font=FM18, fill=(*color, int(80*ta)))
 
         # Nombre
-        draw.text((bx1 + 22, by1 + 70), name,
-                  font=FG32, fill=(*color, int(255 * a)))
+        nw  = tw(d, name, FG28)
+        nx2 = bx1 + 18
+        d.text((nx2, by1+16), name, font=FG28, fill=(*color, int(255*ta)))
 
-        # Descripción
-        draw.text((bx1 + 22, by1 + 115), desc,
-                  font=FM18, fill=(*WHITE, int(180 * a)))
+        # Desc
+        d.text((nx2, by1+58), desc, font=FM18, fill=(*WHITE, int(160*ta)))
 
-        # Dot de estado
-        dot_a = ease(min(1.0, (appear - 0.4) / 0.4))
-        if dot_a > 0:
-            glow_dot(draw, bx2 - 22, by1 + 28, 7, GREEN, dot_a * 0.9)
+        # Status dot verde
+        da = ease(min(1., (age-0.15)/0.2))
+        if da > 0:
+            dot(d, bx2-22, by1+22, 5, GREEN, da*0.9)
+            dot(d, bx2-22, by1+22, 2, WHITE, da*0.8)
 
-    return img_frame(img)
+    # Fade in
+    if t < 0.2:
+        fade = 1.0-ease(t/0.2)
+        black = Image.new("RGBA",(W,H),(0,0,0,int(255*fade)))
+        img   = Image.alpha_composite(img, black)
 
-S6 = VideoClip(make_sectors, duration=10)
+    return npf(img)
 
-# ─────────────────────────────────────────────────────────────
-# ESCENA 7 — URL + Logo + fade negro (80–90s → 10s)
-# ─────────────────────────────────────────────────────────────
+S6 = VideoClip(make_sectors, duration=6)
+
+# ═══════════════════════════════════════════════════════════════
+# ESCENA 7 — Outro (58–60s → 2s)
+# Logo + URL + fade negro
+# ═══════════════════════════════════════════════════════════════
 URL = "faro-protocol.netlify.app"
 
 def make_outro(t):
-    img = bg_img()
-    add_grid(img)
-    draw = ImageDraw.Draw(img, "RGBA")
+    img = bg()
+    d   = ImageDraw.Draw(img, "RGBA")
+    cy  = H//2
 
-    # Fade in 0→2s, hold 2→8s, fade out 8→10s
-    if t < 2.0:
-        a = ease(t / 2.0)
-    elif t > 8.0:
-        a = ease((10.0 - t) / 2.0)
-    else:
-        a = 1.0
+    if t < 0.4:   a = ease(t/0.4)
+    elif t > 1.4: a = ease((2.-t)/0.6)
+    else:         a = 1.0
 
-    cy = H // 2
+    pulse = 0.5 + 0.5*math.sin(t*4)
 
-    # Glow central
-    pulse = 0.5 + 0.5 * math.sin(t * 2.5)
-    glow_dot(draw, W // 2, cy - 120, 30, GOLD, a * 0.12 * pulse)
+    hline(d, cy-92, W//2-380, W//2+380, GOLD, 0.28*a)
 
-    # Horizontal rule
-    rl_a = ease(min(1.0, t / 1.0))
-    draw.line([(W // 2 - 380, cy - 95), (W // 2 + 380, cy - 95)],
-              fill=(*GOLD, int(255 * a * rl_a * 0.35)), width=1)
-
-    # FARO PROTOCOL
-    logo_a = ease(min(1.0, t / 1.4))
     title = "FARO  PROTOCOL"
-    tw = text_w(draw, title, FG80)
-    draw.text((W // 2 - tw // 2, cy - 80), title,
-              font=FG80, fill=(*GOLD, int(255 * a * logo_a)))
+    tw2 = tw(d, title, FGB100)
+    d.text(((W-tw2)//2, cy-78), title, font=FGB100, fill=(*GOLD, int(255*a)))
 
-    # Sub
-    sub_a = ease(min(1.0, (t - 0.5) / 1.0))
     sub = "Physical Truth from Orbit"
-    sw = text_w(draw, sub, FM32)
-    draw.text((W // 2 - sw // 2, cy + 20), sub,
-              font=FM32, fill=(*WHITE, int(255 * a * sub_a * 0.85)))
+    cx_text(d, sub, cy+42, FG28, WHITE, int(220*a*0.85))
 
-    draw.line([(W // 2 - 280, cy + 78), (W // 2 + 280, cy + 78)],
-              fill=(*GOLD, int(255 * a * rl_a * 0.35)), width=1)
+    hline(d, cy+92, W//2-280, W//2+280, GOLD, 0.25*a)
 
-    # URL
-    url_a = ease(min(1.0, (t - 1.2) / 1.0))
-    uw = text_w(draw, URL, FM32)
-    draw.text((W // 2 - uw // 2, cy + 105), URL,
-              font=FM32, fill=(*GOLD2, int(255 * a * url_a * 0.9)))
+    url_a = ease(min(1., (t-0.3)/0.3))
+    cx_text(d, URL, cy+118, FG28, GOLD2, int(255*a*url_a))
 
-    # Tagline
-    tag_a = ease(min(1.0, (t - 2.0) / 0.8))
-    tag = "SAR · NDVI · SHA-256 · 24h delivery · Any location"
-    tw2 = text_w(draw, tag, FM18)
-    draw.text((W // 2 - tw2 // 2, cy + 162), tag,
-              font=FM18, fill=(*WHITE, int(200 * a * tag_a * 0.65)))
+    tag = "SAR  /  NDVI  /  SHA-256  /  24h delivery  /  Any location"
+    cx_text(d, tag, cy+165, FM18, WHITE, int(150*a*url_a*0.7))
 
-    # Dot inferior
-    dot_a = ease(min(1.0, (t - 2.5) / 0.5))
-    glow_dot(draw, W // 2, cy + 215, 4, GOLD, a * dot_a * 0.7)
+    dot(d, W//2, cy+212, 4, GOLD, a*(0.35+0.3*pulse))
 
-    return img_frame(img)
+    # Fade a negro
+    if t > 1.2:
+        fade = ease((t-1.2)/0.8)
+        black = Image.new("RGBA",(W,H),(0,0,0,int(255*fade)))
+        img   = Image.alpha_composite(img, black)
 
-S7 = VideoClip(make_outro, duration=10)
+    return npf(img)
 
-# ─────────────────────────────────────────────────────────────
-# Ensamblar y exportar
-# ─────────────────────────────────────────────────────────────
+S7 = VideoClip(make_outro, duration=2)
+
+# ═══════════════════════════════════════════════════════════════
+# ENSAMBLADO
+# ═══════════════════════════════════════════════════════════════
 def main():
-    os.makedirs(os.path.join(ROOT, "outputs"), exist_ok=True)
+    os.makedirs(os.path.join(ROOT,"outputs"), exist_ok=True)
 
-    print("Ensamblando escenas...")
-    final = concatenate_videoclips([S1, S2, S3, S4, S5, S6, S7])
+    clips  = [S1,S2,S3,S4,S5,S6,S7]
+    durs   = [c.duration for c in clips]
+    total  = sum(durs)
+    labels = ["Intro","Mapa","Balcarce","SHA-256","Frases","Sectores","Outro"]
 
-    print(f"Duración total: {final.duration:.1f}s  ({final.duration * FPS:.0f} frames)")
+    print("Escenas:")
+    t0 = 0
+    for lbl, dur in zip(labels, durs):
+        print(f"  {lbl:12s} {t0:5.1f}s  -{t0+dur:5.1f}s  ({dur:.0f}s)")
+        t0 += dur
+    print(f"Total: {total:.0f}s  /  {int(total*FPS)} frames")
     print(f"Exportando -> {OUT}")
-    print("Esto puede tardar 2-5 minutos...")
 
+    final = concatenate_videoclips(clips)
     final.write_videofile(
-        OUT,
-        fps=FPS,
-        codec="libx264",
-        audio=False,
+        OUT, fps=FPS, codec="libx264", audio=False,
         preset="medium",
-        ffmpeg_params=["-crf", "20", "-pix_fmt", "yuv420p"],
+        ffmpeg_params=["-crf","18","-pix_fmt","yuv420p"],
         logger="bar",
     )
-    print(f"[OK] Video generado: {OUT}")
+    sz = os.path.getsize(OUT)/1e6
+    print(f"[OK] {sz:.1f} MB  ->  {OUT}")
 
 if __name__ == "__main__":
     main()
