@@ -92,6 +92,12 @@
   status = 404
   force  = true
 
+# ── Portal del cliente: URL limpia ───────────────────────────
+[[redirects]]
+  from = "/portal"
+  to   = "/outputs/visor_faro_v2.html"
+  status = 200
+
 # ── Netlify Functions routing ─────────────────────────────────
 [[redirects]]
   from = "/api/*"

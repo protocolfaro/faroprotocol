@@ -53,7 +53,7 @@ try:
 except ImportError:
     FIREBASE_OK = False
 
-PORTAL_URL  = os.getenv('PORTAL_URL', 'https://faroprotocol.netlify.app')
+PORTAL_URL  = os.getenv('PORTAL_URL', 'https://faro-protocol.netlify.app/portal')
 GMAIL_USER  = os.getenv('GMAIL_USER', '')
 GMAIL_PASS  = os.getenv('GMAIL_APP_PASS', '')
 ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', GMAIL_USER)
