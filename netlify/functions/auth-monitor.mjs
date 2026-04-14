@@ -78,14 +78,15 @@ async function getAttemptState(db, email) {
 
 // ── Handler ───────────────────────────────────────────────────
 export default async function handler(req, context) {
-  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders() });
-  if (req.method !== 'POST')   return json({ error: 'Method not allowed' }, 405);
+  const j = (data, status = 200) => json(data, status, req);
+  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders(req) });
+  if (req.method !== 'POST')   return j({ error: 'Method not allowed' }, 405);
 
   let body;
-  try { body = await req.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
+  try { body = await req.json(); } catch { return j({ error: 'Invalid JSON' }, 400); }
 
   const { event, email, ip, uid, userAgent } = body;
-  if (!event || !email) return json({ error: 'event and email required' }, 400);
+  if (!event || !email) return j({ error: 'event and email required' }, 400);
 
   const adminEmail = process.env.ADMIN_EMAIL || process.env.GMAIL_USER;
 
@@ -99,7 +100,7 @@ export default async function handler(req, context) {
       const { ref, data } = await getAttemptState(db, email);
 
       if (data.permanent_block) {
-        return json({ action: 'permanent_block', message: 'Account permanently blocked.' }, 403);
+        return j({ action: 'permanent_block', message: 'Account permanently blocked.' }, 403);
       }
 
       // Check window (30 min)
@@ -125,7 +126,7 @@ export default async function handler(req, context) {
             kv('Email', email) + kv('IP', ip || 'unknown') + kv('Intentos', String(newCount)) + kv('User-Agent', userAgent || '—')),
         });
 
-        return json({ action: 'permanent_block', message: 'Account permanently blocked. Contact support.' }, 403);
+        return j({ action: 'permanent_block', message: 'Account permanently blocked. Contact support.' }, 403);
       }
 
       // Lockout at 5 attempts
@@ -140,17 +141,17 @@ export default async function handler(req, context) {
             kv('Email', email) + kv('IP', ip || 'unknown') + kv('Intentos', String(newCount))),
         });
 
-        return json({ action: 'lockout', minutes: 30, lockoutUntil }, 429);
+        return j({ action: 'lockout', minutes: 30, lockoutUntil }, 429);
       }
 
       await ref.set({ count: newCount, first_attempt: newFirst });
 
       // Captcha at 3 attempts
       if (newCount >= 3) {
-        return json({ action: 'captcha', attemptsLeft: 10 - newCount }, 200);
+        return j({ action: 'captcha', attemptsLeft: 10 - newCount }, 200);
       }
 
-      return json({ action: 'allow', attemptsLeft: 5 - newCount }, 200);
+      return j({ action: 'allow', attemptsLeft: 5 - newCount }, 200);
     }
 
     // ── login_ok ─────────────────────────────────────────────
@@ -182,7 +183,7 @@ export default async function handler(req, context) {
         });
       }
 
-      return json({ action: 'allow', newIP: isNewIP }, 200);
+      return j({ action: 'allow', newIP: isNewIP }, 200);
     }
 
     // ── new_ip ───────────────────────────────────────────────
@@ -193,7 +194,7 @@ export default async function handler(req, context) {
         html: ALERT_TEMPLATE('Acceso desde IP nueva detectada',
           kv('Email', email) + kv('IP', ip || 'unknown') + kv('Timestamp', new Date().toISOString())),
       });
-      return json({ action: 'alerted' }, 200);
+      return j({ action: 'alerted' }, 200);
     }
 
     // ── bulk_download ────────────────────────────────────────
@@ -204,28 +205,37 @@ export default async function handler(req, context) {
         html: ALERT_TEMPLATE('Descarga Masiva de Reportes',
           kv('Email', email) + kv('IP', ip || 'unknown') + kv('UID', uid || '—')),
       });
-      return json({ action: 'flagged' }, 200);
+      return j({ action: 'flagged' }, 200);
     }
 
-    return json({ error: 'Unknown event' }, 400);
+    return j({ error: 'Unknown event' }, 400);
 
   } catch (err) {
     console.error('[auth-monitor] Error:', err);
-    return json({ error: 'Internal server error' }, 500);
+    return j({ error: 'Internal server error' }, 500);
   }
 }
 
-function json(data, status = 200) {
+function json(data, status = 200, req = null) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+    headers: { 'Content-Type': 'application/json', ...corsHeaders(req) },
   });
 }
 
-function corsHeaders() {
+const ALLOWED_ORIGINS = new Set([
+  'https://faro-protocol.netlify.app',
+  'https://faroprotocol.com',
+  'https://www.faroprotocol.com',
+]);
+
+function corsHeaders(req) {
+  const origin = req?.headers?.get?.('Origin') || '';
+  const allowedOrigin = ALLOWED_ORIGINS.has(origin) ? origin : 'https://faro-protocol.netlify.app';
   return {
-    'Access-Control-Allow-Origin':  'https://faro-protocol.netlify.app',
+    'Access-Control-Allow-Origin':  allowedOrigin,
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
+    'Vary': 'Origin',
   };
 }

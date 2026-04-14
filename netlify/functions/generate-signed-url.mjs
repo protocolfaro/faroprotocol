@@ -91,16 +91,17 @@ function clientCanAccess(clientAreas, file) {
 
 // ── Main handler ──────────────────────────────────────────────
 export default async function handler(req, context) {
+  const j = (data, status = 200) => json(data, status, req);
   // CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, {
       status: 204,
-      headers: corsHeaders(),
+      headers: corsHeaders(req),
     });
   }
 
   if (req.method !== 'POST') {
-    return json({ error: 'Method not allowed' }, 405);
+    return j({ error: 'Method not allowed' }, 405);
   }
 
   // Parse body
@@ -108,23 +109,23 @@ export default async function handler(req, context) {
   try {
     body = await req.json();
   } catch {
-    return json({ error: 'Invalid JSON' }, 400);
+    return j({ error: 'Invalid JSON' }, 400);
   }
 
   const { idToken, file, csrfToken } = body;
 
   if (!idToken || !file) {
-    return json({ error: 'idToken and file are required' }, 400);
+    return j({ error: 'idToken and file are required' }, 400);
   }
 
   // Validate CSRF token (must be present, format: 64 hex chars)
   if (!csrfToken || !/^[a-f0-9]{64}$/.test(csrfToken)) {
-    return json({ error: 'Invalid CSRF token' }, 403);
+    return j({ error: 'Invalid CSRF token' }, 403);
   }
 
   const secret = process.env.SIGNED_URL_SECRET;
   if (!secret || secret.length < 32) {
-    return json({ error: 'Server misconfiguration' }, 500);
+    return j({ error: 'Server misconfiguration' }, 500);
   }
 
   try {
@@ -137,7 +138,7 @@ export default async function handler(req, context) {
     try {
       decoded = await auth.verifyIdToken(idToken, true); // checkRevoked=true
     } catch (err) {
-      return json({ error: 'Invalid or expired token', detail: err.code }, 401);
+      return j({ error: 'Invalid or expired token', detail: err.code }, 401);
     }
 
     const uid   = decoded.uid;
@@ -148,7 +149,7 @@ export default async function handler(req, context) {
     const clientSnap = await clientRef.get();
 
     if (!clientSnap.exists) {
-      return json({ error: 'Client profile not found' }, 403);
+      return j({ error: 'Client profile not found' }, 403);
     }
 
     const profile = clientSnap.data();
@@ -161,7 +162,7 @@ export default async function handler(req, context) {
         // Revoke tokens + return redirect
         await auth.revokeRefreshTokens(uid);
         await auditLog(db, { type: 'faro_week_expired', uid, email, file });
-        return json({ error: 'Faro Week expired', redirect: '/expired.html' }, 403);
+        return j({ error: 'Faro Week expired', redirect: '/expired.html' }, 403);
       }
     }
 
@@ -169,13 +170,13 @@ export default async function handler(req, context) {
     if (!clientCanAccess(profile.areas, file)) {
       // CAPA 3: acceso a datos de otro cliente → alerta
       await auditLog(db, { type: 'unauthorized_file_access', uid, email, file, areas: profile.areas });
-      return json({ error: 'Access denied — unauthorized area' }, 403);
+      return j({ error: 'Access denied — unauthorized area' }, 403);
     }
 
     // 4. Rate limit
     const allowed = await checkRateLimit(db, uid);
     if (!allowed) {
-      return json({ error: 'Rate limit exceeded. Try again in 1 hour.' }, 429);
+      return j({ error: 'Rate limit exceeded. Try again in 1 hour.' }, 429);
     }
 
     // 5. Build signed URL
@@ -196,25 +197,34 @@ export default async function handler(req, context) {
       expiresAt: new Date(expiresAt).toISOString(),
     });
 
-    return json({ signedUrl, expiresAt }, 200);
+    return j({ signedUrl, expiresAt }, 200);
 
   } catch (err) {
     console.error('[signed-url] Error:', err);
-    return json({ error: 'Internal server error' }, 500);
+    return j({ error: 'Internal server error' }, 500);
   }
 }
 
-function json(data, status = 200) {
+function json(data, status = 200, req = null) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+    headers: { 'Content-Type': 'application/json', ...corsHeaders(req) },
   });
 }
 
-function corsHeaders() {
+const ALLOWED_ORIGINS = new Set([
+  'https://faro-protocol.netlify.app',
+  'https://faroprotocol.com',
+  'https://www.faroprotocol.com',
+]);
+
+function corsHeaders(req = null) {
+  const origin = req?.headers?.get?.('Origin') || '';
+  const allowedOrigin = ALLOWED_ORIGINS.has(origin) ? origin : 'https://faro-protocol.netlify.app';
   return {
-    'Access-Control-Allow-Origin':  'https://faro-protocol.netlify.app',
+    'Access-Control-Allow-Origin':  allowedOrigin,
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
+    'Vary': 'Origin',
   };
 }

@@ -58,8 +58,17 @@ function verifySignature(file, uid, exp, sig, secret) {
   return diff === 0;
 }
 
+const ALLOWED_ORIGINS = new Set([
+  'https://faro-protocol.netlify.app',
+  'https://faroprotocol.com',
+  'https://www.faroprotocol.com',
+]);
+
 // ── Handler principal ─────────────────────────────────────────────────────────
 export default async function handler(req, context) {
+  const origin = req.headers.get('Origin') || '';
+  const allowedOrigin = ALLOWED_ORIGINS.has(origin) ? origin : 'https://faro-protocol.netlify.app';
+
   // Solo GET
   if (req.method !== 'GET') {
     return new Response('Method Not Allowed', { status: 405 });
@@ -127,7 +136,8 @@ export default async function handler(req, context) {
       'X-Frame-Options':           'DENY',
       'Referrer-Policy':           'no-referrer',
       'X-Faro-Served':             'authenticated',
-      'Access-Control-Allow-Origin': 'https://faro-protocol.netlify.app',
+      'Access-Control-Allow-Origin': allowedOrigin,
+      'Vary':                       'Origin',
     },
   });
 }

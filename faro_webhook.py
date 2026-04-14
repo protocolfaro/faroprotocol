@@ -48,11 +48,21 @@ PROJECT_ROOT = Path(__file__).parent
 app = Flask(__name__)
 
 
+_ALLOWED_ORIGINS = {
+    "https://faro-protocol.netlify.app",
+    "https://faroprotocol.com",
+    "https://www.faroprotocol.com",
+}
+
+
 def _cors():
+    origin = request.headers.get("Origin", "")
+    allowed = origin if origin in _ALLOWED_ORIGINS else "https://faro-protocol.netlify.app"
     return {
-        "Access-Control-Allow-Origin":  "*",
+        "Access-Control-Allow-Origin":  allowed,
         "Access-Control-Allow-Methods": "POST, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        "Vary": "Origin",
     }
 
 
