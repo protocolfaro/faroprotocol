@@ -3,7 +3,19 @@
 
 ---
 
-## COMPLETADO HOY (2026-04-14)
+## COMPLETADO HOY — SESIÓN 2 (2026-04-14)
+
+- [x] CORS multi-origen: funciones Netlify + webhook Railway aceptan faroprotocol.com y www.faroprotocol.com
+- [x] CSP corregido: agrega Cesium (script/style/img), Railway (connect-src), worker-src blob: — bug silencioso que bloqueaba el visor
+- [x] FIREBASE_SERVICE_ACCOUNT en Railway: acepta JSON string (Railway) y path de archivo (local dev)
+- [x] CORS Railway: reemplaza wildcard `*` por lista de orígenes específicos
+- [x] Redirect `/portal` → `outputs/visor_faro_v2.html` en Netlify (URL limpia para emails)
+- [x] PORTAL_URL default apunta a `/portal` en vez del root
+- Commits: `3e9027c`, `390c727`, `c6f1a7f`
+
+---
+
+## COMPLETADO HOY — SESIÓN 1 (2026-04-14)
 
 - [x] Railway webhook live: https://faroprotocol-production.up.railway.app
 - [x] Lemon Squeezy tienda creada: https://faroprotocol.lemonsqueezy.com
@@ -16,9 +28,9 @@
 
 ---
 
-## PENDIENTES MAÑANA (2026-04-15)
+## PENDIENTES — ACCIÓN EXTERNA REQUERIDA
 
-### Lemon Squeezy
+### Lemon Squeezy (dashboard manual)
 - [ ] Crear producto **Analyst** — USD 9.000/mes
 - [ ] Crear producto **Sovereign** — USD 17.000/mes
 - [ ] Crear producto **Enterprise** — USD 3.200/sector/mes
