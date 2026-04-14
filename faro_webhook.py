@@ -32,12 +32,18 @@ if _ENGINE_DIR.exists() and str(_ENGINE_DIR) not in sys.path:
 try:
     import firebase_admin
     from firebase_admin import credentials, auth as fb_auth, firestore as fb_fs
-    _SA_PATH = os.getenv("FIREBASE_SERVICE_ACCOUNT", "")
-    if not firebase_admin._apps:
-        if _SA_PATH and Path(_SA_PATH).exists():
-            firebase_admin.initialize_app(credentials.Certificate(_SA_PATH))
+    _SA_RAW = os.getenv("FIREBASE_SERVICE_ACCOUNT", "")
+    if not firebase_admin._apps and _SA_RAW:
+        # Acepta JSON string (Railway/Netlify) o path de archivo (local dev)
+        if _SA_RAW.strip().startswith("{"):
+            _sa_dict = json.loads(_SA_RAW)
+            firebase_admin.initialize_app(credentials.Certificate(_sa_dict))
+        elif Path(_SA_RAW).exists():
+            firebase_admin.initialize_app(credentials.Certificate(_SA_RAW))
         else:
-            print("[WARN] FIREBASE_SERVICE_ACCOUNT no configurado")
+            print("[WARN] FIREBASE_SERVICE_ACCOUNT: no es JSON ni path válido")
+    elif not firebase_admin._apps:
+        print("[WARN] FIREBASE_SERVICE_ACCOUNT no configurado")
     _FB_OK = bool(firebase_admin._apps)
 except Exception as _e:
     print(f"[WARN] Firebase Admin no disponible: {_e}")
