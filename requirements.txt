@@ -23,6 +23,9 @@ APScheduler>=3.10.0
 # ── Variables de entorno (.env) ───────────────────────────────────
 python-dotenv>=1.0.0
 
+# ── Webhook server (faro_webhook.py) ─────────────────────────────
+flask>=3.0.0
+
 # ── Portal seguro — CAPA 7 (gen_portal_key.py con Firebase Admin) ─
 firebase-admin>=6.5.0
 
