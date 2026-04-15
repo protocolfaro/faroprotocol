@@ -811,6 +811,113 @@ footer{padding:32px 48px;border-top:1px solid var(--border);display:flex;align-i
     <h2 class="sec-h2"><span data-en="Configure your access." data-es="Configurá tu acceso.">Configure your access.</span><br><em data-en="Price updates as you choose." data-es="El precio se actualiza mientras elegís.">Price updates as you choose.</em></h2>
     <p style="font-size:13px;font-weight:300;color:var(--w3);max-width:520px;margin-top:8px;line-height:1.8;" data-en="Satellite intelligence subscriptions. Instant checkout. Automatic activation." data-es="Suscripciones de inteligencia satelital. Checkout instantáneo. Activación automática.">Satellite intelligence subscriptions. Instant checkout. Automatic activation.</p>
 
+    <!-- ── CUSTOM CHECKOUT CALCULATOR ── -->
+    <div class="calc-wrap">
+      <!-- Steps -->
+      <div class="calc-steps">
+
+        <!-- STEP 01: Coverage -->
+        <div>
+          <div class="calc-step-hd">
+            <div class="calc-step-num" data-en="STEP 01" data-es="PASO 01">STEP 01</div>
+            <div class="calc-step-title" data-en="Coverage" data-es="Cobertura">Coverage</div>
+          </div>
+          <div class="copt sel" data-opt="coverage" data-val="one" onclick="selectOpt(this)">
+            <div class="copt-radio"></div>
+            <div class="copt-body">
+              <div class="copt-name" data-en="One sector" data-es="Un sector">One sector</div>
+              <div class="copt-sub" data-en="1 area of choice — anywhere on Earth" data-es="1 área a elección — en cualquier lugar del planeta">1 area of choice — anywhere on Earth</div>
+            </div>
+            <div class="copt-badge" id="badge-one">USD 2,500</div>
+          </div>
+          <div class="copt" data-opt="coverage" data-val="all" onclick="selectOpt(this)">
+            <div class="copt-radio"></div>
+            <div class="copt-body">
+              <div class="copt-name" data-en="Three sectors" data-es="Tres sectores">Three sectors</div>
+              <div class="copt-sub" data-en="3 areas — full Analyst access" data-es="3 áreas — acceso Analyst completo">3 areas — full Analyst access</div>
+            </div>
+            <div class="copt-badge" id="badge-all">USD 9,000</div>
+          </div>
+        </div>
+
+        <div class="calc-divider"></div>
+
+        <!-- STEP 02: Delivery -->
+        <div>
+          <div class="calc-step-hd">
+            <div class="calc-step-num" data-en="STEP 02" data-es="PASO 02">STEP 02</div>
+            <div class="calc-step-title" data-en="Delivery speed" data-es="Velocidad de entrega">Delivery speed</div>
+          </div>
+          <div class="copt sel" data-opt="delivery" data-val="standard" onclick="selectOpt(this)">
+            <div class="copt-radio"></div>
+            <div class="copt-body">
+              <div class="copt-name" data-en="Standard · 48h" data-es="Estándar · 48h">Standard · 48h</div>
+              <div class="copt-sub" data-en="Weekly SAR + NDVI report · 48h data advantage" data-es="Reporte semanal SAR + NDVI · 48h de ventaja">Weekly SAR + NDVI report · 48h data advantage</div>
+            </div>
+            <div class="copt-badge" data-en="Included" data-es="Incluido">Included</div>
+          </div>
+          <div class="copt" data-opt="delivery" data-val="rt" onclick="selectOpt(this)">
+            <div class="copt-radio"></div>
+            <div class="copt-body">
+              <div class="copt-name" data-en="Real-time alerts" data-es="Alertas en tiempo real">Real-time alerts</div>
+              <div class="copt-sub" data-en="Anomaly detection · Instant notification · Priority pipeline" data-es="Detección de anomalías · Notificación instantánea · Pipeline prioritario">Anomaly detection · Instant notification · Priority pipeline</div>
+            </div>
+            <div class="copt-badge" id="badge-rt">+USD 2,000</div>
+          </div>
+        </div>
+
+        <div class="calc-divider"></div>
+
+        <!-- STEP 03: Certification -->
+        <div>
+          <div class="calc-step-hd">
+            <div class="calc-step-num" data-en="STEP 03" data-es="PASO 03">STEP 03</div>
+            <div class="calc-step-title" data-en="Certification level" data-es="Nivel de certificación">Certification level</div>
+          </div>
+          <div class="copt sel" data-opt="cert" data-val="0" onclick="selectOpt(this)">
+            <div class="copt-radio"></div>
+            <div class="copt-body">
+              <div class="copt-name" data-en="Standard" data-es="Estándar">Standard</div>
+              <div class="copt-sub" data-en="SHA-256 sealed · Portal access certified" data-es="Sellado SHA-256 · Acceso portal certificado">SHA-256 sealed · Portal access certified</div>
+            </div>
+            <div class="copt-badge" data-en="Included" data-es="Incluido">Included</div>
+          </div>
+          <div class="copt" data-opt="cert" data-val="30" onclick="selectOpt(this)">
+            <div class="copt-radio"></div>
+            <div class="copt-body">
+              <div class="copt-name" data-en="Verified · Legal grade" data-es="Verificado · Grado legal">Verified · Legal grade</div>
+              <div class="copt-sub" data-en="Notarized data · Admissible for due diligence" data-es="Datos notarizados · Admisible para due diligence">Notarized data · Admissible for due diligence</div>
+            </div>
+            <div class="copt-badge">+30%</div>
+          </div>
+          <div class="copt" data-opt="cert" data-val="60" onclick="selectOpt(this)">
+            <div class="copt-radio"></div>
+            <div class="copt-body">
+              <div class="copt-name" data-en="Legal · Court-admissible" data-es="Legal · Admisible en juicio">Legal · Court-admissible</div>
+              <div class="copt-sub" data-en="Certified for regulatory + legal proceedings" data-es="Certificado para procedimientos regulatorios y legales">Certified for regulatory + legal proceedings</div>
+            </div>
+            <div class="copt-badge">+60%</div>
+          </div>
+        </div>
+
+      </div><!-- /calc-steps -->
+
+      <!-- Result panel -->
+      <div class="calc-result-panel" style="position:relative;">
+        <div class="calc-res-lbl" data-en="YOUR MONTHLY INVESTMENT" data-es="TU INVERSIÓN MENSUAL">YOUR MONTHLY INVESTMENT</div>
+        <div class="calc-total" id="calcTotal">USD 2,500</div>
+        <div class="calc-total-sub" data-en="/ month · billed monthly" data-es="/ mes · facturación mensual">/ month · billed monthly</div>
+        <div class="calc-breakdown" id="calcBreakdown"></div>
+        <button class="calc-cta" onclick="calcRequest()" id="btn-calc-access"
+                data-en="Get Access →" data-es="Obtener Acceso →">Get Access →</button>
+        <div class="calc-note" data-en="Secure checkout via Lemon Squeezy · Instant Firebase activation · Cancel anytime" data-es="Checkout seguro via Lemon Squeezy · Activación Firebase instantánea · Cancelar cuando quieras">Secure checkout via Lemon Squeezy<br>Instant activation · Cancel anytime</div>
+      </div>
+
+    </div><!-- /calc-wrap -->
+
+    <!-- Plan cards — quick reference tiers -->
+    <div style="font-family:var(--mono);font-size:7.5px;color:rgba(242,237,228,0.22);text-align:center;margin:44px 0 16px;letter-spacing:0.18em;text-transform:uppercase;" data-en="— or choose a preset plan —" data-es="— o elegí un plan predefinido —">— or choose a preset plan —</div>
+
     <div class="plan-cards">
 
       <!-- OBSERVER -->
@@ -829,8 +936,9 @@ footer{padding:32px 48px;border-top:1px solid var(--border);display:flex;align-i
           <li class="muted" data-en="Real-time alerts" data-es="Alertas en tiempo real">Real-time alerts</li>
           <li class="muted" data-en="API access" data-es="Acceso API">API access</li>
         </ul>
-        <a href="https://faroprotocol.lemonsqueezy.com/checkout/buy/LEMON_PRODUCT_ID_OBSERVER?embed=1&amp;media=0&amp;logo=0&amp;discount=0"
+        <a href="#" id="cta-observer"
            class="lemonsqueezy-button plan-cta"
+           onclick="lsCheckout('observer');return false;"
            data-en="Subscribe →" data-es="Suscribirse →">Subscribe →</a>
         <div class="plan-note" data-en="Instant activation · No setup fee" data-es="Activación instantánea · Sin alta">Instant activation · No setup fee</div>
       </div>
@@ -851,8 +959,9 @@ footer{padding:32px 48px;border-top:1px solid var(--border);display:flex;align-i
           <li data-en="Interactive 3D viewer" data-es="Visor 3D interactivo">Interactive 3D viewer</li>
           <li data-en="48h data advantage" data-es="48h ventaja temporal">48h data advantage</li>
         </ul>
-        <a href="https://faroprotocol.lemonsqueezy.com/checkout/buy/LEMON_PRODUCT_ID_ANALYST?embed=1&amp;media=0&amp;logo=0&amp;discount=0"
+        <a href="#" id="cta-analyst"
            class="lemonsqueezy-button plan-cta"
+           onclick="lsCheckout('analyst');return false;"
            data-en="Subscribe →" data-es="Suscribirse →">Subscribe →</a>
         <div class="plan-note" data-en="Most popular · Instant activation" data-es="Más popular · Activación instantánea">Most popular · Instant activation</div>
       </div>
@@ -873,8 +982,9 @@ footer{padding:32px 48px;border-top:1px solid var(--border);display:flex;align-i
           <li data-en="Priority support" data-es="Soporte prioritario">Priority support</li>
           <li data-en="Dedicated account manager" data-es="Account manager dedicado">Dedicated account manager</li>
         </ul>
-        <a href="https://faroprotocol.lemonsqueezy.com/checkout/buy/LEMON_PRODUCT_ID_SOVEREIGN?embed=1&amp;media=0&amp;logo=0&amp;discount=0"
+        <a href="#" id="cta-sovereign"
            class="lemonsqueezy-button plan-cta"
+           onclick="lsCheckout('sovereign');return false;"
            data-en="Subscribe →" data-es="Suscribirse →">Subscribe →</a>
         <div class="plan-note" data-en="Full global coverage · Instant activation" data-es="Cobertura global completa · Activación instantánea">Full global coverage · Instant activation</div>
       </div>
@@ -895,8 +1005,9 @@ footer{padding:32px 48px;border-top:1px solid var(--border);display:flex;align-i
           <li data-en="Dedicated infrastructure" data-es="Infraestructura dedicada">Dedicated infrastructure</li>
           <li data-en="Legal Grade certification" data-es="Certificación Legal Grade">Legal Grade certification</li>
         </ul>
-        <a href="https://faroprotocol.lemonsqueezy.com/checkout/buy/LEMON_PRODUCT_ID_ENTERPRISE?embed=1&amp;media=0&amp;logo=0&amp;discount=0"
-           class="lemonsqueezy-button plan-cta"
+        <a href="#access"
+           class="plan-cta"
+           onclick="smoothTo('access');return false;"
            data-en="Contact us →" data-es="Contactar →">Contact us →</a>
         <div class="plan-note" data-en="Bespoke · Response within 24h" data-es="A medida · Respuesta en 24h">Bespoke · Response within 24h</div>
       </div>
@@ -1006,6 +1117,37 @@ footer{padding:32px 48px;border-top:1px solid var(--border);display:flex;align-i
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 'use strict';
 
+// ── Lemon Squeezy — Custom Checkout ──────────────────────────────────────────
+// Reemplazar con el UUID real del producto Observer.
+// Lemon Squeezy Dashboard → Products → Observer → Copy Variant ID (UUID)
+const _LS_OBSERVER_VARIANT = 'OBSERVER_VARIANT_ID';
+const _LS_BASE   = 'https://faroprotocol.lemonsqueezy.com/checkout/buy/';
+const _LS_PARAMS = '?embed=1&media=0&logo=0&discount=0';
+
+// Abre el overlay de Lemon Squeezy programáticamente.
+// lemon.js intercepta clicks en elementos con class="lemonsqueezy-button".
+function _lsOpen(url) {
+  const a = document.createElement('a');
+  a.href = url;
+  a.className = 'lemonsqueezy-button';
+  a.style.cssText = 'position:fixed;opacity:0;pointer-events:none;z-index:-1;';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => a.remove(), 300);
+}
+
+// Checkout directo desde un plan card
+function lsCheckout(planKey) {
+  if (_LS_OBSERVER_VARIANT === 'OBSERVER_VARIANT_ID') {
+    // No configurado aún — muestra mensaje
+    smoothTo('access');
+    return;
+  }
+  const prices = { observer: 250000, analyst: 900000, sovereign: 1700000 };
+  const cents = prices[planKey] || 250000;
+  _lsOpen(_LS_BASE + _LS_OBSERVER_VARIANT + _LS_PARAMS + '&checkout[custom_price]=' + cents);
+}
+
 // ── Pricing calculator ────────────────────────────────────────────────────────
 // Internal rendering matrix — do not modify
 const _S=(()=>{const _m='eyJhIjoyNTAwLCJiIjo5MDAwLCJjIjoyMDAwLCJkIjozMCwiZSI6NjB9';return JSON.parse(atob(_m));})();
@@ -1052,11 +1194,21 @@ function updateCalc(){
   const ba=document.getElementById('badge-all');if(ba)ba.textContent=_fmtUSD(_S.b);
   const br=document.getElementById('badge-rt'); if(br)br.textContent='+'+_fmtUSD(_S.c);
 
-  // Store plan for signup
+  // Store for checkout
+  window._calcTotal = total;
   window._calcPlan=`${cov.dataset.val==='all'?'AllSectors':'OneSector'}_${del.dataset.val}_cert${certPct}`;
 }
 
-function calcRequest(){signup(window._calcPlan||'Custom');smoothTo('access');}
+// Checkout con precio dinámico exacto calculado
+function calcRequest() {
+  if (_LS_OBSERVER_VARIANT === 'OBSERVER_VARIANT_ID') {
+    // Variant ID no configurado: redirigir al formulario de contacto
+    smoothTo('access');
+    return;
+  }
+  const cents = Math.round((window._calcTotal || 2500) * 100);
+  _lsOpen(_LS_BASE + _LS_OBSERVER_VARIANT + _LS_PARAMS + '&checkout[custom_price]=' + cents);
+}
 
 // ── Language ──────────────────────────────────────────────────────────────────
 let lang='en';
@@ -1312,7 +1464,7 @@ function init(){
 }
 window.addEventListener('DOMContentLoaded',init);
 window.setLang=setLang;window.setSector=setSector;
-window.doSignup=doSignup;window.signup=signup;
+window.doSignup=doSignup;window.signup=signup;window.lsCheckout=lsCheckout;
 window.smoothTo=smoothTo;window.downloadBrief=downloadBrief;
 window.selectOpt=selectOpt;window.calcRequest=calcRequest;window.updateCalc=updateCalc;
 </script>
