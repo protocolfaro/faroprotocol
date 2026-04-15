@@ -110,7 +110,7 @@ def _get_profile(uid: str):
     if not _FB_OK:
         return None
     try:
-        snap = fb_fs.client().collection("clients").doc(uid).get()
+        snap = fb_fs.client().collection("clients").document(uid).get()
         return snap.data() if snap.exists else None
     except Exception as e:
         print(f"[Firestore] Error: {e}")
@@ -121,7 +121,7 @@ def _update_zone(uid: str, slug: str, data: dict):
     if not _FB_OK:
         return
     try:
-        fb_fs.client().collection("clients").doc(uid).update({f"zones.{slug}": data})
+        fb_fs.client().collection("clients").document(uid).update({f"zones.{slug}": data})
     except Exception as e:
         print(f"[Firestore] Error zona: {e}")
 
@@ -131,7 +131,7 @@ def _create_client(uid: str, email: str, plan: str, name: str = ""):
         return
     try:
         max_a = PLAN_MAX_ASSETS.get(plan.lower(), 1)
-        fb_fs.client().collection("clients").doc(uid).set({
+        fb_fs.client().collection("clients").document(uid).set({
             "email": email, "name": name, "plan": plan.lower(),
             "max_assets": max_a, "zones": {},
             "active_subscription": True, "status": "active",
@@ -388,7 +388,7 @@ def lemon_webhook():
         if customer and _FB_OK:
             try:
                 user = fb_auth.get_user_by_email(customer)
-                fb_fs.client().collection("clients").doc(user.uid).update(
+                fb_fs.client().collection("clients").document(user.uid).update(
                     {"active_subscription": False, "status": "cancelled"}
                 )
             except Exception as e:
