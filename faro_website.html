@@ -1117,10 +1117,15 @@ footer{padding:32px 48px;border-top:1px solid var(--border);display:flex;align-i
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 'use strict';
 
-// ── Lemon Squeezy — Custom Checkout ──────────────────────────────────────────
-// Reemplazar con el UUID real del producto Observer.
-// Lemon Squeezy Dashboard → Products → Observer → Copy Variant ID (UUID)
-const _LS_OBSERVER_VARIANT = '1534282';
+// ── Lemon Squeezy — Variant IDs por plan ─────────────────────────────────────
+// Dashboard → Products → [Plan] → Variants → Copy Variant ID
+// Reemplazar los placeholders tras crear cada producto en Lemon Squeezy.
+const _LS_VARIANTS = {
+  observer:   '1534282',              // ✅ configurado
+  analyst:    '1534265',               // ✅ Analyst USD 9.500/mes
+  sovereign:  '1534253',               // ✅ Sovereign USD 17.000/mes
+  enterprise: '1534461',               // ✅ Enterprise precio variable (min $2.500)
+};
 const _LS_BASE   = 'https://faroprotocol.lemonsqueezy.com/checkout/buy/';
 const _LS_PARAMS = '?embed=1&media=0&logo=0&discount=0';
 
@@ -1133,14 +1138,12 @@ function _lsOpen(url) {
 
 // Checkout directo desde un plan card
 function lsCheckout(planKey) {
-  if (_LS_OBSERVER_VARIANT === 'OBSERVER_VARIANT_ID') {
-    // No configurado aún — muestra mensaje
-    smoothTo('access');
+  const vid = _LS_VARIANTS[planKey];
+  if (!vid || vid.endsWith('_VARIANT_ID')) {
+    alert('Este plan estará disponible en breve. Contactanos en protocolfaro@gmail.com');
     return;
   }
-  const prices = { observer: 250000, analyst: 900000, sovereign: 1700000 };
-  const cents = prices[planKey] || 250000;
-  _lsOpen(_LS_BASE + _LS_OBSERVER_VARIANT + _LS_PARAMS + '&checkout[custom_price]=' + cents);
+  _lsOpen(_LS_BASE + vid + _LS_PARAMS);
 }
 
 // ── Pricing calculator ────────────────────────────────────────────────────────
@@ -1194,15 +1197,15 @@ function updateCalc(){
   window._calcPlan=`${cov.dataset.val==='all'?'AllSectors':'OneSector'}_${del.dataset.val}_cert${certPct}`;
 }
 
-// Checkout con precio dinámico exacto calculado
+// Checkout Enterprise con precio dinámico exacto calculado
 function calcRequest() {
-  if (_LS_OBSERVER_VARIANT === 'OBSERVER_VARIANT_ID') {
-    // Variant ID no configurado: redirigir al formulario de contacto
-    smoothTo('access');
+  const vid = _LS_VARIANTS.enterprise;
+  if (!vid || vid.endsWith('_VARIANT_ID')) {
+    alert('Plan Enterprise disponible en breve. Contactanos en protocolfaro@gmail.com');
     return;
   }
   const cents = Math.round((window._calcTotal || 2500) * 100);
-  _lsOpen(_LS_BASE + _LS_OBSERVER_VARIANT + _LS_PARAMS + '&checkout[custom_price]=' + cents);
+  _lsOpen(_LS_BASE + vid + _LS_PARAMS + '&checkout[custom_price]=' + cents);
 }
 
 // ── Language ──────────────────────────────────────────────────────────────────

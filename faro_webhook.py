@@ -55,6 +55,15 @@ except Exception as _e:
     _FB_OK = False
 
 PLAN_MAX_ASSETS = {"observer": 1, "analyst": 3, "sovereign": 999, "enterprise": 999}
+
+# Lemon Squeezy variant IDs → plan (fuente de verdad secundaria)
+# Actualizar aquí cuando se creen los productos en el dashboard.
+_LS_VARIANT_PLAN = {
+    "1534282": "observer",           # ✅ Observer USD 2.500/mes
+    "1534265": "analyst",                  # ✅ Analyst USD 9.500/mes
+    "1534253": "sovereign",                # ✅ Sovereign USD 17.000/mes
+    "1534461": "enterprise",               # ✅ Enterprise precio variable (min $2.500)
+}
 PROJECT_ROOT = Path(__file__).parent
 app = Flask(__name__)
 
@@ -339,11 +348,18 @@ def lemon_webhook():
     attrs      = payload.get("data", {}).get("attributes", {})
     customer   = attrs.get("customer_email", "") or attrs.get("user_email", "")
     first_name = attrs.get("user_name", "") or attrs.get("customer_name", "")
+    variant_id = str(attrs.get("variant_id", ""))
     variant    = attrs.get("variant_name", "").lower()
-    plan_map   = {"observer": "observer", "analyst": "analyst",
-                  "sovereign": "sovereign", "enterprise": "enterprise"}
-    plan = next((v for k, v in plan_map.items() if k in variant), "observer")
-    print(f"[Lemon] {event} customer={customer} variant={variant}")
+
+    # Resolver plan: variant_id tiene prioridad; fallback a variant_name
+    if variant_id in _LS_VARIANT_PLAN:
+        plan = _LS_VARIANT_PLAN[variant_id]
+    else:
+        name_map = {"observer": "observer", "analyst": "analyst",
+                    "sovereign": "sovereign", "enterprise": "enterprise"}
+        plan = next((v for k, v in name_map.items() if k in variant), "observer")
+
+    print(f"[Lemon] {event} customer={customer} variant_id={variant_id} variant={variant} → plan={plan}")
 
     if event in ("subscription_created", "order_created"):
         if not customer:

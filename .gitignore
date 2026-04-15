@@ -1,5 +1,6 @@
 # Credenciales — NUNCA commitear
 .env
+railway_vars.txt
 faro_accesos.txt
 faro_clientes.json
 accounts.json
