@@ -50,8 +50,9 @@ try:
     elif not firebase_admin._apps:
         print("[WARN] FIREBASE_SERVICE_ACCOUNT no configurado")
     _FB_OK = bool(firebase_admin._apps)
+    print(f"[Firebase] OK={_FB_OK} apps={list(firebase_admin._apps.keys())}", flush=True)
 except Exception as _e:
-    print(f"[WARN] Firebase Admin no disponible: {_e}")
+    print(f"[WARN] Firebase Admin no disponible: {type(_e).__name__}: {_e}", flush=True)
     _FB_OK = False
 
 PLAN_MAX_ASSETS = {"observer": 1, "analyst": 3, "sovereign": 999, "enterprise": 999}
