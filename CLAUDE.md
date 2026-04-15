@@ -1,6 +1,6 @@
 # FARO PROTOCOL — Guía para Claude Code
 > Última actualización: 2026-04-14 — V14 · Arquitectura Global · https://faro-protocol.netlify.app
-> Webhook Railway: https://faroprotocol-production.up.railway.app
+> Webhook Railway: https://faroprotocol-production-45fd.up.railway.app
 > Tienda Lemon Squeezy: https://faroprotocol.lemonsqueezy.com
 > Arquitecto del sistema: Emilio (hijo)
 > Conocimiento de campo y contactos: Padre (fundador)
@@ -172,7 +172,7 @@ python faro_security_test.py --url https://faro-protocol.netlify.app
 ## Railway + Lemon Squeezy — Estado (2026-04-14)
 
 ```
-✅ Railway webhook live: https://faroprotocol-production.up.railway.app
+✅ Railway webhook live: https://faroprotocol-production-45fd.up.railway.app
 ✅ Lemon Squeezy tienda: https://faroprotocol.lemonsqueezy.com
 ✅ Producto Observer USD 2.500/mes creado
 ⏳ Analyst / Sovereign / Enterprise — pendiente crear en Lemon Squeezy
