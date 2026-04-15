@@ -1124,16 +1124,11 @@ const _LS_OBSERVER_VARIANT = '1534282';
 const _LS_BASE   = 'https://faroprotocol.lemonsqueezy.com/checkout/buy/';
 const _LS_PARAMS = '?embed=1&media=0&logo=0&discount=0';
 
-// Abre el overlay de Lemon Squeezy programáticamente.
-// lemon.js intercepta clicks en elementos con class="lemonsqueezy-button".
+// Abre checkout de Lemon Squeezy.
+// lemon.js convierte URLs con ?embed=1 en overlay cuando el click viene del usuario.
+// Para clicks programáticos usamos window.open (siempre funciona).
 function _lsOpen(url) {
-  const a = document.createElement('a');
-  a.href = url;
-  a.className = 'lemonsqueezy-button';
-  a.style.cssText = 'position:fixed;opacity:0;pointer-events:none;z-index:-1;';
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(() => a.remove(), 300);
+  window.open(url, '_blank');
 }
 
 // Checkout directo desde un plan card
