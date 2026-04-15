@@ -44,20 +44,20 @@
 # ── Redirigir acceso directo a reportes → portal ────────────
 [[redirects]]
   from = "/faro_reporte_fusion_*.png"
-  to   = "/faro_client_portal.html"
+  to   = "/portal.html"
   status = 302
   force  = true
   conditions = {Cookie = ["_faro_session"]}
 
 [[redirects]]
   from = "/faro_reporte_fusion_*.png"
-  to   = "/faro_client_portal.html"
+  to   = "/portal.html"
   status = 302
   force  = true
 
 [[redirects]]
   from = "/*.sha256"
-  to   = "/faro_client_portal.html"
+  to   = "/portal.html"
   status = 302
   force  = true
 
@@ -95,7 +95,7 @@
 # ── Portal del cliente: URL limpia ───────────────────────────
 [[redirects]]
   from = "/portal"
-  to   = "/outputs/visor_faro_v2.html"
+  to   = "/portal.html"
   status = 200
 
 # ── Netlify Functions routing ─────────────────────────────────
