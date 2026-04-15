@@ -9,9 +9,14 @@ import hmac
 import json
 import os
 import re
+import smtplib
 import subprocess
 import sys
+import threading
 from datetime import datetime, timezone
+from email.mime.application import MIMEApplication
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from pathlib import Path
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -177,6 +182,124 @@ def _wa_payment(email: str, plan: str):
         print(f"  [Notifier] WhatsApp pago omitido: {e}")
 
 
+def _gen_manual_pdf(email: str, name: str, plan: str) -> Path | None:
+    """Genera PDF de bienvenida personalizado con faro_manual_cliente.py."""
+    script = PROJECT_ROOT / "faro_manual_cliente.py"
+    if not script.exists():
+        print("  [Manual] faro_manual_cliente.py no encontrado")
+        return None
+    slug = re.sub(r"[^a-z0-9]+", "_", (name or email).lower())[:20].strip("_") or "cliente"
+    cmd  = [sys.executable, str(script),
+            "--email", email, "--name", name or email, "--areas", "demo"]
+    try:
+        result = subprocess.run(
+            cmd, capture_output=True, text=True, encoding="utf-8",
+            errors="replace", cwd=str(PROJECT_ROOT), timeout=60,
+        )
+        if result.returncode == 0:
+            # Buscar PDF generado más reciente
+            candidates = sorted(
+                PROJECT_ROOT.glob("faro_manual_*.pdf"),
+                key=lambda p: p.stat().st_mtime, reverse=True,
+            )
+            if candidates:
+                print(f"  [Manual] PDF generado: {candidates[0].name}")
+                return candidates[0]
+        else:
+            print(f"  [Manual] PDF error: {result.stderr[-200:]}")
+    except subprocess.TimeoutExpired:
+        print("  [Manual] PDF timeout (>60s)")
+    except Exception as e:
+        print(f"  [Manual] PDF excepción: {e}")
+    return None
+
+
+def _send_welcome_email(email: str, name: str, plan: str):
+    """Envía email de bienvenida con PDF adjunto (o demo PDF si falla generación)."""
+    gmail_user = os.getenv("GMAIL_USER", "")
+    gmail_pass = os.getenv("GMAIL_APP_PASS", "")
+    if not gmail_user or not gmail_pass:
+        print("  [Email] GMAIL no configurado — bienvenida omitida")
+        return
+
+    portal_url = os.getenv("PORTAL_URL", "https://faro-protocol.netlify.app")
+    plan_labels = {
+        "observer":   "Observer · 1 zona",
+        "analyst":    "Analyst · 3 zonas",
+        "sovereign":  "Sovereign · Ilimitadas",
+        "enterprise": "Enterprise",
+    }
+    plan_label = plan_labels.get(plan.lower(), plan.capitalize())
+
+    # Intentar generar PDF personalizado; fallback a demo
+    pdf_path = _gen_manual_pdf(email, name, plan)
+    if not pdf_path:
+        fallback = PROJECT_ROOT / "faro_manual_demo.pdf"
+        pdf_path = fallback if fallback.exists() else None
+
+    asunto = f"Bienvenido a FARO PROTOCOL — {plan_label}"
+    cuerpo = f"""FARO PROTOCOL — Satellite Intelligence
+{"=" * 60}
+
+Hola {name or email},
+
+Tu suscripcion {plan_label} fue activada correctamente.
+
+Portal de acceso: {portal_url}/portal
+
+{"=" * 60}
+PRIMEROS PASOS
+{"=" * 60}
+
+1. Ingresa al portal con tu email: {email}
+2. Dibuja tu primera zona en el mapa 3D global
+3. El pipeline Sentinel-1/2 procesara tu zona en ~24 horas
+4. Recibiras una notificacion cuando los datos esten listos
+
+{"=" * 60}
+TU PLAN: {plan_label}
+{"=" * 60}
+
+{("1 zona disponible" if plan.lower() == "observer" else
+  "3 zonas disponibles" if plan.lower() == "analyst" else
+  "Zonas ilimitadas")}
+
+El manual de uso esta adjunto en este email.
+Para soporte: protocolfaro@gmail.com
+
+FARO PROTOCOL
+{portal_url}
+"""
+    msg = MIMEMultipart()
+    msg["From"]    = gmail_user
+    msg["To"]      = email
+    msg["Subject"] = asunto
+    msg.attach(MIMEText(cuerpo, "plain", "utf-8"))
+
+    if pdf_path and pdf_path.exists():
+        try:
+            with open(pdf_path, "rb") as f:
+                adj = MIMEApplication(f.read(), _subtype="pdf")
+                adj.add_header("Content-Disposition", "attachment",
+                               filename="faro_manual.pdf")
+                msg.attach(adj)
+            print(f"  [Email] PDF adjunto: {pdf_path.name}")
+        except Exception as e:
+            print(f"  [Email] Error adjuntando PDF: {e}")
+
+    try:
+        with smtplib.SMTP("smtp.gmail.com", 587) as server:
+            server.ehlo()
+            server.starttls()
+            server.login(gmail_user, gmail_pass)
+            server.sendmail(gmail_user, email, msg.as_string())
+        print(f"  [Email] Bienvenida enviada a {email}")
+    except smtplib.SMTPAuthenticationError:
+        print("  [Email] Auth Gmail fallida — verificar GMAIL_APP_PASS")
+    except Exception as e:
+        print(f"  [Email] Error SMTP: {e}")
+
+
 # ---- /health -----------------------------------------------------------------
 
 @app.route("/health", methods=["GET"])
@@ -236,6 +359,12 @@ def lemon_webhook():
             except Exception as e:
                 print(f"[Lemon] Error: {e}")
                 return jsonify({"error": str(e)}), 500
+        # Email de bienvenida + PDF en background (no bloquea el webhook)
+        threading.Thread(
+            target=_send_welcome_email,
+            args=(customer, first_name, plan),
+            daemon=True,
+        ).start()
         return jsonify({"ok": True, "plan": plan}), 200
 
     if event in ("subscription_cancelled", "subscription_expired"):
@@ -302,6 +431,120 @@ def zone_new():
     _wa_zone(name, vertical, email)
 
     return jsonify({"zone_id": slug, "eta_hours": 24}), 200
+
+
+# ---- /api/zone/trigger -------------------------------------------------------
+# Dispara el pipeline inmediatamente para una zona ya existente en Firestore.
+# Útil cuando el admin agrega una zona manualmente sin pasar por /api/zone/new.
+
+@app.route("/api/zone/trigger", methods=["POST", "OPTIONS"])
+def zone_trigger():
+    hdr = request.headers.get("Authorization", "")
+    if not hdr.startswith("Bearer "):
+        return jsonify({"error": "missing token"}), 401
+    decoded = _verify_token(hdr[7:])
+    if not decoded:
+        return jsonify({"error": "invalid token"}), 401
+
+    uid  = decoded["uid"]
+    body = request.get_json(silent=True) or {}
+    slug = (body.get("zone_id") or "").strip()
+
+    if not slug:
+        return jsonify({"error": "missing zone_id"}), 400
+
+    profile = _get_profile(uid)
+    if profile:
+        if not (profile.get("active_subscription") or profile.get("status") == "active"):
+            return jsonify({"error": "subscription_inactive"}), 403
+        if slug not in profile.get("zones", {}):
+            return jsonify({"error": "zone_not_found"}), 404
+
+    # Marcar como processing y lanzar pipeline
+    _update_zone(uid, slug, {
+        "status": "processing",
+        "triggered_at": datetime.now(timezone.utc).isoformat(),
+    })
+    _launch(slug, uid)
+    print(f"  [Trigger] Pipeline disparado para {slug} (uid={uid})")
+    return jsonify({"ok": True, "zone_id": slug, "eta_hours": 24}), 200
+
+
+# ---- /api/chat ---------------------------------------------------------------
+# Chat con Hermes — responde con datos reales del área activa.
+
+@app.route("/api/chat", methods=["POST", "OPTIONS"])
+def chat():
+    body    = request.get_json(silent=True) or {}
+    message = (body.get("message") or "").strip()
+    area    = (body.get("area") or "").strip()
+
+    if not message:
+        return jsonify({"error": "missing message"}), 400
+
+    # Auth: requerida en prod, omitida en dev (Firebase no disponible)
+    if _FB_OK:
+        hdr = request.headers.get("Authorization", "")
+        if not hdr.startswith("Bearer "):
+            return jsonify({"error": "missing token"}), 401
+        if not _verify_token(hdr[7:]):
+            return jsonify({"error": "invalid token"}), 401
+
+    # Contexto del área actual desde data.json
+    area_context = ""
+    if area:
+        try:
+            dj = json.loads((PROJECT_ROOT / "data.json").read_text(encoding="utf-8"))
+            pd = dj.get("pipeline", {}).get(area, {})
+            if pd:
+                area_context = (
+                    f"\nContexto zona '{area}':\n"
+                    f"  Score Faro    : {pd.get('score_faro', 'N/A')}\n"
+                    f"  NDVI medio    : {pd.get('ndvi_medio', 'N/A')}\n"
+                    f"  SAR (dB)      : {pd.get('sar_medio_db', 'N/A')}\n"
+                    f"  Índice Fusión : {pd.get('indice_fusion_medio', 'N/A')}\n"
+                    f"  Rinde est.    : {pd.get('rinde_estimado_tha', 'N/A')} t/ha\n"
+                    f"  Estado        : {pd.get('estado', 'N/A')}\n"
+                    f"  Último run    : {pd.get('ultimo_run', 'N/A')}\n"
+                )
+        except Exception:
+            pass
+
+    groq_key = os.getenv("GROQ_API_KEY", "")
+    if not groq_key:
+        # Respuesta local sin LLM
+        reply = (
+            f"Hermes sin LLM (GROQ_API_KEY no configurado).\n"
+            + (f"Zona activa: {area}.{area_context}" if area_context else "")
+        )
+        return jsonify({"reply": reply}), 200
+
+    try:
+        from groq import Groq
+        client = Groq(api_key=groq_key)
+
+        system_prompt = (
+            "Sos Hermes, el agente de inteligencia satelital de FARO PROTOCOL. "
+            "Tenés acceso a datos reales de Sentinel-1 SAR y Sentinel-2 NDVI. "
+            "Respondés en español, de forma concisa y técnica (máximo 3 párrafos). "
+            "Si el score es bajo (<45) alertás claramente. "
+            "No usés markdown excepto negritas."
+            + area_context
+        )
+
+        resp = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            max_tokens=512,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user",   "content": message},
+            ],
+        )
+        return jsonify({"reply": resp.choices[0].message.content}), 200
+
+    except Exception as e:
+        print(f"[Chat] Error Groq: {e}")
+        return jsonify({"error": str(e)}), 500
 
 
 # -----------------------------------------------------------------------------
