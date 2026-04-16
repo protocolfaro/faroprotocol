@@ -323,7 +323,10 @@ def health():
 def preflight():
     if request.method == "OPTIONS":
         r = app.make_response("")
-        r.headers.update(_cors())
+        headers = _cors()
+        if request.path == "/api/contact":
+            headers["Access-Control-Allow-Origin"] = "*"
+        r.headers.update(headers)
         return r, 204
 
 
@@ -638,7 +641,11 @@ def contact():
         daemon=True,
     ).start()
 
-    return jsonify({"ok": True}), 200
+    resp = jsonify({"ok": True})
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    resp.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+    resp.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    return resp, 200
 
 
 # -----------------------------------------------------------------------------
