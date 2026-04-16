@@ -568,31 +568,15 @@ def chat():
 # Recibe solicitudes de acceso institucional desde faro_website.html
 # y envía notificación a protocolfaro@gmail.com.
 
-@app.route("/api/contact", methods=["POST", "OPTIONS"])
-def contact():
-    body    = request.get_json(silent=True) or {}
-    # Acepta JSON o form-encoded
-    if not body:
-        body = request.form.to_dict()
-
-    name    = (body.get("name") or "").strip()
-    company = (body.get("company") or "").strip()
-    country = (body.get("country") or "").strip()
-    plan    = (body.get("plan") or "").strip()
-    email   = (body.get("email") or "").strip()
-
-    if not email:
-        return jsonify({"error": "missing email"}), 400
-
-    print(f"[Contact] Solicitud: {name} <{email}> | {company} | {country} | {plan}", flush=True)
-
-    gmail_user = os.getenv("GMAIL_USER", "")
-    gmail_pass = os.getenv("GMAIL_APP_PASS", "")
+def _send_contact_email(name: str, company: str, country: str, plan: str, email: str):
+    """Envía notificación de solicitud de acceso a ADMIN_EMAIL. Corre en thread."""
+    gmail_user  = os.getenv("GMAIL_USER", "")
+    gmail_pass  = os.getenv("GMAIL_APP_PASS", "")
     admin_email = os.getenv("ADMIN_EMAIL", gmail_user)
 
     if not gmail_user or not gmail_pass:
-        print("  [Contact] GMAIL no configurado — notificación omitida")
-        return jsonify({"ok": True, "warn": "email_not_configured"}), 200
+        print("  [Contact] GMAIL no configurado — notificación omitida", flush=True)
+        return
 
     asunto = f"FARO — Nueva solicitud de acceso: {plan}"
     cuerpo = f"""FARO PROTOCOL — Solicitud de Acceso Institucional
@@ -611,10 +595,10 @@ Fecha           : {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}
 Responder a: {email}
 """
     msg = MIMEMultipart()
-    msg["From"]       = gmail_user
-    msg["To"]         = admin_email
-    msg["Reply-To"]   = email
-    msg["Subject"]    = asunto
+    msg["From"]     = gmail_user
+    msg["To"]       = admin_email
+    msg["Reply-To"] = email
+    msg["Subject"]  = asunto
     msg.attach(MIMEText(cuerpo, "plain", "utf-8"))
 
     try:
@@ -623,13 +607,36 @@ Responder a: {email}
         with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=ctx) as server:
             server.login(gmail_user, gmail_pass)
             server.sendmail(gmail_user, admin_email, msg.as_string())
-        print(f"  [Contact] Notificación enviada a {admin_email}", flush=True)
+        print(f"  [Contact] Email enviado a {admin_email}", flush=True)
     except smtplib.SMTPAuthenticationError:
-        print("  [Contact] Auth Gmail fallida — verificar GMAIL_APP_PASS")
-        return jsonify({"ok": True, "warn": "smtp_auth_failed"}), 200
+        print("  [Contact] Auth Gmail fallida — verificar GMAIL_APP_PASS", flush=True)
     except Exception as e:
-        print(f"  [Contact] Error SMTP: {e}")
-        return jsonify({"ok": True, "warn": str(e)}), 200
+        print(f"  [Contact] Error SMTP: {type(e).__name__}: {e}", flush=True)
+
+
+@app.route("/api/contact", methods=["POST", "OPTIONS"])
+def contact():
+    body = request.get_json(silent=True) or {}
+    if not body:
+        body = request.form.to_dict()
+
+    name    = (body.get("name") or "").strip()
+    company = (body.get("company") or "").strip()
+    country = (body.get("country") or "").strip()
+    plan    = (body.get("plan") or "").strip()
+    email   = (body.get("email") or "").strip()
+
+    if not email:
+        return jsonify({"error": "missing email"}), 400
+
+    print(f"[Contact] Solicitud: {name} <{email}> | {company} | {country} | {plan}", flush=True)
+
+    # Email en background — no bloquea el request
+    threading.Thread(
+        target=_send_contact_email,
+        args=(name, company, country, plan, email),
+        daemon=True,
+    ).start()
 
     return jsonify({"ok": True}), 200
 
