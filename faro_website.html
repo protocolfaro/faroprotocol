@@ -1145,10 +1145,11 @@ function handleAccessSubmit(e) {
   var plan    = data.get('plan')    || '';
   var email   = data.get('email')   || '';
 
+  var params = new URLSearchParams({ name: name, company: company, country: country, plan: plan, email: email });
   fetch('https://faroprotocol-production.up.railway.app/api/contact', {
     method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ name: name, company: company, country: country, plan: plan, email: email })
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: params.toString()
   })
   .finally(function() {
     document.getElementById('modal-body').style.display    = 'none';
