@@ -482,6 +482,21 @@ footer{padding:32px 48px;border-top:1px solid var(--border);display:flex;align-i
 ::-webkit-scrollbar-track{background:var(--bg);}
 ::-webkit-scrollbar-thumb{background:rgba(201,168,76,0.18);}
 </style>
+<!-- EmailJS — envío directo desde browser sin servidor -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script>
+  // ── EmailJS Config ────────────────────────────────────────────
+  // Completar con las credenciales de https://emailjs.com
+  var _EJS_PUBLIC_KEY  = "REEMPLAZAR_PUBLIC_KEY";    // Account → General
+  var _EJS_SERVICE_ID  = "REEMPLAZAR_SERVICE_ID";    // Email Services → Service ID
+  var _EJS_TEMPLATE_ID = "REEMPLAZAR_TEMPLATE_ID";   // Email Templates → Template ID
+  // ─────────────────────────────────────────────────────────────
+  (function() {
+    if (_EJS_PUBLIC_KEY !== "REEMPLAZAR_PUBLIC_KEY") {
+      emailjs.init({ publicKey: _EJS_PUBLIC_KEY });
+    }
+  })();
+</script>
 </head>
 <body>
 
@@ -1149,13 +1164,16 @@ function handleAccessSubmit(e) {
   document.getElementById('modal-body').style.display    = 'none';
   document.getElementById('modal-confirm').style.display = '';
 
-  // Fire-and-forget: notificar Railway en background
-  var params = new URLSearchParams({ name: name, company: company, country: country, plan: plan, email: email });
-  fetch('https://faroprotocol-production.up.railway.app/api/contact', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-    body: params.toString()
-  }).catch(function() {});
+  // Fire-and-forget: enviar email via EmailJS (directo desde browser, sin servidor)
+  if (typeof emailjs !== 'undefined' && _EJS_PUBLIC_KEY !== 'REEMPLAZAR_PUBLIC_KEY') {
+    emailjs.send(_EJS_SERVICE_ID, _EJS_TEMPLATE_ID, {
+      name:    name,
+      company: company,
+      country: country,
+      plan:    plan,
+      email:   email,
+    }).catch(function() {});
+  }
 
   return false;
 }
