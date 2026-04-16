@@ -1145,16 +1145,17 @@ function handleAccessSubmit(e) {
   var plan    = data.get('plan')    || '';
   var email   = data.get('email')   || '';
 
+  // Mostrar confirmación inmediatamente — no esperar Railway
+  document.getElementById('modal-body').style.display    = 'none';
+  document.getElementById('modal-confirm').style.display = '';
+
+  // Fire-and-forget: notificar Railway en background
   var params = new URLSearchParams({ name: name, company: company, country: country, plan: plan, email: email });
   fetch('https://faroprotocol-production.up.railway.app/api/contact', {
     method: 'POST',
     headers: {'Content-Type': 'application/x-www-form-urlencoded'},
     body: params.toString()
-  })
-  .finally(function() {
-    document.getElementById('modal-body').style.display    = 'none';
-    document.getElementById('modal-confirm').style.display = '';
-  });
+  }).catch(function() {});
 
   return false;
 }
