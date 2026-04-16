@@ -482,8 +482,6 @@ footer{padding:32px 48px;border-top:1px solid var(--border);display:flex;align-i
 ::-webkit-scrollbar-track{background:var(--bg);}
 ::-webkit-scrollbar-thumb{background:rgba(201,168,76,0.18);}
 </style>
-<!-- Lemon Squeezy — overlay checkout (reemplazar con URL real de tu tienda) -->
-<script src="https://app.lemonsqueezy.com/js/lemon.js" defer></script>
 </head>
 <body>
 
@@ -908,9 +906,9 @@ footer{padding:32px 48px;border-top:1px solid var(--border);display:flex;align-i
         <div class="calc-total" id="calcTotal">USD 2,500</div>
         <div class="calc-total-sub" data-en="/ month · billed monthly" data-es="/ mes · facturación mensual">/ month · billed monthly</div>
         <div class="calc-breakdown" id="calcBreakdown"></div>
-        <button class="calc-cta" onclick="calcRequest()" id="btn-calc-access"
-                data-en="Get Access →" data-es="Obtener Acceso →">Get Access →</button>
-        <div class="calc-note" data-en="Secure checkout via Lemon Squeezy · Instant Firebase activation · Cancel anytime" data-es="Checkout seguro via Lemon Squeezy · Activación Firebase instantánea · Cancelar cuando quieras">Secure checkout via Lemon Squeezy<br>Instant activation · Cancel anytime</div>
+        <button class="calc-cta" onclick="openAccessForm('Enterprise',_fmtUSD(window._calcTotal||2500)+'/mo')" id="btn-calc-access"
+                data-en="Request Access →" data-es="Solicitar Acceso →">Request Access →</button>
+        <div class="calc-note" data-en="Institutional access · Advisor-assisted · Response within 24h" data-es="Acceso institucional · Asistido por asesor · Respuesta en 24h">Institutional access<br>Advisor-assisted · Response within 24h</div>
       </div>
 
     </div><!-- /calc-wrap -->
@@ -937,10 +935,10 @@ footer{padding:32px 48px;border-top:1px solid var(--border);display:flex;align-i
           <li class="muted" data-en="API access" data-es="Acceso API">API access</li>
         </ul>
         <a href="#" id="cta-observer"
-           class="lemonsqueezy-button plan-cta"
-           onclick="lsCheckout('observer');return false;"
-           data-en="Subscribe →" data-es="Suscribirse →">Subscribe →</a>
-        <div class="plan-note" data-en="Instant activation · No setup fee" data-es="Activación instantánea · Sin alta">Instant activation · No setup fee</div>
+           class="plan-cta"
+           onclick="openAccessForm('Observer','$2,500/mo');return false;"
+           data-en="Request Access →" data-es="Solicitar Acceso →">Request Access →</a>
+        <div class="plan-note" data-en="Response within 24h · No setup fee" data-es="Respuesta en 24h · Sin costo de alta">Response within 24h · No setup fee</div>
       </div>
 
       <!-- ANALYST — featured -->
@@ -960,10 +958,10 @@ footer{padding:32px 48px;border-top:1px solid var(--border);display:flex;align-i
           <li data-en="48h data advantage" data-es="48h ventaja temporal">48h data advantage</li>
         </ul>
         <a href="#" id="cta-analyst"
-           class="lemonsqueezy-button plan-cta"
-           onclick="lsCheckout('analyst');return false;"
-           data-en="Subscribe →" data-es="Suscribirse →">Subscribe →</a>
-        <div class="plan-note" data-en="Most popular · Instant activation" data-es="Más popular · Activación instantánea">Most popular · Instant activation</div>
+           class="plan-cta"
+           onclick="openAccessForm('Analyst','$9,000/mo');return false;"
+           data-en="Request Access →" data-es="Solicitar Acceso →">Request Access →</a>
+        <div class="plan-note" data-en="Most requested · Response within 24h" data-es="Más solicitado · Respuesta en 24h">Most requested · Response within 24h</div>
       </div>
 
       <!-- SOVEREIGN -->
@@ -983,10 +981,10 @@ footer{padding:32px 48px;border-top:1px solid var(--border);display:flex;align-i
           <li data-en="Dedicated account manager" data-es="Account manager dedicado">Dedicated account manager</li>
         </ul>
         <a href="#" id="cta-sovereign"
-           class="lemonsqueezy-button plan-cta"
-           onclick="lsCheckout('sovereign');return false;"
-           data-en="Subscribe →" data-es="Suscribirse →">Subscribe →</a>
-        <div class="plan-note" data-en="Full global coverage · Instant activation" data-es="Cobertura global completa · Activación instantánea">Full global coverage · Instant activation</div>
+           class="plan-cta"
+           onclick="openAccessForm('Sovereign','$17,000/mo');return false;"
+           data-en="Request Access →" data-es="Solicitar Acceso →">Request Access →</a>
+        <div class="plan-note" data-en="Full global coverage · Response within 24h" data-es="Cobertura global completa · Respuesta en 24h">Full global coverage · Response within 24h</div>
       </div>
 
       <!-- ENTERPRISE -->
@@ -1005,16 +1003,16 @@ footer{padding:32px 48px;border-top:1px solid var(--border);display:flex;align-i
           <li data-en="Dedicated infrastructure" data-es="Infraestructura dedicada">Dedicated infrastructure</li>
           <li data-en="Legal Grade certification" data-es="Certificación Legal Grade">Legal Grade certification</li>
         </ul>
-        <a href="#access"
+        <a href="#"
            class="plan-cta"
-           onclick="smoothTo('access');return false;"
-           data-en="Contact us →" data-es="Contactar →">Contact us →</a>
+           onclick="openAccessForm('Enterprise','custom');return false;"
+           data-en="Request Access →" data-es="Solicitar Acceso →">Request Access →</a>
         <div class="plan-note" data-en="Bespoke · Response within 24h" data-es="A medida · Respuesta en 24h">Bespoke · Response within 24h</div>
       </div>
 
     </div><!-- /plan-cards -->
 
-    <p style="font-family:var(--mono);font-size:8px;color:rgba(242,237,228,0.15);text-align:center;margin-top:20px;letter-spacing:0.06em;" data-en="Secure checkout via Lemon Squeezy · Instant Firebase activation · No setup fee" data-es="Checkout seguro via Lemon Squeezy · Activación Firebase instantánea · Sin costo de alta">Secure checkout via Lemon Squeezy &middot; Instant Firebase activation &middot; No setup fee</p>
+    <p style="font-family:var(--mono);font-size:8px;color:rgba(242,237,228,0.15);text-align:center;margin-top:20px;letter-spacing:0.06em;" data-en="Institutional access · Advisor-assisted onboarding · Response within 24h" data-es="Acceso institucional · Onboarding asistido · Respuesta en 24h">Institutional access &middot; Advisor-assisted onboarding &middot; Response within 24h</p>
   </div>
 </section>
 
@@ -1117,34 +1115,53 @@ footer{padding:32px 48px;border-top:1px solid var(--border);display:flex;align-i
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 'use strict';
 
-// ── Lemon Squeezy — Variant IDs por plan ─────────────────────────────────────
-// Dashboard → Products → [Plan] → Variants → Copy Variant ID
-// Reemplazar los placeholders tras crear cada producto en Lemon Squeezy.
-const _LS_VARIANTS = {
-  observer:   '1534282',              // ✅ configurado
-  analyst:    '1534265',               // ✅ Analyst USD 9.500/mes
-  sovereign:  '1534253',               // ✅ Sovereign USD 17.000/mes
-  enterprise: '1534461',               // ✅ Enterprise precio variable (min $2.500)
-};
-const _LS_BASE   = 'https://faroprotocol.lemonsqueezy.com/checkout/buy/';
-const _LS_PARAMS = '?embed=1&media=0&logo=0&discount=0';
-
-// Abre checkout de Lemon Squeezy.
-// lemon.js convierte URLs con ?embed=1 en overlay cuando el click viene del usuario.
-// Para clicks programáticos usamos window.open (siempre funciona).
-function _lsOpen(url) {
-  window.open(url, '_blank');
+// ── Modal Acceso Institucional ────────────────────────────────────────────────
+function openAccessForm(plan, price) {
+  var label = plan + (price && price !== 'custom' ? ' — ' + price : ' — Custom');
+  document.getElementById('modal-plan-input').value   = label;
+  document.getElementById('modal-plan-display').value = label;
+  document.getElementById('modal-plan-label').textContent =
+    (lang === 'es' ? 'Plan seleccionado: ' : 'Selected plan: ') + label;
+  document.getElementById('modal-body').style.display    = '';
+  document.getElementById('modal-confirm').style.display = 'none';
+  var m = document.getElementById('access-modal');
+  m.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
 }
 
-// Checkout directo desde un plan card
-function lsCheckout(planKey) {
-  const vid = _LS_VARIANTS[planKey];
-  if (!vid || vid.endsWith('_VARIANT_ID')) {
-    alert('Este plan estará disponible en breve. Contactanos en protocolfaro@gmail.com');
-    return;
-  }
-  _lsOpen(_LS_BASE + vid + _LS_PARAMS);
+function closeAccessForm() {
+  document.getElementById('access-modal').style.display = 'none';
+  document.body.style.overflow = '';
 }
+
+function handleAccessSubmit(e) {
+  e.preventDefault();
+  var form = e.target;
+  var data = new FormData(form);
+  fetch('/', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body: new URLSearchParams(data).toString() })
+  .then(function() {
+    document.getElementById('modal-body').style.display    = 'none';
+    document.getElementById('modal-confirm').style.display = '';
+  })
+  .catch(function() {
+    // fallback: abrir email
+    var name    = data.get('name') || '';
+    var company = data.get('company') || '';
+    var plan    = data.get('plan') || '';
+    var email   = data.get('email') || '';
+    window.location.href = 'mailto:protocolfaro@gmail.com'
+      + '?subject=' + encodeURIComponent('Access Request — ' + plan)
+      + '&body=' + encodeURIComponent('Name: ' + name + '\nCompany: ' + company + '\nEmail: ' + email + '\nPlan: ' + plan);
+  });
+  return false;
+}
+
+// Cerrar modal al click fuera
+document.addEventListener('click', function(e) {
+  var m = document.getElementById('access-modal');
+  if (e.target === m) closeAccessForm();
+});
 
 // ── Pricing calculator ────────────────────────────────────────────────────────
 // Internal rendering matrix — do not modify
@@ -1197,15 +1214,9 @@ function updateCalc(){
   window._calcPlan=`${cov.dataset.val==='all'?'AllSectors':'OneSector'}_${del.dataset.val}_cert${certPct}`;
 }
 
-// Checkout Enterprise con precio dinámico exacto calculado
+// calcRequest — abre el modal con el precio calculado
 function calcRequest() {
-  const vid = _LS_VARIANTS.enterprise;
-  if (!vid || vid.endsWith('_VARIANT_ID')) {
-    alert('Plan Enterprise disponible en breve. Contactanos en protocolfaro@gmail.com');
-    return;
-  }
-  const cents = Math.round((window._calcTotal || 2500) * 100);
-  _lsOpen(_LS_BASE + vid + _LS_PARAMS + '&checkout[custom_price]=' + cents);
+  openAccessForm('Enterprise', _fmtUSD(window._calcTotal || 2500) + '/mo');
 }
 
 // ── Language ──────────────────────────────────────────────────────────────────
@@ -1462,10 +1473,79 @@ function init(){
 }
 window.addEventListener('DOMContentLoaded',init);
 window.setLang=setLang;window.setSector=setSector;
-window.doSignup=doSignup;window.signup=signup;window.lsCheckout=lsCheckout;
+window.doSignup=doSignup;window.signup=signup;
+window.openAccessForm=openAccessForm;window.closeAccessForm=closeAccessForm;
 window.smoothTo=smoothTo;window.downloadBrief=downloadBrief;
 window.selectOpt=selectOpt;window.calcRequest=calcRequest;window.updateCalc=updateCalc;
 </script>
+
+<!-- ── MODAL ACCESO INSTITUCIONAL ─────────────────────────────────────────── -->
+<div id="access-modal" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(6,8,11,0.92);backdrop-filter:blur(10px);align-items:center;justify-content:center;padding:20px;">
+<div style="background:var(--bg3);border:1px solid rgba(201,168,76,0.25);max-width:480px;width:100%;padding:40px 36px;position:relative;">
+  <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>
+  <button onclick="closeAccessForm()" style="position:absolute;top:14px;right:16px;background:none;border:none;color:var(--w4);font-size:18px;cursor:pointer;line-height:1;">&#x2715;</button>
+
+  <div id="modal-body">
+    <div style="font-family:var(--mono);font-size:8px;color:var(--gold);letter-spacing:0.3em;text-transform:uppercase;margin-bottom:10px;">Institutional Access</div>
+    <h3 style="font-family:var(--serif);font-size:26px;font-weight:300;color:var(--w);margin:0 0 4px;">Request Access</h3>
+    <p style="font-family:var(--mono);font-size:10px;color:var(--w3);margin:0 0 24px;" id="modal-plan-label"></p>
+
+    <form name="institutional-access" method="POST" data-netlify="true" onsubmit="return handleAccessSubmit(event)" style="display:flex;flex-direction:column;gap:12px;">
+      <input type="hidden" name="form-name" value="institutional-access"/>
+      <input type="hidden" name="plan" id="modal-plan-input"/>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div>
+          <label style="font-family:var(--mono);font-size:8px;color:var(--w4);letter-spacing:0.15em;text-transform:uppercase;display:block;margin-bottom:5px;" data-en="Full Name" data-es="Nombre completo">Full Name</label>
+          <input name="name" type="text" required placeholder="John Smith"
+            style="width:100%;background:var(--bg4);border:1px solid var(--border2);color:var(--w);font-family:var(--mono);font-size:11px;padding:9px 12px;outline:none;box-sizing:border-box;"
+            onfocus="this.style.borderColor='rgba(201,168,76,0.5)'" onblur="this.style.borderColor='var(--border2)'"/>
+        </div>
+        <div>
+          <label style="font-family:var(--mono);font-size:8px;color:var(--w4);letter-spacing:0.15em;text-transform:uppercase;display:block;margin-bottom:5px;" data-en="Company" data-es="Empresa">Company</label>
+          <input name="company" type="text" required placeholder="Acme Corp"
+            style="width:100%;background:var(--bg4);border:1px solid var(--border2);color:var(--w);font-family:var(--mono);font-size:11px;padding:9px 12px;outline:none;box-sizing:border-box;"
+            onfocus="this.style.borderColor='rgba(201,168,76,0.5)'" onblur="this.style.borderColor='var(--border2)'"/>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div>
+          <label style="font-family:var(--mono);font-size:8px;color:var(--w4);letter-spacing:0.15em;text-transform:uppercase;display:block;margin-bottom:5px;" data-en="Country" data-es="País">Country</label>
+          <input name="country" type="text" required placeholder="Argentina"
+            style="width:100%;background:var(--bg4);border:1px solid var(--border2);color:var(--w);font-family:var(--mono);font-size:11px;padding:9px 12px;outline:none;box-sizing:border-box;"
+            onfocus="this.style.borderColor='rgba(201,168,76,0.5)'" onblur="this.style.borderColor='var(--border2)'"/>
+        </div>
+        <div>
+          <label style="font-family:var(--mono);font-size:8px;color:var(--w4);letter-spacing:0.15em;text-transform:uppercase;display:block;margin-bottom:5px;" data-en="Plan of Interest" data-es="Plan de interés">Plan of Interest</label>
+          <input name="plan_display" id="modal-plan-display" type="text" readonly
+            style="width:100%;background:var(--bg4);border:1px solid rgba(201,168,76,0.2);color:var(--gold);font-family:var(--mono);font-size:11px;padding:9px 12px;outline:none;box-sizing:border-box;cursor:default;"/>
+        </div>
+      </div>
+
+      <div>
+        <label style="font-family:var(--mono);font-size:8px;color:var(--w4);letter-spacing:0.15em;text-transform:uppercase;display:block;margin-bottom:5px;" data-en="Contact Email" data-es="Email de contacto">Contact Email</label>
+        <input name="email" type="email" required placeholder="you@company.com"
+          style="width:100%;background:var(--bg4);border:1px solid var(--border2);color:var(--w);font-family:var(--mono);font-size:11px;padding:9px 12px;outline:none;box-sizing:border-box;"
+          onfocus="this.style.borderColor='rgba(201,168,76,0.5)'" onblur="this.style.borderColor='var(--border2)'"/>
+      </div>
+
+      <button type="submit" style="margin-top:8px;width:100%;padding:13px;background:var(--gold);color:var(--bg);font-family:var(--sans);font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;border:none;cursor:pointer;transition:background 0.2s;"
+        onmouseover="this.style.background='var(--gl)'" onmouseout="this.style.background='var(--gold)'"
+        data-en="Submit Request →" data-es="Enviar Solicitud →">Submit Request →</button>
+
+      <p style="font-family:var(--mono);font-size:8px;color:var(--w4);text-align:center;margin:0;letter-spacing:0.08em;" data-en="An advisor will contact you within 24 hours." data-es="Un asesor se contactará en menos de 24 horas.">An advisor will contact you within 24 hours.</p>
+    </form>
+  </div>
+
+  <div id="modal-confirm" style="display:none;text-align:center;padding:20px 0;">
+    <div style="font-size:28px;margin-bottom:16px;">&#10003;</div>
+    <h3 style="font-family:var(--serif);font-size:24px;font-weight:300;color:var(--gold);margin:0 0 12px;" data-en="Request received." data-es="Solicitud recibida.">Request received.</h3>
+    <p style="font-family:var(--mono);font-size:11px;color:var(--w3);line-height:1.8;margin:0 0 24px;" data-en="Thank you. An advisor will contact you within 24 hours to coordinate access and payment method." data-es="Gracias. Un asesor se contactará en 24hs para coordinar el acceso y método de pago.">Thank you. An advisor will contact you within 24 hours to coordinate access and payment method.</p>
+    <button onclick="closeAccessForm()" style="padding:10px 28px;background:transparent;border:1px solid rgba(201,168,76,0.4);color:var(--gold);font-family:var(--mono);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;cursor:pointer;" data-en="Close" data-es="Cerrar">Close</button>
+  </div>
+</div>
+</div>
 
 <!-- FARO PROTOCOL — Valores dinámicos desde data.json (actualizado por faro_pipeline.py) -->
 <script>
