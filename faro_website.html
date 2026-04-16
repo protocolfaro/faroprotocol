@@ -1501,7 +1501,7 @@ window.selectOpt=selectOpt;window.calcRequest=calcRequest;window.updateCalc=upda
     <h3 style="font-family:var(--serif);font-size:26px;font-weight:300;color:var(--w);margin:0 0 4px;">Request Access</h3>
     <p style="font-family:var(--mono);font-size:10px;color:var(--w3);margin:0 0 24px;" id="modal-plan-label"></p>
 
-    <form name="institutional-access" method="POST" data-netlify="true" onsubmit="return handleAccessSubmit(event)" style="display:flex;flex-direction:column;gap:12px;">
+    <form name="institutional-access" method="POST" netlify onsubmit="return handleAccessSubmit(event)" style="display:flex;flex-direction:column;gap:12px;">
       <input type="hidden" name="form-name" value="institutional-access"/>
       <input type="hidden" name="plan" id="modal-plan-input"/>
 
