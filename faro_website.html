@@ -1136,24 +1136,35 @@ function closeAccessForm() {
 
 function handleAccessSubmit(e) {
   e.preventDefault();
-  var form = e.target;
-  var data = new FormData(form);
-  fetch('/', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
-    body: new URLSearchParams(data).toString() })
-  .then(function() {
+  var form    = e.target;
+  var data    = new FormData(form);
+  var payload = new URLSearchParams(data).toString();
+
+  var name    = data.get('name')    || '';
+  var company = data.get('company') || '';
+  var country = data.get('country') || '';
+  var plan    = data.get('plan')    || '';
+  var email   = data.get('email')   || '';
+
+  // 1) Netlify Forms: guardar lead
+  var netlifyPromise = fetch('/', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: payload
+  }).catch(function(){});
+
+  // 2) Railway /api/contact: enviar email de notificación a protocolfaro@gmail.com
+  var railwayPromise = fetch('https://faroprotocol-production-45fd.up.railway.app/api/contact', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ name: name, company: company, country: country, plan: plan, email: email })
+  }).catch(function(){});
+
+  Promise.allSettled([netlifyPromise, railwayPromise]).then(function() {
     document.getElementById('modal-body').style.display    = 'none';
     document.getElementById('modal-confirm').style.display = '';
-  })
-  .catch(function() {
-    // fallback: abrir email
-    var name    = data.get('name') || '';
-    var company = data.get('company') || '';
-    var plan    = data.get('plan') || '';
-    var email   = data.get('email') || '';
-    window.location.href = 'mailto:protocolfaro@gmail.com'
-      + '?subject=' + encodeURIComponent('Access Request — ' + plan)
-      + '&body=' + encodeURIComponent('Name: ' + name + '\nCompany: ' + company + '\nEmail: ' + email + '\nPlan: ' + plan);
   });
+
   return false;
 }
 

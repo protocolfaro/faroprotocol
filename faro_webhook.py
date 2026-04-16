@@ -298,9 +298,9 @@ FARO PROTOCOL
             print(f"  [Email] Error adjuntando PDF: {e}")
 
     try:
-        with smtplib.SMTP("smtp.gmail.com", 587) as server:
-            server.ehlo()
-            server.starttls()
+        import ssl
+        ctx = ssl.create_default_context()
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=ctx) as server:
             server.login(gmail_user, gmail_pass)
             server.sendmail(gmail_user, email, msg.as_string())
         print(f"  [Email] Bienvenida enviada a {email}")
@@ -562,6 +562,76 @@ def chat():
     except Exception as e:
         print(f"[Chat] Error Groq: {e}")
         return jsonify({"error": str(e)}), 500
+
+
+# ---- /api/contact -----------------------------------------------------------
+# Recibe solicitudes de acceso institucional desde faro_website.html
+# y envía notificación a protocolfaro@gmail.com.
+
+@app.route("/api/contact", methods=["POST", "OPTIONS"])
+def contact():
+    body    = request.get_json(silent=True) or {}
+    # Acepta JSON o form-encoded
+    if not body:
+        body = request.form.to_dict()
+
+    name    = (body.get("name") or "").strip()
+    company = (body.get("company") or "").strip()
+    country = (body.get("country") or "").strip()
+    plan    = (body.get("plan") or "").strip()
+    email   = (body.get("email") or "").strip()
+
+    if not email:
+        return jsonify({"error": "missing email"}), 400
+
+    print(f"[Contact] Solicitud: {name} <{email}> | {company} | {country} | {plan}", flush=True)
+
+    gmail_user = os.getenv("GMAIL_USER", "")
+    gmail_pass = os.getenv("GMAIL_APP_PASS", "")
+    admin_email = os.getenv("ADMIN_EMAIL", gmail_user)
+
+    if not gmail_user or not gmail_pass:
+        print("  [Contact] GMAIL no configurado — notificación omitida")
+        return jsonify({"ok": True, "warn": "email_not_configured"}), 200
+
+    asunto = f"FARO — Nueva solicitud de acceso: {plan}"
+    cuerpo = f"""FARO PROTOCOL — Solicitud de Acceso Institucional
+{"=" * 60}
+
+Plan solicitado : {plan}
+Nombre          : {name}
+Empresa         : {company}
+País            : {country}
+Email           : {email}
+
+{"=" * 60}
+Fecha           : {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}
+{"=" * 60}
+
+Responder a: {email}
+"""
+    msg = MIMEMultipart()
+    msg["From"]       = gmail_user
+    msg["To"]         = admin_email
+    msg["Reply-To"]   = email
+    msg["Subject"]    = asunto
+    msg.attach(MIMEText(cuerpo, "plain", "utf-8"))
+
+    try:
+        import ssl
+        ctx = ssl.create_default_context()
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=ctx) as server:
+            server.login(gmail_user, gmail_pass)
+            server.sendmail(gmail_user, admin_email, msg.as_string())
+        print(f"  [Contact] Notificación enviada a {admin_email}", flush=True)
+    except smtplib.SMTPAuthenticationError:
+        print("  [Contact] Auth Gmail fallida — verificar GMAIL_APP_PASS")
+        return jsonify({"ok": True, "warn": "smtp_auth_failed"}), 200
+    except Exception as e:
+        print(f"  [Contact] Error SMTP: {e}")
+        return jsonify({"ok": True, "warn": str(e)}), 200
+
+    return jsonify({"ok": True}), 200
 
 
 # -----------------------------------------------------------------------------
