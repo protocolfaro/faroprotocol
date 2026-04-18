@@ -1101,8 +1101,50 @@ footer{padding:32px 48px;border-top:1px solid var(--border);display:flex;align-i
       </div>
     </div>
 
-    <!-- Product cards — rendered by JS -->
-    <div class="os-product-grid" id="os-product-grid"></div>
+    <!-- Product cards — static HTML, JS updates prices on sector change -->
+    <div class="os-product-grid" id="os-product-grid">
+
+      <div class="os-product-card" data-product="forense" onclick="osSelectProduct('forense')">
+        <div class="osp-tag">FORENSE</div>
+        <div class="osp-price" id="osp-price-forense">USD 650</div>
+        <div class="osp-name" style="font-family:var(--serif);font-size:15px;color:var(--w);margin:6px 0 8px;font-weight:400;">Audit Forense</div>
+        <div class="osp-desc">SHA-256 snapshot · Change detection · Forensic timeline</div>
+        <button class="osp-btn" onclick="event.stopPropagation();osSelectProduct('forense');osRequest();">SELECT</button>
+      </div>
+
+      <div class="os-product-card" data-product="stock" onclick="osSelectProduct('stock')">
+        <div class="osp-tag">VOLUMETRIC</div>
+        <div class="osp-price" id="osp-price-stock">USD 1,200</div>
+        <div class="osp-name" style="font-family:var(--serif);font-size:15px;color:var(--w);margin:6px 0 8px;font-weight:400;">Stock Check Volumetric</div>
+        <div class="osp-desc">Volume estimation · Stockpile measurement · Change vs baseline</div>
+        <button class="osp-btn" onclick="event.stopPropagation();osSelectProduct('stock');osRequest();">SELECT</button>
+      </div>
+
+      <div class="os-product-card" data-product="diligence" onclick="osSelectProduct('diligence')">
+        <div class="osp-tag">DUE DILIGENCE</div>
+        <div class="osp-price" id="osp-price-diligence">USD 800</div>
+        <div class="osp-name" style="font-family:var(--serif);font-size:15px;color:var(--w);margin:6px 0 8px;font-weight:400;">Due Diligence</div>
+        <div class="osp-desc">Full certification · NDVI + SAR + Open Data · Legal grade</div>
+        <button class="osp-btn" onclick="event.stopPropagation();osSelectProduct('diligence');osRequest();">SELECT</button>
+      </div>
+
+      <div class="os-product-card" data-product="siniestro" onclick="osSelectProduct('siniestro')">
+        <div class="osp-tag">SINIESTRO</div>
+        <div class="osp-price" id="osp-price-siniestro">USD 650</div>
+        <div class="osp-name" style="font-family:var(--serif);font-size:15px;color:var(--w);margin:6px 0 8px;font-weight:400;">Siniestro Check</div>
+        <div class="osp-desc">Damage assessment · Before/after · Insurance-grade report</div>
+        <button class="osp-btn" onclick="event.stopPropagation();osSelectProduct('siniestro');osRequest();">SELECT</button>
+      </div>
+
+      <div class="os-product-card" data-product="intrusion" onclick="osSelectProduct('intrusion')">
+        <div class="osp-tag">INTRUSION</div>
+        <div class="osp-price" id="osp-price-intrusion">USD 950</div>
+        <div class="osp-name" style="font-family:var(--serif);font-size:15px;color:var(--w);margin:6px 0 8px;font-weight:400;">Intrusion Alert</div>
+        <div class="osp-desc">Perimeter change detection · Activity signature · SAR night</div>
+        <button class="osp-btn" onclick="event.stopPropagation();osSelectProduct('intrusion');osRequest();">SELECT</button>
+      </div>
+
+    </div><!-- /os-product-grid -->
 
     <p class="os-footer-note" data-en="SHA-256 certified · Sentinel-1/2 data · Open data sources · No recurring charge · 48h delivery" data-es="Certificado SHA-256 · Datos Sentinel-1/2 · Fuentes open data · Sin cargo recurrente · Entrega 48h">SHA-256 certified &middot; Sentinel-1/2 data &middot; Open data sources &middot; No recurring charge &middot; 48h delivery</p>
   </div>
@@ -1331,35 +1373,31 @@ var _OS_PRODUCTS = {
 var _OS_SECTOR   = 'agro';
 var _OS_SELECTED = null;
 
+function osUpdatePrices() {
+  Object.keys(_OS_PRODUCTS).forEach(function(key) {
+    var el = document.getElementById('osp-price-' + key);
+    if (el) el.textContent = 'USD ' + _OS_PRODUCTS[key].prices[_OS_SECTOR].toLocaleString();
+  });
+}
+
 function osSetSector(btn) {
   _OS_SECTOR = btn.getAttribute('data-sec');
   document.querySelectorAll('.os-sec-btn').forEach(function(b) { b.classList.remove('active'); });
   btn.classList.add('active');
-  if (_OS_SELECTED) osRenderProducts();
-  else osRenderProducts();
+  osUpdatePrices();
 }
 
 function osSelectProduct(key) {
   _OS_SELECTED = key;
-  osRenderProducts();
+  document.querySelectorAll('.os-product-card').forEach(function(c) {
+    var sel = c.getAttribute('data-product') === key;
+    c.classList.toggle('selected', sel);
+    var btn = c.querySelector('.osp-btn');
+    if (btn) btn.textContent = sel ? 'REQUEST →' : 'SELECT';
+  });
 }
 
-function osRenderProducts() {
-  var grid = document.getElementById('os-product-grid');
-  if (!grid) return;
-  grid.innerHTML = Object.keys(_OS_PRODUCTS).map(function(key) {
-    var p   = _OS_PRODUCTS[key];
-    var usd = p.prices[_OS_SECTOR];
-    var sel = _OS_SELECTED === key;
-    return '<div class="os-product-card' + (sel ? ' selected' : '') + '" onclick="osSelectProduct(\'' + key + '\')">' +
-      '<div class="osp-tag">' + key.toUpperCase() + '</div>' +
-      '<div class="osp-price">USD ' + usd.toLocaleString() + '</div>' +
-      '<div class="osp-name" style="font-family:var(--serif);font-size:15px;color:var(--w);margin:6px 0 8px;font-weight:400;">' + p.name + '</div>' +
-      '<div class="osp-desc">' + p.desc + '</div>' +
-      '<button class="osp-btn" onclick="event.stopPropagation();osSelectProduct(\'' + key + '\');osRequest();">' + (sel ? 'REQUEST →' : 'SELECT') + '</button>' +
-    '</div>';
-  }).join('');
-}
+function osRenderProducts() { osUpdatePrices(); }
 
 function osRequest() {
   if (!_OS_SELECTED) { alert('Select a product first.'); return; }
