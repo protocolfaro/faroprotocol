@@ -13,6 +13,7 @@ import smtplib
 import subprocess
 import sys
 import threading
+import uuid
 from datetime import datetime, timezone
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
@@ -67,6 +68,22 @@ _LS_VARIANT_PLAN = {
 }
 PROJECT_ROOT = Path(__file__).parent
 app = Flask(__name__)
+
+# One-Shot anti-fraud: server-side email count (resets on server restart; localStorage is primary)
+_ONESHOT_EMAIL_COUNT: dict[str, int] = {}
+_ONESHOT_EMAIL_LOCK  = threading.Lock()
+
+# UUID → {path, slug, expires_ts} mapping for non-guessable download links
+_DOWNLOAD_TOKENS: dict[str, dict] = {}
+_DOWNLOAD_TOKENS_LOCK = threading.Lock()
+
+
+def _store_download_token(slug: str, file_path: Path) -> str:
+    token = uuid.uuid4().hex
+    expires = datetime.now(timezone.utc).timestamp() + 7 * 86400  # 7 days
+    with _DOWNLOAD_TOKENS_LOCK:
+        _DOWNLOAD_TOKENS[token] = {"path": str(file_path), "slug": slug, "expires": expires}
+    return token
 
 
 _ALLOWED_ORIGINS = {
@@ -379,6 +396,13 @@ def _send_oneshot_result_email(email: str, name: str, slug: str, modules: list):
     sha_line   = f"\nSHA-256 : {sha256}" if sha256 else ""
     verify_url = f"{portal_url}/verify?sha256={sha256}" if sha256 else portal_url
 
+    # Generar link de descarga con UUID no adivinable
+    railway_url  = os.getenv("RAILWAY_PUBLIC_DOMAIN", "https://faroprotocol-production-45fd.up.railway.app")
+    download_url = ""
+    if report_png.exists():
+        token        = _store_download_token(slug, report_png)
+        download_url = f"\nDescarga directa (expira en 7 días):\n{railway_url}/api/download/{token}\n"
+
     cuerpo = f"""FARO PROTOCOL — Certified Report Plus
 {"=" * 60}
 
@@ -390,7 +414,7 @@ Lote    : {slug}
 Módulos procesados:
 {mods_block}
 {sha_line}
-
+{download_url}
 Verificación de integridad:
 {verify_url}
 
@@ -672,6 +696,13 @@ def oneshot():
     if not bounds and not center:
         return jsonify({"error": "missing bounds or center"}), 400
 
+    # Server-side anti-fraud: max 2 one-shot requests per email
+    with _ONESHOT_EMAIL_LOCK:
+        count = _ONESHOT_EMAIL_COUNT.get(client_email, 0)
+        if count >= 2:
+            return jsonify({"error": "limit_reached", "detail": "Maximum 2 reports per email"}), 429
+        _ONESHOT_EMAIL_COUNT[client_email] = count + 1
+
     # Generar slug a partir del nombre del lote
     slug = re.sub(r"[^a-z0-9]+", "_", field_name.lower())[:32].strip("_")
     if not slug:
@@ -707,6 +738,22 @@ def oneshot():
 
     print(f"  [OneShot] Solicitud recibida slug={slug} email={client_email} módulos={modules}", flush=True)
     return jsonify({"ok": True, "zone_id": slug, "eta_hours": 48}), 200
+
+
+# ---- /api/download/<token> ---------------------------------------------------
+@app.route("/api/download/<token>", methods=["GET"])
+def download_report(token: str):
+    with _DOWNLOAD_TOKENS_LOCK:
+        entry = _DOWNLOAD_TOKENS.get(token)
+    if not entry:
+        return jsonify({"error": "invalid token"}), 404
+    if datetime.now(timezone.utc).timestamp() > entry["expires"]:
+        return jsonify({"error": "link expired"}), 410
+    fpath = Path(entry["path"])
+    if not fpath.exists():
+        return jsonify({"error": "file not found"}), 404
+    from flask import send_file
+    return send_file(str(fpath), as_attachment=True, download_name=fpath.name)
 
 
 # ---- /api/chat ---------------------------------------------------------------

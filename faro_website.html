@@ -453,6 +453,28 @@ nav.scrolled{background:rgba(6,8,11,0.96);border-bottom:1px solid var(--border);
 .os-note{font-family:var(--mono);font-size:7px;color:var(--w4);text-align:center;line-height:1.8;letter-spacing:0.03em;}
 @media(max-width:840px){.oneshot-wrap{grid-template-columns:1fr;}}
 
+/* ONE-SHOT v2 — sector tabs + product grid */
+.os-sec-wrap{margin-top:36px;margin-bottom:28px;}
+.os-sec-lbl{font-family:var(--mono);font-size:7px;color:var(--w4);letter-spacing:0.24em;text-transform:uppercase;margin-bottom:10px;}
+.os-sec-tabs{display:flex;gap:6px;flex-wrap:wrap;}
+.os-sec-btn{background:var(--bg4);border:1px solid var(--border);color:var(--w3);font-family:var(--mono);font-size:8px;letter-spacing:0.1em;text-transform:uppercase;padding:8px 18px;cursor:pointer;transition:all 0.2s;}
+.os-sec-btn:hover{border-color:rgba(201,168,76,0.4);color:var(--w);}
+.os-sec-btn.active{background:rgba(201,168,76,0.08);border-color:rgba(201,168,76,0.6);color:var(--gold);}
+.os-product-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:28px;}
+.os-product-card{background:var(--bg4);border:1px solid var(--border);padding:20px 16px;cursor:pointer;transition:border-color 0.25s,transform 0.25s;display:flex;flex-direction:column;gap:10px;position:relative;}
+.os-product-card:hover{border-color:rgba(201,168,76,0.35);transform:translateY(-2px);}
+.os-product-card.selected{border-color:rgba(201,168,76,0.7);background:linear-gradient(160deg,rgba(201,168,76,0.05),var(--bg4));}
+.os-product-card.selected::before{content:'SELECTED';position:absolute;top:0;left:50%;transform:translateX(-50%);background:var(--gold);color:var(--bg);font-family:var(--mono);font-size:6px;font-weight:700;letter-spacing:0.2em;padding:2px 10px;}
+.osp-tag{font-family:var(--mono);font-size:7px;font-weight:700;color:var(--gold);letter-spacing:0.14em;text-transform:uppercase;margin-top:4px;}
+.osp-price{font-family:var(--serif);font-size:28px;font-weight:300;color:var(--w);line-height:1;}
+.osp-desc{font-size:10px;color:var(--w4);line-height:1.6;flex:1;}
+.osp-btn{display:block;width:100%;padding:8px 0;background:transparent;border:1px solid rgba(201,168,76,0.3);color:var(--gold);font-family:var(--mono);font-size:8px;letter-spacing:0.12em;text-transform:uppercase;cursor:pointer;transition:all 0.2s;margin-top:auto;}
+.osp-btn:hover,.os-product-card.selected .osp-btn{background:var(--gold);color:var(--bg);border-color:var(--gold);}
+.os-footer-note{font-family:var(--mono);font-size:8px;color:rgba(242,237,228,0.2);text-align:center;letter-spacing:0.08em;margin-top:8px;}
+@media(max-width:1100px){.os-product-grid{grid-template-columns:repeat(3,1fr);}}
+@media(max-width:660px){.os-product-grid{grid-template-columns:1fr 1fr;}}
+@media(max-width:400px){.os-product-grid{grid-template-columns:1fr;}}
+
 /* CAPTURE */
 .cap-sec{padding:84px 48px;position:relative;overflow:hidden;}
 .cap-glow{position:absolute;bottom:-180px;left:50%;transform:translateX(-50%);width:600px;height:400px;background:radial-gradient(ellipse,rgba(201,168,76,0.04) 0%,transparent 70%);pointer-events:none;}
@@ -1066,55 +1088,23 @@ footer{padding:32px 48px;border-top:1px solid var(--border);display:flex;align-i
       <span data-en="Single certified report." data-es="Reporte certificado único.">Single certified report.</span><br>
       <em data-en="No subscription required." data-es="Sin suscripción.">No subscription required.</em>
     </h2>
-    <p style="font-size:13px;font-weight:300;color:var(--w3);max-width:540px;margin-top:8px;line-height:1.8;" data-en="Commission a one-time satellite certification for any field. SAR + NDVI baseline always included. Add Open Data modules for full environmental context." data-es="Pedí una certificación satelital única para cualquier lote. Base SAR + NDVI siempre incluida. Agregá módulos Open Data para contexto ambiental completo.">Commission a one-time satellite certification for any field. SAR + NDVI baseline always included. Add Open Data modules for full environmental context.</p>
+    <p style="font-size:13px;font-weight:300;color:var(--w3);max-width:580px;margin-top:8px;line-height:1.8;" data-en="Commission a one-time satellite intelligence product — SHA-256 certified, delivered within 48h. Select your sector and product below." data-es="Pedí un producto de inteligencia satelital único — certificado SHA-256, entregado en 48h. Seleccioná tu sector y producto.">Commission a one-time satellite intelligence product — SHA-256 certified, delivered within 48h. Select your sector and product below.</p>
 
-    <div class="oneshot-wrap">
-
-      <div class="oneshot-options">
-
-        <!-- Base — always included -->
-        <div class="os-row os-base">
-          <div class="os-check-box">✓</div>
-          <div class="os-body">
-            <div class="os-name" data-en="Base SAR + NDVI" data-es="Base SAR + NDVI">Base SAR + NDVI</div>
-            <div class="os-sub" data-en="Sentinel-1 radar · Sentinel-2 NDVI · SHA-256 certified report" data-es="Radar Sentinel-1 · NDVI Sentinel-2 · Reporte certificado SHA-256">Sentinel-1 radar · Sentinel-2 NDVI · SHA-256 certified report</div>
-          </div>
-          <div class="os-price">USD 350</div>
-        </div>
-
-        <!-- Flood Risk SRTM -->
-        <div class="os-row os-addon" id="os-row-flood" onclick="osToggle('flood')">
-          <div class="os-check-box" id="os-check-flood">☐</div>
-          <div class="os-body">
-            <div class="os-name" data-en="+ Flood Risk SRTM" data-es="+ Riesgo de Inundación SRTM">+ Flood Risk SRTM</div>
-            <div class="os-sub" data-en="NASA elevation model · Slope analysis · High / Low risk classification" data-es="Modelo de elevación NASA · Análisis de pendiente · Clasificación Alto / Bajo riesgo">NASA elevation model · Slope analysis · High / Low risk classification</div>
-          </div>
-          <div class="os-price">+&nbsp;USD&nbsp;150</div>
-        </div>
-
-        <!-- Water Balance INIA -->
-        <div class="os-row os-addon" id="os-row-water" onclick="osToggle('water')">
-          <div class="os-check-box" id="os-check-water">☐</div>
-          <div class="os-body">
-            <div class="os-name" data-en="+ Water Balance INIA" data-es="+ Balance Hídrico INIA">+ Water Balance INIA</div>
-            <div class="os-sub" data-en="INIA GRAS IBH index · Drought / stress / surplus classification" data-es="Índice IBH INIA GRAS · Clasificación sequía / estrés / excedente">INIA GRAS IBH index · Drought / stress / surplus classification</div>
-          </div>
-          <div class="os-price">+&nbsp;USD&nbsp;150</div>
-        </div>
-
-      </div><!-- /oneshot-options -->
-
-      <!-- Result panel -->
-      <div class="oneshot-result">
-        <div class="os-res-lbl" data-en="ONE-TIME INVESTMENT" data-es="INVERSIÓN ÚNICA">ONE-TIME INVESTMENT</div>
-        <div class="os-total" id="os-total">USD 350</div>
-        <div class="os-total-sub" data-en="one-time · delivered within 48h" data-es="pago único · entrega en 48h">one-time · delivered within 48h</div>
-        <div class="os-breakdown" id="os-breakdown">Base SAR + NDVI ········ USD 350</div>
-        <button class="os-cta" onclick="osRequest()" data-en="Request Report →" data-es="Solicitar Reporte →">Request Report →</button>
-        <div class="os-note" data-en="SHA-256 certified · Open data sources included · No recurring charge" data-es="Certificado SHA-256 · Fuentes open data incluidas · Sin cargo recurrente">SHA-256 certified · Open data sources included<br>No recurring charge</div>
+    <!-- Sector selector -->
+    <div class="os-sec-wrap">
+      <div class="os-sec-lbl" data-en="SECTOR" data-es="SECTOR">SECTOR</div>
+      <div class="os-sec-tabs">
+        <button class="os-sec-btn active" data-sec="agro"   onclick="osSetSector(this)" data-en="Agriculture" data-es="Agricultura">Agriculture</button>
+        <button class="os-sec-btn"        data-sec="naval"  onclick="osSetSector(this)" data-en="Naval / Maritime" data-es="Naval / Marítimo">Naval / Maritime</button>
+        <button class="os-sec-btn"        data-sec="mining" onclick="osSetSector(this)" data-en="Mining" data-es="Minería">Mining</button>
+        <button class="os-sec-btn"        data-sec="og"     onclick="osSetSector(this)" data-en="Oil &amp; Gas" data-es="Oil &amp; Gas">Oil &amp; Gas</button>
       </div>
+    </div>
 
-    </div><!-- /oneshot-wrap -->
+    <!-- Product cards — rendered by JS -->
+    <div class="os-product-grid" id="os-product-grid"></div>
+
+    <p class="os-footer-note" data-en="SHA-256 certified · Sentinel-1/2 data · Open data sources · No recurring charge · 48h delivery" data-es="Certificado SHA-256 · Datos Sentinel-1/2 · Fuentes open data · Sin cargo recurrente · Entrega 48h">SHA-256 certified &middot; Sentinel-1/2 data &middot; Open data sources &middot; No recurring charge &middot; 48h delivery</p>
   </div>
 </section>
 
@@ -1327,36 +1317,61 @@ function calcRequest() {
   openAccessForm('Enterprise', _fmtUSD(window._calcTotal || 2500) + '/mo');
 }
 
-// ── One-Shot Certification calculator ────────────────────────────────────────
+// ── One-Shot Certification — product matrix ───────────────────────────────────
 var _RAILWAY = 'https://faroprotocol-production-45fd.up.railway.app';
-var _os = { flood: false, water: false };
 
-function osToggle(mod) {
-  _os[mod] = !_os[mod];
-  var row = document.getElementById('os-row-' + mod);
-  var chk = document.getElementById('os-check-' + mod);
-  if (_os[mod]) { row.classList.add('active'); chk.textContent = '☑'; }
-  else           { row.classList.remove('active'); chk.textContent = '☐'; }
-  var total = 350 + (_os.flood ? 150 : 0) + (_os.water ? 150 : 0);
-  document.getElementById('os-total').textContent = 'USD ' + total.toLocaleString();
-  var bd = 'Base SAR + NDVI ········ USD 350';
-  if (_os.flood)  bd += '\nFlood Risk SRTM ········ + USD 150';
-  if (_os.water)  bd += '\nWater Balance INIA ····· + USD 150';
-  document.getElementById('os-breakdown').textContent = bd;
-  window._osTotal = total;
+var _OS_PRODUCTS = {
+  forense:   { name: 'Audit Forense',          prices: {agro:650,  naval:720,  mining:750,  og:780},  desc: 'SHA-256 snapshot · Change detection · Forensic timeline',       mods: ['flood'] },
+  stock:     { name: 'Stock Check Volumetric',  prices: {agro:1200, naval:1350, mining:1400, og:1500}, desc: 'Volume estimation · Stockpile measurement · Change vs baseline', mods: ['flood','water'] },
+  diligence: { name: 'Due Diligence',           prices: {agro:800,  naval:880,  mining:920,  og:960},  desc: 'Full certification · NDVI + SAR + Open Data · Legal grade',       mods: ['flood','water'] },
+  siniestro: { name: 'Siniestro Check',         prices: {agro:650,  naval:720,  mining:750,  og:780},  desc: 'Damage assessment · Before/after · Insurance-grade report',       mods: ['flood'] },
+  intrusion: { name: 'Intrusion Alert',         prices: {agro:950,  naval:1050, mining:1100, og:1150}, desc: 'Perimeter change detection · Activity signature · SAR night',     mods: [] },
+};
+
+var _OS_SECTOR   = 'agro';
+var _OS_SELECTED = null;
+
+function osSetSector(btn) {
+  _OS_SECTOR = btn.getAttribute('data-sec');
+  document.querySelectorAll('.os-sec-btn').forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+  if (_OS_SELECTED) osRenderProducts();
+  else osRenderProducts();
+}
+
+function osSelectProduct(key) {
+  _OS_SELECTED = key;
+  osRenderProducts();
+}
+
+function osRenderProducts() {
+  var grid = document.getElementById('os-product-grid');
+  if (!grid) return;
+  grid.innerHTML = Object.keys(_OS_PRODUCTS).map(function(key) {
+    var p   = _OS_PRODUCTS[key];
+    var usd = p.prices[_OS_SECTOR];
+    var sel = _OS_SELECTED === key;
+    return '<div class="os-product-card' + (sel ? ' selected' : '') + '" onclick="osSelectProduct(\'' + key + '\')">' +
+      '<div class="osp-tag">' + key.toUpperCase() + '</div>' +
+      '<div class="osp-price">USD ' + usd.toLocaleString() + '</div>' +
+      '<div class="osp-name" style="font-family:var(--serif);font-size:15px;color:var(--w);margin:6px 0 8px;font-weight:400;">' + p.name + '</div>' +
+      '<div class="osp-desc">' + p.desc + '</div>' +
+      '<button class="osp-btn" onclick="event.stopPropagation();osSelectProduct(\'' + key + '\');osRequest();">' + (sel ? 'REQUEST →' : 'SELECT') + '</button>' +
+    '</div>';
+  }).join('');
 }
 
 function osRequest() {
-  // Rellenar el resumen de módulos en el modal de one-shot
-  var total = window._osTotal || 350;
-  var mods  = [];
-  if (_os.flood) mods.push('Flood Risk SRTM (+USD 150)');
-  if (_os.water) mods.push('Water Balance INIA (+USD 150)');
-  var label = 'One-Shot Certification';
-  if (mods.length) label += ' + ' + mods.join(' + ');
-  var el = document.getElementById('os-modal-summary');
-  if (el) el.textContent = label + ' — USD ' + total.toLocaleString() + ' (one-time)';
-  // Mostrar modal
+  if (!_OS_SELECTED) { alert('Select a product first.'); return; }
+  var p     = _OS_PRODUCTS[_OS_SELECTED];
+  var price = p.prices[_OS_SECTOR];
+  var el    = document.getElementById('os-modal-summary');
+  if (el) el.textContent = p.name + ' · ' + _OS_SECTOR.toUpperCase() + ' · USD ' + price.toLocaleString() + ' (one-time)';
+  document.getElementById('os-modal-product').value = _OS_SELECTED;
+  document.getElementById('os-modal-sector').value  = _OS_SECTOR;
+  document.getElementById('os-modal-price').value   = price;
+  var errEl = document.getElementById('os-modal-error');
+  if (errEl) errEl.style.display = 'none';
   var m = document.getElementById('oneshot-modal');
   if (m) { m.style.display = 'flex'; document.body.style.overflow = 'hidden'; }
 }
@@ -1369,42 +1384,61 @@ function closeOneshotModal() {
   document.getElementById('os-modal-form').reset();
 }
 
+function _osGetEmailData() {
+  try { return JSON.parse(localStorage.getItem('_faro_os') || '{}'); } catch(e) { return {}; }
+}
+function _osIncrEmail(email) {
+  var d = _osGetEmailData();
+  d[email] = (d[email] || 0) + 1;
+  try { localStorage.setItem('_faro_os', JSON.stringify(d)); } catch(e) {}
+}
+
 function handleOneshotSubmit(e) {
   e.preventDefault();
-  var form  = e.target;
-  var name  = form.querySelector('[name=name]').value.trim();
-  var email = form.querySelector('[name=email]').value.trim();
-  var field = form.querySelector('[name=field_name]').value.trim();
-  var lat   = parseFloat(form.querySelector('[name=lat]').value);
-  var lon   = parseFloat(form.querySelector('[name=lon]').value);
-  var total = window._osTotal || 350;
+  var form    = e.target;
+  var name    = form.querySelector('[name=name]').value.trim();
+  var email   = form.querySelector('[name=email]').value.trim();
+  var field   = form.querySelector('[name=field_name]').value.trim();
+  var lat     = parseFloat(form.querySelector('[name=lat]').value);
+  var lon     = parseFloat(form.querySelector('[name=lon]').value);
+  var product = form.querySelector('[name=os_product]').value;
+  var sector  = form.querySelector('[name=os_sector]').value;
+  var price   = parseInt(form.querySelector('[name=os_price]').value, 10);
+  var disclaimer = form.querySelector('[name=disclaimer]');
 
   if (!name || !email || !field || isNaN(lat) || isNaN(lon)) return false;
+  if (disclaimer && !disclaimer.checked) {
+    alert('Please accept the disclaimer before submitting.');
+    return false;
+  }
 
-  var mods = [];
-  if (_os.flood) mods.push('flood');
-  if (_os.water) mods.push('water');
+  // Anti-fraud: max 2 reports per email (client-side)
+  var data = _osGetEmailData();
+  if ((data[email] || 0) >= 2) {
+    var errEl = document.getElementById('os-modal-error');
+    if (errEl) { errEl.textContent = 'Maximum 2 reports per email address reached.'; errEl.style.display = 'block'; }
+    return false;
+  }
 
-  // Mostrar confirmación de inmediato
+  _osIncrEmail(email);
+
+  var p    = _OS_PRODUCTS[product] || {};
+  var mods = (p.mods || []).slice();
+
   document.getElementById('os-modal-body').style.display    = 'none';
   document.getElementById('os-modal-confirm').style.display = '';
 
-  // 1 — EmailJS: notificar a protocolfaro@gmail.com
   if (typeof emailjs !== 'undefined' && _EJS_PUBLIC_KEY !== 'REEMPLAZAR_PUBLIC_KEY') {
-    var modsLabel = ['SAR + NDVI (base)'];
-    if (_os.flood) modsLabel.push('Flood Risk SRTM');
-    if (_os.water) modsLabel.push('Water Balance INIA');
     emailjs.send(_EJS_SERVICE_ID, _EJS_TEMPLATE_ID, {
       name:    name,
-      company: 'Lote: ' + field,
-      country: 'Lat ' + lat + ' / Lon ' + lon,
-      plan:    'One-Shot · ' + modsLabel.join(' + ') + ' · USD ' + total + ' (one-time)',
+      company: 'Lote: ' + field + ' · Product: ' + (p.name || product),
+      country: 'Lat ' + lat + ' / Lon ' + lon + ' · Sector: ' + sector,
+      plan:    'One-Shot · ' + (p.name || product) + ' · USD ' + price + ' (one-time)',
       email:   email,
     }).catch(function() {});
   }
 
-  // 2 — Railway /api/oneshot: crear zona + lanzar pipeline
-  var d = 0.045; // ~5 km bounding box
+  var d = 0.045;
   fetch(_RAILWAY + '/api/oneshot', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1415,18 +1449,23 @@ function handleOneshotSubmit(e) {
       center:     [lat, lon],
       bounds:     [lon - d, lat - d, lon + d, lat + d],
       modules:    mods,
+      product:    product,
+      sector:     sector,
+      price:      price,
     }),
-  }).catch(function() {}); // fire-and-forget; confirmación ya fue mostrada
+  }).catch(function() {});
 
   return false;
 }
 
+document.addEventListener('DOMContentLoaded', function() { osRenderProducts(); });
 document.addEventListener('click', function(e) {
   var m = document.getElementById('oneshot-modal');
   if (m && e.target === m) closeOneshotModal();
 });
 
-window.osToggle = osToggle; window.osRequest = osRequest;
+window.osSetSector = osSetSector; window.osSelectProduct = osSelectProduct;
+window.osRenderProducts = osRenderProducts; window.osRequest = osRequest;
 window.closeOneshotModal = closeOneshotModal;
 window.handleOneshotSubmit = handleOneshotSubmit;
 
@@ -1767,9 +1806,13 @@ window.selectOpt=selectOpt;window.calcRequest=calcRequest;window.updateCalc=upda
   <div id="os-modal-body">
     <div style="font-family:var(--mono);font-size:8px;color:var(--gold);letter-spacing:0.3em;text-transform:uppercase;margin-bottom:10px;">One-Shot Certification</div>
     <h3 style="font-family:var(--serif);font-size:24px;font-weight:300;color:var(--w);margin:0 0 6px;">Request Certified Report</h3>
-    <p style="font-family:var(--mono);font-size:9px;color:var(--gold);margin:0 0 22px;line-height:1.6;" id="os-modal-summary"></p>
+    <p style="font-family:var(--mono);font-size:9px;color:var(--gold);margin:0 0 16px;line-height:1.6;" id="os-modal-summary"></p>
+    <div id="os-modal-error" style="display:none;background:rgba(176,48,48,0.12);border:1px solid rgba(176,48,48,0.5);color:#e07070;font-family:var(--mono);font-size:9px;padding:8px 12px;margin-bottom:12px;"></div>
 
     <form id="os-modal-form" onsubmit="return handleOneshotSubmit(event)" style="display:flex;flex-direction:column;gap:12px;">
+      <input type="hidden" name="os_product" id="os-modal-product" value="">
+      <input type="hidden" name="os_sector"  id="os-modal-sector"  value="">
+      <input type="hidden" name="os_price"   id="os-modal-price"   value="">
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
         <div>
@@ -1787,7 +1830,7 @@ window.selectOpt=selectOpt;window.calcRequest=calcRequest;window.updateCalc=upda
       </div>
 
       <div>
-        <label style="font-family:var(--mono);font-size:8px;color:var(--w4);letter-spacing:0.15em;text-transform:uppercase;display:block;margin-bottom:5px;">Field / Lot Name</label>
+        <label style="font-family:var(--mono);font-size:8px;color:var(--w4);letter-spacing:0.15em;text-transform:uppercase;display:block;margin-bottom:5px;">Field / Lot / Asset Name</label>
         <input name="field_name" type="text" required placeholder="Campo Norte · Santa Fe"
           style="width:100%;background:var(--bg4);border:1px solid var(--border2);color:var(--w);font-family:var(--mono);font-size:11px;padding:9px 12px;outline:none;box-sizing:border-box;"
           onfocus="this.style.borderColor='rgba(201,168,76,0.5)'" onblur="this.style.borderColor='var(--border2)'"/>
@@ -1812,6 +1855,15 @@ window.selectOpt=selectOpt;window.calcRequest=calcRequest;window.updateCalc=upda
         <div style="font-family:var(--mono);font-size:7px;color:var(--w4);letter-spacing:0.15em;text-transform:uppercase;margin-bottom:4px;">Area covered</div>
         <div style="font-family:var(--mono);font-size:9px;color:var(--w3);">±5 km radius from center point · ~78 km² · SRTM 30m resolution</div>
       </div>
+
+      <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;">
+        <input type="checkbox" name="disclaimer" required style="margin-top:2px;accent-color:var(--gold);flex-shrink:0;"/>
+        <span style="font-family:var(--mono);font-size:8px;color:var(--w4);line-height:1.7;">
+          I understand this is a one-time, non-refundable satellite analysis. Results are delivered within 48h by email.
+          Faro Protocol does not guarantee imagery availability for all regions. By submitting I accept the
+          <a href="#" style="color:var(--gold);text-decoration:none;">Terms of Service</a>.
+        </span>
+      </label>
 
       <button type="submit" style="margin-top:4px;width:100%;padding:13px;background:var(--gold);color:var(--bg);font-family:var(--sans);font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;border:none;cursor:pointer;transition:background 0.2s;"
         onmouseover="this.style.background='var(--gl)'" onmouseout="this.style.background='var(--gold)'">
