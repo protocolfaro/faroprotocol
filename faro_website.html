@@ -428,6 +428,31 @@ nav.scrolled{background:rgba(6,8,11,0.96);border-bottom:1px solid var(--border);
 @media(max-width:900px){.plan-cards{grid-template-columns:1fr 1fr;}}
 @media(max-width:540px){.plan-cards{grid-template-columns:1fr;}}
 
+/* ONE-SHOT CERTIFICATION */
+.oneshot-wrap{display:grid;grid-template-columns:1fr 300px;gap:24px;margin-top:40px;align-items:start;}
+.oneshot-options{display:flex;flex-direction:column;gap:10px;}
+.os-row{display:flex;align-items:center;gap:16px;background:var(--bg4);border:1px solid var(--border);padding:18px 20px;transition:border-color 0.25s;}
+.os-base{cursor:default;}
+.os-addon{cursor:pointer;}
+.os-addon:hover{border-color:rgba(201,168,76,0.3);}
+.os-addon.active{border-color:rgba(201,168,76,0.55);background:linear-gradient(90deg,rgba(201,168,76,0.04),transparent);}
+.os-check-box{font-family:var(--mono);font-size:15px;color:var(--gold);flex-shrink:0;width:18px;text-align:center;line-height:1;}
+.os-base .os-check-box{color:#2d8c5e;}
+.os-body{flex:1;}
+.os-name{font-family:var(--mono);font-size:9px;font-weight:600;color:var(--w);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px;}
+.os-sub{font-size:11px;color:var(--w4);font-weight:300;line-height:1.5;}
+.os-price{font-family:var(--serif);font-size:15px;color:var(--gold);white-space:nowrap;font-weight:300;flex-shrink:0;}
+.os-base .os-price{color:var(--w);}
+.oneshot-result{background:var(--bg4);border:1px solid var(--border);padding:28px 22px;position:sticky;top:80px;}
+.os-res-lbl{font-family:var(--mono);font-size:7px;color:var(--gold);letter-spacing:0.28em;text-transform:uppercase;margin-bottom:14px;}
+.os-total{font-family:var(--serif);font-size:40px;font-weight:300;color:var(--gold);line-height:1;margin-bottom:4px;}
+.os-total-sub{font-family:var(--mono);font-size:8px;color:var(--w4);letter-spacing:0.1em;margin-bottom:18px;}
+.os-breakdown{font-family:var(--mono);font-size:8px;color:var(--w3);line-height:2.1;margin-bottom:20px;white-space:pre;min-height:36px;}
+.os-cta{display:block;width:100%;padding:12px 0;background:var(--gold);border:none;color:var(--bg);font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;cursor:pointer;transition:background 0.25s;margin-bottom:12px;}
+.os-cta:hover{background:var(--gl);}
+.os-note{font-family:var(--mono);font-size:7px;color:var(--w4);text-align:center;line-height:1.8;letter-spacing:0.03em;}
+@media(max-width:840px){.oneshot-wrap{grid-template-columns:1fr;}}
+
 /* CAPTURE */
 .cap-sec{padding:84px 48px;position:relative;overflow:hidden;}
 .cap-glow{position:absolute;bottom:-180px;left:50%;transform:translateX(-50%);width:600px;height:400px;background:radial-gradient(ellipse,rgba(201,168,76,0.04) 0%,transparent 70%);pointer-events:none;}
@@ -1032,6 +1057,66 @@ footer{padding:32px 48px;border-top:1px solid var(--border);display:flex;align-i
   </div>
 </section>
 
+<!-- ONE-SHOT CERTIFICATION -->
+<section class="sec reveal" id="oneshot">
+  <div class="sec-inner">
+    <div class="sec-lbl" data-en="One-Shot" data-es="Única vez">One-Shot</div>
+    <h2 class="sec-h2">
+      <span data-en="Single certified report." data-es="Reporte certificado único.">Single certified report.</span><br>
+      <em data-en="No subscription required." data-es="Sin suscripción.">No subscription required.</em>
+    </h2>
+    <p style="font-size:13px;font-weight:300;color:var(--w3);max-width:540px;margin-top:8px;line-height:1.8;" data-en="Commission a one-time satellite certification for any field. SAR + NDVI baseline always included. Add Open Data modules for full environmental context." data-es="Pedí una certificación satelital única para cualquier lote. Base SAR + NDVI siempre incluida. Agregá módulos Open Data para contexto ambiental completo.">Commission a one-time satellite certification for any field. SAR + NDVI baseline always included. Add Open Data modules for full environmental context.</p>
+
+    <div class="oneshot-wrap">
+
+      <div class="oneshot-options">
+
+        <!-- Base — always included -->
+        <div class="os-row os-base">
+          <div class="os-check-box">✓</div>
+          <div class="os-body">
+            <div class="os-name" data-en="Base SAR + NDVI" data-es="Base SAR + NDVI">Base SAR + NDVI</div>
+            <div class="os-sub" data-en="Sentinel-1 radar · Sentinel-2 NDVI · SHA-256 certified report" data-es="Radar Sentinel-1 · NDVI Sentinel-2 · Reporte certificado SHA-256">Sentinel-1 radar · Sentinel-2 NDVI · SHA-256 certified report</div>
+          </div>
+          <div class="os-price">USD 350</div>
+        </div>
+
+        <!-- Flood Risk SRTM -->
+        <div class="os-row os-addon" id="os-row-flood" onclick="osToggle('flood')">
+          <div class="os-check-box" id="os-check-flood">☐</div>
+          <div class="os-body">
+            <div class="os-name" data-en="+ Flood Risk SRTM" data-es="+ Riesgo de Inundación SRTM">+ Flood Risk SRTM</div>
+            <div class="os-sub" data-en="NASA elevation model · Slope analysis · High / Low risk classification" data-es="Modelo de elevación NASA · Análisis de pendiente · Clasificación Alto / Bajo riesgo">NASA elevation model · Slope analysis · High / Low risk classification</div>
+          </div>
+          <div class="os-price">+&nbsp;USD&nbsp;150</div>
+        </div>
+
+        <!-- Water Balance INIA -->
+        <div class="os-row os-addon" id="os-row-water" onclick="osToggle('water')">
+          <div class="os-check-box" id="os-check-water">☐</div>
+          <div class="os-body">
+            <div class="os-name" data-en="+ Water Balance INIA" data-es="+ Balance Hídrico INIA">+ Water Balance INIA</div>
+            <div class="os-sub" data-en="INIA GRAS IBH index · Drought / stress / surplus classification" data-es="Índice IBH INIA GRAS · Clasificación sequía / estrés / excedente">INIA GRAS IBH index · Drought / stress / surplus classification</div>
+          </div>
+          <div class="os-price">+&nbsp;USD&nbsp;150</div>
+        </div>
+
+      </div><!-- /oneshot-options -->
+
+      <!-- Result panel -->
+      <div class="oneshot-result">
+        <div class="os-res-lbl" data-en="ONE-TIME INVESTMENT" data-es="INVERSIÓN ÚNICA">ONE-TIME INVESTMENT</div>
+        <div class="os-total" id="os-total">USD 350</div>
+        <div class="os-total-sub" data-en="one-time · delivered within 48h" data-es="pago único · entrega en 48h">one-time · delivered within 48h</div>
+        <div class="os-breakdown" id="os-breakdown">Base SAR + NDVI ········ USD 350</div>
+        <button class="os-cta" onclick="osRequest()" data-en="Request Report →" data-es="Solicitar Reporte →">Request Report →</button>
+        <div class="os-note" data-en="SHA-256 certified · Open data sources included · No recurring charge" data-es="Certificado SHA-256 · Fuentes open data incluidas · Sin cargo recurrente">SHA-256 certified · Open data sources included<br>No recurring charge</div>
+      </div>
+
+    </div><!-- /oneshot-wrap -->
+  </div>
+</section>
+
 <!-- PILOT STATUS -->
 <section class="sec reveal">
   <div class="sec-inner">
@@ -1240,6 +1325,32 @@ function updateCalc(){
 function calcRequest() {
   openAccessForm('Enterprise', _fmtUSD(window._calcTotal || 2500) + '/mo');
 }
+
+// ── One-Shot Certification calculator ────────────────────────────────────────
+var _os = { flood: false, water: false };
+function osToggle(mod) {
+  _os[mod] = !_os[mod];
+  var row = document.getElementById('os-row-' + mod);
+  var chk = document.getElementById('os-check-' + mod);
+  if (_os[mod]) { row.classList.add('active'); chk.textContent = '☑'; }
+  else           { row.classList.remove('active'); chk.textContent = '☐'; }
+  var total = 350 + (_os.flood ? 150 : 0) + (_os.water ? 150 : 0);
+  document.getElementById('os-total').textContent = 'USD ' + total.toLocaleString();
+  var bd = 'Base SAR + NDVI ········ USD 350';
+  if (_os.flood)  bd += '\nFlood Risk SRTM ········ + USD 150';
+  if (_os.water)  bd += '\nWater Balance INIA ····· + USD 150';
+  document.getElementById('os-breakdown').textContent = bd;
+  window._osTotal = total;
+}
+function osRequest() {
+  var total = window._osTotal || 350;
+  var mods  = [];
+  if (_os.flood) mods.push('Flood Risk SRTM');
+  if (_os.water) mods.push('Water Balance INIA');
+  var label = 'One-Shot Certification' + (mods.length ? ' + ' + mods.join(' + ') : '');
+  openAccessForm(label, 'USD ' + total.toLocaleString() + ' (one-time)');
+}
+window.osToggle = osToggle; window.osRequest = osRequest;
 
 // ── Language ──────────────────────────────────────────────────────────────────
 let lang='en';

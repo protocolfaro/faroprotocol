@@ -46,9 +46,17 @@ try:
     )
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_JUSTIFY, TA_RIGHT
+    from reportlab.lib.utils import ImageReader
     REPORTLAB_OK = True
 except ImportError:
     REPORTLAB_OK = False
+
+try:
+    import qrcode as _qrcode
+    import io as _qr_io
+    QR_OK = True
+except ImportError:
+    QR_OK = False
 
 # ── Paleta Faro ───────────────────────────────────────────────────────────────
 
@@ -92,7 +100,7 @@ class FaroManualCanvas:
 
     def __init__(self, path: str):
         self.c = rl_canvas.Canvas(path, pagesize=A4)
-        self.c.setTitle('Faro Protocol — Manual de Bienvenida')
+        self.c.setTitle('Certified Report Plus — Faro Protocol')
         self.c.setAuthor('Faro Protocol')
         self.c.setSubject('Guía de uso del portal de inteligencia satelital')
         self._page = 0
@@ -188,6 +196,16 @@ class FaroManualCanvas:
         pg_str = f'Página {page_num}' + (f' de {total}' if total else '')
         self.text(PW - MARGIN_R, y, pg_str,
                   font='Helvetica', size=7, color=HexColor('#2a2a3a'), align='right')
+        # Data source badges — centered
+        badges = [('NASA','#0b3d91'),('ESA','#00377b'),('INTA','#1a6b3c'),('INIA','#1a3966')]
+        bw, gap = 20, 3
+        total_bw = len(badges) * bw + (len(badges) - 1) * gap
+        bx = (PW - total_bw) / 2
+        for abbr, hx in badges:
+            self.fill_rect(bx, y - 1, bw, 8, HexColor(hx))
+            self.text(bx + bw / 2, y + 1, abbr,
+                      font='Helvetica-Bold', size=5, color=WHITE, align='center')
+            bx += bw + gap
 
     # ── Sección título ────────────────────────────────────────────────────────
 
@@ -271,7 +289,7 @@ def build_cover(m: FaroManualCanvas, name: str, areas: list, expiry: datetime):
 
     # Etiqueta
     y = PH - 35*mm
-    m.section_tag(MARGIN_L, y, 'MANUAL DE BIENVENIDA · CONFIDENCIAL')
+    m.section_tag(MARGIN_L, y, 'CERTIFIED REPORT PLUS · CONFIDENCIAL')
 
     # Título principal
     y -= 22*mm
@@ -697,8 +715,135 @@ def build_section5(m: FaroManualCanvas, name: str, areas: list,
     m.new_page()
 
 
-def build_sha_page(m: FaroManualCanvas, sha: str, filename: str):
-    """Página final: SHA-256 del documento."""
+def build_section_opendata(m: FaroManualCanvas, opendata: dict, page_num: int = 7):
+    """Open Data page: NDVI Benchmark (bar chart), Flood Risk, Water Balance."""
+    m.page_background()
+    m.page_header('Open Data · Certificación Detallada')
+
+    y = PH - MARGIN_T - 20*mm
+    m.section_tag(MARGIN_L, y, 'OPEN DATA · CERTIFIED REPORT PLUS')
+    y -= 12*mm
+    m.section_title(MARGIN_L, y, 'Certificación Detallada')
+
+    y -= 8*mm
+    m.text(MARGIN_L, y,
+           'Módulos de datos abiertos integrados al reporte y firmados en el hash SHA-256.',
+           font='Helvetica', size=10, color=GREY)
+    y -= 16*mm
+
+    nb = opendata.get('ndvi_benchmark')
+    fr = opendata.get('flood_risk_srtm')
+    wb = opendata.get('water_balance_inia')
+
+    # ── OD-1: NDVI Benchmark bar chart ────────────────────────────────────────
+    if nb:
+        m.h2(MARGIN_L, y, 'OD-1 — NDVI vs Media Regional (SIIA · siia.gov.ar)')
+        y -= 14*mm
+
+        ndvi_act = float(nb.get('ndvi_actual', 0))
+        ndvi_reg = float(nb.get('media_regional', 0))
+        delta    = float(nb.get('delta', 0))
+        bar_max  = CONTENT_W * 0.68
+        bar_h    = 13
+
+        # Reference bar
+        reg_w = bar_max * min(ndvi_reg, 1.0)
+        m.text(MARGIN_L, y, 'Media regional', font='Helvetica', size=9, color=GREY)
+        y -= 16
+        m.fill_rect(MARGIN_L, y, reg_w, bar_h, HexColor('#2a2820'))
+        m.stroke_rect(MARGIN_L, y, reg_w, bar_h, HexColor('#3a3830'), lw=0.3)
+        m.text(MARGIN_L + reg_w + 5, y + 2,
+               f'{ndvi_reg:.4f}', font='Helvetica-Bold', size=9, color=GREY)
+        y -= 20
+
+        # Actual bar
+        act_color = GREEN if delta >= 0 else RED
+        act_w = bar_max * min(ndvi_act, 1.0)
+        m.text(MARGIN_L, y, 'NDVI actual (lote)', font='Helvetica', size=9, color=WHITE)
+        y -= 16
+        m.fill_rect(MARGIN_L, y, act_w, bar_h, act_color)
+        m.text(MARGIN_L + act_w + 5, y + 2,
+               f'{ndvi_act:.4f}', font='Helvetica-Bold', size=9, color=act_color)
+        y -= 20
+
+        # Delta box
+        sign = '+' if delta >= 0 else ''
+        m.fill_rect(MARGIN_L, y - 4, CONTENT_W, 20, BG2)
+        m.stroke_rect(MARGIN_L, y - 4, CONTENT_W, 20, HexColor('#1e1e2e'), lw=0.4)
+        m.fill_rect(MARGIN_L, y - 4, 3, 20, act_color)
+        m.text(MARGIN_L + 10, y + 4, f'Δ vs región: {sign}{delta:.4f}',
+               font='Helvetica-Bold', size=10, color=act_color)
+        m.text(PW - MARGIN_R, y + 4, 'Fuente: SIIA · siia.gov.ar',
+               font='Helvetica', size=7, color=GREY, align='right')
+        y -= 36
+
+    # ── OD-2: Flood Risk SRTM ─────────────────────────────────────────────────
+    if fr:
+        if y < 80*mm:
+            m.page_footer(page_num); m.new_page(); page_num += 1
+            m.page_background(); m.page_header('Open Data · Certificación Detallada')
+            y = PH - MARGIN_T - 20*mm
+
+        y -= 12*mm
+        m.h2(MARGIN_L, y, 'OD-2 — Riesgo de Inundación SRTM (opentopodata.org)')
+        y -= 14*mm
+
+        risk      = fr.get('flood_risk', 'low')
+        slope     = float(fr.get('slope_avg', 0))
+        risk_color = RED if risk == 'high' else GREEN
+        risk_label = 'ALTO RIESGO' if risk == 'high' else 'BAJO RIESGO'
+        risk_desc  = ('Pendiente < 1 % — terreno plano, posible acumulación de agua.'
+                      if risk == 'high' else
+                      'Pendiente suficiente para drenaje natural — riesgo bajo.')
+
+        badge_w = 72*mm
+        m.fill_rect(MARGIN_L, y - 36, badge_w, 44, risk_color)
+        m.text(MARGIN_L + badge_w / 2, y - 8,  risk_label,
+               font='Helvetica-Bold', size=13, color=WHITE, align='center')
+        m.text(MARGIN_L + badge_w / 2, y - 24, f'Pendiente: {slope:.3f} %',
+               font='Helvetica', size=9, color=WHITE, align='center')
+
+        tx = MARGIN_L + badge_w + 10
+        m.text(tx, y,      risk_desc,                    font='Helvetica', size=9, color=WHITE)
+        m.text(tx, y - 14, 'Modelo: SRTM 30m · NASA / USGS', font='Helvetica', size=8, color=GREY)
+        m.text(tx, y - 26, 'API: opentopodata.org',      font='Helvetica', size=8, color=GREY)
+        y -= 54
+
+    # ── OD-3: Water Balance INIA ──────────────────────────────────────────────
+    if wb:
+        if y < 70*mm:
+            m.page_footer(page_num); m.new_page(); page_num += 1
+            m.page_background(); m.page_header('Open Data · Certificación Detallada')
+            y = PH - MARGIN_T - 20*mm
+
+        y -= 12*mm
+        m.h2(MARGIN_L, y, 'OD-3 — Balance Hídrico IBH (INIA GRAS · gras.inia.uy)')
+        y -= 14*mm
+
+        ibh    = float(wb.get('ibh', 0))
+        status = wb.get('water_status', 'ok')
+        s_map  = {
+            'ok':      (GREEN, 'NORMAL',  'Balance hídrico favorable — sin estrés significativo.'),
+            'stress':  (AMBER, 'ESTRÉS',  'Balance hídrico en estrés — riesgo de impacto en cultivos.'),
+            'deficit': (RED,   'DÉFICIT', 'Déficit hídrico severo — intervención recomendada.'),
+        }
+        s_color, s_label, s_desc = s_map.get(status, (GREY, status.upper(), ''))
+
+        m.fill_rect(MARGIN_L, y - 36, CONTENT_W, 44, BG2)
+        m.stroke_rect(MARGIN_L, y - 36, CONTENT_W, 44, HexColor('#1e1e2e'), lw=0.4)
+        m.fill_rect(MARGIN_L, y - 36, 5, 44, s_color)
+        m.text(MARGIN_L + 14, y,      f'IBH: {ibh}',    font='Helvetica-Bold', size=14, color=s_color)
+        m.text(MARGIN_L + 14, y - 16, s_label,          font='Helvetica-Bold', size=10, color=WHITE)
+        m.text(MARGIN_L + 14, y - 28, s_desc,           font='Helvetica', size=9, color=GREY)
+        m.text(PW - MARGIN_R, y,      'Fuente: INIA GRAS · gras.inia.uy',
+               font='Helvetica', size=7, color=GREY, align='right')
+
+    m.page_footer(page_num)
+    m.new_page()
+
+
+def build_sha_page(m: FaroManualCanvas, sha: str, filename: str, page_num: int = 8):
+    """Página final: SHA-256 + QR de verificación."""
     m.page_background()
     m.page_header('Verificación · SHA-256')
 
@@ -717,15 +862,42 @@ def build_sha_page(m: FaroManualCanvas, sha: str, filename: str):
            font='Helvetica', size=10, color=GREY)
 
     y -= 14*mm
-    # Box del hash
-    m.fill_rect(MARGIN_L, y - 12*mm, CONTENT_W, 36, BG2)
-    m.stroke_rect(MARGIN_L, y - 12*mm, CONTENT_W, 36, GOLD, lw=0.6)
+    # Box del hash — deja espacio a la derecha para el QR
+    hash_box_w = CONTENT_W - 52*mm
+    m.fill_rect(MARGIN_L, y - 12*mm, hash_box_w, 36, BG2)
+    m.stroke_rect(MARGIN_L, y - 12*mm, hash_box_w, 36, GOLD, lw=0.6)
     m.text(MARGIN_L + 6, y, 'SHA-256:', font='Helvetica-Bold', size=8, color=GOLD)
-    # Hash en dos líneas (32 chars cada una)
-    m.text(MARGIN_L + 6, y - 12, sha[:32],
-           font='Courier-Bold', size=10, color=WHITE)
-    m.text(MARGIN_L + 6, y - 24, sha[32:],
-           font='Courier-Bold', size=10, color=WHITE)
+    m.text(MARGIN_L + 6, y - 12, sha[:32], font='Courier-Bold', size=9, color=WHITE)
+    m.text(MARGIN_L + 6, y - 24, sha[32:], font='Courier-Bold', size=9, color=WHITE)
+
+    # QR code
+    qr_x = MARGIN_L + hash_box_w + 6*mm
+    qr_y = y - 12*mm
+    qr_size = 44*mm
+    if QR_OK:
+        try:
+            verify_url = f"https://faro-protocol.netlify.app/verify?sha256={sha}"
+            qr = _qrcode.QRCode(version=1, box_size=5, border=2,
+                                 error_correction=_qrcode.constants.ERROR_CORRECT_M)
+            qr.add_data(verify_url)
+            qr.make(fit=True)
+            img = qr.make_image(fill_color=(10, 10, 10), back_color=(242, 237, 228))
+            buf = _qr_io.BytesIO()
+            img.save(buf, 'PNG')
+            buf.seek(0)
+            m.c.drawImage(ImageReader(buf), qr_x, qr_y, width=qr_size, height=qr_size)
+            m.text(qr_x + qr_size / 2, qr_y - 8, 'Verificar →',
+                   font='Helvetica', size=7, color=GREY, align='center')
+        except Exception:
+            m.stroke_rect(qr_x, qr_y, qr_size, qr_size, HexColor('#2a2820'), lw=0.5)
+            m.text(qr_x + qr_size / 2, qr_y + qr_size / 2, 'QR',
+                   font='Helvetica', size=8, color=GREY, align='center')
+    else:
+        m.stroke_rect(qr_x, qr_y, qr_size, qr_size, HexColor('#2a2820'), lw=0.5)
+        m.text(qr_x + qr_size / 2, qr_y + qr_size / 2 + 4, 'pip install',
+               font='Helvetica', size=6, color=GREY, align='center')
+        m.text(qr_x + qr_size / 2, qr_y + qr_size / 2 - 6, 'qrcode[pil]',
+               font='Courier', size=6, color=GOLD, align='center')
 
     y -= 12*mm + 24
     m.text(MARGIN_L, y, 'Archivo: ' + filename,
@@ -754,7 +926,7 @@ def build_sha_page(m: FaroManualCanvas, sha: str, filename: str):
     m.text(MARGIN_L + 4, y, '   Si coincide: el documento es auténtico e íntegro.',
            font='Helvetica', size=9, color=GREEN)
 
-    m.page_footer(7)
+    m.page_footer(page_num)
     m.save()
 
 
@@ -766,6 +938,7 @@ def generate_manual(
     areas: list = None,
     output_dir: str = None,
     portal_url: str = None,
+    opendata: dict = None,
 ) -> str:
     """
     Genera el PDF del manual de bienvenida.
@@ -793,16 +966,26 @@ def generate_manual(
     print(f"  Áreas:  {', '.join(areas)}")
     print(f"  Output: {pdf_path}")
 
+    has_od   = bool(opendata and any(opendata.values()))
+    od_page  = 7   # página de open data (solo si hay datos)
+    sha_page = od_page + 1 if has_od else 7
+
+    def _build_pages(canvas_obj, include_sha: bool, sha_val: str = ''):
+        build_cover(canvas_obj, name, areas, expiry)
+        build_section1(canvas_obj, name, areas)
+        build_section2(canvas_obj)
+        build_section3(canvas_obj, portal_url)
+        build_section4(canvas_obj)
+        build_section5(canvas_obj, name, areas, expiry, portal_url)
+        if has_od:
+            build_section_opendata(canvas_obj, opendata, page_num=od_page)
+        if include_sha:
+            build_sha_page(canvas_obj, sha_val, pdf_path.name, page_num=sha_page)
+
     # ── Primera pasada: generar PDF sin hash (para calcular SHA-256) ──────────
     tmp_path = out_dir / f'faro_manual_{slug}_tmp.pdf'
     m = FaroManualCanvas(str(tmp_path))
-
-    build_cover(m, name, areas, expiry)
-    build_section1(m, name, areas)
-    build_section2(m)
-    build_section3(m, portal_url)
-    build_section4(m)
-    build_section5(m, name, areas, expiry, portal_url)
+    _build_pages(m, include_sha=False)
     m.c.save()
 
     # ── Calcular SHA-256 de la versión sin página de hash ─────────────────────
@@ -811,13 +994,7 @@ def generate_manual(
 
     # ── Segunda pasada: generar PDF final con SHA-256 incluido ───────────────
     m2 = FaroManualCanvas(str(pdf_path))
-    build_cover(m2, name, areas, expiry)
-    build_section1(m2, name, areas)
-    build_section2(m2)
-    build_section3(m2, portal_url)
-    build_section4(m2)
-    build_section5(m2, name, areas, expiry, portal_url)
-    build_sha_page(m2, sha256, pdf_path.name)
+    _build_pages(m2, include_sha=True, sha_val=sha256)
 
     # SHA-256 del PDF final
     final_sha = hashlib.sha256(pdf_path.read_bytes()).hexdigest()
