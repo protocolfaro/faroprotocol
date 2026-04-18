@@ -471,6 +471,11 @@ nav.scrolled{background:rgba(6,8,11,0.96);border-bottom:1px solid var(--border);
 .osp-btn{display:block;width:100%;padding:8px 0;background:transparent;border:1px solid rgba(201,168,76,0.3);color:var(--gold);font-family:var(--mono);font-size:8px;letter-spacing:0.12em;text-transform:uppercase;cursor:pointer;transition:all 0.2s;margin-top:auto;}
 .osp-btn:hover,.os-product-card.selected .osp-btn{background:var(--gold);color:var(--bg);border-color:var(--gold);}
 .os-footer-note{font-family:var(--mono);font-size:8px;color:rgba(242,237,228,0.2);text-align:center;letter-spacing:0.08em;margin-top:8px;}
+.os-datasources{margin-top:40px;padding-top:28px;border-top:1px solid var(--border);text-align:center;}
+.os-datasources-lbl{font-family:var(--mono);font-size:7px;color:rgba(242,237,228,0.2);letter-spacing:0.3em;text-transform:uppercase;margin-bottom:18px;}
+.os-datasources-logos{display:flex;align-items:center;justify-content:center;gap:36px;flex-wrap:wrap;}
+.ds-logo{height:22px;width:auto;filter:grayscale(1) brightness(0) invert(1);opacity:0.25;transition:opacity 0.2s;}
+.ds-logo:hover{opacity:0.55;}
 @media(max-width:1100px){.os-product-grid{grid-template-columns:repeat(3,1fr);}}
 @media(max-width:660px){.os-product-grid{grid-template-columns:1fr 1fr;}}
 @media(max-width:400px){.os-product-grid{grid-template-columns:1fr;}}
@@ -1147,6 +1152,34 @@ footer{padding:32px 48px;border-top:1px solid var(--border);display:flex;align-i
     </div><!-- /os-product-grid -->
 
     <p class="os-footer-note" data-en="SHA-256 certified · Sentinel-1/2 data · Open data sources · No recurring charge · 48h delivery" data-es="Certificado SHA-256 · Datos Sentinel-1/2 · Fuentes open data · Sin cargo recurrente · Entrega 48h">SHA-256 certified &middot; Sentinel-1/2 data &middot; Open data sources &middot; No recurring charge &middot; 48h delivery</p>
+
+    <!-- DATA SOURCES -->
+    <div class="os-datasources">
+      <div class="os-datasources-lbl" data-en="Data Sources" data-es="Fuentes de datos">Data Sources</div>
+      <div class="os-datasources-logos">
+        <a href="https://www.nasa.gov" target="_blank" rel="noopener" title="NASA">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/e/e5/NASA_logo.svg"
+               alt="NASA" class="ds-logo" loading="lazy">
+        </a>
+        <a href="https://www.copernicus.eu" target="_blank" rel="noopener" title="ESA Copernicus">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/8/80/ESA_logo.svg"
+               alt="ESA" class="ds-logo" loading="lazy">
+        </a>
+        <a href="https://www.usgs.gov" target="_blank" rel="noopener" title="USGS">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/c/cd/USGS_logo.svg"
+               alt="USGS" class="ds-logo" loading="lazy">
+        </a>
+        <a href="https://www.argentina.gob.ar/inta" target="_blank" rel="noopener" title="INTA Argentina">
+          <img src="https://commons.wikimedia.org/wiki/Special:FilePath/Logo_INTA.svg"
+               alt="INTA" class="ds-logo" loading="lazy">
+        </a>
+        <a href="https://www.inia.uy" target="_blank" rel="noopener" title="INIA Uruguay">
+          <img src="https://commons.wikimedia.org/wiki/Special:FilePath/Logo_INIA.jpg"
+               alt="INIA" class="ds-logo" loading="lazy">
+        </a>
+      </div>
+    </div>
+
   </div>
 </section>
 
