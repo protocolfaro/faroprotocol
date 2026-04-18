@@ -1458,7 +1458,12 @@ function handleOneshotSubmit(e) {
   return false;
 }
 
-document.addEventListener('DOMContentLoaded', function() { osRenderProducts(); });
+// Call immediately if DOM already loaded (deferred scripts miss DOMContentLoaded)
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', function() { osRenderProducts(); });
+} else {
+  osRenderProducts();
+}
 document.addEventListener('click', function(e) {
   var m = document.getElementById('oneshot-modal');
   if (m && e.target === m) closeOneshotModal();
