@@ -310,6 +310,165 @@ FARO PROTOCOL
         print(f"  [Email] Error SMTP: {e}")
 
 
+# ── One-Shot Certification ────────────────────────────────────────────────────
+
+def _run_oneshot_pipeline(slug: str, client_email: str, client_name: str, modules: list):
+    """Corre pipeline con --certificacion-detallada en thread; notifica al cliente al terminar."""
+    cmd = [sys.executable, str(PROJECT_ROOT / "faro_pipeline.py"),
+           "--area", slug, "--certificacion-detallada"]
+    print(f"  [OneShot] Pipeline iniciando slug={slug} cliente={client_email}", flush=True)
+    ok = False
+    try:
+        result = subprocess.run(
+            cmd, cwd=str(PROJECT_ROOT),
+            capture_output=True, text=True, encoding="utf-8",
+            errors="replace", timeout=7200,
+        )
+        ok = result.returncode == 0
+        if not ok:
+            print(f"  [OneShot] Pipeline FAIL rc={result.returncode}\n{result.stderr[-800:]}", flush=True)
+        else:
+            print(f"  [OneShot] Pipeline OK slug={slug}", flush=True)
+    except subprocess.TimeoutExpired:
+        print(f"  [OneShot] Timeout slug={slug}", flush=True)
+    except Exception as exc:
+        print(f"  [OneShot] Error: {exc}", flush=True)
+
+    if ok:
+        _send_oneshot_result_email(client_email, client_name, slug, modules)
+    else:
+        _send_oneshot_error_email(client_email, client_name, slug)
+
+
+def _send_oneshot_result_email(email: str, name: str, slug: str, modules: list):
+    """Envía resultados del One-Shot Certification al cliente vía Gmail."""
+    gmail_user = os.getenv("GMAIL_USER", "")
+    gmail_pass = os.getenv("GMAIL_APP_PASS", "")
+    if not gmail_user or not gmail_pass:
+        print("  [OneShot] GMAIL no configurado — email omitido")
+        return
+
+    portal_url = os.getenv("PORTAL_URL", "https://faro-protocol.netlify.app")
+
+    # Leer SHA-256 y open data generados por el pipeline
+    sha_files  = sorted(PROJECT_ROOT.glob(f"*{slug}*.sha256"), key=lambda p: p.stat().st_mtime, reverse=True)
+    sha256     = sha_files[0].read_text(encoding="utf-8").split()[0] if sha_files else ""
+    od_path    = PROJECT_ROOT / f"faro_opendata_{slug}.json"
+    report_png = PROJECT_ROOT / f"faro_reporte_fusion_{slug}.png"
+
+    od_data = {}
+    if od_path.exists():
+        try:
+            od_data = json.loads(od_path.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+
+    # Resumen de módulos procesados
+    lines = ["· SAR Sentinel-1 + NDVI Sentinel-2 (base)"]
+    if "flood" in modules and od_data.get("flood_risk_srtm"):
+        fr = od_data["flood_risk_srtm"]
+        lines.append(f"· Flood Risk SRTM: {fr['flood_risk'].upper()} — pendiente {fr['slope_avg']} %")
+    if "water" in modules and od_data.get("water_balance_inia"):
+        wb = od_data["water_balance_inia"]
+        lines.append(f"· Water Balance IBH: {wb['ibh']} → {wb['water_status'].upper()}")
+    if od_data.get("ndvi_benchmark"):
+        nb = od_data["ndvi_benchmark"]
+        lines.append(f"· NDVI Benchmark: actual {nb['ndvi_actual']} vs región {nb['media_regional']} (Δ {nb['delta']:+.4f})")
+
+    mods_block = "\n".join(lines)
+    sha_line   = f"\nSHA-256 : {sha256}" if sha256 else ""
+    verify_url = f"{portal_url}/verify?sha256={sha256}" if sha256 else portal_url
+
+    cuerpo = f"""FARO PROTOCOL — Certified Report Plus
+{"=" * 60}
+
+Hola {name or email},
+
+Tu certificación satelital está lista.
+
+Lote    : {slug}
+Módulos procesados:
+{mods_block}
+{sha_line}
+
+Verificación de integridad:
+{verify_url}
+
+{"=" * 60}
+Para consultas: protocolfaro@gmail.com
+FARO PROTOCOL · {portal_url}
+"""
+    msg = MIMEMultipart()
+    msg["From"]    = gmail_user
+    msg["To"]      = email
+    msg["Subject"] = f"Faro Protocol — Reporte certificado listo · {slug}"
+    msg.attach(MIMEText(cuerpo, "plain", "utf-8"))
+
+    # Adjuntar reporte PNG
+    if report_png.exists():
+        try:
+            from email.mime.image import MIMEImage
+            with open(report_png, "rb") as f:
+                att = MIMEImage(f.read())
+                att.add_header("Content-Disposition", "attachment", filename=report_png.name)
+                msg.attach(att)
+        except Exception as exc:
+            print(f"  [OneShot] Error adjuntando PNG: {exc}")
+
+    # Adjuntar open data JSON
+    if od_path.exists():
+        try:
+            from email.mime.base import MIMEBase
+            from email import encoders
+            with open(od_path, "rb") as f:
+                att = MIMEBase("application", "json")
+                att.set_payload(f.read())
+                encoders.encode_base64(att)
+                att.add_header("Content-Disposition", "attachment", filename=od_path.name)
+                msg.attach(att)
+        except Exception as exc:
+            print(f"  [OneShot] Error adjuntando JSON: {exc}")
+
+    try:
+        import ssl
+        ctx = ssl.create_default_context()
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=ctx) as srv:
+            srv.login(gmail_user, gmail_pass)
+            srv.sendmail(gmail_user, email, msg.as_string())
+        print(f"  [OneShot] Reporte enviado a {email}", flush=True)
+    except smtplib.SMTPAuthenticationError:
+        print("  [OneShot] Auth Gmail fallida")
+    except Exception as exc:
+        print(f"  [OneShot] Error SMTP: {exc}")
+
+
+def _send_oneshot_error_email(email: str, name: str, slug: str):
+    """Notifica al cliente si el pipeline falló."""
+    gmail_user = os.getenv("GMAIL_USER", "")
+    gmail_pass = os.getenv("GMAIL_APP_PASS", "")
+    if not gmail_user or not gmail_pass:
+        return
+
+    msg = MIMEMultipart()
+    msg["From"]    = gmail_user
+    msg["To"]      = email
+    msg["Subject"] = f"Faro Protocol — Tu certificación {slug} está siendo revisada"
+    msg.attach(MIMEText(
+        f"Hola {name or email},\n\nEl pipeline de tu certificación encontró un inconveniente técnico.\n"
+        "Nuestro equipo lo revisará y te contactará en las próximas horas.\n\n"
+        "protocolfaro@gmail.com\nFARO PROTOCOL\n",
+        "plain", "utf-8",
+    ))
+    try:
+        import ssl
+        ctx = ssl.create_default_context()
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=ctx) as srv:
+            srv.login(gmail_user, gmail_pass)
+            srv.sendmail(gmail_user, email, msg.as_string())
+    except Exception as exc:
+        print(f"  [OneShot] Error email-error: {exc}")
+
+
 # ---- /health -----------------------------------------------------------------
 
 @app.route("/health", methods=["GET"])
@@ -324,7 +483,7 @@ def preflight():
     if request.method == "OPTIONS":
         r = app.make_response("")
         headers = _cors()
-        if request.path == "/api/contact":
+        if request.path in ("/api/contact", "/api/oneshot"):
             headers["Access-Control-Allow-Origin"] = "*"
         r.headers.update(headers)
         return r, 204
@@ -332,7 +491,10 @@ def preflight():
 
 @app.after_request
 def cors_hdr(resp):
-    resp.headers.update(_cors())
+    headers = _cors()
+    if request.path in ("/api/contact", "/api/oneshot"):
+        headers["Access-Control-Allow-Origin"] = "*"
+    resp.headers.update(headers)
     return resp
 
 
@@ -488,6 +650,63 @@ def zone_trigger():
     _launch(slug, uid)
     print(f"  [Trigger] Pipeline disparado para {slug} (uid={uid})")
     return jsonify({"ok": True, "zone_id": slug, "eta_hours": 24}), 200
+
+
+# ---- /api/oneshot ------------------------------------------------------------
+# Endpoint público para One-Shot Certification (sin Firebase Auth).
+# Crea la zona, lanza el pipeline con --certificacion-detallada en background
+# y envía email al cliente cuando termina.
+
+@app.route("/api/oneshot", methods=["POST", "OPTIONS"])
+def oneshot():
+    body         = request.get_json(silent=True) or {}
+    client_name  = (body.get("name")       or "").strip()
+    client_email = (body.get("email")      or "").strip().lower()
+    field_name   = (body.get("field_name") or "").strip()
+    bounds       = body.get("bounds",  [])   # [lon_min, lat_min, lon_max, lat_max]
+    center       = body.get("center",  [])   # [lat, lon]
+    modules      = body.get("modules", [])   # ["flood", "water"]
+
+    if not client_email or not field_name:
+        return jsonify({"error": "missing email or field_name"}), 400
+    if not bounds and not center:
+        return jsonify({"error": "missing bounds or center"}), 400
+
+    # Generar slug a partir del nombre del lote
+    slug = re.sub(r"[^a-z0-9]+", "_", field_name.lower())[:32].strip("_")
+    if not slug:
+        slug = f"oneshot_{int(datetime.now().timestamp())}"
+
+    # Si solo hay centro, crear bounding box ~5 km²
+    if not bounds and len(center) >= 2:
+        lat, lon = float(center[0]), float(center[1])
+        d = 0.045  # ~5 km en grados
+        bounds = [lon - d, lat - d, lon + d, lat + d]
+
+    if not center and len(bounds) >= 4:
+        center = [(bounds[1] + bounds[3]) / 2, (bounds[0] + bounds[2]) / 2]
+
+    _write_area(slug, field_name, "agro", bounds, center, "")
+
+    # Pipeline en thread — devuelve 200 inmediatamente
+    threading.Thread(
+        target=_run_oneshot_pipeline,
+        args=(slug, client_email, client_name, modules),
+        daemon=True,
+    ).start()
+
+    # Notificar admin por WhatsApp
+    try:
+        from faro_notifier import send_whatsapp
+        send_whatsapp(
+            f"FARO ONE-SHOT\nCliente: {client_name} <{client_email}>\n"
+            f"Lote: {field_name}\nMódulos: {', '.join(modules) or 'base'}\nETA: ~48h"
+        )
+    except Exception:
+        pass
+
+    print(f"  [OneShot] Solicitud recibida slug={slug} email={client_email} módulos={modules}", flush=True)
+    return jsonify({"ok": True, "zone_id": slug, "eta_hours": 48}), 200
 
 
 # ---- /api/chat ---------------------------------------------------------------

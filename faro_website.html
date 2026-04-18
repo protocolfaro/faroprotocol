@@ -1327,7 +1327,9 @@ function calcRequest() {
 }
 
 // ── One-Shot Certification calculator ────────────────────────────────────────
+var _RAILWAY = 'https://faroprotocol-production-45fd.up.railway.app';
 var _os = { flood: false, water: false };
+
 function osToggle(mod) {
   _os[mod] = !_os[mod];
   var row = document.getElementById('os-row-' + mod);
@@ -1342,15 +1344,90 @@ function osToggle(mod) {
   document.getElementById('os-breakdown').textContent = bd;
   window._osTotal = total;
 }
+
 function osRequest() {
+  // Rellenar el resumen de módulos en el modal de one-shot
   var total = window._osTotal || 350;
   var mods  = [];
-  if (_os.flood) mods.push('Flood Risk SRTM');
-  if (_os.water) mods.push('Water Balance INIA');
-  var label = 'One-Shot Certification' + (mods.length ? ' + ' + mods.join(' + ') : '');
-  openAccessForm(label, 'USD ' + total.toLocaleString() + ' (one-time)');
+  if (_os.flood) mods.push('Flood Risk SRTM (+USD 150)');
+  if (_os.water) mods.push('Water Balance INIA (+USD 150)');
+  var label = 'One-Shot Certification';
+  if (mods.length) label += ' + ' + mods.join(' + ');
+  var el = document.getElementById('os-modal-summary');
+  if (el) el.textContent = label + ' — USD ' + total.toLocaleString() + ' (one-time)';
+  // Mostrar modal
+  var m = document.getElementById('oneshot-modal');
+  if (m) { m.style.display = 'flex'; document.body.style.overflow = 'hidden'; }
 }
+
+function closeOneshotModal() {
+  var m = document.getElementById('oneshot-modal');
+  if (m) { m.style.display = 'none'; document.body.style.overflow = ''; }
+  document.getElementById('os-modal-body').style.display    = '';
+  document.getElementById('os-modal-confirm').style.display = 'none';
+  document.getElementById('os-modal-form').reset();
+}
+
+function handleOneshotSubmit(e) {
+  e.preventDefault();
+  var form  = e.target;
+  var name  = form.querySelector('[name=name]').value.trim();
+  var email = form.querySelector('[name=email]').value.trim();
+  var field = form.querySelector('[name=field_name]').value.trim();
+  var lat   = parseFloat(form.querySelector('[name=lat]').value);
+  var lon   = parseFloat(form.querySelector('[name=lon]').value);
+  var total = window._osTotal || 350;
+
+  if (!name || !email || !field || isNaN(lat) || isNaN(lon)) return false;
+
+  var mods = [];
+  if (_os.flood) mods.push('flood');
+  if (_os.water) mods.push('water');
+
+  // Mostrar confirmación de inmediato
+  document.getElementById('os-modal-body').style.display    = 'none';
+  document.getElementById('os-modal-confirm').style.display = '';
+
+  // 1 — EmailJS: notificar a protocolfaro@gmail.com
+  if (typeof emailjs !== 'undefined' && _EJS_PUBLIC_KEY !== 'REEMPLAZAR_PUBLIC_KEY') {
+    var modsLabel = ['SAR + NDVI (base)'];
+    if (_os.flood) modsLabel.push('Flood Risk SRTM');
+    if (_os.water) modsLabel.push('Water Balance INIA');
+    emailjs.send(_EJS_SERVICE_ID, _EJS_TEMPLATE_ID, {
+      name:    name,
+      company: 'Lote: ' + field,
+      country: 'Lat ' + lat + ' / Lon ' + lon,
+      plan:    'One-Shot · ' + modsLabel.join(' + ') + ' · USD ' + total + ' (one-time)',
+      email:   email,
+    }).catch(function() {});
+  }
+
+  // 2 — Railway /api/oneshot: crear zona + lanzar pipeline
+  var d = 0.045; // ~5 km bounding box
+  fetch(_RAILWAY + '/api/oneshot', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name:       name,
+      email:      email,
+      field_name: field,
+      center:     [lat, lon],
+      bounds:     [lon - d, lat - d, lon + d, lat + d],
+      modules:    mods,
+    }),
+  }).catch(function() {}); // fire-and-forget; confirmación ya fue mostrada
+
+  return false;
+}
+
+document.addEventListener('click', function(e) {
+  var m = document.getElementById('oneshot-modal');
+  if (m && e.target === m) closeOneshotModal();
+});
+
 window.osToggle = osToggle; window.osRequest = osRequest;
+window.closeOneshotModal = closeOneshotModal;
+window.handleOneshotSubmit = handleOneshotSubmit;
 
 // ── Language ──────────────────────────────────────────────────────────────────
 let lang='en';
@@ -1676,6 +1753,79 @@ window.selectOpt=selectOpt;window.calcRequest=calcRequest;window.updateCalc=upda
     <h3 style="font-family:var(--serif);font-size:24px;font-weight:300;color:var(--gold);margin:0 0 12px;" data-en="Request received." data-es="Solicitud recibida.">Request received.</h3>
     <p style="font-family:var(--mono);font-size:11px;color:var(--w3);line-height:1.8;margin:0 0 24px;" data-en="Thank you. An advisor will contact you within 24 hours to coordinate access and payment method." data-es="Gracias. Un asesor se contactará en 24hs para coordinar el acceso y método de pago.">Thank you. An advisor will contact you within 24 hours to coordinate access and payment method.</p>
     <button onclick="closeAccessForm()" style="padding:10px 28px;background:transparent;border:1px solid rgba(201,168,76,0.4);color:var(--gold);font-family:var(--mono);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;cursor:pointer;" data-en="CLOSE" data-es="CLOSE">CLOSE</button>
+  </div>
+</div>
+</div>
+
+<!-- ── MODAL ONE-SHOT CERTIFICATION ───────────────────────────────────────── -->
+<div id="oneshot-modal" style="display:none;position:fixed;inset:0;z-index:9100;background:rgba(6,8,11,0.93);backdrop-filter:blur(10px);align-items:center;justify-content:center;padding:20px;">
+<div style="background:var(--bg3);border:1px solid rgba(201,168,76,0.3);max-width:500px;width:100%;padding:40px 36px;position:relative;">
+  <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);"></div>
+  <button onclick="closeOneshotModal()" style="position:absolute;top:14px;right:16px;background:none;border:none;color:var(--w4);font-size:18px;cursor:pointer;line-height:1;">&#x2715;</button>
+
+  <div id="os-modal-body">
+    <div style="font-family:var(--mono);font-size:8px;color:var(--gold);letter-spacing:0.3em;text-transform:uppercase;margin-bottom:10px;">One-Shot Certification</div>
+    <h3 style="font-family:var(--serif);font-size:24px;font-weight:300;color:var(--w);margin:0 0 6px;">Request Certified Report</h3>
+    <p style="font-family:var(--mono);font-size:9px;color:var(--gold);margin:0 0 22px;line-height:1.6;" id="os-modal-summary"></p>
+
+    <form id="os-modal-form" onsubmit="return handleOneshotSubmit(event)" style="display:flex;flex-direction:column;gap:12px;">
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div>
+          <label style="font-family:var(--mono);font-size:8px;color:var(--w4);letter-spacing:0.15em;text-transform:uppercase;display:block;margin-bottom:5px;">Full Name</label>
+          <input name="name" type="text" required placeholder="Juan García"
+            style="width:100%;background:var(--bg4);border:1px solid var(--border2);color:var(--w);font-family:var(--mono);font-size:11px;padding:9px 12px;outline:none;box-sizing:border-box;"
+            onfocus="this.style.borderColor='rgba(201,168,76,0.5)'" onblur="this.style.borderColor='var(--border2)'"/>
+        </div>
+        <div>
+          <label style="font-family:var(--mono);font-size:8px;color:var(--w4);letter-spacing:0.15em;text-transform:uppercase;display:block;margin-bottom:5px;">Contact Email</label>
+          <input name="email" type="email" required placeholder="tu@empresa.com"
+            style="width:100%;background:var(--bg4);border:1px solid var(--border2);color:var(--w);font-family:var(--mono);font-size:11px;padding:9px 12px;outline:none;box-sizing:border-box;"
+            onfocus="this.style.borderColor='rgba(201,168,76,0.5)'" onblur="this.style.borderColor='var(--border2)'"/>
+        </div>
+      </div>
+
+      <div>
+        <label style="font-family:var(--mono);font-size:8px;color:var(--w4);letter-spacing:0.15em;text-transform:uppercase;display:block;margin-bottom:5px;">Field / Lot Name</label>
+        <input name="field_name" type="text" required placeholder="Campo Norte · Santa Fe"
+          style="width:100%;background:var(--bg4);border:1px solid var(--border2);color:var(--w);font-family:var(--mono);font-size:11px;padding:9px 12px;outline:none;box-sizing:border-box;"
+          onfocus="this.style.borderColor='rgba(201,168,76,0.5)'" onblur="this.style.borderColor='var(--border2)'"/>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div>
+          <label style="font-family:var(--mono);font-size:8px;color:var(--w4);letter-spacing:0.15em;text-transform:uppercase;display:block;margin-bottom:5px;">Latitude (center)</label>
+          <input name="lat" type="number" step="0.0001" required placeholder="-34.5320"
+            style="width:100%;background:var(--bg4);border:1px solid var(--border2);color:var(--w);font-family:var(--mono);font-size:11px;padding:9px 12px;outline:none;box-sizing:border-box;"
+            onfocus="this.style.borderColor='rgba(201,168,76,0.5)'" onblur="this.style.borderColor='var(--border2)'"/>
+        </div>
+        <div>
+          <label style="font-family:var(--mono);font-size:8px;color:var(--w4);letter-spacing:0.15em;text-transform:uppercase;display:block;margin-bottom:5px;">Longitude (center)</label>
+          <input name="lon" type="number" step="0.0001" required placeholder="-63.2341"
+            style="width:100%;background:var(--bg4);border:1px solid var(--border2);color:var(--w);font-family:var(--mono);font-size:11px;padding:9px 12px;outline:none;box-sizing:border-box;"
+            onfocus="this.style.borderColor='rgba(201,168,76,0.5)'" onblur="this.style.borderColor='var(--border2)'"/>
+        </div>
+      </div>
+
+      <div style="background:var(--bg4);border:1px solid var(--border);padding:10px 14px;">
+        <div style="font-family:var(--mono);font-size:7px;color:var(--w4);letter-spacing:0.15em;text-transform:uppercase;margin-bottom:4px;">Area covered</div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--w3);">±5 km radius from center point · ~78 km² · SRTM 30m resolution</div>
+      </div>
+
+      <button type="submit" style="margin-top:4px;width:100%;padding:13px;background:var(--gold);color:var(--bg);font-family:var(--sans);font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;border:none;cursor:pointer;transition:background 0.2s;"
+        onmouseover="this.style.background='var(--gl)'" onmouseout="this.style.background='var(--gold)'">
+        Request Certification →
+      </button>
+      <p style="font-family:var(--mono);font-size:8px;color:var(--w4);text-align:center;margin:0;letter-spacing:0.06em;">Pipeline starts within minutes · Results delivered by email in ~48h</p>
+    </form>
+  </div><!-- /os-modal-body -->
+
+  <div id="os-modal-confirm" style="display:none;text-align:center;padding:20px 0;">
+    <div style="font-size:32px;margin-bottom:14px;color:var(--gold);">&#10003;</div>
+    <h3 style="font-family:var(--serif);font-size:24px;font-weight:300;color:var(--w);margin:0 0 12px;">Certification in progress.</h3>
+    <p style="font-family:var(--mono);font-size:10px;color:var(--w3);line-height:1.9;margin:0 0 8px;">Your satellite pipeline has been launched.<br>SAR + NDVI acquisition · Open Data modules · SHA-256 sealing.</p>
+    <p style="font-family:var(--mono);font-size:10px;color:var(--gold);line-height:1.9;margin:0 0 24px;">You will receive the certified report by email within 48 hours.</p>
+    <button onclick="closeOneshotModal()" style="padding:10px 28px;background:transparent;border:1px solid rgba(201,168,76,0.4);color:var(--gold);font-family:var(--mono);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;cursor:pointer;">CLOSE</button>
   </div>
 </div>
 </div>
