@@ -15,13 +15,17 @@ Uso:
     python faro_pipeline.py --area cordoba --skip-georef
     python faro_pipeline.py --area cordoba --only-search
     python faro_pipeline.py --area cordoba --skip-vision
+    python faro_pipeline.py --area cordoba --certificacion-detallada
 """
 
 import argparse
 import hashlib
 import json
+import math
 import os
 import sys
+import urllib.parse
+import urllib.request
 from datetime import datetime
 from pathlib import Path
 
@@ -111,6 +115,157 @@ def sha256_archivo(path: str) -> str:
     return h.hexdigest()
 
 
+def sha256_con_opendata(path: str, opendata: dict) -> str:
+    """SHA-256 del reporte PNG + JSON de open data (para Certificación Detallada)."""
+    h = hashlib.sha256()
+    with open(path, 'rb') as f:
+        for bloque in iter(lambda: f.read(65536), b''):
+            h.update(bloque)
+    h.update(json.dumps(opendata, sort_keys=True, ensure_ascii=False).encode())
+    return h.hexdigest()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# OPEN DATA MODULES — Lazy load: solo con --certificacion-detallada
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _od_get(url: str, timeout: int = 10) -> dict | None:
+    """GET stateless a URL pública; None silencioso si falla."""
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': 'FaroProtocol/1.0'})
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return json.loads(r.read().decode())
+    except Exception:
+        return None
+
+
+def od_ndvi_benchmark(area: dict, ndvi_actual: float | None) -> dict | None:
+    """
+    OD-1: NDVI actual vs media histórica del partido/departamento.
+    Fuente: SIIA siia.gov.ar datos abiertos.
+    Output: {"ndvi_actual": X, "media_regional": Y, "delta": Z}
+    """
+    try:
+        if ndvi_actual is None:
+            return None
+        bounds = area.get('bounds')
+        if not bounds or len(bounds) < 4:
+            return None
+
+        lat_c = round((bounds[1] + bounds[3]) / 2, 4)
+        lon_c = round((bounds[0] + bounds[2]) / 2, 4)
+
+        params = urllib.parse.urlencode({
+            'ids':       'ndvi_departamento',
+            'limit':     24,
+            'sort':      'desc',
+            'georef-lat': lat_c,
+            'georef-lon': lon_c,
+        })
+        data = _od_get(f"https://www.siia.gov.ar/series/api/series/?{params}", timeout=8)
+        if not data:
+            return None
+
+        series  = data.get('data', [])
+        valores = [r[1] for r in series
+                   if isinstance(r, list) and len(r) > 1 and r[1] is not None]
+        if not valores:
+            return None
+
+        media_regional = round(sum(valores) / len(valores), 4)
+        ndvi_act       = round(float(ndvi_actual), 4)
+        return {
+            "ndvi_actual":    ndvi_act,
+            "media_regional": media_regional,
+            "delta":          round(ndvi_act - media_regional, 4),
+        }
+    except Exception:
+        return None
+
+
+def od_flood_risk_srtm(area: dict) -> dict | None:
+    """
+    OD-2: Riesgo de inundación por pendiente SRTM30m.
+    Fuente: api.opentopodata.org/v1/srtm30m (pública, sin key).
+    Output: {"flood_risk": "high/low", "slope_avg": X}
+    """
+    try:
+        bounds = area.get('bounds')
+        if not bounds or len(bounds) < 4:
+            return None
+
+        lon_min, lat_min, lon_max, lat_max = bounds
+
+        # Grilla 3×3 de puntos para calcular pendiente
+        pts  = [(lat_min + (lat_max - lat_min) * i / 2,
+                 lon_min + (lon_max - lon_min) * j / 2)
+                for i in range(3) for j in range(3)]
+        locs = '|'.join(f"{round(la, 5)},{round(lo, 5)}" for la, lo in pts)
+
+        data = _od_get(
+            f"https://api.opentopodata.org/v1/srtm30m?locations={locs}",
+            timeout=15,
+        )
+        if not data or data.get('status') != 'OK':
+            return None
+
+        elevs = [r['elevation'] for r in data['results']
+                 if isinstance(r.get('elevation'), (int, float))]
+        if len(elevs) < 2:
+            return None
+
+        # Pendiente: rango_elevación / distancia diagonal del lote
+        delta_h = max(elevs) - min(elevs)
+        lat_km  = abs(lat_max - lat_min) * 111.0
+        lon_km  = abs(lon_max - lon_min) * 111.0 * math.cos(math.radians((lat_min + lat_max) / 2))
+        diag_m  = math.sqrt(lat_km ** 2 + lon_km ** 2) * 1000 or 1.0
+        slope   = round(delta_h / diag_m * 100, 3)  # % (m/m × 100)
+
+        return {
+            "flood_risk": "high" if slope < 1.0 else "low",
+            "slope_avg":  slope,
+        }
+    except Exception:
+        return None
+
+
+def od_water_balance_inia(area: dict) -> dict | None:
+    """
+    OD-3: Balance hídrico IBH para las coordenadas del lote.
+    Fuente: INIA GRAS gras.inia.uy datos abiertos.
+    Output: {"ibh": X, "water_status": "ok/stress/deficit"}
+    """
+    try:
+        center = area.get('center')
+        bounds = area.get('bounds')
+        if center and len(center) >= 2:
+            lat, lon = center[0], center[1]
+        elif bounds and len(bounds) >= 4:
+            lat = (bounds[1] + bounds[3]) / 2
+            lon = (bounds[0] + bounds[2]) / 2
+        else:
+            return None
+
+        params = urllib.parse.urlencode({
+            'lat':    round(lat, 4),
+            'lon':    round(lon, 4),
+            'format': 'json',
+        })
+        data = _od_get(f"https://gras.inia.uy/api/ibh?{params}", timeout=10)
+        if not data:
+            return None
+
+        ibh_raw = data.get('ibh') or data.get('value') or data.get('IBH')
+        if ibh_raw is None:
+            return None
+
+        ibh    = round(float(ibh_raw), 1)
+        status = "ok" if ibh >= -50 else ("stress" if ibh >= -100 else "deficit")
+        return {"ibh": ibh, "water_status": status}
+    except Exception:
+        return None
+
+
 def actualizar_data_json(area_name: str, stats: dict, sha256: str):
     """Actualiza data.json con los stats del pipeline para el área procesada."""
     data = {}
@@ -182,6 +337,10 @@ def main():
     parser.add_argument(
         '--client-uid', metavar='UID',
         help='UID Firebase del cliente (activa geofencing y verificación de cuota)'
+    )
+    parser.add_argument(
+        '--certificacion-detallada', action='store_true',
+        help='Activar módulos Open Data: NDVI benchmark SIIA, riesgo inundación SRTM, balance hídrico INIA'
     )
     args = parser.parse_args()
 
@@ -284,9 +443,39 @@ def main():
     else:
         print("[3/5] Vision omitida (--skip-vision)\n")
 
+    # ── Paso 3.5: Open Data (solo Certificación Detallada) ─────────────────
+    opendata_result: dict = {}
+    if args.certificacion_detallada:
+        print("[OD]  Consultando módulos Open Data...")
+        ndvi_bench = od_ndvi_benchmark(area, stats.get('ndvi_medio'))
+        flood_risk = od_flood_risk_srtm(area)
+        water_bal  = od_water_balance_inia(area)
+
+        opendata_result = {
+            "ndvi_benchmark":     ndvi_bench,
+            "flood_risk_srtm":    flood_risk,
+            "water_balance_inia": water_bal,
+        }
+
+        tag = lambda v: str(v) if v else "N/A"
+        print(f"  [OD-1] NDVI Benchmark    : {tag(ndvi_bench)}")
+        print(f"  [OD-2] Riesgo Inundación : {tag(flood_risk)}")
+        print(f"  [OD-3] Balance Hídrico   : {tag(water_bal)}")
+
+        od_path = Path(reporte_png).parent / f"faro_opendata_{area['name']}.json"
+        od_path.write_text(
+            json.dumps(opendata_result, indent=2, ensure_ascii=False),
+            encoding='utf-8',
+        )
+        print(f"  Open data guardado: {od_path.name}\n")
+
     # ── Paso 4: SHA-256 del reporte ─────────────────────────────
     print("[4/5] Calculando SHA-256 del reporte...")
-    digest    = sha256_archivo(reporte_png)
+    digest = (
+        sha256_con_opendata(reporte_png, opendata_result)
+        if opendata_result
+        else sha256_archivo(reporte_png)
+    )
     hash_path = Path(reporte_png).with_suffix('.sha256')
     hash_path.write_text(f"{digest}  {Path(reporte_png).name}\n", encoding='utf-8')
 
@@ -325,6 +514,17 @@ def main():
         print(f"  Clasificacion  : faro_clasificacion_{area['name']}.png")
     print(f"  Score Faro     : {insight.score_faro} / 100")
     print(f"  SHA-256        : {digest}")
+    if opendata_result:
+        print(f"  Cert. Detallada: faro_opendata_{area['name']}.json")
+        nb = opendata_result.get('ndvi_benchmark')
+        fr = opendata_result.get('flood_risk_srtm')
+        wb = opendata_result.get('water_balance_inia')
+        if nb:
+            print(f"    NDVI delta vs región : {nb['delta']:+.4f}")
+        if fr:
+            print(f"    Riesgo inundación    : {fr['flood_risk']} (slope {fr['slope_avg']}%)")
+        if wb:
+            print(f"    Balance hídrico IBH  : {wb['ibh']} → {wb['water_status']}")
     print(f"  data.json      : {DATA_JSON}")
     print("=" * 60 + "\n")
 
