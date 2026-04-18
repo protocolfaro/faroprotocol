@@ -1,13 +1,30 @@
 # FARO PROTOCOL — Guía para Claude Code
-> Última actualización: 2026-04-14 — V14 · Arquitectura Global · https://faro-protocol.netlify.app
+> Última actualización: 2026-04-18 — V15 · GitHub Pages · https://protocolfaro.github.io/faroprotocol
 > Webhook Railway: https://faroprotocol-production-45fd.up.railway.app
 > Tienda Lemon Squeezy: https://faroprotocol.lemonsqueezy.com
 > Arquitecto del sistema: Emilio (hijo)
 > Conocimiento de campo y contactos: Padre (fundador)
 
+## Hosting — V15 (2026-04-18)
+```
+✅ GitHub Pages: https://protocolfaro.github.io/faroprotocol (rama main, raíz /)
+⚠️  Netlify: suspendido por límite de créditos (era https://faro-protocol.netlify.app)
+✅ Railway webhook: activo 24/7
+```
+
+### Regla de oro — sincronización HTML
+Siempre editar `faro_website.html`. Nunca editar `index.html` directamente.
+El pre-commit hook `.git/hooks/pre-commit` copia automáticamente
+`faro_website.html` → `index.html` cada vez que se commitea el primero.
+```bash
+# El hook hace esto automáticamente al hacer git add faro_website.html + git commit
+cp faro_website.html index.html
+git add index.html
+```
+
 ---
 
-## Estado del sistema — V14 (2026-04-14) — Arquitectura Global
+## Estado del sistema — V15 (2026-04-18) — GitHub Pages
 
 ### Concepto fundamental
 El cliente NO elige de una lista predefinida. Dibuja en el visor 3D cualquier zona del planeta.
@@ -169,15 +186,17 @@ python faro_security_test.py --url https://faro-protocol.netlify.app
 
 ---
 
-## Railway + Lemon Squeezy — Estado (2026-04-14)
+## Railway + Lemon Squeezy — Estado (2026-04-18)
 
 ```
 ✅ Railway webhook live: https://faroprotocol-production-45fd.up.railway.app
 ✅ Lemon Squeezy tienda: https://faroprotocol.lemonsqueezy.com
 ✅ Producto Observer USD 2.500/mes creado
 ⏳ Analyst / Sovereign / Enterprise — pendiente crear en Lemon Squeezy
-⏳ Webhook URL en Lemon Squeezy — pendiente configurar
+⏳ One-Shot × 5 productos — pendiente crear en Lemon Squeezy
+⏳ Webhook URL en Lemon Squeezy → Railway — pendiente configurar
 ⏳ Conexión bancaria — pendiente
+⏳ CTAs del sitio apuntan a formulario, no a checkout Lemon Squeezy (pendiente lunes)
 ```
 
 **Variables de entorno Railway (.env o Railway Dashboard):**
@@ -193,7 +212,7 @@ PORT=5000
 
 ---
 
-## Firebase + Netlify — Estado (2026-04-14)
+## Firebase — Estado (2026-04-18)
 
 **Proyecto:** `faro-protocol-906a5`
 **Portal/Visor:** https://faro-protocol.netlify.app
