@@ -1,0 +1,9 @@
+*SAFE*
+*.zip
+*.csv
+*.tiff
+*.pdf
+sar_downloads/
+node_modules/
+.vercel/
+*.log

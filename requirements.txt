@@ -1,0 +1,4 @@
+groq
+pandas
+requests
+python-dotenv

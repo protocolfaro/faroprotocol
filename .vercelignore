@@ -1,0 +1,7 @@
+*.zip
+*.SAFE
+*.tiff
+*.jp2
+.venv
+venv
+__pycache__
