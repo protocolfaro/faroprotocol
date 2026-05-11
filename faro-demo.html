@@ -327,6 +327,20 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 <script>
 emailjs.init('yQRaM9DR4tf-FRvFk');
 
+// ── Suite API — actualizar con URL de Railway tras el deploy ──────────────
+const SUITE_API = 'https://faroprotocol.up.railway.app';
+
+// ── Coordenadas por tab ───────────────────────────────────────────────────
+const COORDS = {
+  agro:    {lat: -37.83, lon:  -58.25},
+  amb:     {lat:  -3.70, lon:  -55.03},
+  energia: {lat: -38.50, lon:  -69.50},
+  min:     {lat: -23.70, lon:  117.80},
+  oil:     {lat: -40.90, lon:  -63.00},
+  mar:     {lat:  51.90, lon:    4.50},
+  infra:   {lat: -40.90, lon:  -63.00},
+};
+
 // ── Plans ─────────────────────────────────────────────────────────────────
 const PLANS = {
   oneshot: { name:'ONE-SHOT',  desc_es:'Certificado único',  desc_en:'Single certificate', price:'USD 650',        ls:'2da90e2b-e7f3-43b5-a15c-cb970a64013b' },
@@ -483,6 +497,75 @@ const ZONES = {
   },
 };
 
+// ── Suite live data ───────────────────────────────────────────────────────
+const SUITE_META = {
+  SAR:         {l:'SAR',        u:'dB',      f:'value'},
+  NDVI:        {l:'NDVI',       u:'',        f:'value'},
+  TROPOMI_CH4: {l:'CH4',        u:'ppb',     f:'value'},
+  TROPOMI_NO2: {l:'NO2',        u:'mol/m²', f:'value'},
+  GNSS_R:      {l:'HUMEDAD SAR',u:'m³/m³', f:'soil_moisture'},
+  InSAR:       {l:'InSAR Δ',u:'mm',    f:'delta_mm'},
+  ALTIMETRY:   {l:'ALTIMETRÍA', u:'m', f:'nivel_m'},
+  CLOSDI:      {l:'CLOSDI',     u:'',        f:'value'},
+};
+
+function _metLive(sensor, d) {
+  const cfg   = SUITE_META[sensor] || {l:sensor, u:'', f:'value'};
+  const val   = d[cfg.f] !== undefined ? d[cfg.f] : '—';
+  const alert = d.alerta || '';
+  const fecha = d.fecha  || '';
+  const col   = alert ? ' style="color:#f97316"' : '';
+  const colS  = alert ? ' style="color:#f97316;font-weight:500"' : '';
+  const uSpan = cfg.u ? ' <span style="font-size:10px;opacity:.45">' + cfg.u + '</span>' : '';
+  const div   = document.createElement('div');
+  div.className = 'met met-live';
+  div.innerHTML =
+    '<div class="met-l">' + cfg.l + '</div>' +
+    '<div class="met-v"' + col + '>' + val + uSpan + '</div>' +
+    (alert ? '<div class="met-s"' + colS + '>' + alert + '</div>' : '<div class="met-s"></div>') +
+    '<div class="met-src">LIVE' + (fecha ? ' · ' + fecha : '') + '</div>';
+  return div;
+}
+
+function loadSuiteData(tab) {
+  const c = COORDS[tab];
+  if (!c) return;
+  const grid = document.getElementById('p-mets');
+  grid.querySelectorAll('.met-live').forEach(el => el.remove());
+
+  const loadEl = document.createElement('div');
+  loadEl.className = 'met met-live';
+  loadEl.id = 'suite-load';
+  loadEl.style.gridColumn = '1/-1';
+  loadEl.innerHTML =
+    '<div class="met-l" style="letter-spacing:.14em">SENSORES EN VIVO</div>' +
+    '<div class="met-v" style="font-size:11px;color:var(--dim)" id="suite-load-v">conectando…</div>';
+  grid.appendChild(loadEl);
+
+  const ctrl = new AbortController();
+  const tid  = setTimeout(() => ctrl.abort(), 35000);
+
+  fetch(SUITE_API + '/api/suite', {
+    method : 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body   : JSON.stringify({lat: c.lat, lon: c.lon, sector: tab}),
+    signal : ctrl.signal,
+  })
+  .then(r => { clearTimeout(tid); return r.ok ? r.json() : Promise.reject(r.status); })
+  .then(data => {
+    const el = document.getElementById('suite-load');
+    if (el) el.remove();
+    if (!data || !data.sensores) return;
+    Object.entries(data.sensores).forEach(([sensor, d]) => {
+      if (d) grid.appendChild(_metLive(sensor, d));
+    });
+  })
+  .catch(() => {
+    const v = document.getElementById('suite-load-v');
+    if (v) { v.textContent = 'offline'; v.style.opacity = '.4'; }
+  });
+}
+
 // ── State ─────────────────────────────────────────────────────────────────
 let lang      = 'es';
 let activeTab = 'agro';
@@ -570,6 +653,7 @@ function renderTab(tab){
   planP = defaultPlan(tab);
   document.getElementById('p-plans').innerHTML = Object.keys(PLANS).map(k=>planHTML(k,planP,'p-plans')).join('');
   updateCta();
+  loadSuiteData(tab);
 }
 
 function updateCta(){
