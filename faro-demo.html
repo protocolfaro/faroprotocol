@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FARO · Terminal de Auditoría Satelital</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,500;0,700;1,300&family=Epilogue:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#06080b;--bg2:#0d1117;
+  --border:rgba(255,255,255,0.06);
+  --w:#f2ede4;--dim:#4a5568;
+  --gold:#c9a84c;--gl:#e2c97e;
+  --serif:'Cormorant Garamond',serif;
+  --sans:'Epilogue',sans-serif;
+  --mono:'JetBrains Mono',monospace;
+}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--w);font-family:var(--sans);-webkit-font-smoothing:antialiased;}
+*{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.07) transparent;}
+*::-webkit-scrollbar{width:2px;}
+*::-webkit-scrollbar-thumb{background:rgba(255,255,255,.09);}
+
+/* ── HEADER ── */
+#hdr{
+  position:fixed;top:0;left:0;right:0;height:48px;z-index:100;
+  display:grid;grid-template-columns:auto 1fr auto;align-items:center;
+  background:rgba(6,8,11,.97);border-bottom:1px solid var(--border);
+  backdrop-filter:blur(8px);
+}
+#hdr-left{display:flex;align-items:center;gap:12px;padding:0 16px;white-space:nowrap;}
+.hdr-logo{font-family:var(--serif);font-size:18px;font-weight:700;color:var(--gold);letter-spacing:.14em;}
+.hdr-sep{width:1px;height:20px;background:var(--border);flex-shrink:0;}
+.hdr-tag{font-size:9px;letter-spacing:.18em;color:var(--dim);text-transform:uppercase;}
+
+/* ── TABS ── */
+#hdr-tabs{display:flex;align-items:stretch;height:100%;overflow-x:auto;scrollbar-width:none;justify-content:center;}
+#hdr-tabs::-webkit-scrollbar{display:none;}
+.tab-btn{
+  display:flex;align-items:center;gap:5px;padding:0 14px;height:100%;
+  background:none;border:none;border-bottom:2px solid transparent;
+  color:var(--dim);font-family:var(--mono);font-size:10px;
+  letter-spacing:.1em;text-transform:uppercase;
+  cursor:pointer;white-space:nowrap;transition:color .2s,border-color .2s;flex-shrink:0;
+}
+.tab-btn:hover{color:var(--w);}
+.tab-btn.active{color:var(--gold);border-bottom-color:var(--gold);}
+
+/* ── HEADER RIGHT ── */
+#hdr-right{display:flex;align-items:center;gap:10px;padding:0 16px;white-space:nowrap;}
+#clock{font-size:9px;color:var(--dim);letter-spacing:.05em;}
+.hdr-pulse{width:5px;height:5px;border-radius:50%;background:#4ade80;box-shadow:0 0 5px #4ade80;animation:blink 2s infinite;flex-shrink:0;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.3;}}
+#btn-lang{font-family:var(--mono);font-size:11px;color:var(--w);background:none;border:1px solid var(--gold);padding:5px 12px;cursor:pointer;letter-spacing:.1em;transition:all .2s;}
+#btn-lang:hover{background:rgba(201,168,76,.1);}
+#btn-audit{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--bg);background:var(--gold);border:none;padding:7px 16px;cursor:pointer;transition:background .2s;white-space:nowrap;}
+#btn-audit:hover{background:var(--gl);}
+
+/* ── MAIN PANEL ── */
+#panel{position:fixed;top:48px;left:0;right:0;bottom:0;display:grid;grid-template-columns:55% 45%;overflow:hidden;}
+
+/* ── LEFT ── */
+#panel-left{display:flex;flex-direction:column;height:100%;border-right:1px solid var(--border);overflow:hidden;}
+#p-info{padding:16px 20px 10px;flex-shrink:0;position:relative;z-index:2;background:var(--bg);}
+#p-sector{font-size:18px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);font-weight:700;margin-bottom:4px;font-family:var(--mono);}
+#p-name{font-family:var(--serif);font-size:28px;font-weight:500;line-height:1;color:var(--w);margin-bottom:3px;}
+#p-reg{font-size:11px;color:var(--dim);letter-spacing:.04em;}
+#p-alert{margin:0 20px 10px;padding:8px 12px;background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.3);font-size:9px;color:#ef4444;line-height:1.5;display:none;flex-shrink:0;position:relative;z-index:2;background:rgba(239,68,68,.07);}
+#p-score-row{display:flex;align-items:center;gap:14px;padding:6px 20px 6px;flex-shrink:0;position:relative;z-index:2;background:var(--bg);}
+#p-score{font-size:clamp(32px,4vw,48px);font-weight:700;line-height:1;font-variant-numeric:tabular-nums;font-family:var(--mono);}
+#p-score-meta{display:flex;flex-direction:column;gap:5px;}
+#p-slbl{font-size:8px;letter-spacing:.14em;color:var(--dim);}
+#p-badge{font-size:9px;padding:2px 9px;letter-spacing:.1em;text-transform:uppercase;border:1px solid;display:inline-block;}
+#p-img-wrap{flex:1;min-height:0;position:relative;overflow:hidden;}
+#p-img{width:100%;height:100%;display:block;object-fit:cover;object-position:center center;background:#06080b;}
+#p-sha{padding:5px 20px 6px;border-top:1px solid var(--border);flex-shrink:0;}
+#p-sha-v{font-size:8.5px;color:rgba(255,255,255,.22);word-break:break-all;font-family:var(--mono);}
+#p-sha-d{font-size:7.5px;color:var(--dim);margin-top:2px;}
+
+/* ── RIGHT ── */
+#panel-right{display:flex;flex-direction:column;height:100%;overflow:hidden;}
+#panel-right-body{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:10px;}
+#p-cta-footer{padding:14px 20px;border-top:1px solid var(--border);background:var(--bg2);flex-shrink:0;}
+
+/* ── METRICS ── */
+#p-mets{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border:1px solid var(--border);flex-shrink:0;}
+.met{padding:12px;background:var(--bg2);}
+.met-l{font-size:10px;letter-spacing:.12em;color:#6b7280;text-transform:uppercase;margin-bottom:6px;}
+.met-v{font-size:20px;font-weight:700;line-height:1.1;}
+.met-s{font-size:11px;color:var(--dim);margin-top:3px;}
+
+/* ── ROI ── */
+#p-roi{padding:16px;border:1px solid rgba(201,168,76,.2);background:rgba(201,168,76,.04);flex-shrink:0;display:none;}
+#p-roi-lbl{font-size:8px;letter-spacing:.2em;color:var(--dim);text-transform:uppercase;margin-bottom:8px;}
+#p-roi-x{font-size:42px;font-weight:700;color:var(--gold);line-height:1;}
+#p-roi-usd{font-size:13px;color:var(--w);margin-top:4px;font-weight:600;}
+#p-roi-tag{font-size:9px;color:var(--dim);margin-top:3px;letter-spacing:.06em;}
+
+/* ── SEPARATOR ── */
+.sep{height:1px;background:var(--border);flex-shrink:0;}
+
+/* ── PLANS ── */
+#p-plans-lbl{font-size:8px;letter-spacing:.2em;color:var(--dim);text-transform:uppercase;flex-shrink:0;}
+#p-plans{display:flex;flex-direction:column;gap:2px;flex-shrink:0;}
+.plan-opt{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;background:#0d1520;border:.5px solid #1e2d42;cursor:pointer;transition:border-color .18s,background .18s;}
+.plan-opt:hover{border-color:var(--gold);}
+.plan-opt.sel{background:rgba(201,168,76,.1);border-color:var(--gold);}
+.po-radio{flex-shrink:0;width:11px;height:11px;margin-top:3px;border-radius:50%;border:1.5px solid #2a3547;position:relative;transition:border-color .18s;}
+.plan-opt:hover .po-radio,.plan-opt.sel .po-radio{border-color:#22d3ee;}
+.plan-opt.sel .po-radio::after{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:5px;height:5px;border-radius:50%;background:#22d3ee;}
+.po-inf{flex:1;min-width:0;}
+.po-name{font-size:11px;font-weight:700;letter-spacing:.05em;color:var(--dim);line-height:1.2;transition:color .18s;}
+.plan-opt.sel .po-name,.plan-opt.sel .po-price{color:var(--gold);}
+.po-price{color:var(--dim);}
+.po-desc{font-size:8.5px;color:var(--dim);margin-top:2px;opacity:.7;}
+
+/* ── CTA ── */
+#p-cta{width:100%;padding:13px;background:var(--gold);color:var(--bg);border:none;cursor:pointer;font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;transition:background .2s;}
+#p-cta:hover{background:var(--gl);}
+
+/* ── MODAL BASE ── */
+.overlay{position:fixed;inset:0;z-index:300;display:flex;align-items:flex-start;justify-content:center;padding:28px 12px;overflow-y:auto;background:rgba(0,0,0,.75);opacity:0;pointer-events:none;transition:opacity .22s;}
+.overlay.open{opacity:1;pointer-events:auto;}
+.modal-box{width:460px;max-width:96vw;background:var(--bg2);border:1px solid var(--gold);padding:28px;position:relative;}
+.modal-cls{position:absolute;top:12px;right:14px;background:none;border:none;color:var(--dim);font-family:var(--mono);font-size:15px;cursor:pointer;transition:color .2s;}
+.modal-cls:hover{color:var(--w);}
+.modal-box h2{font-family:var(--serif);font-size:22px;font-weight:500;color:var(--gold);margin-bottom:4px;}
+.modal-box p.sub{font-size:9px;color:var(--dim);letter-spacing:.06em;margin-bottom:18px;line-height:1.75;}
+.mf{margin-bottom:12px;}
+.mf label{display:block;font-size:8px;letter-spacing:.18em;color:var(--dim);text-transform:uppercase;margin-bottom:4px;}
+.mf input,.mf select,.mf textarea{width:100%;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);color:var(--w);font-family:var(--mono);font-size:10px;padding:8px 10px;outline:none;transition:border-color .2s;}
+.mf input:focus,.mf select:focus,.mf textarea:focus{border-color:rgba(201,168,76,.45);}
+.mf select option{background:#0c0f15;}
+.mf textarea{resize:vertical;min-height:60px;}
+.field-err{border-color:#ef4444 !important;}
+.modal-sub{width:100%;padding:11px;margin-top:4px;background:var(--gold);color:var(--bg);border:none;cursor:pointer;font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;transition:background .2s;}
+.modal-sub:hover{background:var(--gl);}
+.modal-sub.sending{opacity:.55;pointer-events:none;}
+.modal-ctx{display:none;margin-bottom:14px;padding:7px 11px;border:1px solid rgba(201,168,76,.25);background:rgba(201,168,76,.05);font-size:9px;color:var(--gold);letter-spacing:.1em;}
+.modal-success{display:none;padding:28px 0 8px;text-align:center;}
+.modal-success .ok{font-size:30px;color:#4ade80;margin-bottom:12px;text-shadow:0 0 20px rgba(74,222,128,.4);}
+.modal-success p{font-size:10px;color:var(--dim);line-height:1.8;letter-spacing:.05em;}
+.modal-success strong{color:var(--w);font-weight:600;}
+.btn-ok{margin-top:20px;padding:9px 26px;background:none;border:1px solid rgba(255,255,255,.15);color:var(--dim);font-family:var(--mono);font-size:9px;letter-spacing:.14em;cursor:pointer;transition:all .2s;}
+.btn-ok:hover{color:var(--w);border-color:rgba(255,255,255,.35);}
+
+/* ── AUDIT MODAL EXTRAS ── */
+#audit-modal{width:500px;}
+#audit-loading{display:none;padding:32px 0;text-align:center;}
+.spin{width:36px;height:36px;border-radius:50%;margin:0 auto 16px;border:2px solid var(--border);border-top-color:var(--gold);animation:sp .9s linear infinite;}
+@keyframes sp{to{transform:rotate(360deg);}}
+#audit-loading p{font-size:10px;color:var(--dim);letter-spacing:.1em;}
+#audit-result{display:none;}
+#audit-res-lbl{font-size:8px;letter-spacing:.2em;color:var(--dim);text-transform:uppercase;margin-bottom:6px;}
+#audit-res-score{font-size:52px;font-weight:700;line-height:1;margin-bottom:10px;}
+#audit-res-text{font-size:10px;color:var(--dim);line-height:1.8;margin-bottom:14px;}
+#audit-res-cta{width:100%;padding:11px;background:var(--gold);color:var(--bg);border:none;cursor:pointer;font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;transition:background .2s;}
+#audit-res-cta:hover{background:var(--gl);}
+
+/* ── MOBILE ── */
+@media(max-width:768px){
+  html,body{overflow:auto;height:auto;}
+  #panel{position:relative;top:auto;grid-template-columns:1fr;height:auto;overflow:visible;}
+  #panel-left{height:auto;overflow:visible;}
+  #p-img-wrap{height:45vh;flex:none;}
+  #panel-right{height:auto;overflow:visible;}
+  #panel-right-body{overflow:visible;}
+  body{padding-top:48px;}
+  #hdr{grid-template-columns:auto 1fr auto;}
+  #hdr-tabs{justify-content:flex-start;}
+  .tab-btn{padding:0 10px;font-size:9px;}
+  .hdr-tag{display:none;}
+  #hdr-right{gap:6px;}
+  #p-score{font-size:clamp(48px,14vw,72px);}
+  #panel-right-body{padding:16px;}
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header id="hdr">
+  <div id="hdr-left">
+    <span class="hdr-logo">FARO</span>
+    <div class="hdr-sep"></div>
+    <span class="hdr-tag" data-es="Terminal de Auditoría Satelital" data-en="Satellite Audit Terminal">Terminal de Auditoría Satelital</span>
+  </div>
+  <div id="hdr-tabs">
+    <button class="tab-btn active" data-tab="agro">⚡ <span data-es="AGRO" data-en="AGRO">AGRO</span></button>
+    <button class="tab-btn" data-tab="amb">🌿 <span data-es="AMBIENTAL" data-en="ENVIRONMENTAL">AMBIENTAL</span></button>
+    <button class="tab-btn" data-tab="energia">🔥 <span data-es="ENERGÍA" data-en="ENERGY">ENERGÍA</span></button>
+    <button class="tab-btn" data-tab="min">⛏ <span data-es="MINERÍA" data-en="MINING">MINERÍA</span></button>
+    <button class="tab-btn" data-tab="oil">⛽ <span data-es="OIL &amp; GAS" data-en="OIL &amp; GAS">OIL &amp; GAS</span></button>
+    <button class="tab-btn" data-tab="mar">🚢 <span data-es="MARÍTIMO" data-en="MARITIME">MARÍTIMO</span></button>
+    <button class="tab-btn" data-tab="infra">🏗 <span data-es="INFRAESTRUCTURA" data-en="INFRASTRUCTURE">INFRAESTRUCTURA</span></button>
+  </div>
+  <div id="hdr-right">
+    <div class="hdr-pulse"></div>
+    <span id="clock">--:--:-- UTC</span>
+    <div class="hdr-sep"></div>
+    <button id="btn-lang">EN</button>
+    <button id="btn-audit" data-es="AUDITÁ TU ZONA" data-en="AUDIT YOUR ZONE">AUDITÁ TU ZONA</button>
+  </div>
+</header>
+
+<!-- MAIN PANEL (single, populated by JS) -->
+<div id="panel">
+  <div id="panel-left">
+    <div id="p-info">
+      <div id="p-sector"></div>
+      <div id="p-name"></div>
+      <div id="p-reg"></div>
+    </div>
+    <div id="p-alert"></div>
+    <div id="p-score-row">
+      <span id="p-score"></span>
+      <div id="p-score-meta">
+        <div id="p-slbl" data-es="ÍNDICE FARO" data-en="FARO INDEX">ÍNDICE FARO</div>
+        <div id="p-badge"></div>
+      </div>
+    </div>
+    <div id="p-img-wrap">
+      <img id="p-img" src="" alt="">
+    </div>
+    <div id="p-sha">
+      <div id="p-sha-v"></div>
+      <div id="p-sha-d"></div>
+    </div>
+  </div>
+  <div id="panel-right">
+    <div id="panel-right-body">
+      <div id="p-roi">
+        <div id="p-roi-lbl" data-es="RETORNO ESTIMADO" data-en="ESTIMATED RETURN">RETORNO ESTIMADO</div>
+        <div id="p-roi-x"></div>
+        <div id="p-roi-usd"></div>
+        <div id="p-roi-tag" data-es="El servicio se paga solo" data-en="The service pays for itself">El servicio se paga solo</div>
+      </div>
+      <div class="sep"></div>
+      <div id="p-plans-lbl" data-es="SELECCIONAR PLAN" data-en="SELECT PLAN">SELECCIONAR PLAN</div>
+      <div id="p-plans"></div>
+      <div id="p-min-text" style="display:none;font-size:11px;color:var(--dim);line-height:1.9;padding:6px 0;">
+        Monitoreo de stockpiles · Control volumétrico satelital<br>
+        Riesgos geotécnicos · Delta SAR milimétrico<br>
+        Cumplimiento ambiental · Trazabilidad SHA-256
+      </div>
+      <div id="p-mets"></div>
+    </div>
+    <div id="p-cta-footer">
+      <button id="p-cta" onclick="doCta()"></button>
+    </div>
+  </div>
+</div>
+
+<!-- REQUEST MODAL (EmailJS) -->
+<div id="req-overlay" class="overlay">
+  <div class="modal-box">
+    <button class="modal-cls" onclick="closeReq()">✕</button>
+    <div id="req-form">
+      <h2 data-es="Solicitar Auditoría" data-en="Request Audit">Solicitar Auditoría</h2>
+      <p class="sub" data-es="El pipeline satelital analiza cualquier zona. Datos SAR + NDVI + Score certificado en ~24 horas." data-en="The satellite pipeline analyzes any zone. Certified SAR + NDVI + Score data in ~24 hours.">El pipeline satelital analiza cualquier zona. Datos SAR + NDVI + Score certificado en ~24 horas.</p>
+      <div id="req-ctx" class="modal-ctx"></div>
+      <div class="mf"><label data-es="NOMBRE O EMPRESA" data-en="NAME OR COMPANY">NOMBRE O EMPRESA</label><input type="text" id="req-name" placeholder="Empresa SA"></div>
+      <div class="mf"><label>EMAIL</label><input type="email" id="req-email" placeholder="contacto@empresa.com"></div>
+      <div class="mf">
+        <label data-es="SECTOR" data-en="SECTOR">SECTOR</label>
+        <select id="req-sector">
+          <option value="agro">Agricultura / Ganadería</option>
+          <option value="energia">Energía / Oil &amp; Gas</option>
+          <option value="mineria">Minería</option>
+          <option value="maritimo">Marítimo / Logística</option>
+          <option value="ambiental">Ambiental / ESG</option>
+        </select>
+      </div>
+      <div class="mf"><label data-es="ZONA A ANALIZAR" data-en="ZONE TO ANALYZE">ZONA A ANALIZAR</label><textarea id="req-desc" placeholder="País, provincia, coordenadas o referencia geográfica..."></textarea></div>
+      <div class="mf">
+        <div style="font-size:8px;letter-spacing:.18em;color:var(--dim);text-transform:uppercase;margin-bottom:6px;" data-es="PLAN" data-en="PLAN">PLAN</div>
+        <div id="req-plans" style="display:flex;flex-direction:column;gap:2px;"></div>
+      </div>
+      <button class="modal-sub" id="req-sub" onclick="submitReq()">ENVIAR SOLICITUD →</button>
+    </div>
+    <div class="modal-success" id="req-success">
+      <div class="ok">✓</div>
+      <p>Solicitud recibida.<br><strong>Te contactamos en menos de 24 horas.</strong></p>
+      <button class="btn-ok" onclick="closeReq()">CERRAR</button>
+    </div>
+  </div>
+</div>
+
+<!-- AUDIT MODAL -->
+<div id="audit-overlay" class="overlay">
+  <div class="modal-box" id="audit-modal">
+    <button class="modal-cls" onclick="closeAudit()">✕</button>
+    <div id="audit-form">
+      <h2 data-es="Auditá tu Zona" data-en="Audit Your Zone">Auditá tu Zona</h2>
+      <p class="sub" data-es="Ingresá una ubicación. Analizamos con Sentinel-2 + S-1 GRD en tiempo real." data-en="Enter a location. We analyze with Sentinel-2 + S-1 GRD in real time.">Ingresá una ubicación. Analizamos con Sentinel-2 + S-1 GRD en tiempo real.</p>
+      <div class="mf"><label data-es="UBICACIÓN / COORDENADAS" data-en="LOCATION / COORDINATES">UBICACIÓN / COORDENADAS</label><input type="text" id="audit-loc" placeholder="-37.5, -58.3  ó  Balcarce, Buenos Aires"></div>
+      <div class="mf">
+        <label data-es="SECTOR" data-en="SECTOR">SECTOR</label>
+        <select id="audit-sector">
+          <option value="agro">Agricultura / Ganadería</option>
+          <option value="energia">Energía / Oil &amp; Gas</option>
+          <option value="mineria">Minería</option>
+          <option value="maritimo">Marítimo / Logística</option>
+          <option value="ambiental">Ambiental / ESG</option>
+          <option value="infra">Infraestructura</option>
+        </select>
+      </div>
+      <div class="mf"><label data-es="NOMBRE O EMPRESA" data-en="NAME OR COMPANY">NOMBRE O EMPRESA</label><input type="text" id="audit-name" placeholder="Empresa SA"></div>
+      <div class="mf"><label>EMAIL</label><input type="email" id="audit-email" placeholder="contacto@empresa.com"></div>
+      <button class="modal-sub" id="audit-sub" onclick="submitAudit()">ANALIZAR ZONA →</button>
+    </div>
+    <div id="audit-loading">
+      <div class="spin"></div>
+      <p data-es="Procesando Sentinel-2..." data-en="Processing Sentinel-2...">Procesando Sentinel-2...</p>
+    </div>
+    <div id="audit-result">
+      <div id="audit-res-lbl">ÍNDICE FARO — ESTIMADO</div>
+      <div id="audit-res-score"></div>
+      <div id="audit-res-text"></div>
+      <button id="audit-res-cta" onclick="auditToCta()">SOLICITAR ANÁLISIS COMPLETO →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+emailjs.init('yQRaM9DR4tf-FRvFk');
+
+// ── Plans ─────────────────────────────────────────────────────────────────
+const PLANS = {
+  oneshot: { name:'ONE-SHOT',  desc_es:'Certificado único',  desc_en:'Single certificate', price:'USD 650',        ls:'2da90e2b-e7f3-43b5-a15c-cb970a64013b' },
+  observer:{ name:'OBSERVER',  desc_es:'Monitoreo semanal',  desc_en:'Weekly monitoring',   price:'USD 2.500/mes',  ls:'512c6c4c-b2ab-48af-9465-d6d9804e0332' },
+  analyst: { name:'ANALYST',   desc_es:'3 zonas · Alertas',  desc_en:'3 zones · Alerts',    price:'USD 9.000/mes',  ls:'b19274c2-6883-4898-9330-a13fabe6eee8' },
+  sovereign:{ name:'SOVEREIGN',desc_es:'Ilimitado · Legal',  desc_en:'Unlimited · Legal',   price:'USD 17.000/mes', ls:'c740d1ea-95dd-470e-8448-495874223c3d' },
+};
+
+// ── Zones (datos reales de data.json) ─────────────────────────────────────
+const ZONES = {
+  agro:{
+    sector_es:'AGRO', sector_en:'AGRO',
+    name:'Balcarce', reg:'Buenos Aires, AR · 37°50\'S 58°15\'W',
+    score:69.5, ndvi:0.533, sar_db:'+15.48', fusion:0.76,
+    roi_usd:50040, roi_x:6.7,
+    badge_es:'ÓPTIMO', badge_en:'OPTIMAL',
+    alert_es:null, alert_en:null,
+    img:'faro_reporte_fusion_balcarce.png',
+    sha:'5233ec238815393a6e98fdb11b42a9f86574df9586258b16c34980f26f4a8f7d',
+    src:'Sentinel-2 L2A + S-1 GRD', date:'2026-04-08',
+    mets:[
+      {l_es:'NDVI',       l_en:'NDVI',       v:'0.533',    s_es:'vigor vegetal alto',  s_en:'high veg. vigor',   c:'#00ff41'},
+      {l_es:'SAR (dB)',   l_en:'SAR (dB)',   v:'+15.48',   s_es:'reflectividad alta',  s_en:'high backscatter'},
+      {l_es:'FUSIÓN',     l_en:'FUSION',     v:'0.76',     s_es:'índice integrado',    s_en:'integrated index'},
+      {l_es:'RINDE EST.', l_en:'EST. YIELD', v:'2.8 t/ha', s_es:'+12% vs. provincia', s_en:'+12% vs. province', c:'#00ff41'},
+      {l_es:'PRECIP. 7d', l_en:'PRECIP. 7d', v:'18.4 mm',  s_es:'normal',              s_en:'normal'},
+      {l_es:'ÁREA',       l_en:'AREA',       v:'12.400 ha',s_es:'monitoreada',          s_en:'monitored'},
+    ]
+  },
+  amb:{
+    sector_es:'AMBIENTAL', sector_en:'ENVIRONMENTAL',
+    name:'Amazonas', reg:'Pará, BR · 3°42\'S 55°02\'W',
+    score:66.3, ndvi:0.283, sar_db:'-5.38', fusion:0.61,
+    roi_usd:null, roi_x:null,
+    badge_es:'MONITOREO', badge_en:'MONITORING',
+    alert_es:'Deforestación activa — 1.240 ha en 30 días',
+    alert_en:'Active deforestation — 1,240 ha in 30 days',
+    img:'faro_reporte_fusion_amazonas.png',
+    sha:'22dbb6ac3400bf0935251210f6067f5bdc5e4e3033edebbbe73eea518639e05b',
+    src:'Sentinel-2 L2A + S-1 GRD', date:'2026-04-07',
+    mets:[
+      {l_es:'NDVI',      l_en:'NDVI',       v:'0.283',    s_es:'dosel parcial',    s_en:'partial canopy',  c:'#22d3ee'},
+      {l_es:'SAR (dB)',  l_en:'SAR (dB)',   v:'-5.38',    s_es:'biomasa alta',     s_en:'high biomass'},
+      {l_es:'FUSIÓN',    l_en:'FUSION',     v:'0.61',     s_es:'índice integrado', s_en:'integrated index'},
+      {l_es:'ACTIVIDAD', l_en:'ACTIVITY',   v:'84.1',     s_es:'índice SAR',       s_en:'SAR index',       c:'#22d3ee'},
+      {l_es:'DEFOREST.', l_en:'DEFOREST.',  v:'1.240 ha', s_es:'últimos 30 días',  s_en:'last 30 days',    c:'#ef4444'},
+      {l_es:'ÁREA',      l_en:'AREA',       v:'89.200 ha',s_es:'monitoreada',       s_en:'monitored'},
+    ]
+  },
+  energia:{
+    sector_es:'ENERGÍA', sector_en:'ENERGY',
+    name:'Vaca Muerta', reg:'Neuquén, AR · 38°30\'S 69°30\'W',
+    score:42.1, ndvi:0.094, sar_db:'-10.41', fusion:0.42,
+    roi_usd:null, roi_x:null,
+    badge_es:'ACTIVO', badge_en:'ACTIVE',
+    alert_es:null, alert_en:null,
+    img:'faro_reporte_fusion_vaca_muerta.png',
+    sha:'fd2a23ebe1b3759b993951f7f8360bb7d9b8f4892cef63a0753db25fb6655e6a',
+    src:'Sentinel-1 GRD', date:'2026-04-07',
+    mets:[
+      {l_es:'NDVI',        l_en:'NDVI',         v:'0.094',     s_es:'zona árida',       s_en:'arid zone'},
+      {l_es:'SAR (dB)',    l_en:'SAR (dB)',      v:'-10.41',    s_es:'superficie seca',  s_en:'dry surface'},
+      {l_es:'FUSIÓN',      l_en:'FUSION',        v:'0.42',      s_es:'índice integrado', s_en:'integrated index'},
+      {l_es:'ACTIVIDAD',   l_en:'ACTIVITY',      v:'50.6',      s_es:'índice operativo', s_en:'operational index', c:'#f97316'},
+      {l_es:'POZOS ACT.',  l_en:'ACTIVE WELLS',  v:'847',       s_es:'en producción',    s_en:'in production',     c:'#f59e0b'},
+      {l_es:'ÁREA',        l_en:'AREA',          v:'34.100 ha', s_es:'concesión',        s_en:'concession'},
+    ]
+  },
+  min:{
+    sector_es:'MINERÍA', sector_en:'MINING',
+    name:'Pilbara', reg:'Australia Occidental · 23°42\'S 117°48\'E',
+    score:61.4, ndvi:0.112, sar_db:'−8.43', fusion:0.61,
+    roi_usd:null, roi_x:null,
+    badge_es:'ACTIVO', badge_en:'ACTIVE', badgeColor:'#f97316',
+    alert_es:null, alert_en:null,
+    img:'faro_reporte_fusion_pilbara.png',
+    sha:'a3f8c2b4d91e76053f2a8e41c90d5b6872fe3140c96a8df2b7051e4c3a9d82f1',
+    src:'Sentinel-1 GRD · SAR minería · Pilbara', date:'2026-04-06',
+    mets:[
+      {l_es:'NDVI',      l_en:'NDVI',      v:'0.112',     s_es:'zona árida',                s_en:'arid zone'},
+      {l_es:'SAR (dB)',  l_en:'SAR (dB)',  v:'−8.43',     s_es:'reflectividad media',        s_en:'medium backscatter'},
+      {l_es:'FUSIÓN',    l_en:'FUSION',    v:'0.61',      s_es:'índice integrado',           s_en:'integrated index'},
+      {l_es:'ACTIVIDAD', l_en:'ACTIVITY',  v:'61.4',      s_es:'índice operativo',           s_en:'operational index',           c:'#f97316'},
+      {l_es:'ÁREA',      l_en:'AREA',      v:'42.800 ha', s_es:'concesión minera',           s_en:'mining concession'},
+      {l_es:'DELTA SAR', l_en:'SAR DELTA', v:'2.1 mm',    s_es:'movimiento suelo detectado', s_en:'ground displacement detected'},
+    ]
+  },
+  oil:{
+    sector_es:'OIL & GAS', sector_en:'OIL & GAS',
+    name:'Punta Colorada', reg:'Río Negro, AR · 40°54\'S 63°00\'W',
+    score:41.2, ndvi:0.098, sar_db:'-11.70', fusion:0.51,
+    roi_usd:null, roi_x:null,
+    badge_es:'ACTIVO', badge_en:'ACTIVE',
+    alert_es:null, alert_en:null,
+    img:'faro_reporte_fusion_punta_colorada.png',
+    sha:'55f69af4dd11972ab9f9a95b8150ecdd95cb50ed7e6c86d2aac2040f72a8ebef',
+    src:'Sentinel-1 GRD + S-2 L2A', date:'2026-04-09',
+    mets:[
+      {l_es:'NDVI',       l_en:'NDVI',      v:'0.098',     s_es:'zona árida',          s_en:'arid zone'},
+      {l_es:'SAR (dB)',   l_en:'SAR (dB)',  v:'-11.70',    s_es:'reflectividad media', s_en:'medium backscatter'},
+      {l_es:'FUSIÓN',     l_en:'FUSION',    v:'0.51',      s_es:'índice integrado',    s_en:'integrated index'},
+      {l_es:'ACTIVIDAD',  l_en:'ACTIVITY',  v:'42.0',      s_es:'índice operativo',    s_en:'operational index', c:'#f97316'},
+      {l_es:'ÁREA',       l_en:'AREA',      v:'18.600 ha', s_es:'concesión',           s_en:'concession',        c:'#a78bfa'},
+      {l_es:'PRECIP. 7d', l_en:'PRECIP. 7d',v:'1.8 mm',   s_es:'seco',                s_en:'dry'},
+    ]
+  },
+  mar:{
+    sector_es:'MARÍTIMO', sector_en:'MARITIME',
+    name:'Rotterdam', reg:'Zuid-Holland, NL · 51°54\'N 4°30\'E',
+    score:38.3, ndvi:0.280, sar_db:'-11.96', fusion:0.45,
+    roi_usd:null, roi_x:null,
+    badge_es:'ACTIVO', badge_en:'ACTIVE',
+    alert_es:null, alert_en:null,
+    img:'faro_reporte_fusion_rotterdam.png',
+    sha:'99fa9be2368cc7c9265b917d5f1b9148e3e86d6e97ba461d5b795a5fcb28c9f9',
+    src:'Sentinel-1 GRD · SAR marítimo', date:'2026-04-07',
+    mets:[
+      {l_es:'NDVI',        l_en:'NDVI',      v:'0.280',  s_es:'zona portuaria',     s_en:'port area'},
+      {l_es:'SAR (dB)',    l_en:'SAR (dB)',  v:'-11.96', s_es:'superficie acuática',s_en:'water surface'},
+      {l_es:'FUSIÓN',      l_en:'FUSION',    v:'0.45',   s_es:'índice integrado',   s_en:'integrated index'},
+      {l_es:'ACTIVIDAD',   l_en:'ACTIVITY',  v:'40.2',   s_es:'tráfico AIS',        s_en:'AIS traffic',   c:'#60a5fa'},
+      {l_es:'OLE. SIGNIF.',l_en:'WAVE HT.',  v:'1.2 m',  s_es:'mar calmo',          s_en:'calm sea',      c:'#60a5fa'},
+      {l_es:'VIENTO',      l_en:'WIND',      v:'32 km/h',s_es:'W · F4',             s_en:'W · F4'},
+    ]
+  },
+  infra:{
+    sector_es:'INFRAESTRUCTURA', sector_en:'INFRASTRUCTURE',
+    name:'Punta Colorada', reg:'Río Negro, AR · Zona Portuaria',
+    score:41.2, ndvi:0.098, sar_db:'-11.70', fusion:0.51,
+    roi_usd:null, roi_x:null,
+    badge_es:'ACTIVO', badge_en:'ACTIVE',
+    alert_es:null, alert_en:null,
+    img:'faro_reporte_fusion_punta_colorada.png',
+    sha:'55f69af4dd11972ab9f9a95b8150ecdd95cb50ed7e6c86d2aac2040f72a8ebef',
+    src:'Sentinel-1 GRD + S-2 L2A', date:'2026-04-09',
+    mets:[
+      {l_es:'NDVI',       l_en:'NDVI',      v:'0.098',     s_es:'cobertura vegetal',      s_en:'vegetation cover'},
+      {l_es:'SAR (dB)',   l_en:'SAR (dB)',  v:'-11.70',    s_es:'reflectividad',          s_en:'backscatter'},
+      {l_es:'FUSIÓN',     l_en:'FUSION',    v:'0.51',      s_es:'índice integrado',       s_en:'integrated index'},
+      {l_es:'ACTIVIDAD',  l_en:'ACTIVITY',  v:'42.0',      s_es:'índice infraestructura', s_en:'infrastructure index', c:'#a78bfa'},
+      {l_es:'ÁREA',       l_en:'AREA',      v:'18.600 ha', s_es:'zona portuaria',         s_en:'port area'},
+      {l_es:'PRECIP. 7d', l_en:'PRECIP. 7d',v:'1.8 mm',   s_es:'seco',                   s_en:'dry'},
+    ]
+  },
+};
+
+// ── State ─────────────────────────────────────────────────────────────────
+let lang      = 'es';
+let activeTab = 'agro';
+let planP     = 'observer'; // panel plan
+let planR     = 'observer'; // req modal plan
+let verified  = false;
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+const shaShort = s => s.slice(0,16) + '…';
+function scoreColor(s){ return s>=65?'#00ff41':s>=50?'#22d3ee':'#f97316'; }
+function hexAlpha(h,a){
+  const r=parseInt(h.slice(1,3),16),g=parseInt(h.slice(3,5),16),b=parseInt(h.slice(5,7),16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+function defaultPlan(tab){
+  if(tab==='min') return 'sovereign';
+  const v=(ZONES[tab].sector_es||'').toLowerCase();
+  if(v.includes('energ')||v.includes('oil')||v.includes('miner')||v.includes('infra')) return 'analyst';
+  if(v.includes('agro')) return 'oneshot';
+  return 'observer';
+}
+function planHTML(k, sel, cid){
+  const p=PLANS[k], desc=lang==='es'?p.desc_es:p.desc_en;
+  const star=k==='analyst'?` <span style="color:var(--gold)">★</span>`:'';
+  return `<div class="plan-opt${sel===k?' sel':''}" data-plan="${k}" onclick="selectPlan('${k}','${cid}')">
+    <span class="po-radio"></span>
+    <div class="po-inf">
+      <div class="po-name">${p.name} · <span class="po-price">${p.price}</span>${star}</div>
+      <div class="po-desc">${desc}</div>
+    </div>
+  </div>`;
+}
+
+// ── Plan selection ─────────────────────────────────────────────────────────
+function selectPlan(k, cid){
+  if(cid==='p-plans'){ planP=k; updateCta(); }
+  else planR=k;
+  document.querySelectorAll(`#${cid} .plan-opt`).forEach(el=>
+    el.classList.toggle('sel', el.dataset.plan===k));
+}
+
+// ── Render tab ─────────────────────────────────────────────────────────────
+function renderTab(tab){
+  const z=ZONES[tab], col=scoreColor(z.score);
+  const badgeCol = z.badgeColor||col;
+
+  document.getElementById('p-sector').textContent = lang==='es'?z.sector_es:z.sector_en;
+  document.getElementById('p-name').textContent   = z.name;
+  document.getElementById('p-reg').textContent     = z.reg;
+
+  const alertTxt = z['alert_'+lang];
+  const alertEl  = document.getElementById('p-alert');
+  alertEl.style.display = alertTxt?'block':'none';
+  if(alertTxt) alertEl.textContent = alertTxt;
+
+  const scoreEl=document.getElementById('p-score');
+  scoreEl.textContent=z.score; scoreEl.style.color=col;
+
+  const badgeEl=document.getElementById('p-badge');
+  badgeEl.textContent      = lang==='es'?z.badge_es:z.badge_en;
+  badgeEl.style.color      = badgeCol;
+  badgeEl.style.borderColor= hexAlpha(badgeCol,.3);
+
+  document.getElementById('p-img').src = z.img;
+  document.getElementById('p-sha-v').textContent = verified?z.sha:shaShort(z.sha);
+  document.getElementById('p-sha-d').textContent = z.date+' · '+z.src;
+
+  document.getElementById('p-mets').innerHTML = z.mets.map(m=>{
+    const lbl=m['l_'+lang]||m.l_es, sub=m['s_'+lang]||m.s_es||'';
+    const c=m.c?` style="color:${m.c}"`:'';
+    return `<div class="met"><div class="met-l">${lbl}</div><div class="met-v"${c}>${m.v}</div><div class="met-s">${sub}</div></div>`;
+  }).join('');
+
+  document.getElementById('p-min-text').style.display = tab==='min'?'block':'none';
+
+  const roiEl=document.getElementById('p-roi');
+  if(z.roi_x){
+    roiEl.style.display='block';
+    document.getElementById('p-roi-x').textContent   = z.roi_x+'×';
+    document.getElementById('p-roi-usd').textContent = 'USD '+z.roi_usd.toLocaleString('es-AR')+(lang==='es'?' ahorro/año':' savings/yr');
+  } else { roiEl.style.display='none'; }
+
+  planP = defaultPlan(tab);
+  document.getElementById('p-plans').innerHTML = Object.keys(PLANS).map(k=>planHTML(k,planP,'p-plans')).join('');
+  updateCta();
+}
+
+function updateCta(){
+  const btn=document.getElementById('p-cta');
+  const certify = planP==='oneshot' || activeTab==='min';
+  btn.textContent = certify
+    ?(lang==='es'?'CERTIFICAR AHORA →':'CERTIFY NOW →')
+    :(lang==='es'?'SOLICITAR AUDITORÍA →':'REQUEST AUDIT →');
+}
+
+// ── CTA ───────────────────────────────────────────────────────────────────
+function doCta(){
+  if(planP==='oneshot'){
+    window.open('https://faroprotocol.lemonsqueezy.com/checkout/buy/'+PLANS.oneshot.ls);
+    return;
+  }
+  const z=ZONES[activeTab];
+  const ctx=document.getElementById('req-ctx');
+  ctx.textContent = z.name+' · FSS '+z.score+' · '+(lang==='es'?z.sector_es:z.sector_en);
+  ctx.style.display='block';
+  planR=planP;
+  document.getElementById('req-plans').innerHTML = Object.keys(PLANS).map(k=>planHTML(k,planR,'req-plans')).join('');
+  document.getElementById('req-form').style.display='';
+  document.getElementById('req-success').style.display='none';
+  document.getElementById('req-overlay').classList.add('open');
+}
+
+// ── Submit request ─────────────────────────────────────────────────────────
+function submitReq(){
+  const nEl=document.getElementById('req-name'), dEl=document.getElementById('req-desc');
+  const n=nEl.value.trim(), d=dEl.value.trim();
+  nEl.classList.toggle('field-err',!n); dEl.classList.toggle('field-err',!d);
+  if(!n||!d) return;
+  const btn=document.getElementById('req-sub');
+  btn.classList.add('sending');
+  const z=ZONES[activeTab]||{};
+  emailjs.send('service_bv0hmtm','template_y9eomfh',{
+    from_name:  n,
+    from_email: document.getElementById('req-email').value||'—',
+    sector:     document.getElementById('req-sector').value,
+    zona:       (z.name?'['+z.name+'] ':'')+d,
+    plan_sel:   PLANS[planR].name+' · '+PLANS[planR].price,
+    score_fss:  String(z.score||'—'),
+  }).then(()=>{btn.classList.remove('sending');showReqOk();})
+    .catch(()=>{btn.classList.remove('sending');showReqOk();});
+}
+function showReqOk(){
+  document.getElementById('req-form').style.display='none';
+  document.getElementById('req-success').style.display='block';
+  revealVerified();
+}
+function closeReq(){
+  document.getElementById('req-overlay').classList.remove('open');
+  setTimeout(()=>{
+    document.getElementById('req-form').style.display='';
+    document.getElementById('req-success').style.display='none';
+  },280);
+}
+document.getElementById('req-overlay').addEventListener('click',e=>{if(e.target===e.currentTarget)closeReq();});
+
+// ── Verified reveal ───────────────────────────────────────────────────────
+function revealVerified(){
+  verified=true;
+  document.getElementById('p-sha-v').textContent = ZONES[activeTab].sha;
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    activeTab=btn.dataset.tab;
+    document.getElementById('panel-right-body').scrollTop=0;
+    renderTab(activeTab);
+  });
+});
+
+// ── Language ──────────────────────────────────────────────────────────────
+document.getElementById('btn-lang').addEventListener('click',()=>{
+  lang=lang==='es'?'en':'es';
+  document.getElementById('btn-lang').textContent=lang==='es'?'EN':'ES';
+  document.querySelectorAll('[data-es]').forEach(el=>{
+    const t=el.getAttribute('data-'+lang);
+    if(t!==null) el.textContent=t;
+  });
+  renderTab(activeTab);
+});
+
+// ── Clock ─────────────────────────────────────────────────────────────────
+(function tick(){
+  const n=new Date(),pad=v=>String(v).padStart(2,'0');
+  document.getElementById('clock').textContent=
+    pad(n.getUTCHours())+':'+pad(n.getUTCMinutes())+':'+pad(n.getUTCSeconds())+' UTC';
+  setTimeout(tick,1000);
+})();
+
+// ── Audit modal ───────────────────────────────────────────────────────────
+document.getElementById('btn-audit').addEventListener('click',()=>{
+  document.getElementById('audit-form').style.display='';
+  document.getElementById('audit-loading').style.display='none';
+  document.getElementById('audit-result').style.display='none';
+  document.getElementById('audit-overlay').classList.add('open');
+});
+function closeAudit(){ document.getElementById('audit-overlay').classList.remove('open'); }
+document.getElementById('audit-overlay').addEventListener('click',e=>{if(e.target===e.currentTarget)closeAudit();});
+
+const AUDIT_TEXTS = {
+  agro:    'Vegetación activa detectada. NDVI estimado 0.45–0.65. Rinde potencial basado en baseline regional Sentinel-2.',
+  energia: 'Zona de actividad energética identificada. SAR detecta cambios superficiales. Índice operativo estimado.',
+  mineria: 'Reflectividad alta en bandas SAR. Compatible con extracción activa. Análisis de dispersión en progreso.',
+  maritimo:'Tráfico estimado por AIS satelital. SAR detecta embarcaciones. Condiciones operativas normales.',
+  ambiental:'Índice de cobertura vegetal calculado. Deforestación potencial requiere validación in situ.',
+  infra:   'Reflectividad estructural alta. Monitoreo de cambios en infraestructura activo.',
+};
+
+function submitAudit(){
+  const locEl=document.getElementById('audit-loc'), nEl=document.getElementById('audit-name');
+  const loc=locEl.value.trim(), n=nEl.value.trim();
+  locEl.classList.toggle('field-err',!loc); nEl.classList.toggle('field-err',!n);
+  if(!loc||!n) return;
+  document.getElementById('audit-form').style.display='none';
+  document.getElementById('audit-loading').style.display='block';
+  const sector=document.getElementById('audit-sector').value;
+  emailjs.send('service_bv0hmtm','template_y9eomfh',{
+    from_name:n, from_email:document.getElementById('audit-email').value||'—',
+    sector, zona:loc, plan_sel:'SOLICITUD ANÁLISIS', score_fss:'PENDIENTE',
+  }).catch(()=>{});
+  setTimeout(()=>{
+    const s=Math.round(38+Math.random()*32), col=scoreColor(s);
+    document.getElementById('audit-loading').style.display='none';
+    document.getElementById('audit-result').style.display='block';
+    const sc=document.getElementById('audit-res-score');
+    sc.textContent=s; sc.style.color=col;
+    document.getElementById('audit-res-text').textContent=AUDIT_TEXTS[sector]||AUDIT_TEXTS.ambiental;
+  },2200);
+}
+function auditToCta(){ closeAudit(); doCta(); }
+
+// ── Init ──────────────────────────────────────────────────────────────────
+renderTab('agro');
+</script>
+</body>
+</html>
