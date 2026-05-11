@@ -7,3 +7,6 @@ sar_downloads/
 node_modules/
 .vercel/
 *.log
+.env
+.env.*
+railway_vars.txt
