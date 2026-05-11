@@ -89,6 +89,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 .met-l{font-size:10px;letter-spacing:.12em;color:#6b7280;text-transform:uppercase;margin-bottom:6px;}
 .met-v{font-size:20px;font-weight:700;line-height:1.1;}
 .met-s{font-size:11px;color:var(--dim);margin-top:3px;}
+.met-src{font-size:7.5px;color:var(--dim);opacity:.5;letter-spacing:.08em;margin-top:2px;text-transform:uppercase;}
 
 /* ── ROI ── */
 #p-roi{padding:16px;border:1px solid rgba(201,168,76,.2);background:rgba(201,168,76,.04);flex-shrink:0;display:none;}
@@ -353,6 +354,8 @@ const ZONES = {
       {l_es:'RINDE EST.', l_en:'EST. YIELD', v:'2.8 t/ha', s_es:'+12% vs. provincia', s_en:'+12% vs. province', c:'#00ff41'},
       {l_es:'PRECIP. 7d', l_en:'PRECIP. 7d', v:'18.4 mm',  s_es:'normal',              s_en:'normal'},
       {l_es:'ÁREA',       l_en:'AREA',       v:'12.400 ha',s_es:'monitoreada',          s_en:'monitored'},
+      {l_es:'CH4',        l_en:'CH4',        v:'1847 ppb',  s_es:'background típico',   s_en:'typical background',  src:'S5P · TROPOMI'},
+      {l_es:'HUMID. SAR', l_en:'SAR HUMID.', v:'~67 %',     s_es:'proxy SAR estimado',  s_en:'SAR proxy estimate',  src:'SAR · S5P'},
     ]
   },
   amb:{
@@ -373,6 +376,8 @@ const ZONES = {
       {l_es:'ACTIVIDAD', l_en:'ACTIVITY',   v:'84.1',     s_es:'índice SAR',       s_en:'SAR index',       c:'#22d3ee'},
       {l_es:'DEFOREST.', l_en:'DEFOREST.',  v:'1.240 ha', s_es:'últimos 30 días',  s_en:'last 30 days',    c:'#ef4444'},
       {l_es:'ÁREA',      l_en:'AREA',       v:'89.200 ha',s_es:'monitoreada',       s_en:'monitored'},
+      {l_es:'CH4',       l_en:'CH4',        v:'1872 ppb',  s_es:'ALERTA EMISIÓN',   s_en:'EMISSION ALERT',      c:'#f97316', sa:true, src:'S5P · TROPOMI'},
+      {l_es:'NO2',       l_en:'NO2',        v:'0.00015 mol/m²', s_es:'bajo umbral', s_en:'below threshold',     src:'S5P · TROPOMI'},
     ]
   },
   energia:{
@@ -392,6 +397,7 @@ const ZONES = {
       {l_es:'ACTIVIDAD',   l_en:'ACTIVITY',      v:'50.6',      s_es:'índice operativo', s_en:'operational index', c:'#f97316'},
       {l_es:'POZOS ACT.',  l_en:'ACTIVE WELLS',  v:'847',       s_es:'en producción',    s_en:'in production',     c:'#f59e0b'},
       {l_es:'ÁREA',        l_en:'AREA',          v:'34.100 ha', s_es:'concesión',        s_en:'concession'},
+      {l_es:'CH4',         l_en:'CH4',            v:'1943 ppb',  s_es:'ALERTA EMISIÓN',   s_en:'EMISSION ALERT',    c:'#f97316', sa:true, src:'S5P · TROPOMI'},
     ]
   },
   min:{
@@ -411,6 +417,7 @@ const ZONES = {
       {l_es:'ACTIVIDAD', l_en:'ACTIVITY',  v:'61.4',      s_es:'índice operativo',           s_en:'operational index',           c:'#f97316'},
       {l_es:'ÁREA',      l_en:'AREA',      v:'42.800 ha', s_es:'concesión minera',           s_en:'mining concession'},
       {l_es:'DELTA SAR', l_en:'SAR DELTA', v:'2.1 mm',    s_es:'movimiento suelo detectado', s_en:'ground displacement detected'},
+      {l_es:'NO2',       l_en:'NO2',       v:'0.00024 mol/m²', s_es:'ALERTA CONTAMINACIÓN', s_en:'POLLUTION ALERT', c:'#f97316', sa:true, src:'S5P · TROPOMI'},
     ]
   },
   oil:{
@@ -430,6 +437,8 @@ const ZONES = {
       {l_es:'ACTIVIDAD',  l_en:'ACTIVITY',  v:'42.0',      s_es:'índice operativo',    s_en:'operational index', c:'#f97316'},
       {l_es:'ÁREA',       l_en:'AREA',      v:'18.600 ha', s_es:'concesión',           s_en:'concession',        c:'#a78bfa'},
       {l_es:'PRECIP. 7d', l_en:'PRECIP. 7d',v:'1.8 mm',   s_es:'seco',                s_en:'dry'},
+      {l_es:'CH4',        l_en:'CH4',       v:'1912 ppb',  s_es:'ALERTA EMISIÓN',      s_en:'EMISSION ALERT',    c:'#f97316', sa:true, src:'S5P · TROPOMI'},
+      {l_es:'NO2',        l_en:'NO2',       v:'0.00022 mol/m²', s_es:'ALERTA CONTAMINACIÓN', s_en:'POLLUTION ALERT', c:'#f97316', sa:true, src:'S5P · TROPOMI'},
     ]
   },
   mar:{
@@ -449,6 +458,7 @@ const ZONES = {
       {l_es:'ACTIVIDAD',   l_en:'ACTIVITY',  v:'40.2',   s_es:'tráfico AIS',        s_en:'AIS traffic',   c:'#60a5fa'},
       {l_es:'OLE. SIGNIF.',l_en:'WAVE HT.',  v:'1.2 m',  s_es:'mar calmo',          s_en:'calm sea',      c:'#60a5fa'},
       {l_es:'VIENTO',      l_en:'WIND',      v:'32 km/h',s_es:'W · F4',             s_en:'W · F4'},
+      {l_es:'NO2',         l_en:'NO2',       v:'0.00035 mol/m²', s_es:'ALERTA CONTAMINACIÓN', s_en:'POLLUTION ALERT', c:'#f97316', sa:true, src:'S5P · TROPOMI'},
     ]
   },
   infra:{
@@ -468,6 +478,7 @@ const ZONES = {
       {l_es:'ACTIVIDAD',  l_en:'ACTIVITY',  v:'42.0',      s_es:'índice infraestructura', s_en:'infrastructure index', c:'#a78bfa'},
       {l_es:'ÁREA',       l_en:'AREA',      v:'18.600 ha', s_es:'zona portuaria',         s_en:'port area'},
       {l_es:'PRECIP. 7d', l_en:'PRECIP. 7d',v:'1.8 mm',   s_es:'seco',                   s_en:'dry'},
+      {l_es:'NO2',        l_en:'NO2',       v:'0.00022 mol/m²', s_es:'ALERTA CONTAMINACIÓN', s_en:'POLLUTION ALERT', c:'#f97316', sa:true, src:'S5P · TROPOMI'},
     ]
   },
 };
@@ -542,7 +553,9 @@ function renderTab(tab){
   document.getElementById('p-mets').innerHTML = z.mets.map(m=>{
     const lbl=m['l_'+lang]||m.l_es, sub=m['s_'+lang]||m.s_es||'';
     const c=m.c?` style="color:${m.c}"`:'';
-    return `<div class="met"><div class="met-l">${lbl}</div><div class="met-v"${c}>${m.v}</div><div class="met-s">${sub}</div></div>`;
+    const cs=(m.sa&&m.c)?` style="color:${m.c};font-weight:500"`:'';
+    const src=m.src?`<div class="met-src">${m.src}</div>`:'';
+    return `<div class="met"><div class="met-l">${lbl}</div><div class="met-v"${c}>${m.v}</div><div class="met-s"${cs}>${sub}</div>${src}</div>`;
   }).join('');
 
   document.getElementById('p-min-text').style.display = tab==='min'?'block':'none';

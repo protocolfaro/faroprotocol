@@ -1,4 +1,8 @@
 groq
+flask
 pandas
 requests
 python-dotenv
+xarray
+netCDF4
+sentinelsat
