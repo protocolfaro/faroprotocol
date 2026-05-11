@@ -2,6 +2,7 @@
 *.zip
 *.csv
 *.tiff
+*.tif
 *.pdf
 sar_downloads/
 node_modules/
@@ -10,3 +11,11 @@ node_modules/
 .env
 .env.*
 railway_vars.txt
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+firebase-service-account.json
+*-firebase-adminsdk-*.json
+accounts.json
+.claude/

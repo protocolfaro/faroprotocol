@@ -1,0 +1,47 @@
+# Datos satelitales grandes
+*.tif
+*.tiff
+*.zip
+sar_downloads/
+sar_temp/
+datos/
+datos_s2/
+faro_areas/
+outputs/_refs/
+outputs/_test_map*.png
+
+# Engine privado
+engine/
+
+# PDFs y reportes generados
+*.pdf
+*.sha256
+faro_cert_*.png
+faro_dashboard_*.png
+faro_reporte_*.png
+faro_portfolio_*.png
+faro_bricolage_*.png
+faro_card_*.txt
+
+# Python cache
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Credenciales
+.env
+railway_vars.txt
+firebase-service-account.json
+*-firebase-adminsdk-*.json
+
+# Logs
+logs/
+audit_log.jsonl
+
+# IDE / OS
+.vscode/
+.idea/
+*.DS_Store
+Thumbs.db
+.claude/
