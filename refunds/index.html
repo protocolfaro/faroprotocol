@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Refund Policy · Faro Protocol</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;700&family=JetBrains+Mono:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#06080b;--bg2:#0d1117;
+  --border:rgba(255,255,255,0.06);
+  --w:#f2ede4;--dim:#6b7280;
+  --gold:#c9a84c;--gl:#e2c97e;
+  --serif:'Cormorant Garamond',serif;
+  --mono:'JetBrains Mono',monospace;
+}
+html,body{min-height:100%;background:var(--bg);color:var(--w);font-family:var(--mono);-webkit-font-smoothing:antialiased;}
+#hdr{
+  position:sticky;top:0;z-index:100;
+  height:48px;display:flex;align-items:center;gap:12px;padding:0 24px;
+  background:rgba(6,8,11,.97);border-bottom:1px solid var(--border);
+  backdrop-filter:blur(8px);
+}
+.hdr-logo{font-family:var(--serif);font-size:18px;font-weight:700;color:var(--gold);letter-spacing:.14em;}
+.hdr-sep{width:1px;height:20px;background:var(--border);flex-shrink:0;}
+.hdr-tag{font-size:9px;letter-spacing:.18em;color:var(--dim);text-transform:uppercase;}
+.hdr-back{margin-left:auto;font-size:9px;letter-spacing:.12em;color:var(--dim);text-transform:uppercase;text-decoration:none;border:1px solid var(--border);padding:4px 12px;transition:color .2s,border-color .2s;}
+.hdr-back:hover{color:var(--gold);border-color:var(--gold);}
+main{max-width:720px;margin:0 auto;padding:56px 24px 80px;}
+.doc-label{font-size:8px;letter-spacing:.2em;color:var(--dim);text-transform:uppercase;margin-bottom:12px;}
+h1{font-family:var(--serif);font-size:36px;font-weight:500;color:var(--w);margin-bottom:6px;line-height:1.1;}
+.doc-date{font-size:9px;color:var(--dim);letter-spacing:.1em;margin-bottom:48px;}
+.section{margin-bottom:32px;padding-bottom:32px;border-bottom:1px solid var(--border);}
+.section:last-child{border-bottom:none;}
+.section-num{font-size:8px;letter-spacing:.2em;color:var(--gold);text-transform:uppercase;margin-bottom:8px;}
+.section-title{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--w);margin-bottom:12px;}
+.section-body{font-size:13px;font-weight:300;line-height:1.8;color:rgba(242,237,228,.75);}
+.pill{display:inline-block;font-size:8px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;padding:2px 8px;border:1px solid var(--gold);color:var(--gold);vertical-align:middle;margin-right:6px;}
+footer{border-top:1px solid var(--border);padding:24px;text-align:center;}
+footer p{font-size:9px;color:var(--dim);letter-spacing:.1em;}
+footer a{color:var(--gold);text-decoration:none;}
+footer a:hover{text-decoration:underline;}
+</style>
+</head>
+<body>
+
+<header id="hdr">
+  <span class="hdr-logo">FARO</span>
+  <div class="hdr-sep"></div>
+  <span class="hdr-tag">Terminal de Auditoría Satelital</span>
+  <a class="hdr-back" href="../">← Home</a>
+</header>
+
+<main>
+  <div class="doc-label">Legal · Faro Protocol</div>
+  <h1>Refund Policy</h1>
+  <div class="doc-date">Effective May 2026</div>
+
+  <div class="section">
+    <div class="section-num">01</div>
+    <div class="section-title">One-Shot Reports <span class="pill">USD 650</span></div>
+    <p class="section-body">One-Shot reports are eligible for a full refund within 7 days of delivery if the delivered report contains technical errors or data processing failures attributable to Faro Protocol. Reports delivered without defects are non-refundable after the 7-day window.</p>
+  </div>
+
+  <div class="section">
+    <div class="section-num">02</div>
+    <div class="section-title">Subscriptions</div>
+    <p class="section-body">No refunds are issued on subscription payments already processed (Observer / Analyst / Sovereign). Subscriptions can be cancelled at any time through your account or by contacting us — cancellation takes effect at the end of the current billing period, and no further charges will be made.</p>
+  </div>
+
+  <div class="section">
+    <div class="section-num">03</div>
+    <div class="section-title">Technical Failures</div>
+    <p class="section-body">If Faro Protocol is unable to deliver a report due to satellite data unavailability, Copernicus service outages, or internal processing failures, a full refund or equivalent report credit will be issued at the client's discretion. We commit to notifying affected clients within 48 hours of a confirmed delivery failure.</p>
+  </div>
+
+  <div class="section">
+    <div class="section-num">04</div>
+    <div class="section-title">Process</div>
+    <p class="section-body">Refund requests must be submitted to <a href="mailto:contact@faroprotocol.com" style="color:var(--gold);text-decoration:none;">contact@faroprotocol.com</a> within the eligible window, including your order number, the date of purchase, and a description of the issue. Requests submitted after the eligible period will not be considered.</p>
+  </div>
+
+  <div class="section">
+    <div class="section-num">05</div>
+    <div class="section-title">Processing</div>
+    <p class="section-body">Approved refunds are processed by Paddle within 5–10 business days to the original payment method. Faro Protocol does not handle refund disbursements directly. Paddle's refund timeline applies once the request has been approved and submitted by Faro Protocol.</p>
+  </div>
+</main>
+
+<footer>
+  <p>© 2026 Faro Protocol · <a href="../privacy/">Privacy Policy</a> · <a href="../refunds/">Refund Policy</a> · <a href="../terms/">Terms of Service</a></p>
+</footer>
+
+</body>
+</html>
