@@ -8,3 +8,5 @@ python-dotenv
 xarray
 netCDF4
 sentinelsat
+tweepy
+APScheduler

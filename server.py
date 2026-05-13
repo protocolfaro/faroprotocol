@@ -7,9 +7,16 @@ import os
 from datetime import datetime, timedelta
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from apscheduler.schedulers.background import BackgroundScheduler
+import faro_twitter_bot as twitter
 
 app = Flask(__name__)
 CORS(app)
+
+# ── Scheduler (una sola instancia — gunicorn --preload) ───────────────────────
+_scheduler = BackgroundScheduler(timezone='UTC')
+twitter.setup_scheduler(_scheduler)
+_scheduler.start()
 
 
 # ── Health ────────────────────────────────────────────────────────────────────
@@ -68,6 +75,23 @@ def api_tropomi():
         'fecha'  : fecha or (datetime.utcnow() - timedelta(days=3)).strftime('%Y-%m-%d'),
         'fuente' : 'Sentinel-5P TROPOMI',
     })
+
+
+# ── Twitter endpoints ─────────────────────────────────────────────────────────
+
+@app.route('/twitter/trigger/tuesday', methods=['POST'])
+def twitter_tuesday():
+    result = twitter.post_tweet('tuesday')
+    return jsonify(result), 200 if result['ok'] else 500
+
+@app.route('/twitter/trigger/thursday', methods=['POST'])
+def twitter_thursday():
+    result = twitter.post_tweet('thursday')
+    return jsonify(result), 200 if result['ok'] else 500
+
+@app.route('/twitter/status', methods=['GET'])
+def twitter_status():
+    return jsonify(twitter.get_status())
 
 
 if __name__ == '__main__':
