@@ -172,9 +172,9 @@ def post_tweet(day: str = 'tuesday') -> dict:
         log.info(f"✅ Tweet publicado — ID {tweet_id} — Tipo {block['type']}")
         return {'ok': True, 'tweet_id': tweet_id, 'type': block['type'], 'text': text}
 
-    except tweepy.TweepyException as e:
-        log.error(f"Error al postear: {e}")
-        return {'ok': False, 'error': str(e)}
+    except Exception as e:
+        log.error(f"Error al postear: {type(e).__name__}: {e}")
+        return {'ok': False, 'error': f"{type(e).__name__}: {e}"}
 
 # ── Interacciones ──────────────────────────────────────────────────────────────
 
@@ -227,8 +227,8 @@ def run_interactions() -> dict:
                 interacted += 1
                 log.info(f"✅ Like + reply → {tweet.id} ({hashtag})")
 
-        except tweepy.TweepyException as e:
-            log.warning(f"Error con {hashtag}: {e}")
+        except Exception as e:
+            log.warning(f"Error con {hashtag}: {type(e).__name__}: {e}")
 
     _save(h)
     log.info(f"Interacciones completadas: {interacted} nuevas.")
