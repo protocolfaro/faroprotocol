@@ -81,13 +81,19 @@ def api_tropomi():
 
 @app.route('/twitter/trigger/tuesday', methods=['POST'])
 def twitter_tuesday():
-    result = twitter.post_tweet('tuesday')
-    return jsonify(result), 200 if result['ok'] else 500
+    try:
+        result = twitter.post_tweet('tuesday')
+        return jsonify(result), 200 if result['ok'] else 500
+    except Exception as e:
+        return jsonify({'ok': False, 'error': f"{type(e).__name__}: {e}"}), 500
 
 @app.route('/twitter/trigger/thursday', methods=['POST'])
 def twitter_thursday():
-    result = twitter.post_tweet('thursday')
-    return jsonify(result), 200 if result['ok'] else 500
+    try:
+        result = twitter.post_tweet('thursday')
+        return jsonify(result), 200 if result['ok'] else 500
+    except Exception as e:
+        return jsonify({'ok': False, 'error': f"{type(e).__name__}: {e}"}), 500
 
 @app.route('/twitter/status', methods=['GET'])
 def twitter_status():
