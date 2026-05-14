@@ -20,7 +20,7 @@ _scheduler.start()
 
 
 # ── Health ────────────────────────────────────────────────────────────────────
-_DEPLOY_SHA = 'bec9fd5'
+_DEPLOY_SHA = 'ac136b1-env'
 
 @app.route('/health')
 def health():
