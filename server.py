@@ -20,9 +20,11 @@ _scheduler.start()
 
 
 # ── Health ────────────────────────────────────────────────────────────────────
+_DEPLOY_SHA = 'bec9fd5'
+
 @app.route('/health')
 def health():
-    return jsonify({'status': 'ok', 'version': '3.0-suite'})
+    return jsonify({'status': 'ok', 'version': '3.0-suite', 'deploy': _DEPLOY_SHA})
 
 
 # ── Suite (orquestador multi-sensor) ──────────────────────────────────────────
