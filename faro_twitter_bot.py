@@ -179,7 +179,10 @@ def post_tweet(day: str = 'tuesday') -> dict:
 # ── Interacciones ──────────────────────────────────────────────────────────────
 
 def run_interactions() -> dict:
-    """Like + reply sutil en tweets con hashtags objetivo. Máx 5/día."""
+    """Like + reply sutil en tweets con hashtags objetivo. Requiere Basic tier de X API."""
+    if not os.getenv('TWITTER_INTERACTIONS_ENABLED', '').lower() == 'true':
+        log.info("Interacciones desactivadas (TWITTER_INTERACTIONS_ENABLED != true).")
+        return {'ok': True, 'skipped': True, 'reason': 'disabled'}
     h = _reset_daily_if_needed(_load())
 
     if h['today_interactions'] >= 5:
@@ -248,12 +251,9 @@ def setup_scheduler(scheduler) -> None:
         trigger='cron', day_of_week='thu', hour=14, minute=0,
         id='tw_thursday', replace_existing=True,
     )
-    scheduler.add_job(
-        run_interactions,
-        trigger='cron', day_of_week='mon,wed,fri', hour=15, minute=30,
-        id='tw_interactions', replace_existing=True,
-    )
-    log.info("✅ Jobs de Twitter registrados (mar/jue 14:00 UTC · lun/mié/vie 15:30 UTC)")
+    # run_interactions usa search_recent_tweets + get_me + like — requiere Basic tier.
+    # Desactivado en Free tier. Reactivar si se upgradea el plan de X API.
+    log.info("✅ Jobs de Twitter registrados (mar/jue 14:00 UTC)")
 
 # ── Status ────────────────────────────────────────────────────────────────────
 
