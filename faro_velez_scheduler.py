@@ -36,9 +36,11 @@ def env(key: str, default: str = '') -> str:
 GMAIL_USER  = env('GMAIL_USER', 'protocolfaro@gmail.com')
 GMAIL_PASS  = env('GMAIL_APP_PASS')
 
-EMAIL_COMISION    = env('VELEZ_EMAIL_COMISION')
-EMAIL_INTENDENTE  = env('VELEZ_EMAIL_INTENDENTE')
-EMAIL_CANCHERO    = env('VELEZ_EMAIL_CANCHERO')
+EMAIL_CANCHERO    = env('VELEZ_EMAIL_CANCHERO')    # Roger Bernal — Responsable campo
+EMAIL_INTENDENTE  = env('VELEZ_EMAIL_INTENDENTE')  # Juan González — Intendente Villa Olímpica
+EMAIL_BANCHERO    = env('VELEZ_EMAIL_BANCHERO')    # Fernando Banchero — Gerente Operaciones
+EMAIL_PAIT        = env('VELEZ_EMAIL_PAIT')         # Sebastián Pait — Director Deportivo
+EMAIL_COMISION    = env('VELEZ_EMAIL_COMISION')    # Berlanga, Pugliese, Aveleyra — Comisión
 EMAIL_TODOS       = env('VELEZ_EMAIL_TODOS')
 
 WA_INTENDENTE     = env('VELEZ_WHATSAPP_INTENDENTE')
@@ -265,107 +267,202 @@ Faro Protocol · Fortín Inteligente · protocolfaro@gmail.com<br>
 Generado automáticamente · {datetime.now().strftime('%d/%m/%Y %H:%M')} UTC-3
 </p></body></html>"""
 
-def email_comision(tipo: str = 'semanal'):
-    subject = f'Faro Protocol · Informe semanal · Vélez Sarsfield · {datetime.now().strftime("%d/%m/%Y")}'
-    body = _html_wrap(
-        f'Informe Semanal — Vélez Sarsfield',
+# ─── EMAIL BODIES POR ROL ─────────────────────────────────────────────────────
+
+def _body_roger() -> str:
+    return _html_wrap(
+        'Tu Mapa de Trabajo Esta Semana — Campo Amalfitani',
+        """
+        <p style="font-size:16px;font-weight:bold">Roger, te mando el mapa de esta semana.</p>
+        <p style="font-size:14px">Los circulos de colores en el mapa marcan exactamente donde ir.</p>
+        <h3 style="color:#e74c3c">HOY — NO PUEDE ESPERAR</h3>
+        <ul style="font-size:15px;line-height:1.8">
+          <li><b>Cancha 4 — zona central y lateral sur:</b><br>
+              Tirar fungicida, reparar el drenaje roto, y sembrar semilla nueva donde falta pasto</li>
+        </ul>
+        <h3 style="color:#f0b429">Esta semana</h3>
+        <ul style="font-size:15px;line-height:1.8">
+          <li><b>Cancha 1:</b> fungicida preventivo antes de que avance</li>
+          <li><b>Cancha 2:</b> fertilizar todo el campo</li>
+          <li><b>Cancha 3:</b> fungicida en las manchas + sembrar donde falta</li>
+        </ul>
+        <h3 style="color:#27ae60">Semana 3 (sin apuro)</h3>
+        <ul style="font-size:15px;line-height:1.8">
+          <li><b>Campo Amalfitani:</b> aerificar las dos porterias</li>
+        </ul>
+        <p style="font-size:13px;color:#9aa0a8">
+          Cualquier duda respondeme por este mail o por WhatsApp. — Faro Protocol
+        </p>
+        """
+    )
+
+def _body_juan() -> str:
+    return _html_wrap(
+        'Estado Villa Olimpica Esta Semana',
+        """
+        <p>Juan, te mando el estado actualizado de las canchas y el campo.</p>
+        <h3 style="color:#e74c3c">Urgente — Cancha 4</h3>
+        <ul style="font-size:14px">
+          <li>Focos activos de hongo en zona central (85 m²) — requiere fungicida HOY</li>
+          <li>Drenaje lateral sur roto — agua estancada confirmada por satelite</li>
+          <li>Resembrado zona central necesario esta semana</li>
+        </ul>
+        <h3 style="color:#f0b429">Acciones Esta Semana</h3>
+        <ul style="font-size:14px">
+          <li><b>Cancha 1:</b> hongo en desarrollo, fungicida preventivo</li>
+          <li><b>Cancha 2:</b> fertilizar 20 kg N/ha</li>
+          <li><b>Cancha 3:</b> fungicida activo + resembrado parcial</li>
+          <li><b>Campo Amalfitani:</b> NDVI 0.68 — estado optimo, mantener riego</li>
+        </ul>
+        <p style="font-size:13px;color:#9aa0a8">
+          Se adjuntan mapa de canchas y reporte agro completo.
+        </p>
+        """
+    )
+
+def _body_banchero() -> str:
+    return _html_wrap(
+        'Estado Operativo del Predio — Velez Sarsfield',
         f"""
-        <p>Se adjunta el informe satelital integrado del Estadio José Amalfitani
-        correspondiente a la semana del {datetime.now().strftime("%d/%m/%Y")}.</p>
-        <h3 style="color:#c9a84c">Resumen ejecutivo</h3>
+        <p>Fernando, resumen operativo de la semana del {datetime.now().strftime("%d/%m/%Y")}.</p>
+        <h3 style="color:#c9a84c">Predio Deportivo</h3>
         <table style="color:#f2ede4;border-collapse:collapse;width:100%;font-size:14px">
           <tr style="background:#141c24">
             <th style="padding:8px;border:1px solid #c9a84c44;text-align:left">Zona</th>
             <th style="padding:8px;border:1px solid #c9a84c44;text-align:left">Estado</th>
-            <th style="padding:8px;border:1px solid #c9a84c44;text-align:left">Acción</th>
+            <th style="padding:8px;border:1px solid #c9a84c44;text-align:left">Accion requerida</th>
           </tr>
           <tr><td style="padding:6px;border:1px solid #c9a84c22">Cancha 4</td>
-              <td style="padding:6px;border:1px solid #c9a84c22;color:#e74c3c"><b>CRÍTICO</b></td>
-              <td style="padding:6px;border:1px solid #c9a84c22">Intervención urgente HOY</td></tr>
+              <td style="padding:6px;color:#e74c3c;border:1px solid #c9a84c22"><b>CRITICO</b></td>
+              <td style="padding:6px;border:1px solid #c9a84c22">Intervencion urgente — ver mapa</td></tr>
           <tr><td style="padding:6px;border:1px solid #c9a84c22">Canchas 1, 2, 3</td>
-              <td style="padding:6px;border:1px solid #c9a84c22;color:#f0b429"><b>ATENCIÓN</b></td>
-              <td style="padding:6px;border:1px solid #c9a84c22">Acciones esta semana</td></tr>
+              <td style="padding:6px;color:#f0b429;border:1px solid #c9a84c22"><b>ATENCION</b></td>
+              <td style="padding:6px;border:1px solid #c9a84c22">Acciones programadas esta semana</td></tr>
           <tr><td style="padding:6px;border:1px solid #c9a84c22">Campo Amalfitani</td>
-              <td style="padding:6px;border:1px solid #c9a84c22;color:#27ae60"><b>ÓPTIMO</b></td>
-              <td style="padding:6px;border:1px solid #c9a84c22">Aerificar porterías semana 3</td></tr>
-          <tr><td style="padding:6px;border:1px solid #c9a84c22">Sistema Solar (210 paneles)</td>
-              <td style="padding:6px;border:1px solid #c9a84c22;color:#f0b429"><b>ATENCIÓN</b></td>
-              <td style="padding:6px;border:1px solid #c9a84c22">Revisar Zona E — 8 paneles >60°C</td></tr>
-          <tr><td style="padding:6px;border:1px solid #c9a84c22">Tribuna Oeste</td>
-              <td style="padding:6px;border:1px solid #c9a84c22;color:#e74c3c"><b>ALERTA InSAR</b></td>
-              <td style="padding:6px;border:1px solid #c9a84c22">Inspección estructural recomendada</td></tr>
+              <td style="padding:6px;color:#27ae60;border:1px solid #c9a84c22"><b>OPTIMO</b></td>
+              <td style="padding:6px;border:1px solid #c9a84c22">Sin accion inmediata</td></tr>
         </table>
-        <p style="font-size:13px;color:#9aa0a8">Se adjuntan 3 reportes: mapa agronómico, estado solar y reporte general.</p>
-        """
-    )
-    atts = [str(REPORT_PATHS['velez']), str(REPORT_PATHS['agro_final']), str(REPORT_PATHS['solar_v2'])]
-    ok = send_email(EMAIL_COMISION, subject, body, atts)
-    if not ok:
-        queue_email(EMAIL_COMISION, subject, body, atts)
-
-def email_intendente(tipo: str = 'semanal'):
-    subject = f'Faro Protocol · Estado del predio · Vélez · {datetime.now().strftime("%d/%m/%Y")}'
-    body = _html_wrap(
-        'Estado del Predio — Acciones Prioritarias',
-        """
-        <h3 style="color:#e74c3c">HOY — URGENTE (Cancha 4)</h3>
+        <h3 style="color:#c9a84c">Sistema Solar (210 paneles — 120 kWp)</h3>
         <ul style="font-size:14px">
-          <li>Aplicar fungicida en focos activos (85 m² marcados en mapa)</li>
-          <li>Reparar drenaje lateral sur</li>
-          <li>Resembrar zona central</li>
-        </ul>
-        <h3 style="color:#f0b429">Esta semana</h3>
-        <ul style="font-size:14px">
-          <li><b>Cancha 1:</b> fungicida preventivo</li>
-          <li><b>Cancha 2:</b> fertilizar 20 kg N/ha</li>
-          <li><b>Cancha 3:</b> fungicida activo + resembrado parcial</li>
-          <li><b>Solar Zona E (Arco Sur):</b> revisar 8 paneles con temperatura >60°C</li>
+          <li>Eficiencia actual: <b>82.4%</b></li>
+          <li><b style="color:#f0b429">Zona E (Arco Sur):</b> 8 paneles con temperatura >60°C — inspeccion esta semana</li>
+          <li>Produccion estimada semana: 2,840 kWh</li>
         </ul>
         <h3 style="color:#e74c3c">Infraestructura</h3>
         <ul style="font-size:14px">
-          <li><b>Tribuna Oeste:</b> InSAR 2.80 mm — supera umbral de seguridad<br>
-              Se recomienda inspección estructural esta semana.</li>
+          <li><b>Tribuna Oeste:</b> desplazamiento InSAR 2.80 mm — supera umbral de 3.0 mm<br>
+              Recomendacion: inspección estructural esta semana</li>
         </ul>
-        <p style="font-size:13px;color:#9aa0a8">Se adjuntan reporte agronómico, solar y general del predio.</p>
+        <p style="font-size:13px;color:#9aa0a8">Se adjuntan reporte general, solar y agro.</p>
         """
     )
-    atts = [str(REPORT_PATHS['agro_final']), str(REPORT_PATHS['solar_v2']), str(REPORT_PATHS['velez'])]
-    ok = send_email(EMAIL_INTENDENTE, subject, body, atts)
-    if not ok:
-        queue_email(EMAIL_INTENDENTE, subject, body, atts)
 
-def email_canchero(tipo: str = 'semanal'):
-    subject = f'Faro Protocol · Mapa de trabajo esta semana · Vélez · {datetime.now().strftime("%d/%m/%Y")}'
-    body = _html_wrap(
-        'Tu Mapa de Trabajo Esta Semana',
+def _body_pait() -> str:
+    return _html_wrap(
+        'Estado Canchas y Campo — Vision Deportiva',
         """
-        <p style="font-size:16px;font-weight:bold">Hola, te mando el mapa actualizado.</p>
-        <p style="font-size:14px">En el mapa adjunto los círculos de colores marcan exactamente dónde ir:</p>
-        <h3 style="color:#e74c3c">HOY — NO PUEDE ESPERAR</h3>
-        <ul style="font-size:15px;line-height:1.8">
-          <li><b>Cancha 4 — zona central y lateral sur:</b><br>
-              Tirar fungicida, reparar el drenaje que está roto, y sembrar semilla nueva</li>
+        <p>Sebastian, estado de los campos para esta semana de entrenamiento.</p>
+        <h3 style="color:#e74c3c">NO APTO para entrenamiento</h3>
+        <ul style="font-size:14px">
+          <li><b>Cancha 4:</b> estado critico — hongo activo + drenaje roto + pasto ralo<br>
+              No recomendada para uso hasta reparacion</li>
         </ul>
-        <h3 style="color:#f0b429">Esta semana</h3>
-        <ul style="font-size:15px;line-height:1.8">
-          <li><b>Cancha 1:</b> fungicida preventivo (antes que empeore)</li>
-          <li><b>Cancha 2:</b> fertilizar todo el campo</li>
-          <li><b>Cancha 3:</b> fungicida en las manchas + sembrar donde falta pasto</li>
+        <h3 style="color:#f0b429">Uso condicionado</h3>
+        <ul style="font-size:14px">
+          <li><b>Cancha 1:</b> apta, con fungicida preventivo aplicado antes del uso</li>
+          <li><b>Cancha 3:</b> apta para trabajos livianos, tratamiento en curso</li>
         </ul>
-        <h3 style="color:#27ae60">Semana 3 (sin apuro)</h3>
-        <ul style="font-size:15px;line-height:1.8">
-          <li><b>Campo Amalfitani:</b> aerificar las dos porterías</li>
+        <h3 style="color:#27ae60">Optimas para uso</h3>
+        <ul style="font-size:14px">
+          <li><b>Cancha 2:</b> apta — NDVI 0.52, fertilizacion esta semana</li>
+          <li><b>Campo Amalfitani:</b> NDVI 0.68 — excelente condicion</li>
         </ul>
         <p style="font-size:13px;color:#9aa0a8">
-          Cualquier duda respondeme por este mail o por WhatsApp.<br>
-          — Faro Protocol
+          Se adjuntan mapa de canchas con marcadores y reporte agro detallado.
         </p>
         """
     )
-    atts = [str(REPORT_PATHS['canchero'])]
-    ok = send_email(EMAIL_CANCHERO, subject, body, atts)
-    if not ok:
-        queue_email(EMAIL_CANCHERO, subject, body, atts)
+
+def _body_comision() -> str:
+    return _html_wrap(
+        f'Informe Ejecutivo Semanal — Velez Sarsfield · {datetime.now().strftime("%d/%m/%Y")}',
+        f"""
+        <p>Resumen satelital del Estadio Jose Amalfitani y Villa Olimpica,
+        semana del {datetime.now().strftime("%d/%m/%Y")}.</p>
+        <h3 style="color:#c9a84c">Indicadores Clave</h3>
+        <table style="color:#f2ede4;border-collapse:collapse;width:100%;font-size:14px">
+          <tr style="background:#141c24">
+            <th style="padding:8px;border:1px solid #c9a84c44;text-align:left">Indicador</th>
+            <th style="padding:8px;border:1px solid #c9a84c44;text-align:center">Estado</th>
+            <th style="padding:8px;border:1px solid #c9a84c44;text-align:left">Impacto</th>
+          </tr>
+          <tr><td style="padding:6px;border:1px solid #c9a84c22">Cancha 4</td>
+              <td style="padding:6px;text-align:center;border:1px solid #c9a84c22;color:#e74c3c"><b>CRITICO</b></td>
+              <td style="padding:6px;border:1px solid #c9a84c22">Fuera de servicio — costo estimado recuperacion: $180k</td></tr>
+          <tr><td style="padding:6px;border:1px solid #c9a84c22">Canchas 1–3</td>
+              <td style="padding:6px;text-align:center;border:1px solid #c9a84c22;color:#f0b429"><b>ATENCION</b></td>
+              <td style="padding:6px;border:1px solid #c9a84c22">Tratamientos preventivos esta semana</td></tr>
+          <tr><td style="padding:6px;border:1px solid #c9a84c22">Sistema Solar</td>
+              <td style="padding:6px;text-align:center;border:1px solid #c9a84c22;color:#f0b429"><b>82.4%</b></td>
+              <td style="padding:6px;border:1px solid #c9a84c22">Produccion 2,840 kWh/semana — Zona E requiere revision</td></tr>
+          <tr><td style="padding:6px;border:1px solid #c9a84c22">Campo Amalfitani</td>
+              <td style="padding:6px;text-align:center;border:1px solid #c9a84c22;color:#27ae60"><b>OPTIMO</b></td>
+              <td style="padding:6px;border:1px solid #c9a84c22">NDVI 0.68 — listo para uso</td></tr>
+          <tr><td style="padding:6px;border:1px solid #c9a84c22">Tribuna Oeste</td>
+              <td style="padding:6px;text-align:center;border:1px solid #c9a84c22;color:#e74c3c"><b>ALERTA</b></td>
+              <td style="padding:6px;border:1px solid #c9a84c22">InSAR 2.80 mm — inspeccion estructural recomendada</td></tr>
+        </table>
+        <p style="font-size:13px;color:#9aa0a8">
+          Se adjuntan 3 reportes completos: reporte general, mapa agro y estado solar.
+        </p>
+        """
+    )
+
+# ─── RECIPIENT CONFIG ─────────────────────────────────────────────────────────
+
+def _velez_recipients() -> list:
+    """Build recipient list at call time so env changes are reflected."""
+    return [
+        dict(key='roger',    name='Roger Bernal',
+             to=env('VELEZ_EMAIL_CANCHERO'),
+             subject='Faro · Tu mapa de trabajo esta semana · Campo Amalfitani',
+             reports=['canchero'],
+             body_fn=_body_roger),
+        dict(key='juan',     name='Juan Gonzalez',
+             to=env('VELEZ_EMAIL_INTENDENTE'),
+             subject='Faro · Estado Villa Olimpica esta semana',
+             reports=['canchero', 'agro_final'],
+             body_fn=_body_juan),
+        dict(key='banchero', name='Fernando Banchero',
+             to=env('VELEZ_EMAIL_BANCHERO'),
+             subject='Faro · Estado operativo del predio · Velez',
+             reports=['velez', 'solar_v2', 'agro_final'],
+             body_fn=_body_banchero),
+        dict(key='pait',     name='Sebastian Pait',
+             to=env('VELEZ_EMAIL_PAIT'),
+             subject='Faro · Estado canchas y campo · Velez',
+             reports=['canchero', 'agro_final'],
+             body_fn=_body_pait),
+        dict(key='comision', name='Comision Ejecutiva',
+             to=env('VELEZ_EMAIL_COMISION'),
+             subject='Faro Protocol · Informe ejecutivo semanal · Velez Sarsfield',
+             reports=['velez', 'agro_final', 'solar_v2'],
+             body_fn=_body_comision),
+    ]
+
+def send_all_reports(tipo: str = 'semanal'):
+    date_str = datetime.now().strftime('%d/%m/%Y')
+    for r in _velez_recipients():
+        if not r['to']:
+            log.warning(f'No email configured for {r["name"]} — skipping')
+            continue
+        subject  = f'{r["subject"]} · {date_str}'
+        body_html = r['body_fn']()
+        atts     = [str(REPORT_PATHS[k]) for k in r['reports']]
+        ok = send_email(r['to'], subject, body_html, atts)
+        if not ok:
+            queue_email(r['to'], subject, body_html, atts)
+        log.info(f'Report sent to {r["name"]} ({r["key"]}) -> {ok}')
 
 # ─── WEEKLY JOB ──────────────────────────────────────────────────────────────
 
@@ -399,10 +496,8 @@ def weekly_report(tipo: str = 'semanal', event_date: Optional[str] = None):
     data = load_latest_data()
     check_and_send_alerts(data)
 
-    # Send differentiated emails
-    email_canchero(tipo)
-    email_intendente(tipo)
-    email_comision(tipo)
+    # Send differentiated emails — 5 recipients, each with role-specific content
+    send_all_reports(tipo)
 
     # Flush queued emails
     flush_email_queue()
@@ -626,58 +721,32 @@ def route_test_email():
 # ─── TEST EMAIL ───────────────────────────────────────────────────────────────
 
 def send_test_emails() -> dict:
-    """Send TEST email to each Vélez recipient. Returns dict of {recipient: bool}."""
+    """Send TEST email to each Vélez recipient. Returns dict of {key: bool}."""
     now_str = datetime.now().strftime('%d/%m/%Y %H:%M')
     results = {}
-
-    # Test para CANCHERO
-    ok = send_email(
-        to=EMAIL_CANCHERO,
-        subject=f'TEST · Faro Protocol · Vélez · {now_str}',
-        body_html=_html_wrap('TEST — Verificación de entrega',
-            f"""
-            <p>Este es un email de <b style="color:#c9a84c">prueba</b> del sistema Faro Protocol para Vélez Sarsfield.</p>
-            <p>Destinatario: <b>CANCHERO</b></p>
-            <p>Si llegó correctamente, el sistema está listo para enviar los reportes del lunes.</p>
-            <p style="color:#9aa0a8;font-size:12px">Enviado: {now_str}</p>
-            """),
-        attachments=[str(REPORT_PATHS['canchero'])] if REPORT_PATHS['canchero'].exists() else []
-    )
-    results['canchero'] = ok
-    log.info(f'Test email canchero -> {ok}')
-
-    # Test para INTENDENTE
-    ok = send_email(
-        to=EMAIL_INTENDENTE,
-        subject=f'TEST · Faro Protocol · Vélez · {now_str}',
-        body_html=_html_wrap('TEST — Verificación de entrega',
-            f"""
-            <p>Este es un email de <b style="color:#c9a84c">prueba</b> del sistema Faro Protocol para Vélez Sarsfield.</p>
-            <p>Destinatario: <b>INTENDENTE</b></p>
-            <p>Si llegó correctamente, el sistema está listo para enviar los reportes del lunes.</p>
-            <p style="color:#9aa0a8;font-size:12px">Enviado: {now_str}</p>
-            """),
-        attachments=[]
-    )
-    results['intendente'] = ok
-    log.info(f'Test email intendente -> {ok}')
-
-    # Test para COMISIÓN
-    ok = send_email(
-        to=EMAIL_COMISION,
-        subject=f'TEST · Faro Protocol · Vélez · {now_str}',
-        body_html=_html_wrap('TEST — Verificación de entrega',
-            f"""
-            <p>Este es un email de <b style="color:#c9a84c">prueba</b> del sistema Faro Protocol para Vélez Sarsfield.</p>
-            <p>Destinatario: <b>COMISIÓN</b> ({EMAIL_COMISION})</p>
-            <p>Si llegó correctamente, el sistema está listo para enviar los informes del lunes.</p>
-            <p style="color:#9aa0a8;font-size:12px">Enviado: {now_str}</p>
-            """),
-        attachments=[]
-    )
-    results['comision'] = ok
-    log.info(f'Test email comision -> {ok}')
-
+    for r in _velez_recipients():
+        if not r['to']:
+            log.warning(f'No email for {r["name"]} ({r["key"]}) — skipping')
+            results[r['key']] = False
+            continue
+        ok = send_email(
+            to=r['to'],
+            subject=f'TEST · Faro Protocol · Velez · {now_str}',
+            body_html=_html_wrap(
+                f'TEST — {r["name"]}',
+                f"""
+                <p>Email de prueba del sistema Faro Protocol para Velez Sarsfield.</p>
+                <p>Destinatario: <b>{r["name"]}</b></p>
+                <p>Rol: <b>{r["key"]}</b> — recibe reportes: {', '.join(r["reports"])}</p>
+                <p>Asunto real que recibira cada lunes:<br>
+                   <i style="color:#c9a84c">{r["subject"]}</i></p>
+                <p style="color:#9aa0a8;font-size:12px">Enviado: {now_str}</p>
+                """
+            ),
+            attachments=[]
+        )
+        results[r['key']] = ok
+        log.info(f'Test email {r["name"]} -> {ok}')
     return results
 
 @app.route('/health', methods=['GET'])
@@ -691,7 +760,8 @@ if __name__ == '__main__':
 
     # Check required env vars
     missing = []
-    for var in ['GMAIL_APP_PASS', 'VELEZ_EMAIL_COMISION', 'VELEZ_EMAIL_INTENDENTE']:
+    for var in ['GMAIL_APP_PASS', 'VELEZ_EMAIL_CANCHERO', 'VELEZ_EMAIL_INTENDENTE',
+                'VELEZ_EMAIL_BANCHERO', 'VELEZ_EMAIL_PAIT', 'VELEZ_EMAIL_COMISION']:
         if not env(var):
             missing.append(var)
     if missing:
