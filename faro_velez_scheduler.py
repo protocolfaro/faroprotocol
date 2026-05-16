@@ -39,13 +39,23 @@ GMAIL_PASS  = env('GMAIL_APP_PASS')
 EMAIL_COMISION    = env('VELEZ_EMAIL_COMISION')
 EMAIL_INTENDENTE  = env('VELEZ_EMAIL_INTENDENTE')
 EMAIL_CANCHERO    = env('VELEZ_EMAIL_CANCHERO')
+EMAIL_TODOS       = env('VELEZ_EMAIL_TODOS')
 
 WA_INTENDENTE     = env('VELEZ_WHATSAPP_INTENDENTE')
 WA_CANCHERO       = env('VELEZ_WHATSAPP_CANCHERO')
 WA_NELSON         = env('VELEZ_WHATSAPP_NELSON')
 CALLMEBOT_KEY     = env('CALLMEBOT_API_KEY')
 
-PORT = int(env('PORT', '5000'))
+PORT    = int(env('PORT', '5000'))
+DESKTOP = Path.home() / 'Desktop'
+
+# Rutas centralizadas de todos los reportes Vélez
+REPORT_PATHS = {
+    'canchero':   DESKTOP / 'faro_reporte_velez_canchero.png',
+    'agro_final': DESKTOP / 'faro_reporte_velez_agro_FINAL.png',
+    'solar_v2':   DESKTOP / 'faro_reporte_velez_solar_v2.png',
+    'velez':      DESKTOP / 'faro_reporte_velez.png',
+}
 
 # Alert thresholds
 NDVI_ALERT     = 0.35
@@ -93,41 +103,48 @@ def notify_whatsapp_all(message: str):
 # ─── EMAIL ────────────────────────────────────────────────────────────────────
 
 def send_email(to: str, subject: str, body_html: str,
-               attachment_path: Optional[str] = None) -> bool:
+               attachments: list = None) -> bool:
+    """Send email to one or more recipients (comma-separated `to`).
+    attachments: list of file paths to attach."""
     if not to or not GMAIL_PASS:
         log.warning(f'Email not configured (to={bool(to)}, pass={bool(GMAIL_PASS)})')
         return False
     try:
-        msg = MIMEMultipart('alternative')
-        msg['From'] = GMAIL_USER
-        msg['To']   = to
+        recipients = [r.strip() for r in to.split(',') if r.strip()]
+        msg = MIMEMultipart('mixed')
+        msg['From']    = GMAIL_USER
+        msg['To']      = ', '.join(recipients)
         msg['Subject'] = subject
         msg.attach(MIMEText(body_html, 'html'))
 
-        if attachment_path and Path(attachment_path).exists():
-            with open(attachment_path, 'rb') as f:
-                part = MIMEBase('application', 'octet-stream')
-                part.set_payload(f.read())
-            encoders.encode_base64(part)
-            part.add_header('Content-Disposition',
-                f'attachment; filename="{Path(attachment_path).name}"')
-            msg.attach(part)
+        for att_path in (attachments or []):
+            p = Path(att_path)
+            if p.exists():
+                with open(p, 'rb') as f:
+                    part = MIMEBase('application', 'octet-stream')
+                    part.set_payload(f.read())
+                encoders.encode_base64(part)
+                part.add_header('Content-Disposition',
+                    f'attachment; filename="{p.name}"')
+                msg.attach(part)
+            else:
+                log.warning(f'Attachment not found, skipping: {att_path}')
 
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
             server.login(GMAIL_USER, GMAIL_PASS)
-            server.sendmail(GMAIL_USER, to, msg.as_string())
+            server.sendmail(GMAIL_USER, recipients, msg.as_string())
 
-        log.info(f'Email sent to {to}: {subject}')
+        log.info(f'Email sent to {recipients}: {subject}')
         return True
     except Exception as e:
         log.error(f'Email failed to {to}: {e}')
         return False
 
-def queue_email(to: str, subject: str, body: str, attachment: Optional[str] = None):
+def queue_email(to: str, subject: str, body: str, attachments: list = None):
     jobs = load_jobs()
     jobs['email_queue'].append({
         'to': to, 'subject': subject, 'body': body,
-        'attachment': attachment, 'queued_at': datetime.now().isoformat()
+        'attachments': attachments or [], 'queued_at': datetime.now().isoformat()
     })
     save_jobs(jobs)
 
@@ -135,7 +152,8 @@ def flush_email_queue():
     jobs = load_jobs()
     remaining = []
     for item in jobs.get('email_queue', []):
-        ok = send_email(item['to'], item['subject'], item['body'], item.get('attachment'))
+        ok = send_email(item['to'], item['subject'], item['body'],
+                        item.get('attachments') or [item['attachment']] if item.get('attachment') else [])
         if not ok:
             remaining.append(item)
     jobs['email_queue'] = remaining
@@ -159,36 +177,22 @@ def _run_script(script_path: str) -> bool:
         log.error(f'Script exception: {script_path}: {e}')
         return False
 
-def generate_agro_report() -> Optional[str]:
-    """Generate agro report PNG. Returns path or None."""
-    desktop = Path.home() / 'Desktop'
-    script  = desktop / 'gen_velez_canchero.py'
-    out     = desktop / 'faro_reporte_velez_canchero.png'
-
+def generate_report(script_name: str, out_path: Path) -> Optional[str]:
+    """Run a generator script. Returns output path string or None."""
+    script = DESKTOP / script_name
     if script.exists():
         if _run_script(str(script)):
-            return str(out) if out.exists() else None
-
-    # Fallback — return last valid report
-    if out.exists():
-        log.warning('Using cached agro report (generation failed)')
-        return str(out)
+            return str(out_path) if out_path.exists() else None
+    if out_path.exists():
+        log.warning(f'Using cached report (generation failed): {out_path.name}')
+        return str(out_path)
     return None
 
-def generate_solar_report() -> Optional[str]:
-    """Generate solar report PNG. Returns path or None."""
-    desktop = Path.home() / 'Desktop'
-    script  = desktop / 'gen_velez_solar.py'
-    out     = desktop / 'faro_reporte_velez_solar.png'
+def generate_canchero_report() -> Optional[str]:
+    return generate_report('gen_velez_canchero.py', REPORT_PATHS['canchero'])
 
-    if script.exists():
-        if _run_script(str(script)):
-            return str(out) if out.exists() else None
-
-    if out.exists():
-        log.warning('Using cached solar report (generation failed)')
-        return str(out)
-    return None
+def generate_solar_v2_report() -> Optional[str]:
+    return generate_report('gen_velez_solar_v2.py', REPORT_PATHS['solar_v2'])
 
 # ─── REPORT DATA (lectura del JSON del pipeline) ─────────────────────────────
 
@@ -261,83 +265,107 @@ Faro Protocol · Fortín Inteligente · protocolfaro@gmail.com<br>
 Generado automáticamente · {datetime.now().strftime('%d/%m/%Y %H:%M')} UTC-3
 </p></body></html>"""
 
-def email_comision(agro_path: str, solar_path: str, tipo: str = 'semanal'):
-    subject = f'Faro Protocol — Vélez Sarsfield · Reporte {tipo.capitalize()} {datetime.now().strftime("%d/%m/%Y")}'
+def email_comision(tipo: str = 'semanal'):
+    subject = f'Faro Protocol · Informe semanal · Vélez Sarsfield · {datetime.now().strftime("%d/%m/%Y")}'
     body = _html_wrap(
-        f'Reporte {tipo.capitalize()} — Vélez Sarsfield',
-        """
-        <p>Se adjunta el reporte integrado de gestión agronómica y solar del estadio Amalfitani.</p>
-        <h3 style="color:#c9a84c">Resumen ejecutivo:</h3>
-        <ul>
-          <li><b style="color:#e74c3c">Cancha 4:</b> Estado CRÍTICO — intervención urgente requerida HOY</li>
-          <li><b style="color:#f0b429">Canchas 1, 2, 3:</b> Estado ATENCIÓN — acciones esta semana</li>
-          <li><b style="color:#27ae60">Campo Amalfitani:</b> Estado ÓPTIMO — aerificar porterías semana 3</li>
-          <li><b style="color:#f0b429">Sistema Solar:</b> Eficiencia 82.4% — revisar Zona E (Arco Sur)</li>
-          <li><b style="color:#e74c3c">Tribuna Oeste:</b> InSAR 2.80mm — supera umbral · inspección recomendada</li>
-        </ul>
-        <p>Ver reportes adjuntos para detalle completo.</p>
+        f'Informe Semanal — Vélez Sarsfield',
+        f"""
+        <p>Se adjunta el informe satelital integrado del Estadio José Amalfitani
+        correspondiente a la semana del {datetime.now().strftime("%d/%m/%Y")}.</p>
+        <h3 style="color:#c9a84c">Resumen ejecutivo</h3>
+        <table style="color:#f2ede4;border-collapse:collapse;width:100%;font-size:14px">
+          <tr style="background:#141c24">
+            <th style="padding:8px;border:1px solid #c9a84c44;text-align:left">Zona</th>
+            <th style="padding:8px;border:1px solid #c9a84c44;text-align:left">Estado</th>
+            <th style="padding:8px;border:1px solid #c9a84c44;text-align:left">Acción</th>
+          </tr>
+          <tr><td style="padding:6px;border:1px solid #c9a84c22">Cancha 4</td>
+              <td style="padding:6px;border:1px solid #c9a84c22;color:#e74c3c"><b>CRÍTICO</b></td>
+              <td style="padding:6px;border:1px solid #c9a84c22">Intervención urgente HOY</td></tr>
+          <tr><td style="padding:6px;border:1px solid #c9a84c22">Canchas 1, 2, 3</td>
+              <td style="padding:6px;border:1px solid #c9a84c22;color:#f0b429"><b>ATENCIÓN</b></td>
+              <td style="padding:6px;border:1px solid #c9a84c22">Acciones esta semana</td></tr>
+          <tr><td style="padding:6px;border:1px solid #c9a84c22">Campo Amalfitani</td>
+              <td style="padding:6px;border:1px solid #c9a84c22;color:#27ae60"><b>ÓPTIMO</b></td>
+              <td style="padding:6px;border:1px solid #c9a84c22">Aerificar porterías semana 3</td></tr>
+          <tr><td style="padding:6px;border:1px solid #c9a84c22">Sistema Solar (210 paneles)</td>
+              <td style="padding:6px;border:1px solid #c9a84c22;color:#f0b429"><b>ATENCIÓN</b></td>
+              <td style="padding:6px;border:1px solid #c9a84c22">Revisar Zona E — 8 paneles >60°C</td></tr>
+          <tr><td style="padding:6px;border:1px solid #c9a84c22">Tribuna Oeste</td>
+              <td style="padding:6px;border:1px solid #c9a84c22;color:#e74c3c"><b>ALERTA InSAR</b></td>
+              <td style="padding:6px;border:1px solid #c9a84c22">Inspección estructural recomendada</td></tr>
+        </table>
+        <p style="font-size:13px;color:#9aa0a8">Se adjuntan 3 reportes: mapa agronómico, estado solar y reporte general.</p>
         """
     )
-    ok1 = send_email(EMAIL_COMISION, subject, body, agro_path)
-    if agro_path != solar_path:
-        ok2 = send_email(EMAIL_COMISION, subject + ' (Solar)', body, solar_path)
-    if not ok1:
-        queue_email(EMAIL_COMISION, subject, body, agro_path)
-
-def email_intendente(agro_path: str, solar_path: str, tipo: str = 'semanal'):
-    subject = f'Faro · Vélez · Acciones Prioritarias — {datetime.now().strftime("%d/%m/%Y")}'
-    body = _html_wrap(
-        'Acciones Prioritarias Esta Semana',
-        """
-        <h3 style="color:#e74c3c">URGENTE — Cancha 4</h3>
-        <ul>
-          <li>Aplicar fungicida HOY (focos activos 85m²)</li>
-          <li>Reparar drenaje lateral sur HOY</li>
-          <li>Resembrar zona central HOY</li>
-        </ul>
-        <h3 style="color:#f0b429">Esta semana</h3>
-        <ul>
-          <li>Cancha 1: fungicida preventivo</li>
-          <li>Cancha 2: fertilizar 20kg N/ha</li>
-          <li>Cancha 3: fungicida activo + resembrado parcial</li>
-          <li>Solar Zona E: revisar paneles — 8 con temperatura >60°C</li>
-        </ul>
-        <h3 style="color:#e74c3c">Infraestructura</h3>
-        <ul>
-          <li>Tribuna Oeste: InSAR 2.80mm — inspección estructural recomendada</li>
-        </ul>
-        """
-    )
-    ok = send_email(EMAIL_INTENDENTE, subject, body, agro_path)
+    atts = [str(REPORT_PATHS['velez']), str(REPORT_PATHS['agro_final']), str(REPORT_PATHS['solar_v2'])]
+    ok = send_email(EMAIL_COMISION, subject, body, atts)
     if not ok:
-        queue_email(EMAIL_INTENDENTE, subject, body, agro_path)
+        queue_email(EMAIL_COMISION, subject, body, atts)
 
-def email_canchero(agro_path: str, tipo: str = 'semanal'):
-    subject = f'Faro · Tu Mapa de Trabajo — {datetime.now().strftime("%d/%m/%Y")}'
+def email_intendente(tipo: str = 'semanal'):
+    subject = f'Faro Protocol · Estado del predio · Vélez · {datetime.now().strftime("%d/%m/%Y")}'
     body = _html_wrap(
-        'Tu Mapa de Trabajo Esta Semana',
+        'Estado del Predio — Acciones Prioritarias',
         """
-        <p style="font-size:16px;font-weight:bold">Hola, te mando el mapa de trabajo actualizado.</p>
-        <h3 style="color:#e74c3c">HOY — URGENTE</h3>
+        <h3 style="color:#e74c3c">HOY — URGENTE (Cancha 4)</h3>
         <ul style="font-size:14px">
-          <li><b>Cancha 4 completa:</b> fungicida, reparar drenaje, sembrar semilla</li>
+          <li>Aplicar fungicida en focos activos (85 m² marcados en mapa)</li>
+          <li>Reparar drenaje lateral sur</li>
+          <li>Resembrar zona central</li>
         </ul>
         <h3 style="color:#f0b429">Esta semana</h3>
         <ul style="font-size:14px">
           <li><b>Cancha 1:</b> fungicida preventivo</li>
-          <li><b>Cancha 2:</b> fertilizar</li>
-          <li><b>Cancha 3:</b> fungicida + sembrar donde falta pasto</li>
+          <li><b>Cancha 2:</b> fertilizar 20 kg N/ha</li>
+          <li><b>Cancha 3:</b> fungicida activo + resembrado parcial</li>
+          <li><b>Solar Zona E (Arco Sur):</b> revisar 8 paneles con temperatura >60°C</li>
         </ul>
-        <h3 style="color:#27ae60">Semana 3</h3>
+        <h3 style="color:#e74c3c">Infraestructura</h3>
         <ul style="font-size:14px">
-          <li><b>Campo Amalfitani:</b> aerificar las dos porterías</li>
+          <li><b>Tribuna Oeste:</b> InSAR 2.80 mm — supera umbral de seguridad<br>
+              Se recomienda inspección estructural esta semana.</li>
         </ul>
-        <p>Ver mapa adjunto — los circulos de colores muestran exactamente donde ir.</p>
+        <p style="font-size:13px;color:#9aa0a8">Se adjuntan reporte agronómico, solar y general del predio.</p>
         """
     )
-    ok = send_email(EMAIL_CANCHERO, subject, body, agro_path)
+    atts = [str(REPORT_PATHS['agro_final']), str(REPORT_PATHS['solar_v2']), str(REPORT_PATHS['velez'])]
+    ok = send_email(EMAIL_INTENDENTE, subject, body, atts)
     if not ok:
-        queue_email(EMAIL_CANCHERO, subject, body, agro_path)
+        queue_email(EMAIL_INTENDENTE, subject, body, atts)
+
+def email_canchero(tipo: str = 'semanal'):
+    subject = f'Faro Protocol · Mapa de trabajo esta semana · Vélez · {datetime.now().strftime("%d/%m/%Y")}'
+    body = _html_wrap(
+        'Tu Mapa de Trabajo Esta Semana',
+        """
+        <p style="font-size:16px;font-weight:bold">Hola, te mando el mapa actualizado.</p>
+        <p style="font-size:14px">En el mapa adjunto los círculos de colores marcan exactamente dónde ir:</p>
+        <h3 style="color:#e74c3c">HOY — NO PUEDE ESPERAR</h3>
+        <ul style="font-size:15px;line-height:1.8">
+          <li><b>Cancha 4 — zona central y lateral sur:</b><br>
+              Tirar fungicida, reparar el drenaje que está roto, y sembrar semilla nueva</li>
+        </ul>
+        <h3 style="color:#f0b429">Esta semana</h3>
+        <ul style="font-size:15px;line-height:1.8">
+          <li><b>Cancha 1:</b> fungicida preventivo (antes que empeore)</li>
+          <li><b>Cancha 2:</b> fertilizar todo el campo</li>
+          <li><b>Cancha 3:</b> fungicida en las manchas + sembrar donde falta pasto</li>
+        </ul>
+        <h3 style="color:#27ae60">Semana 3 (sin apuro)</h3>
+        <ul style="font-size:15px;line-height:1.8">
+          <li><b>Campo Amalfitani:</b> aerificar las dos porterías</li>
+        </ul>
+        <p style="font-size:13px;color:#9aa0a8">
+          Cualquier duda respondeme por este mail o por WhatsApp.<br>
+          — Faro Protocol
+        </p>
+        """
+    )
+    atts = [str(REPORT_PATHS['canchero'])]
+    ok = send_email(EMAIL_CANCHERO, subject, body, atts)
+    if not ok:
+        queue_email(EMAIL_CANCHERO, subject, body, atts)
 
 # ─── WEEKLY JOB ──────────────────────────────────────────────────────────────
 
@@ -345,52 +373,47 @@ def weekly_report(tipo: str = 'semanal', event_date: Optional[str] = None):
     log.info(f'=== Running {tipo} report ===')
     jobs = load_jobs()
 
-    # Generate reports with retry
-    agro_path = None
+    # Generate canchero report with retry
+    canchero_path = None
     for attempt in range(3):
-        agro_path = generate_agro_report()
-        if agro_path:
+        canchero_path = generate_canchero_report()
+        if canchero_path:
             break
-        log.warning(f'Agro generation attempt {attempt+1} failed, retrying in 30min...')
+        log.warning(f'Canchero generation attempt {attempt+1} failed, retrying in 30min...')
         time.sleep(1800)
 
+    # Generate solar v2 report with retry
     solar_path = None
     for attempt in range(3):
-        solar_path = generate_solar_report()
+        solar_path = generate_solar_v2_report()
         if solar_path:
             break
-        log.warning(f'Solar generation attempt {attempt+1} failed, retrying in 30min...')
+        log.warning(f'Solar v2 generation attempt {attempt+1} failed, retrying in 30min...')
         time.sleep(1800)
 
-    if not agro_path:
-        log.error('Agro report generation failed after 3 attempts. Aborting.')
+    if not canchero_path:
+        log.error('Canchero report failed after 3 attempts. Aborting.')
         return
-    if not solar_path:
-        solar_path = agro_path  # fallback
 
     # Load data and check alerts
     data = load_latest_data()
     check_and_send_alerts(data)
 
-    # Send emails
-    email_comision(agro_path, solar_path, tipo)
-    email_intendente(agro_path, solar_path, tipo)
-    email_canchero(agro_path, tipo)
+    # Send differentiated emails
+    email_canchero(tipo)
+    email_intendente(tipo)
+    email_comision(tipo)
 
     # Flush queued emails
     flush_email_queue()
 
-    # Update job state
     jobs['last_report'] = {
-        'date': datetime.now().isoformat(),
-        'tipo': tipo,
-        'agro_path': agro_path,
-        'solar_path': solar_path,
+        'date':          datetime.now().isoformat(),
+        'tipo':          tipo,
+        'canchero_path': canchero_path,
+        'solar_path':    solar_path,
     }
-    if solar_path != agro_path:
-        jobs['last_solar'] = jobs['last_report']
     save_jobs(jobs)
-
     log.info(f'=== {tipo} report complete ===')
 
 def pre_event_report(event_date: str):
@@ -433,7 +456,7 @@ def _send_damage_report(event_date: str, pre_date: str):
         """
     )
     send_email(EMAIL_COMISION, subject, body)
-    send_email(EMAIL_INTENDENTE, subject, body)
+    send_email(EMAIL_INTENDENTE, subject, body)  # no attachments — comparison table is inline
 
 # ─── EVENT SCHEDULING ────────────────────────────────────────────────────────
 
@@ -592,6 +615,70 @@ def route_run_now():
     t = threading.Thread(target=weekly_report, kwargs={'tipo': tipo}, daemon=True)
     t.start()
     return jsonify({'status': 'started', 'tipo': tipo})
+
+@app.route('/velez/test_email', methods=['POST'])
+def route_test_email():
+    """Send a test email to all Vélez recipients to verify delivery."""
+    results = send_test_emails()
+    ok = all(v for v in results.values())
+    return jsonify({'status': 'ok' if ok else 'partial', 'results': results}), 200
+
+# ─── TEST EMAIL ───────────────────────────────────────────────────────────────
+
+def send_test_emails() -> dict:
+    """Send TEST email to each Vélez recipient. Returns dict of {recipient: bool}."""
+    now_str = datetime.now().strftime('%d/%m/%Y %H:%M')
+    results = {}
+
+    # Test para CANCHERO
+    ok = send_email(
+        to=EMAIL_CANCHERO,
+        subject=f'TEST · Faro Protocol · Vélez · {now_str}',
+        body_html=_html_wrap('TEST — Verificación de entrega',
+            f"""
+            <p>Este es un email de <b style="color:#c9a84c">prueba</b> del sistema Faro Protocol para Vélez Sarsfield.</p>
+            <p>Destinatario: <b>CANCHERO</b></p>
+            <p>Si llegó correctamente, el sistema está listo para enviar los reportes del lunes.</p>
+            <p style="color:#9aa0a8;font-size:12px">Enviado: {now_str}</p>
+            """),
+        attachments=[str(REPORT_PATHS['canchero'])] if REPORT_PATHS['canchero'].exists() else []
+    )
+    results['canchero'] = ok
+    log.info(f'Test email canchero -> {ok}')
+
+    # Test para INTENDENTE
+    ok = send_email(
+        to=EMAIL_INTENDENTE,
+        subject=f'TEST · Faro Protocol · Vélez · {now_str}',
+        body_html=_html_wrap('TEST — Verificación de entrega',
+            f"""
+            <p>Este es un email de <b style="color:#c9a84c">prueba</b> del sistema Faro Protocol para Vélez Sarsfield.</p>
+            <p>Destinatario: <b>INTENDENTE</b></p>
+            <p>Si llegó correctamente, el sistema está listo para enviar los reportes del lunes.</p>
+            <p style="color:#9aa0a8;font-size:12px">Enviado: {now_str}</p>
+            """),
+        attachments=[]
+    )
+    results['intendente'] = ok
+    log.info(f'Test email intendente -> {ok}')
+
+    # Test para COMISIÓN
+    ok = send_email(
+        to=EMAIL_COMISION,
+        subject=f'TEST · Faro Protocol · Vélez · {now_str}',
+        body_html=_html_wrap('TEST — Verificación de entrega',
+            f"""
+            <p>Este es un email de <b style="color:#c9a84c">prueba</b> del sistema Faro Protocol para Vélez Sarsfield.</p>
+            <p>Destinatario: <b>COMISIÓN</b> ({EMAIL_COMISION})</p>
+            <p>Si llegó correctamente, el sistema está listo para enviar los informes del lunes.</p>
+            <p style="color:#9aa0a8;font-size:12px">Enviado: {now_str}</p>
+            """),
+        attachments=[]
+    )
+    results['comision'] = ok
+    log.info(f'Test email comision -> {ok}')
+
+    return results
 
 @app.route('/health', methods=['GET'])
 def health():
