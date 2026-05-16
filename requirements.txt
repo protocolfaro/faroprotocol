@@ -10,3 +10,5 @@ netCDF4
 sentinelsat
 tweepy
 APScheduler
+schedule
+matplotlib
