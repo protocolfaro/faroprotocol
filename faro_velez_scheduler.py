@@ -68,6 +68,20 @@ REPORT_PATHS = {
     'velez':      BASE_DIR / 'reportes_velez' / 'faro_reporte_velez.png',
 }
 
+# Manuales PDF — se adjuntan solo en el primer envío (manual_sent flag en velez_jobs.json)
+# comision recibe los 3 PDFs ejecutivos en un solo email
+MANUAL_PATHS = {
+    'roger':    BASE_DIR / 'reportes_velez' / 'manual_velez_roger.pdf',
+    'juan':     BASE_DIR / 'reportes_velez' / 'manual_velez_juan.pdf',
+    'banchero': BASE_DIR / 'reportes_velez' / 'manual_velez_banchero.pdf',
+    'pait':     BASE_DIR / 'reportes_velez' / 'manual_velez_pait.pdf',
+    'comision': [
+        BASE_DIR / 'reportes_velez' / 'manual_velez_berlanga.pdf',
+        BASE_DIR / 'reportes_velez' / 'manual_velez_nelson.pdf',
+        BASE_DIR / 'reportes_velez' / 'manual_velez_aveleyra.pdf',
+    ],
+}
+
 # Alert thresholds
 NDVI_ALERT     = 0.35
 INSAR_ALERT    = 3.0   # mm
@@ -79,10 +93,14 @@ SOLAR_ALERT_EFF = 75.0 # %
 def load_jobs() -> dict:
     if JOBS_FILE.exists():
         try:
-            return json.loads(JOBS_FILE.read_text())
+            data = json.loads(JOBS_FILE.read_text())
+            # Ensure manual_sent key exists in files created before this feature
+            data.setdefault('manual_sent', False)
+            return data
         except Exception:
             pass
-    return {'events': [], 'email_queue': [], 'last_report': None, 'last_solar': None}
+    return {'events': [], 'email_queue': [], 'last_report': None,
+            'last_solar': None, 'manual_sent': False}
 
 def save_jobs(jobs: dict):
     JOBS_FILE.write_text(json.dumps(jobs, indent=2, default=str))
@@ -474,18 +492,37 @@ def _velez_recipients() -> list:
     ]
 
 def send_all_reports(tipo: str = 'semanal'):
+    jobs = load_jobs()
+    manual_sent = jobs.get('manual_sent', False)
     date_str = datetime.now().strftime('%d/%m/%Y')
+
     for r in _velez_recipients():
         if not r['to']:
             log.warning(f'No email configured for {r["name"]} — skipping')
             continue
-        subject  = f'{r["subject"]} · {date_str}'
+        subject   = f'{r["subject"]} · {date_str}'
         body_html = r['body_fn']()
-        atts     = [str(REPORT_PATHS[k]) for k in r['reports']]
+        atts      = [str(REPORT_PATHS[k]) for k in r['reports']]
+
+        # First send ever: attach the personal PDF manual
+        if not manual_sent:
+            manual = MANUAL_PATHS.get(r['key'])
+            if isinstance(manual, list):
+                atts.extend([str(p) for p in manual if p.exists()])
+            elif manual and manual.exists():
+                atts.append(str(manual))
+            log.info(f'Attaching manual PDF for {r["name"]} (first send)')
+
         ok = send_email(r['to'], subject, body_html, atts)
         if not ok:
             queue_email(r['to'], subject, body_html, atts)
         log.info(f'Report sent to {r["name"]} ({r["key"]}) -> {ok}')
+
+    # Mark manuals as delivered after all recipients processed
+    if not manual_sent:
+        jobs['manual_sent'] = True
+        save_jobs(jobs)
+        log.info('manual_sent = True — PDFs will not be re-attached in future weekly emails')
 
 # ─── WEEKLY JOB ──────────────────────────────────────────────────────────────
 
@@ -770,6 +807,15 @@ def send_test_emails() -> dict:
         log.info(f'Test email {r["name"]} -> {ok}')
     return results
 
+@app.route('/velez/reset_manuals', methods=['POST'])
+def route_reset_manuals():
+    """Reset manual_sent flag so PDFs are re-attached on the next weekly send."""
+    jobs = load_jobs()
+    jobs['manual_sent'] = False
+    save_jobs(jobs)
+    log.info('manual_sent reset to False by admin request')
+    return jsonify({'status': 'ok', 'manual_sent': False})
+
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify({'status': 'ok', 'service': 'faro-velez-scheduler'})
@@ -779,11 +825,12 @@ def health():
 def register_with_app(flask_app, apscheduler=None):
     """Attach Vélez routes and scheduled jobs to an existing Flask app + APScheduler.
     Used when server.py is the Railway entrypoint instead of running standalone."""
-    flask_app.add_url_rule('/velez/evento',     'velez_evento',     route_evento,     methods=['POST'])
-    flask_app.add_url_rule('/velez/status',     'velez_status',     route_status,     methods=['GET'])
-    flask_app.add_url_rule('/velez/solar',      'velez_solar',      route_solar,      methods=['GET'])
-    flask_app.add_url_rule('/velez/run_now',    'velez_run_now',    route_run_now,    methods=['POST'])
-    flask_app.add_url_rule('/velez/test_email', 'velez_test_email', route_test_email, methods=['POST'])
+    flask_app.add_url_rule('/velez/evento',         'velez_evento',         route_evento,         methods=['POST'])
+    flask_app.add_url_rule('/velez/status',         'velez_status',         route_status,         methods=['GET'])
+    flask_app.add_url_rule('/velez/solar',          'velez_solar',          route_solar,          methods=['GET'])
+    flask_app.add_url_rule('/velez/run_now',        'velez_run_now',        route_run_now,        methods=['POST'])
+    flask_app.add_url_rule('/velez/test_email',     'velez_test_email',     route_test_email,     methods=['POST'])
+    flask_app.add_url_rule('/velez/reset_manuals',  'velez_reset_manuals',  route_reset_manuals,  methods=['POST'])
     log.info('Velez: routes registered on external Flask app')
 
     if apscheduler:

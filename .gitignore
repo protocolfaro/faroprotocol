@@ -4,6 +4,7 @@
 *.tiff
 *.tif
 *.pdf
+!reportes_velez/*.pdf
 sar_downloads/
 node_modules/
 .vercel/
