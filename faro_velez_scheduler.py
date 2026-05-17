@@ -48,15 +48,16 @@ WA_CANCHERO       = env('VELEZ_WHATSAPP_CANCHERO')
 WA_NELSON         = env('VELEZ_WHATSAPP_NELSON')
 CALLMEBOT_KEY     = env('CALLMEBOT_API_KEY')
 
-PORT    = int(env('PORT', '5000'))
-DESKTOP = Path.home() / 'Desktop'
+PORT     = int(env('PORT', '5000'))
+DESKTOP  = Path.home() / 'Desktop'          # solo para scripts generadores (dev local)
+BASE_DIR = Path(__file__).parent             # raiz del repo — disponible en Railway
 
-# Rutas centralizadas de todos los reportes Vélez
+# Rutas centralizadas — carpeta dentro del repo, accesible en Railway y local
 REPORT_PATHS = {
-    'canchero':   DESKTOP / 'faro_reporte_velez_canchero.png',
-    'agro_final': DESKTOP / 'faro_reporte_velez_agro_FINAL.png',
-    'solar_v2':   DESKTOP / 'faro_reporte_velez_solar_v2.png',
-    'velez':      DESKTOP / 'faro_reporte_velez.png',
+    'canchero':   BASE_DIR / 'reportes_velez' / 'faro_reporte_velez_canchero.png',
+    'agro_final': BASE_DIR / 'reportes_velez' / 'faro_reporte_velez_agro_FINAL.png',
+    'solar_v2':   BASE_DIR / 'reportes_velez' / 'faro_reporte_velez_solar_v2.png',
+    'velez':      BASE_DIR / 'reportes_velez' / 'faro_reporte_velez.png',
 }
 
 # Alert thresholds
