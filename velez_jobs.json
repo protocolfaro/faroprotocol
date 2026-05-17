@@ -3,5 +3,5 @@
   "email_queue": [],
   "last_report": null,
   "last_solar": null,
-  "manual_sent": true
+  "manual_sent": false
 }
