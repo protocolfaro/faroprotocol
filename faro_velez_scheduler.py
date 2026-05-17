@@ -181,14 +181,21 @@ def _run_script(script_path: str) -> bool:
         return False
 
 def generate_report(script_name: str, out_path: Path) -> Optional[str]:
-    """Run a generator script. Returns output path string or None."""
-    script = DESKTOP / script_name
+    """Run a generator script. Looks in BASE_DIR (Railway) first, then DESKTOP (local dev).
+    Falls back to last cached PNG if generation fails."""
+    script = BASE_DIR / script_name
+    if not script.exists():
+        script = DESKTOP / script_name
     if script.exists():
         if _run_script(str(script)):
             return str(out_path) if out_path.exists() else None
+        log.error(f'Script failed: {script_name}')
+    else:
+        log.warning(f'Script not found: {script_name} (tried BASE_DIR and DESKTOP)')
     if out_path.exists():
         log.warning(f'Using cached report (generation failed): {out_path.name}')
         return str(out_path)
+    log.error(f'No cached fallback for {out_path.name}')
     return None
 
 def generate_canchero_report() -> Optional[str]:
@@ -196,6 +203,12 @@ def generate_canchero_report() -> Optional[str]:
 
 def generate_solar_v2_report() -> Optional[str]:
     return generate_report('gen_velez_solar_v2.py', REPORT_PATHS['solar_v2'])
+
+def generate_agro_final_report() -> Optional[str]:
+    return generate_report('gen_velez_final.py', REPORT_PATHS['agro_final'])
+
+def generate_main_report() -> Optional[str]:
+    return generate_report('gen_velez_main.py', REPORT_PATHS['velez'])
 
 # ─── REPORT DATA (lectura del JSON del pipeline) ─────────────────────────────
 
@@ -471,26 +484,24 @@ def weekly_report(tipo: str = 'semanal', event_date: Optional[str] = None):
     log.info(f'=== Running {tipo} report ===')
     jobs = load_jobs()
 
-    # Generate canchero report with retry
-    canchero_path = None
-    for attempt in range(3):
-        canchero_path = generate_canchero_report()
-        if canchero_path:
-            break
-        log.warning(f'Canchero generation attempt {attempt+1} failed, retrying in 30min...')
-        time.sleep(1800)
+    # Generate all 4 reports — each with up to 3 attempts, fallback to cached PNG
+    def _gen_with_retry(fn, label):
+        for attempt in range(3):
+            path = fn()
+            if path:
+                return path
+            log.warning(f'{label} attempt {attempt+1}/3 failed')
+            if attempt < 2:
+                time.sleep(300)   # 5 min between retries (not 30 — Railway has timeout limits)
+        return None
 
-    # Generate solar v2 report with retry
-    solar_path = None
-    for attempt in range(3):
-        solar_path = generate_solar_v2_report()
-        if solar_path:
-            break
-        log.warning(f'Solar v2 generation attempt {attempt+1} failed, retrying in 30min...')
-        time.sleep(1800)
+    canchero_path = _gen_with_retry(generate_canchero_report,   'canchero')
+    agro_path     = _gen_with_retry(generate_agro_final_report, 'agro_final')
+    solar_path    = _gen_with_retry(generate_solar_v2_report,   'solar_v2')
+    main_path     = _gen_with_retry(generate_main_report,       'main')
 
     if not canchero_path:
-        log.error('Canchero report failed after 3 attempts. Aborting.')
+        log.error('Canchero report unavailable after 3 attempts. Aborting send.')
         return
 
     # Load data and check alerts
