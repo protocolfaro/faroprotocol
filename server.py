@@ -9,6 +9,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from apscheduler.schedulers.background import BackgroundScheduler
 import faro_twitter_bot as twitter
+import faro_velez_scheduler as velez
 
 app = Flask(__name__)
 CORS(app)
@@ -17,6 +18,9 @@ CORS(app)
 _scheduler = BackgroundScheduler(timezone='UTC')
 twitter.setup_scheduler(_scheduler)
 _scheduler.start()
+
+# ── Vélez Sarsfield — rutas y jobs ────────────────────────────────────────────
+velez.register_with_app(app, _scheduler)
 
 
 # ── Health ────────────────────────────────────────────────────────────────────

@@ -754,6 +754,28 @@ def send_test_emails() -> dict:
 def health():
     return jsonify({'status': 'ok', 'service': 'faro-velez-scheduler'})
 
+# ─── INTEGRATION — registrar en app externa (server.py / Railway) ────────────
+
+def register_with_app(flask_app, apscheduler=None):
+    """Attach Vélez routes and scheduled jobs to an existing Flask app + APScheduler.
+    Used when server.py is the Railway entrypoint instead of running standalone."""
+    flask_app.add_url_rule('/velez/evento',     'velez_evento',     route_evento,     methods=['POST'])
+    flask_app.add_url_rule('/velez/status',     'velez_status',     route_status,     methods=['GET'])
+    flask_app.add_url_rule('/velez/solar',      'velez_solar',      route_solar,      methods=['GET'])
+    flask_app.add_url_rule('/velez/run_now',    'velez_run_now',    route_run_now,    methods=['POST'])
+    flask_app.add_url_rule('/velez/test_email', 'velez_test_email', route_test_email, methods=['POST'])
+    log.info('Velez: routes registered on external Flask app')
+
+    if apscheduler:
+        # Monday 07:00 ART = Monday 10:00 UTC  (ART = UTC-3, sin DST)
+        apscheduler.add_job(weekly_report,        'cron',     day_of_week='mon',
+                            hour=10, minute=0,    id='velez_weekly',  replace_existing=True)
+        apscheduler.add_job(check_pending_events, 'interval', hours=1,
+                            id='velez_events',    replace_existing=True)
+        apscheduler.add_job(flush_email_queue,    'interval', minutes=30,
+                            id='velez_flush',     replace_existing=True)
+        log.info('Velez: APScheduler jobs registered — weekly Mon 10:00 UTC (07:00 ART)')
+
 # ─── MAIN ────────────────────────────────────────────────────────────────────
 
 if __name__ == '__main__':
