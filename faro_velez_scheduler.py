@@ -46,7 +46,15 @@ EMAIL_TODOS       = env('VELEZ_EMAIL_TODOS')
 WA_INTENDENTE     = env('VELEZ_WHATSAPP_INTENDENTE')
 WA_CANCHERO       = env('VELEZ_WHATSAPP_CANCHERO')
 WA_NELSON         = env('VELEZ_WHATSAPP_NELSON')
-CALLMEBOT_KEY     = env('CALLMEBOT_API_KEY')
+
+# CallMeBot: cada número tiene su propia API key (activación individual)
+# Claves vacías = ese número no recibirá alertas pero los emails siguen funcionando
+def _wa_keys() -> dict:
+    return {
+        WA_CANCHERO:   env('CALLMEBOT_KEY_CANCHERO'),
+        WA_INTENDENTE: env('CALLMEBOT_KEY_INTENDENTE'),
+        WA_NELSON:     env('CALLMEBOT_KEY_NELSON'),
+    }
 
 PORT     = int(env('PORT', '5000'))
 DESKTOP  = Path.home() / 'Desktop'          # solo para scripts generadores (dev local)
@@ -82,20 +90,21 @@ def save_jobs(jobs: dict):
 # ─── WHATSAPP (CallMeBot) ─────────────────────────────────────────────────────
 
 def send_whatsapp(phone: str, message: str) -> bool:
-    if not phone or not CALLMEBOT_KEY:
-        log.warning(f'WhatsApp not configured (phone={bool(phone)}, key={bool(CALLMEBOT_KEY)})')
+    key = _wa_keys().get(phone, '')
+    if not phone or not key:
+        log.warning(f'WhatsApp key not configured for {phone[:8]}*** — skipping')
         return False
     try:
-        url = 'https://api.callmebot.com/whatsapp.php'
-        params = {'phone': phone, 'text': message, 'apikey': CALLMEBOT_KEY}
-        r = requests.get(url, params=params, timeout=15)
+        r = requests.get('https://api.callmebot.com/whatsapp.php',
+                         params={'phone': phone, 'text': message, 'apikey': key},
+                         timeout=15)
         if r.status_code == 200:
-            log.info(f'WhatsApp sent to {phone[:6]}***')
+            log.info(f'WhatsApp sent to {phone[:8]}***')
             return True
-        log.error(f'WhatsApp failed: {r.status_code} {r.text[:100]}')
+        log.error(f'WhatsApp failed {phone[:8]}***: {r.status_code} {r.text[:100]}')
         return False
     except Exception as e:
-        log.error(f'WhatsApp exception: {e}')
+        log.error(f'WhatsApp exception {phone[:8]}***: {e}')
         return False
 
 def notify_whatsapp_all(message: str):
