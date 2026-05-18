@@ -1,7 +1,11 @@
 """
 Faro Protocol — Vélez Sarsfield Scheduler
 Reporte semanal + eventos + alertas urgentes + WhatsApp + email.
-Railway-ready. Jobs persistentes en JSON.
+Railway-ready. Jobs persistentes en JSON. Config externa: config_velez.json.
+
+Para agregar una zona nueva:   editar config_velez.json → "zonas"
+Para agregar un destinatario: editar config_velez.json → "destinatarios"
+Sin tocar código Python.
 """
 import os, json, time, hashlib, logging, smtplib, threading, traceback
 from datetime import datetime, timedelta
@@ -17,8 +21,9 @@ import requests
 import schedule
 
 # ─── CONFIG ──────────────────────────────────────────────────────────────────
-JOBS_FILE = Path(__file__).parent / 'velez_jobs.json'
-LOG_FILE  = Path(__file__).parent / 'velez_scheduler.log'
+CONFIG_FILE = Path(__file__).parent / 'config_velez.json'
+JOBS_FILE   = Path(__file__).parent / 'velez_jobs.json'
+LOG_FILE    = Path(__file__).parent / 'velez_scheduler.log'
 
 logging.basicConfig(
     level=logging.INFO,
@@ -33,60 +38,75 @@ log = logging.getLogger('velez')
 def env(key: str, default: str = '') -> str:
     return os.environ.get(key, default)
 
-GMAIL_USER  = env('GMAIL_USER', 'protocolfaro@gmail.com')
-GMAIL_PASS  = env('GMAIL_APP_PASS')
-
-EMAIL_CANCHERO    = env('VELEZ_EMAIL_CANCHERO')    # Roger Bernal — Responsable campo
-EMAIL_INTENDENTE  = env('VELEZ_EMAIL_INTENDENTE')  # Juan González — Intendente Villa Olímpica
-EMAIL_BANCHERO    = env('VELEZ_EMAIL_BANCHERO')    # Fernando Banchero — Gerente Operaciones
-EMAIL_PAIT        = env('VELEZ_EMAIL_PAIT')         # Sebastián Pait — Director Deportivo
-EMAIL_COMISION    = env('VELEZ_EMAIL_COMISION')    # Berlanga, Pugliese, Aveleyra — Comisión
-EMAIL_TODOS       = env('VELEZ_EMAIL_TODOS')
-
-WA_INTENDENTE     = env('VELEZ_WHATSAPP_INTENDENTE')
-WA_CANCHERO       = env('VELEZ_WHATSAPP_CANCHERO')
-WA_NELSON         = env('VELEZ_WHATSAPP_NELSON')
-
-# CallMeBot: cada número tiene su propia API key (activación individual)
-# Claves vacías = ese número no recibirá alertas pero los emails siguen funcionando
-def _wa_keys() -> dict:
-    return {
-        WA_CANCHERO:   env('CALLMEBOT_KEY_CANCHERO'),
-        WA_INTENDENTE: env('CALLMEBOT_KEY_INTENDENTE'),
-        WA_NELSON:     env('CALLMEBOT_KEY_NELSON'),
-    }
+GMAIL_USER = env('GMAIL_USER', 'protocolfaro@gmail.com')
+GMAIL_PASS = env('GMAIL_APP_PASS')
 
 PORT     = int(env('PORT', '5000'))
-DESKTOP  = Path.home() / 'Desktop'          # solo para scripts generadores (dev local)
-BASE_DIR = Path(__file__).parent             # raiz del repo — disponible en Railway
+DESKTOP  = Path.home() / 'Desktop'
+BASE_DIR = Path(__file__).parent
 
-# Rutas centralizadas — carpeta dentro del repo, accesible en Railway y local
-REPORT_PATHS = {
-    'canchero':   BASE_DIR / 'reportes_velez' / 'faro_reporte_velez_canchero.png',
-    'agro_final': BASE_DIR / 'reportes_velez' / 'faro_reporte_velez_agro_FINAL.png',
-    'solar_v2':   BASE_DIR / 'reportes_velez' / 'faro_reporte_velez_solar_v2.png',
-    'velez':      BASE_DIR / 'reportes_velez' / 'faro_reporte_velez.png',
-}
+# Alert thresholds
+NDVI_ALERT      = 0.35
+INSAR_ALERT     = 3.0   # mm
+TEMP_ALERT      = 28.0  # °C
+SOLAR_ALERT_EFF = 75.0  # %
 
-# Manuales PDF — se adjuntan solo en el primer envío (manual_sent flag en velez_jobs.json)
-# comision recibe los 3 PDFs ejecutivos en un solo email
+# ─── CARGA DE CONFIG EXTERNA ─────────────────────────────────────────────────
+
+def load_config() -> dict:
+    """Lee config_velez.json. Fallback a config vacía si no existe o hay error."""
+    if CONFIG_FILE.exists():
+        try:
+            return json.loads(CONFIG_FILE.read_text(encoding='utf-8'))
+        except Exception as e:
+            log.error(f'Error leyendo config_velez.json: {e}')
+    log.warning('config_velez.json no encontrado — usando config vacía')
+    return {'zonas': [], 'destinatarios': []}
+
+def output_to_key(output_filename: str) -> str:
+    """Convierte nombre de archivo de output a clave interna.
+    'faro_reporte_velez_canchero.png' → 'canchero'
+    'faro_reporte_velez.png'          → 'velez'
+    'faro_reporte_velez_agro_FINAL.png' → 'agro_FINAL'
+    """
+    stem = Path(output_filename).stem      # sin extensión
+    prefix = 'faro_reporte_velez'
+    if stem == prefix:
+        return 'velez'
+    return stem[len(prefix) + 1:]          # quita 'faro_reporte_velez_'
+
+def get_report_paths(config: dict = None) -> dict:
+    """Construye dict {clave → Path} de todos los reportes desde config.zonas."""
+    if config is None:
+        config = load_config()
+    return {
+        output_to_key(z['output']): BASE_DIR / 'reportes_velez' / z['output']
+        for z in config.get('zonas', [])
+    }
+
+# Manuales PDF — indexados por clave de nombre de persona
 MANUAL_PATHS = {
     'roger':    BASE_DIR / 'reportes_velez' / 'manual_velez_roger.pdf',
     'juan':     BASE_DIR / 'reportes_velez' / 'manual_velez_juan.pdf',
     'banchero': BASE_DIR / 'reportes_velez' / 'manual_velez_banchero.pdf',
     'pait':     BASE_DIR / 'reportes_velez' / 'manual_velez_pait.pdf',
-    'comision': [
-        BASE_DIR / 'reportes_velez' / 'manual_velez_berlanga.pdf',
-        BASE_DIR / 'reportes_velez' / 'manual_velez_nelson.pdf',
-        BASE_DIR / 'reportes_velez' / 'manual_velez_aveleyra.pdf',
-    ],
+    'berlanga': BASE_DIR / 'reportes_velez' / 'manual_velez_berlanga.pdf',
+    'nelson':   BASE_DIR / 'reportes_velez' / 'manual_velez_nelson.pdf',
+    'aveleyra': BASE_DIR / 'reportes_velez' / 'manual_velez_aveleyra.pdf',
 }
 
-# Alert thresholds
-NDVI_ALERT     = 0.35
-INSAR_ALERT    = 3.0   # mm
-TEMP_ALERT     = 28.0  # °C
-SOLAR_ALERT_EFF = 75.0 # %
+_NAME_TO_MANUAL_KEY = {
+    'Roger Bernal':       'roger',
+    'Juan Gonzalez':      'juan',
+    'Fernando Banchero':  'banchero',
+    'Sebastian Pait':     'pait',
+    'Fabian Berlanga':    'berlanga',
+    'Nelson Pugliese':    'nelson',
+    'Alberto Aveleyra':   'aveleyra',
+}
+
+def _manual_key_for_name(nombre: str) -> Optional[str]:
+    return _NAME_TO_MANUAL_KEY.get(nombre)
 
 # ─── JOBS PERSISTENCE ────────────────────────────────────────────────────────
 
@@ -94,7 +114,6 @@ def load_jobs() -> dict:
     if JOBS_FILE.exists():
         try:
             data = json.loads(JOBS_FILE.read_text())
-            # Ensure manual_sent key exists in files created before this feature
             data.setdefault('manual_sent', False)
             return data
         except Exception:
@@ -107,37 +126,51 @@ def save_jobs(jobs: dict):
 
 # ─── WHATSAPP (CallMeBot) ─────────────────────────────────────────────────────
 
+def _wa_key_for_phone(phone: str) -> str:
+    """Obtiene la API key de CallMeBot para un número dado vía env vars.
+    Mapeo phone → nombre de env var de la API key."""
+    phone_to_key = {
+        env('VELEZ_WHATSAPP_CANCHERO'):   env('CALLMEBOT_KEY_CANCHERO'),
+        env('VELEZ_WHATSAPP_INTENDENTE'): env('CALLMEBOT_KEY_INTENDENTE'),
+        env('VELEZ_WHATSAPP_NELSON'):     env('CALLMEBOT_KEY_NELSON'),
+        env('VELEZ_WHATSAPP_BANCHERO'):   env('CALLMEBOT_KEY_BANCHERO'),
+    }
+    return phone_to_key.get(phone, '')
+
 def send_whatsapp(phone: str, message: str) -> bool:
-    key = _wa_keys().get(phone, '')
+    key = _wa_key_for_phone(phone)
     if not phone or not key:
-        log.warning(f'WhatsApp key not configured for {phone[:8]}*** — skipping')
+        log.warning(f'WhatsApp key no configurada para {phone[:8]}*** — omitido')
         return False
     try:
         r = requests.get('https://api.callmebot.com/whatsapp.php',
                          params={'phone': phone, 'text': message, 'apikey': key},
                          timeout=15)
         if r.status_code == 200:
-            log.info(f'WhatsApp sent to {phone[:8]}***')
+            log.info(f'WhatsApp enviado a {phone[:8]}***')
             return True
-        log.error(f'WhatsApp failed {phone[:8]}***: {r.status_code} {r.text[:100]}')
+        log.error(f'WhatsApp falló {phone[:8]}***: {r.status_code} {r.text[:100]}')
         return False
     except Exception as e:
-        log.error(f'WhatsApp exception {phone[:8]}***: {e}')
+        log.error(f'WhatsApp excepción {phone[:8]}***: {e}')
         return False
 
-def notify_whatsapp_all(message: str):
-    for phone in [WA_INTENDENTE, WA_CANCHERO, WA_NELSON]:
-        if phone:
-            send_whatsapp(phone, message)
+def notify_whatsapp_all(message: str, config: dict = None):
+    """Envía mensaje a todos los números con WhatsApp en el config."""
+    if config is None:
+        config = load_config()
+    for d in config.get('destinatarios', []):
+        if d.get('whatsapp'):
+            send_whatsapp(d['whatsapp'], message)
 
 # ─── EMAIL ────────────────────────────────────────────────────────────────────
 
 def send_email(to: str, subject: str, body_html: str,
                attachments: list = None) -> bool:
-    """Send email to one or more recipients (comma-separated `to`).
-    attachments: list of file paths to attach."""
+    """Envía email a uno o más destinatarios (to separado por comas).
+    attachments: lista de rutas de archivo."""
     if not to or not GMAIL_PASS:
-        log.warning(f'Email not configured (to={bool(to)}, pass={bool(GMAIL_PASS)})')
+        log.warning(f'Email no configurado (to={bool(to)}, pass={bool(GMAIL_PASS)})')
         return False
     try:
         recipients = [r.strip() for r in to.split(',') if r.strip()]
@@ -158,16 +191,16 @@ def send_email(to: str, subject: str, body_html: str,
                     f'attachment; filename="{p.name}"')
                 msg.attach(part)
             else:
-                log.warning(f'Attachment not found, skipping: {att_path}')
+                log.warning(f'Adjunto no encontrado, omitido: {att_path}')
 
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
             server.login(GMAIL_USER, GMAIL_PASS)
             server.sendmail(GMAIL_USER, recipients, msg.as_string())
 
-        log.info(f'Email sent to {recipients}: {subject}')
+        log.info(f'Email enviado a {recipients}: {subject}')
         return True
     except Exception as e:
-        log.error(f'Email failed to {to}: {e}')
+        log.error(f'Email falló a {to}: {e}')
         return False
 
 def queue_email(to: str, subject: str, body: str, attachments: list = None):
@@ -182,8 +215,8 @@ def flush_email_queue():
     jobs = load_jobs()
     remaining = []
     for item in jobs.get('email_queue', []):
-        ok = send_email(item['to'], item['subject'], item['body'],
-                        item.get('attachments') or [item['attachment']] if item.get('attachment') else [])
+        atts = item.get('attachments') or ([item['attachment']] if item.get('attachment') else [])
+        ok = send_email(item['to'], item['subject'], item['body'], atts)
         if not ok:
             remaining.append(item)
     jobs['email_queue'] = remaining
@@ -201,53 +234,52 @@ def _run_script(script_path: str) -> bool:
         if result.returncode == 0:
             log.info(f'Script OK: {script_path}')
             return True
-        log.error(f'Script failed: {script_path}\n{result.stderr[:500]}')
+        log.error(f'Script falló: {script_path}\n{result.stderr[:500]}')
         return False
     except Exception as e:
-        log.error(f'Script exception: {script_path}: {e}')
+        log.error(f'Script excepción: {script_path}: {e}')
         return False
 
 def generate_report(script_name: str, out_path: Path) -> Optional[str]:
-    """Run a generator script. Looks in BASE_DIR (Railway) first, then DESKTOP (local dev).
-    Falls back to last cached PNG if generation fails."""
+    """Ejecuta script generador. Busca en BASE_DIR primero, luego DESKTOP.
+    Fallback: PNG anterior si la generación falla (nunca envía email vacío)."""
     script = BASE_DIR / script_name
     if not script.exists():
         script = DESKTOP / script_name
     if script.exists():
         if _run_script(str(script)):
             return str(out_path) if out_path.exists() else None
-        log.error(f'Script failed: {script_name}')
+        log.error(f'Script falló: {script_name}')
     else:
-        log.warning(f'Script not found: {script_name} (tried BASE_DIR and DESKTOP)')
+        log.warning(f'Script no encontrado: {script_name}')
     if out_path.exists():
-        log.warning(f'Using cached report (generation failed): {out_path.name}')
+        log.warning(f'Usando reporte cacheado (fallback): {out_path.name}')
         return str(out_path)
-    log.error(f'No cached fallback for {out_path.name}')
+    log.error(f'Sin fallback para {out_path.name}')
     return None
 
-def generate_canchero_report() -> Optional[str]:
-    return generate_report('gen_velez_canchero.py', REPORT_PATHS['canchero'])
+def generate_all_reports_from_config(config: dict) -> dict:
+    """Genera todos los reportes definidos en config.zonas.
+    Retorna dict {clave → ruta_o_None}."""
+    results = {}
+    for zona in config.get('zonas', []):
+        key      = output_to_key(zona['output'])
+        out_path = BASE_DIR / 'reportes_velez' / zona['output']
+        path     = generate_report(zona['script'], out_path)
+        results[key] = path
+        status = 'OK' if path else 'SIN REPORTE'
+        log.info(f'Zona {zona["nombre"]}: {status}')
+    return results
 
-def generate_solar_v2_report() -> Optional[str]:
-    return generate_report('gen_velez_solar_v2.py', REPORT_PATHS['solar_v2'])
-
-def generate_agro_final_report() -> Optional[str]:
-    return generate_report('gen_velez_final.py', REPORT_PATHS['agro_final'])
-
-def generate_main_report() -> Optional[str]:
-    return generate_report('gen_velez_main.py', REPORT_PATHS['velez'])
-
-# ─── REPORT DATA (lectura del JSON del pipeline) ─────────────────────────────
+# ─── REPORT DATA ─────────────────────────────────────────────────────────────
 
 def load_latest_data() -> dict:
-    """Load latest zone data from Faro pipeline data.json."""
-    data_path = Path(__file__).parent / 'data.json'
+    data_path = BASE_DIR / 'data.json'
     if data_path.exists():
         try:
             return json.loads(data_path.read_text())
         except Exception:
             pass
-    # Fallback synthetic data for Vélez
     return {
         'zones': [
             {'name': 'Campo Amalfitani', 'ndvi': 0.68, 'temp': 22.1,
@@ -263,37 +295,53 @@ def load_latest_data() -> dict:
 
 # ─── ALERT CHECK ─────────────────────────────────────────────────────────────
 
-def check_and_send_alerts(data: dict):
-    zones = data.get('zones', [])
-    solar = data.get('solar', {})
+def check_and_send_alerts(data: dict, config: dict = None):
+    if config is None:
+        config = load_config()
+    zones    = data.get('zones', [])
+    solar    = data.get('solar', {})
     tribunas = data.get('tribunas', {})
 
+    # Teléfonos para alertas desde el config
+    phones_campo = [
+        d['whatsapp'] for d in config.get('destinatarios', [])
+        if d.get('whatsapp') and 'canchero' in d.get('reportes', [])
+    ]
+    phones_infra = [
+        d['whatsapp'] for d in config.get('destinatarios', [])
+        if d.get('whatsapp') and any(r in d.get('reportes', []) for r in ['velez', 'sede', 'poli'])
+    ]
+
     for z in zones:
-        name = z.get('name', '?')
-        ndvi = z.get('ndvi', 1.0)
-        temp = z.get('temp', 0.0)
+        name  = z.get('name', '?')
+        ndvi  = z.get('ndvi', 1.0)
+        temp  = z.get('temp', 0.0)
         insar = z.get('insar_mm', 0.0)
 
         if ndvi < NDVI_ALERT:
             msg = f'FARO ALERTA: {name} necesita intervencion urgente (NDVI={ndvi:.2f})'
-            send_whatsapp(WA_CANCHERO, msg)
-            log.info(f'NDVI alert sent for {name}')
+            for ph in phones_campo:
+                send_whatsapp(ph, msg)
+            log.info(f'Alerta NDVI enviada para {name}')
 
         if temp > TEMP_ALERT:
-            msg = f'FARO ALERTA: Estres hidrico critico en {name} (Temp={temp:.1f}°C)'
-            send_whatsapp(WA_CANCHERO, msg)
-            log.info(f'Temp alert sent for {name}')
+            msg = f'FARO ALERTA: Estres hidrico critico en {name} (Temp={temp:.1f}C)'
+            for ph in phones_campo:
+                send_whatsapp(ph, msg)
+            log.info(f'Alerta temperatura enviada para {name}')
 
     for tribuna, val in tribunas.items():
         if val > INSAR_ALERT:
             msg = f'FARO ALERTA: Tribuna {tribuna.upper()} supera umbral InSAR ({val:.2f}mm)'
-            send_whatsapp(WA_INTENDENTE, msg)
-            log.info(f'InSAR alert sent for tribuna {tribuna}')
+            for ph in phones_infra:
+                send_whatsapp(ph, msg)
+            log.info(f'Alerta InSAR enviada para tribuna {tribuna}')
 
     if solar.get('anomaly_zone'):
         msg = f'FARO ALERTA: Panel solar zona {solar["anomaly_zone"]} con falla detectada'
-        send_whatsapp(WA_INTENDENTE, msg)
-        log.info(f'Solar alert sent')
+        for ph in phones_infra:
+            send_whatsapp(ph, msg)
+        log.info('Alerta solar enviada')
 
 # ─── EMAIL BODIES ─────────────────────────────────────────────────────────────
 
@@ -307,8 +355,6 @@ def _html_wrap(title: str, body: str) -> str:
 Faro Protocol · Fortín Inteligente · protocolfaro@gmail.com<br>
 Generado automáticamente · {datetime.now().strftime('%d/%m/%Y %H:%M')} UTC-3
 </p></body></html>"""
-
-# ─── EMAIL BODIES POR ROL ─────────────────────────────────────────────────────
 
 def _body_roger() -> str:
     return _html_wrap(
@@ -339,235 +385,347 @@ def _body_roger() -> str:
 
 def _body_juan() -> str:
     return _html_wrap(
-        'Estado Villa Olimpica Esta Semana',
-        """
-        <p>Juan, te mando el estado actualizado de las canchas y el campo.</p>
+        'Estado Villa Olímpica Esta Semana',
+        f"""
+        <p>Juan, te mando el estado actualizado de las canchas, el campo y el Polideportivo.</p>
         <h3 style="color:#e74c3c">Urgente — Cancha 4</h3>
         <ul style="font-size:14px">
           <li>Focos activos de hongo en zona central (85 m²) — requiere fungicida HOY</li>
-          <li>Drenaje lateral sur roto — agua estancada confirmada por satelite</li>
+          <li>Drenaje lateral sur roto — agua estancada confirmada por satélite</li>
           <li>Resembrado zona central necesario esta semana</li>
         </ul>
-        <h3 style="color:#f0b429">Acciones Esta Semana</h3>
+        <h3 style="color:#f0b429">Polideportivo Feijóo — Esta Semana</h3>
         <ul style="font-size:14px">
-          <li><b>Cancha 1:</b> hongo en desarrollo, fungicida preventivo</li>
-          <li><b>Cancha 2:</b> fertilizar 20 kg N/ha</li>
-          <li><b>Cancha 3:</b> fungicida activo + resembrado parcial</li>
-          <li><b>Campo Amalfitani:</b> NDVI 0.68 — estado optimo, mantener riego</li>
+          <li><b>Básquet (ext):</b> fisuras detectadas — inspección urgente</li>
+          <li><b>Playón Norte:</b> relevamiento estructural recomendado</li>
+          <li><b>Tenis 1 y 2:</b> riego preventivo programado</li>
+        </ul>
+        <h3 style="color:#f0b429">Campo Amalfitani</h3>
+        <ul style="font-size:14px">
+          <li><b>Canchas 1–3:</b> tratamientos agronómicos en curso</li>
+          <li><b>Campo Amalfitani:</b> NDVI 0.68 — estado óptimo, mantener riego</li>
         </ul>
         <p style="font-size:13px;color:#9aa0a8">
-          Se adjuntan mapa de canchas y reporte agro completo.
+          Se adjuntan mapas de canchas, reporte agro y estado polideportivo.
         </p>
         """
     )
 
 def _body_banchero() -> str:
     return _html_wrap(
-        'Estado Operativo del Predio — Velez Sarsfield',
+        'Estado Operativo del Predio — Vélez Sarsfield',
         f"""
-        <p>Fernando, resumen operativo de la semana del {datetime.now().strftime("%d/%m/%Y")}.</p>
-        <h3 style="color:#c9a84c">Predio Deportivo</h3>
+        <p>Fernando, resumen operativo completo de la semana del {datetime.now().strftime("%d/%m/%Y")}.</p>
+        <h3 style="color:#c9a84c">Predio Completo</h3>
         <table style="color:#f2ede4;border-collapse:collapse;width:100%;font-size:14px">
           <tr style="background:#141c24">
-            <th style="padding:8px;border:1px solid #c9a84c44;text-align:left">Zona</th>
+            <th style="padding:8px;border:1px solid #c9a84c44;text-align:left">Área</th>
             <th style="padding:8px;border:1px solid #c9a84c44;text-align:left">Estado</th>
-            <th style="padding:8px;border:1px solid #c9a84c44;text-align:left">Accion requerida</th>
+            <th style="padding:8px;border:1px solid #c9a84c44;text-align:left">Acción requerida</th>
           </tr>
           <tr><td style="padding:6px;border:1px solid #c9a84c22">Cancha 4</td>
-              <td style="padding:6px;color:#e74c3c;border:1px solid #c9a84c22"><b>CRITICO</b></td>
-              <td style="padding:6px;border:1px solid #c9a84c22">Intervencion urgente — ver mapa</td></tr>
+              <td style="padding:6px;color:#e74c3c;border:1px solid #c9a84c22"><b>CRÍTICO</b></td>
+              <td style="padding:6px;border:1px solid #c9a84c22">Intervención urgente — ver mapa</td></tr>
           <tr><td style="padding:6px;border:1px solid #c9a84c22">Canchas 1, 2, 3</td>
-              <td style="padding:6px;color:#f0b429;border:1px solid #c9a84c22"><b>ATENCION</b></td>
+              <td style="padding:6px;color:#f0b429;border:1px solid #c9a84c22"><b>ATENCIÓN</b></td>
               <td style="padding:6px;border:1px solid #c9a84c22">Acciones programadas esta semana</td></tr>
           <tr><td style="padding:6px;border:1px solid #c9a84c22">Campo Amalfitani</td>
-              <td style="padding:6px;color:#27ae60;border:1px solid #c9a84c22"><b>OPTIMO</b></td>
-              <td style="padding:6px;border:1px solid #c9a84c22">Sin accion inmediata</td></tr>
+              <td style="padding:6px;color:#27ae60;border:1px solid #c9a84c22"><b>ÓPTIMO</b></td>
+              <td style="padding:6px;border:1px solid #c9a84c22">Sin acción inmediata</td></tr>
+          <tr><td style="padding:6px;border:1px solid #c9a84c22">Polideportivo Feijóo</td>
+              <td style="padding:6px;color:#f0b429;border:1px solid #c9a84c22"><b>ATENCIÓN</b></td>
+              <td style="padding:6px;border:1px solid #c9a84c22">Básquet y Playón Norte — inspección</td></tr>
+          <tr><td style="padding:6px;border:1px solid #c9a84c22">Complejo Acuático</td>
+              <td style="padding:6px;color:#27ae60;border:1px solid #c9a84c22"><b>ÓPTIMO</b></td>
+              <td style="padding:6px;border:1px solid #c9a84c22">Calidad agua excelente — score 91/100</td></tr>
+          <tr><td style="padding:6px;border:1px solid #c9a84c22">Sede Central & Instituto</td>
+              <td style="padding:6px;color:#f0b429;border:1px solid #c9a84c22"><b>ATENCIÓN</b></td>
+              <td style="padding:6px;border:1px solid #c9a84c22">Anexo Norte — revisar aislamiento térmico</td></tr>
+          <tr><td style="padding:6px;border:1px solid #c9a84c22">Tribuna Oeste</td>
+              <td style="padding:6px;color:#e74c3c;border:1px solid #c9a84c22"><b>ALERTA</b></td>
+              <td style="padding:6px;border:1px solid #c9a84c22">InSAR 2.80mm — inspección estructural</td></tr>
         </table>
         <h3 style="color:#c9a84c">Sistema Solar (210 paneles — 120 kWp)</h3>
         <ul style="font-size:14px">
-          <li>Eficiencia actual: <b>82.4%</b></li>
-          <li><b style="color:#f0b429">Zona E (Arco Sur):</b> 8 paneles con temperatura >60°C — inspeccion esta semana</li>
-          <li>Produccion estimada semana: 2,840 kWh</li>
+          <li>Eficiencia: <b>82.4%</b> — Producción: 2,840 kWh/sem</li>
+          <li><b style="color:#f0b429">Zona E (Arco Sur):</b> 8 paneles >60°C — revisión esta semana</li>
         </ul>
-        <h3 style="color:#e74c3c">Infraestructura</h3>
-        <ul style="font-size:14px">
-          <li><b>Tribuna Oeste:</b> desplazamiento InSAR 2.80 mm — supera umbral de 3.0 mm<br>
-              Recomendacion: inspección estructural esta semana</li>
-        </ul>
-        <p style="font-size:13px;color:#9aa0a8">Se adjuntan reporte general, solar y agro.</p>
+        <p style="font-size:13px;color:#9aa0a8">Se adjuntan: reporte general, solar, agro, polideportivo, piletas y sede.</p>
         """
     )
 
 def _body_pait() -> str:
     return _html_wrap(
-        'Estado Canchas y Campo — Vision Deportiva',
+        'Estado Canchas y Campo — Visión Deportiva',
         """
-        <p>Sebastian, estado de los campos para esta semana de entrenamiento.</p>
+        <p>Sebastián, estado de las superficies para esta semana de entrenamiento.</p>
         <h3 style="color:#e74c3c">NO APTO para entrenamiento</h3>
         <ul style="font-size:14px">
-          <li><b>Cancha 4:</b> estado critico — hongo activo + drenaje roto + pasto ralo<br>
-              No recomendada para uso hasta reparacion</li>
+          <li><b>Cancha 4:</b> estado crítico — hongo activo + drenaje roto + pasto ralo</li>
         </ul>
         <h3 style="color:#f0b429">Uso condicionado</h3>
         <ul style="font-size:14px">
-          <li><b>Cancha 1:</b> apta, con fungicida preventivo aplicado antes del uso</li>
+          <li><b>Cancha 1:</b> apta, con fungicida preventivo antes del uso</li>
           <li><b>Cancha 3:</b> apta para trabajos livianos, tratamiento en curso</li>
+          <li><b>Polideportivo:</b> Básquet y Playón Norte — evaluar antes de uso intensivo</li>
         </ul>
-        <h3 style="color:#27ae60">Optimas para uso</h3>
+        <h3 style="color:#27ae60">Óptimas para uso</h3>
         <ul style="font-size:14px">
-          <li><b>Cancha 2:</b> apta — NDVI 0.52, fertilizacion esta semana</li>
-          <li><b>Campo Amalfitani:</b> NDVI 0.68 — excelente condicion</li>
+          <li><b>Cancha 2:</b> apta — NDVI 0.52, fertilización esta semana</li>
+          <li><b>Campo Amalfitani:</b> NDVI 0.68 — excelente condición</li>
+          <li><b>Hockey:</b> NDVI 0.52 — apta para uso normal</li>
         </ul>
-        <p style="font-size:13px;color:#9aa0a8">
-          Se adjuntan mapa de canchas con marcadores y reporte agro detallado.
-        </p>
+        <p style="font-size:13px;color:#9aa0a8">Se adjuntan mapa de canchas, agro detallado y polideportivo.</p>
         """
     )
 
-def _body_comision() -> str:
+def _body_berlanga() -> str:
     return _html_wrap(
-        f'Informe Ejecutivo Semanal — Velez Sarsfield · {datetime.now().strftime("%d/%m/%Y")}',
+        f'Informe Ejecutivo Semanal — Vélez Sarsfield · {datetime.now().strftime("%d/%m/%Y")}',
         f"""
-        <p>Resumen satelital del Estadio Jose Amalfitani y Villa Olimpica,
+        <p>Fabián, resumen ejecutivo satelital del predio completo,
         semana del {datetime.now().strftime("%d/%m/%Y")}.</p>
-        <h3 style="color:#c9a84c">Indicadores Clave</h3>
+        <h3 style="color:#c9a84c">Indicadores Clave del Club</h3>
+        <table style="color:#f2ede4;border-collapse:collapse;width:100%;font-size:14px">
+          <tr style="background:#141c24">
+            <th style="padding:8px;border:1px solid #c9a84c44;text-align:left">Área</th>
+            <th style="padding:8px;border:1px solid #c9a84c44;text-align:center">Estado</th>
+            <th style="padding:8px;border:1px solid #c9a84c44;text-align:left">Detalle</th>
+          </tr>
+          <tr><td style="padding:6px;border:1px solid #c9a84c22">Estadio Amalfitani</td>
+              <td style="padding:6px;text-align:center;color:#f0b429;border:1px solid #c9a84c22"><b>ATENCIÓN</b></td>
+              <td style="padding:6px;border:1px solid #c9a84c22">Cancha 4 crítica — resto en tratamiento</td></tr>
+          <tr><td style="padding:6px;border:1px solid #c9a84c22">Sistema Solar</td>
+              <td style="padding:6px;text-align:center;color:#f0b429;border:1px solid #c9a84c22"><b>82.4%</b></td>
+              <td style="padding:6px;border:1px solid #c9a84c22">2,840 kWh/sem — Zona E requiere revisión</td></tr>
+          <tr><td style="padding:6px;border:1px solid #c9a84c22">Polideportivo Feijóo</td>
+              <td style="padding:6px;text-align:center;color:#f0b429;border:1px solid #c9a84c22"><b>ATENCIÓN</b></td>
+              <td style="padding:6px;border:1px solid #c9a84c22">Básquet y Playón Norte — inspección</td></tr>
+          <tr><td style="padding:6px;border:1px solid #c9a84c22">Complejo Acuático</td>
+              <td style="padding:6px;text-align:center;color:#27ae60;border:1px solid #c9a84c22"><b>ÓPTIMO</b></td>
+              <td style="padding:6px;border:1px solid #c9a84c22">Score calidad agua 91/100</td></tr>
+          <tr><td style="padding:6px;border:1px solid #c9a84c22">Sede Central & Instituto</td>
+              <td style="padding:6px;text-align:center;color:#f0b429;border:1px solid #c9a84c22"><b>ATENCIÓN</b></td>
+              <td style="padding:6px;border:1px solid #c9a84c22">Anexo Norte — temperatura elevada</td></tr>
+          <tr><td style="padding:6px;border:1px solid #c9a84c22">Tribuna Oeste</td>
+              <td style="padding:6px;text-align:center;color:#e74c3c;border:1px solid #c9a84c22"><b>ALERTA</b></td>
+              <td style="padding:6px;border:1px solid #c9a84c22">InSAR 2.80mm — inspección estructural</td></tr>
+        </table>
+        <p style="font-size:13px;color:#9aa0a8">Se adjuntan reportes completos del predio.</p>
+        """
+    )
+
+def _body_nelson() -> str:
+    return _html_wrap(
+        f'Informe Ejecutivo Semanal — Vélez Sarsfield · {datetime.now().strftime("%d/%m/%Y")}',
+        f"""
+        <p>Nelson, resumen ejecutivo satelital del predio,
+        semana del {datetime.now().strftime("%d/%m/%Y")}.</p>
+        <h3 style="color:#c9a84c">Estado General</h3>
+        <ul style="font-size:14px;line-height:1.8">
+          <li><b>Estadio Amalfitani:</b> Cancha 4 crítica — resto en tratamiento preventivo</li>
+          <li><b>Sistema Solar:</b> Eficiencia 82.4% — Zona E requiere revisión esta semana</li>
+          <li><b>Polideportivo Feijóo:</b> 2 sectores con atención (Básquet + Playón Norte)</li>
+          <li><b>Complejo Acuático:</b> Calidad de agua excelente — score 91/100</li>
+          <li><b>Sede Central:</b> Anexo Norte con temperatura de techo elevada (41°C)</li>
+          <li><b>Tribuna Oeste:</b> InSAR 2.80mm — inspección estructural recomendada</li>
+        </ul>
+        <h3 style="color:#c9a84c">Sustentabilidad</h3>
+        <ul style="font-size:14px">
+          <li>Sistema solar produciendo 2,840 kWh/semana</li>
+          <li>Alerta temprana de calidad de agua activa — sin intervención requerida</li>
+          <li>Cobertura satelital del 100% del predio operativa</li>
+        </ul>
+        <p style="font-size:13px;color:#9aa0a8">Se adjuntan reportes completos del predio.</p>
+        """
+    )
+
+def _body_aveleyra() -> str:
+    return _html_wrap(
+        f'Dashboard Ejecutivo Semanal — Vélez Sarsfield · {datetime.now().strftime("%d/%m/%Y")}',
+        f"""
+        <p>Alberto, dashboard ejecutivo satelital del predio completo,
+        semana del {datetime.now().strftime("%d/%m/%Y")}.</p>
+        <h3 style="color:#c9a84c">KPIs de Gestión</h3>
         <table style="color:#f2ede4;border-collapse:collapse;width:100%;font-size:14px">
           <tr style="background:#141c24">
             <th style="padding:8px;border:1px solid #c9a84c44;text-align:left">Indicador</th>
-            <th style="padding:8px;border:1px solid #c9a84c44;text-align:center">Estado</th>
-            <th style="padding:8px;border:1px solid #c9a84c44;text-align:left">Impacto</th>
+            <th style="padding:8px;border:1px solid #c9a84c44;text-align:center">Valor</th>
+            <th style="padding:8px;border:1px solid #c9a84c44;text-align:left">Acción requerida</th>
           </tr>
-          <tr><td style="padding:6px;border:1px solid #c9a84c22">Cancha 4</td>
-              <td style="padding:6px;text-align:center;border:1px solid #c9a84c22;color:#e74c3c"><b>CRITICO</b></td>
-              <td style="padding:6px;border:1px solid #c9a84c22">Fuera de servicio — costo estimado recuperacion: $180k</td></tr>
-          <tr><td style="padding:6px;border:1px solid #c9a84c22">Canchas 1–3</td>
-              <td style="padding:6px;text-align:center;border:1px solid #c9a84c22;color:#f0b429"><b>ATENCION</b></td>
-              <td style="padding:6px;border:1px solid #c9a84c22">Tratamientos preventivos esta semana</td></tr>
-          <tr><td style="padding:6px;border:1px solid #c9a84c22">Sistema Solar</td>
-              <td style="padding:6px;text-align:center;border:1px solid #c9a84c22;color:#f0b429"><b>82.4%</b></td>
-              <td style="padding:6px;border:1px solid #c9a84c22">Produccion 2,840 kWh/semana — Zona E requiere revision</td></tr>
-          <tr><td style="padding:6px;border:1px solid #c9a84c22">Campo Amalfitani</td>
-              <td style="padding:6px;text-align:center;border:1px solid #c9a84c22;color:#27ae60"><b>OPTIMO</b></td>
-              <td style="padding:6px;border:1px solid #c9a84c22">NDVI 0.68 — listo para uso</td></tr>
-          <tr><td style="padding:6px;border:1px solid #c9a84c22">Tribuna Oeste</td>
-              <td style="padding:6px;text-align:center;border:1px solid #c9a84c22;color:#e74c3c"><b>ALERTA</b></td>
-              <td style="padding:6px;border:1px solid #c9a84c22">InSAR 2.80 mm — inspeccion estructural recomendada</td></tr>
+          <tr><td style="padding:6px;border:1px solid #c9a84c22">Score predio general</td>
+              <td style="padding:6px;text-align:center;color:#f0b429;border:1px solid #c9a84c22"><b>67/100</b></td>
+              <td style="padding:6px;border:1px solid #c9a84c22">Intervención Cancha 4 + inspecciones</td></tr>
+          <tr><td style="padding:6px;border:1px solid #c9a84c22">Score complejo acuático</td>
+              <td style="padding:6px;text-align:center;color:#27ae60;border:1px solid #c9a84c22"><b>91/100</b></td>
+              <td style="padding:6px;border:1px solid #c9a84c22">Sin acción inmediata</td></tr>
+          <tr><td style="padding:6px;border:1px solid #c9a84c22">Eficiencia solar</td>
+              <td style="padding:6px;text-align:center;color:#f0b429;border:1px solid #c9a84c22"><b>82.4%</b></td>
+              <td style="padding:6px;border:1px solid #c9a84c22">Revisión Zona E esta semana</td></tr>
+          <tr><td style="padding:6px;border:1px solid #c9a84c22">Alertas estructurales</td>
+              <td style="padding:6px;text-align:center;color:#e74c3c;border:1px solid #c9a84c22"><b>1</b></td>
+              <td style="padding:6px;border:1px solid #c9a84c22">Tribuna Oeste — inspección recomendada</td></tr>
         </table>
         <p style="font-size:13px;color:#9aa0a8">
-          Se adjuntan 3 reportes completos: reporte general, mapa agro y estado solar.
+          Detección temprana: 80% de problemas identificados antes de ser críticos.<br>
+          Se adjuntan todos los reportes del predio.
         </p>
         """
     )
 
+def _body_generic(nombre: str, reportes: list) -> str:
+    """Email genérico para destinatarios nuevos agregados vía config_velez.json."""
+    reportes_str = ', '.join(reportes) if reportes else 'reportes del club'
+    return _html_wrap(
+        'Reporte Satelital Semanal — Vélez Sarsfield',
+        f"""
+        <p>{nombre}, te enviamos el reporte satelital semanal del Club Atlético Vélez Sarsfield.</p>
+        <p>Esta semana recibís: <b>{reportes_str}</b></p>
+        <h3 style="color:#c9a84c">Revisá los reportes adjuntos</h3>
+        <p>Los archivos contienen el análisis satelital actualizado de cada área asignada.</p>
+        <p style="font-size:13px;color:#9aa0a8">
+          Para consultas respondé por este email. — Faro Protocol
+        </p>
+        """
+    )
+
+# Mapa nombre → función de body personalizada
+_BODY_FN_MAP = {
+    'Roger Bernal':       _body_roger,
+    'Juan Gonzalez':      _body_juan,
+    'Fernando Banchero':  _body_banchero,
+    'Sebastian Pait':     _body_pait,
+    'Fabian Berlanga':    _body_berlanga,
+    'Nelson Pugliese':    _body_nelson,
+    'Alberto Aveleyra':   _body_aveleyra,
+}
+
 # ─── RECIPIENT CONFIG ─────────────────────────────────────────────────────────
 
-def _velez_recipients() -> list:
-    """Build recipient list at call time so env changes are reflected."""
-    return [
-        dict(key='roger',    name='Roger Bernal',
-             to=env('VELEZ_EMAIL_CANCHERO'),
-             subject='Faro · Tu mapa de trabajo esta semana · Campo Amalfitani',
-             reports=['canchero'],
-             body_fn=_body_roger),
-        dict(key='juan',     name='Juan Gonzalez',
-             to=env('VELEZ_EMAIL_INTENDENTE'),
-             subject='Faro · Estado Villa Olimpica esta semana',
-             reports=['canchero', 'agro_final'],
-             body_fn=_body_juan),
-        dict(key='banchero', name='Fernando Banchero',
-             to=env('VELEZ_EMAIL_BANCHERO'),
-             subject='Faro · Estado operativo del predio · Velez',
-             reports=['velez', 'solar_v2', 'agro_final'],
-             body_fn=_body_banchero),
-        dict(key='pait',     name='Sebastian Pait',
-             to=env('VELEZ_EMAIL_PAIT'),
-             subject='Faro · Estado canchas y campo · Velez',
-             reports=['canchero', 'agro_final'],
-             body_fn=_body_pait),
-        dict(key='comision', name='Comision Ejecutiva',
-             to=env('VELEZ_EMAIL_COMISION'),
-             subject='Faro Protocol · Informe ejecutivo semanal · Velez Sarsfield',
-             reports=['velez', 'agro_final', 'solar_v2'],
-             body_fn=_body_comision),
-    ]
+def _make_generic_body_fn(nombre: str, reportes: list):
+    """Factory para evitar captura de variable en cierre."""
+    def fn():
+        return _body_generic(nombre, reportes)
+    return fn
 
-def send_all_reports(tipo: str = 'semanal'):
-    jobs = load_jobs()
-    manual_sent = jobs.get('manual_sent', False)
-    date_str = datetime.now().strftime('%d/%m/%Y')
-
-    for r in _velez_recipients():
-        if not r['to']:
-            log.warning(f'No email configured for {r["name"]} — skipping')
+def _recipients_from_config(config: dict = None) -> list:
+    """Construye lista de destinatarios desde config_velez.json.
+    Body personalizada para conocidos; genérica para nuevos agregados vía JSON."""
+    if config is None:
+        config = load_config()
+    recipients = []
+    for d in config.get('destinatarios', []):
+        nombre = d.get('nombre', '')
+        email  = d.get('email', '')
+        if not nombre or not email:
             continue
+        body_fn = _BODY_FN_MAP.get(nombre) or _make_generic_body_fn(nombre, d.get('reportes', []))
+        key = (nombre.lower()
+               .replace(' ', '_')
+               .replace('á', 'a').replace('é', 'e').replace('í', 'i')
+               .replace('ó', 'o').replace('ú', 'u').replace('ñ', 'n'))
+        recipients.append({
+            'key':      key,
+            'name':     nombre,
+            'to':       email,
+            'subject':  'Faro · Reporte semanal · Vélez Sarsfield',
+            'reports':  d.get('reportes', []),
+            'body_fn':  body_fn,
+            'whatsapp': d.get('whatsapp', ''),
+        })
+    return recipients
+
+def send_all_reports(tipo: str = 'semanal', config: dict = None):
+    if config is None:
+        config = load_config()
+    jobs         = load_jobs()
+    manual_sent  = jobs.get('manual_sent', False)
+    date_str     = datetime.now().strftime('%d/%m/%Y')
+    report_paths = get_report_paths(config)
+
+    for r in _recipients_from_config(config):
         subject   = f'{r["subject"]} · {date_str}'
         body_html = r['body_fn']()
-        atts      = [str(REPORT_PATHS[k]) for k in r['reports']]
+        atts      = []
 
-        # First send ever: attach the personal PDF manual
+        for rep_key in r['reports']:
+            p = report_paths.get(rep_key)
+            if p and Path(p).exists():
+                atts.append(str(p))
+            else:
+                log.warning(f'Reporte "{rep_key}" no encontrado para {r["name"]}')
+
+        if not atts:
+            log.warning(f'Sin adjuntos para {r["name"]} — email omitido (nunca enviar vacío)')
+            continue
+
+        # Primer envío: adjuntar manual personal
         if not manual_sent:
-            manual = MANUAL_PATHS.get(r['key'])
-            if isinstance(manual, list):
-                atts.extend([str(p) for p in manual if p.exists()])
-            elif manual and manual.exists():
-                atts.append(str(manual))
-            log.info(f'Attaching manual PDF for {r["name"]} (first send)')
+            manual_key  = _manual_key_for_name(r['name'])
+            manual_path = MANUAL_PATHS.get(manual_key) if manual_key else None
+            if manual_path and Path(manual_path).exists():
+                atts.append(str(manual_path))
+                log.info(f'Manual adjunto para {r["name"]}')
 
         ok = send_email(r['to'], subject, body_html, atts)
         if not ok:
             queue_email(r['to'], subject, body_html, atts)
-        log.info(f'Report sent to {r["name"]} ({r["key"]}) -> {ok}')
+        log.info(f'Reporte enviado a {r["name"]} ({r["key"]}) → {ok}')
 
-    # Mark manuals as delivered after all recipients processed
     if not manual_sent:
         jobs['manual_sent'] = True
         save_jobs(jobs)
-        log.info('manual_sent = True — PDFs will not be re-attached in future weekly emails')
+        log.info('manual_sent = True — PDFs no se adjuntarán en futuros envíos semanales')
 
 # ─── WEEKLY JOB ──────────────────────────────────────────────────────────────
 
 def weekly_report(tipo: str = 'semanal', event_date: Optional[str] = None):
-    log.info(f'=== Running {tipo} report ===')
-    jobs = load_jobs()
+    log.info(f'=== Ejecutando reporte {tipo} ===')
+    jobs   = load_jobs()
+    config = load_config()
 
-    # Generate all 4 reports — each with up to 3 attempts, fallback to cached PNG
-    def _gen_with_retry(fn, label):
+    def _gen_with_retry(zona: dict) -> Optional[str]:
+        out_path = BASE_DIR / 'reportes_velez' / zona['output']
         for attempt in range(3):
-            path = fn()
+            path = generate_report(zona['script'], out_path)
             if path:
                 return path
-            log.warning(f'{label} attempt {attempt+1}/3 failed')
+            log.warning(f'{zona["nombre"]} intento {attempt+1}/3 falló')
             if attempt < 2:
-                time.sleep(300)   # 5 min between retries (not 30 — Railway has timeout limits)
+                time.sleep(300)
         return None
 
-    canchero_path = _gen_with_retry(generate_canchero_report,   'canchero')
-    agro_path     = _gen_with_retry(generate_agro_final_report, 'agro_final')
-    solar_path    = _gen_with_retry(generate_solar_v2_report,   'solar_v2')
-    main_path     = _gen_with_retry(generate_main_report,       'main')
+    generated = {}
+    for zona in config.get('zonas', []):
+        key = output_to_key(zona['output'])
+        generated[key] = _gen_with_retry(zona)
 
-    if not canchero_path:
-        log.error('Canchero report unavailable after 3 attempts. Aborting send.')
+    available = sum(1 for p in generated.values() if p)
+    if available == 0:
+        log.error('Ningún reporte disponible tras los intentos. Envío cancelado.')
         return
 
-    # Load data and check alerts
+    log.info(f'{available}/{len(generated)} reportes generados')
+
+    # Verificar alertas y enviar WhatsApp
     data = load_latest_data()
-    check_and_send_alerts(data)
+    check_and_send_alerts(data, config)
 
-    # Send differentiated emails — 5 recipients, each with role-specific content
-    send_all_reports(tipo)
+    # Enviar emails diferenciados por destinatario
+    send_all_reports(tipo, config)
 
-    # Flush queued emails
+    # Procesar cola de emails pendientes
     flush_email_queue()
 
     jobs['last_report'] = {
-        'date':          datetime.now().isoformat(),
-        'tipo':          tipo,
-        'canchero_path': canchero_path,
-        'solar_path':    solar_path,
+        'date':        datetime.now().isoformat(),
+        'tipo':        tipo,
+        'generated':   {k: bool(v) for k, v in generated.items()},
+        'zonas_ok':    available,
+        'zonas_total': len(generated),
     }
     save_jobs(jobs)
-    log.info(f'=== {tipo} report complete ===')
+    log.info(f'=== Reporte {tipo} completado ===')
 
 def pre_event_report(event_date: str):
     log.info(f'Pre-event report for {event_date}')
@@ -576,16 +734,13 @@ def pre_event_report(event_date: str):
 def post_event_report(event_date: str):
     log.info(f'Post-event report for {event_date}')
     weekly_report(tipo=f'post-evento {event_date}', event_date=event_date)
-    # Compare pre vs post
     jobs = load_jobs()
-    events = jobs.get('events', [])
-    matching = [e for e in events if e.get('fecha') == event_date]
+    matching = [e for e in jobs.get('events', []) if e.get('fecha') == event_date]
     if matching:
-        e = matching[0]
-        pre_date = e.get('pre_report_date', 'desconocida')
-        _send_damage_report(event_date, pre_date)
+        _send_damage_report(event_date, matching[0].get('pre_report_date', 'desconocida'))
 
 def _send_damage_report(event_date: str, pre_date: str):
+    config  = load_config()
     subject = f'Faro · Evaluación de Daños Post-Evento {event_date}'
     body = _html_wrap(
         f'Evaluación de Daños — Evento {event_date}',
@@ -608,87 +763,69 @@ def _send_damage_report(event_date: str, pre_date: str):
         <p style="color:#9aa0a8">Evaluación automática basada en imágenes Sentinel-2.</p>
         """
     )
-    send_email(EMAIL_COMISION, subject, body)
-    send_email(EMAIL_INTENDENTE, subject, body)  # no attachments — comparison table is inline
+    for d in config.get('destinatarios', []):
+        if 'velez' in d.get('reportes', []) and d.get('email'):
+            send_email(d['email'], subject, body)
 
 # ─── EVENT SCHEDULING ────────────────────────────────────────────────────────
 
 def register_event(fecha: str, tipo: str = 'partido'):
+    config = load_config()
     jobs = load_jobs()
     event_dt = datetime.strptime(fecha, '%Y-%m-%d')
     pre_dt   = event_dt - timedelta(hours=48)
     post_dt  = event_dt + timedelta(hours=48)
 
-    # Check for duplicates
-    existing = [e for e in jobs.get('events', []) if e['fecha'] == fecha]
-    if existing:
+    if any(e['fecha'] == fecha for e in jobs.get('events', [])):
         return {'status': 'already_registered', 'fecha': fecha}
 
-    event_entry = {
-        'fecha': fecha,
-        'tipo':  tipo,
-        'pre_dt':  pre_dt.isoformat(),
-        'post_dt': post_dt.isoformat(),
-        'pre_report_date': None,
-        'post_report_done': False,
-    }
-    jobs.setdefault('events', []).append(event_entry)
+    jobs.setdefault('events', []).append({
+        'fecha': fecha, 'tipo': tipo,
+        'pre_dt': pre_dt.isoformat(), 'post_dt': post_dt.isoformat(),
+        'pre_report_date': None, 'post_report_done': False,
+    })
     save_jobs(jobs)
 
-    # WhatsApp confirmation
-    pre_str  = pre_dt.strftime('%A %d/%m')
-    post_str = post_dt.strftime('%A %d/%m')
     msg = (f'Faro: Evento {tipo} registrado para {event_dt.strftime("%d/%m/%Y")}.\n'
-           f'Reporte PRE-EVENTO: {pre_str}.\n'
-           f'Reporte POST-EVENTO: {post_str}.')
-    for phone in [WA_INTENDENTE, WA_CANCHERO]:
-        if phone:
-            send_whatsapp(phone, msg)
+           f'Pre-evento: {pre_dt.strftime("%A %d/%m")}.\n'
+           f'Post-evento: {post_dt.strftime("%A %d/%m")}.')
+    for d in config.get('destinatarios', []):
+        if d.get('whatsapp'):
+            send_whatsapp(d['whatsapp'], msg)
 
-    log.info(f'Event registered: {fecha} ({tipo})')
+    log.info(f'Evento registrado: {fecha} ({tipo})')
     return {
-        'status': 'registered',
-        'fecha': fecha,
-        'tipo': tipo,
+        'status': 'registered', 'fecha': fecha, 'tipo': tipo,
         'pre_evento': pre_dt.strftime('%A %d/%m'),
         'post_evento': post_dt.strftime('%A %d/%m'),
     }
 
 def check_pending_events():
-    """Check and fire scheduled event reports."""
     jobs = load_jobs()
     now  = datetime.now()
     changed = False
-
     for event in jobs.get('events', []):
         pre_dt  = datetime.fromisoformat(event['pre_dt'])
         post_dt = datetime.fromisoformat(event['post_dt'])
-
         if not event.get('pre_report_date') and now >= pre_dt:
-            log.info(f'Firing pre-event report for {event["fecha"]}')
             pre_event_report(event['fecha'])
             event['pre_report_date'] = now.isoformat()
             changed = True
-
         if not event.get('post_report_done') and now >= post_dt:
-            log.info(f'Firing post-event report for {event["fecha"]}')
             post_event_report(event['fecha'])
             event['post_report_done'] = True
             changed = True
-
     if changed:
         save_jobs(jobs)
 
 # ─── SCHEDULE ────────────────────────────────────────────────────────────────
 
 def setup_schedule():
-    # Weekly agro + solar report — Monday 7:00 AM ART
+    # Lunes 07:00 ART
     schedule.every().monday.at('07:00').do(weekly_report)
-    # Check events every hour
     schedule.every().hour.do(check_pending_events)
-    # Flush email queue every 30 min
     schedule.every(30).minutes.do(flush_email_queue)
-    log.info('Schedule configured: weekly Mon 07:00 + hourly event check + 30min email flush')
+    log.info('Schedule: semanal Lun 07:00 + evento cada hora + flush 30min')
 
 def run_schedule():
     while True:
@@ -701,92 +838,86 @@ app = Flask(__name__)
 
 @app.route('/velez/evento', methods=['POST'])
 def route_evento():
-    """Register a match/event.
-    Body: {"fecha": "YYYY-MM-DD", "tipo": "partido|recital"}
-    Also accepts WhatsApp-style: {"message": "evento 2026-06-20"}
-    """
-    data = request.get_json(silent=True) or {}
-
-    # WhatsApp text message parsing
+    data    = request.get_json(silent=True) or {}
     message = data.get('message', '')
     if message.lower().startswith('evento '):
         parts = message.split()
         if len(parts) >= 2:
             data['fecha'] = parts[1]
-
     fecha = data.get('fecha', '')
     tipo  = data.get('tipo', 'partido')
-
     if not fecha:
         return jsonify({'error': 'fecha required (YYYY-MM-DD)'}), 400
-
     try:
         datetime.strptime(fecha, '%Y-%m-%d')
     except ValueError:
         return jsonify({'error': 'invalid date format, use YYYY-MM-DD'}), 400
-
-    result = register_event(fecha, tipo)
-    return jsonify(result), 200
+    return jsonify(register_event(fecha, tipo)), 200
 
 @app.route('/velez/status', methods=['GET'])
 def route_status():
-    jobs = load_jobs()
-    now  = datetime.now()
-    upcoming = []
-    for e in jobs.get('events', []):
-        event_dt = datetime.fromisoformat(e['fecha'] + 'T00:00:00')
-        if event_dt >= now - timedelta(days=7):
-            upcoming.append({
-                'fecha':        e['fecha'],
-                'tipo':         e['tipo'],
-                'pre_enviado':  bool(e.get('pre_report_date')),
-                'post_enviado': bool(e.get('post_report_done')),
-            })
-
+    jobs   = load_jobs()
+    config = load_config()
+    now    = datetime.now()
+    upcoming = [
+        {'fecha': e['fecha'], 'tipo': e['tipo'],
+         'pre_enviado': bool(e.get('pre_report_date')),
+         'post_enviado': bool(e.get('post_report_done'))}
+        for e in jobs.get('events', [])
+        if datetime.fromisoformat(e['fecha'] + 'T00:00:00') >= now - timedelta(days=7)
+    ]
     return jsonify({
         'status':          'running',
         'timestamp':       now.isoformat(),
         'last_report':     jobs.get('last_report'),
-        'last_solar':      jobs.get('last_solar'),
         'email_queue_len': len(jobs.get('email_queue', [])),
         'upcoming_events': upcoming,
         'next_weekly':     'Monday 07:00 ART',
+        'zonas':           [z['nombre'] for z in config.get('zonas', [])],
+        'destinatarios':   [d['nombre'] for d in config.get('destinatarios', [])],
+        'manual_sent':     jobs.get('manual_sent', False),
     })
 
 @app.route('/velez/solar', methods=['GET'])
 def route_solar():
     jobs = load_jobs()
-    return jsonify({
-        'last_solar': jobs.get('last_solar'),
-        'timestamp':  datetime.now().isoformat(),
-    })
+    return jsonify({'last_solar': jobs.get('last_solar'), 'timestamp': datetime.now().isoformat()})
 
 @app.route('/velez/run_now', methods=['POST'])
 def route_run_now():
-    """Trigger an immediate weekly report (admin use)."""
-    tipo = request.get_json(silent=True, force=True).get('tipo', 'manual') if request.data else 'manual'
-    t = threading.Thread(target=weekly_report, kwargs={'tipo': tipo}, daemon=True)
-    t.start()
+    tipo = (request.get_json(silent=True, force=True) or {}).get('tipo', 'manual')
+    threading.Thread(target=weekly_report, kwargs={'tipo': tipo}, daemon=True).start()
     return jsonify({'status': 'started', 'tipo': tipo})
 
 @app.route('/velez/test_email', methods=['POST'])
 def route_test_email():
-    """Send a test email to all Vélez recipients to verify delivery."""
     results = send_test_emails()
-    ok = all(v for v in results.values())
-    return jsonify({'status': 'ok' if ok else 'partial', 'results': results}), 200
+    return jsonify({'status': 'ok' if all(results.values()) else 'partial', 'results': results}), 200
 
-# ─── TEST EMAIL ───────────────────────────────────────────────────────────────
+@app.route('/velez/test_banchero', methods=['POST'])
+def route_test_banchero():
+    result = send_test_banchero()
+    return jsonify({'status': 'ok' if result.get('banchero') else 'error', **result}), 200
+
+@app.route('/velez/reset_manuals', methods=['POST'])
+def route_reset_manuals():
+    jobs = load_jobs()
+    jobs['manual_sent'] = False
+    save_jobs(jobs)
+    log.info('manual_sent reset a False')
+    return jsonify({'status': 'ok', 'manual_sent': False})
+
+@app.route('/health', methods=['GET'])
+def health():
+    return jsonify({'status': 'ok', 'service': 'faro-velez-scheduler'})
+
+# ─── TEST EMAILS ─────────────────────────────────────────────────────────────
 
 def send_test_emails() -> dict:
-    """Send TEST email to each Vélez recipient. Returns dict of {key: bool}."""
+    config  = load_config()
     now_str = datetime.now().strftime('%d/%m/%Y %H:%M')
     results = {}
-    for r in _velez_recipients():
-        if not r['to']:
-            log.warning(f'No email for {r["name"]} ({r["key"]}) — skipping')
-            results[r['key']] = False
-            continue
+    for r in _recipients_from_config(config):
         ok = send_email(
             to=r['to'],
             subject=f'TEST · Faro Protocol · Velez · {now_str}',
@@ -795,76 +926,99 @@ def send_test_emails() -> dict:
                 f"""
                 <p>Email de prueba del sistema Faro Protocol para Velez Sarsfield.</p>
                 <p>Destinatario: <b>{r["name"]}</b></p>
-                <p>Rol: <b>{r["key"]}</b> — recibe reportes: {', '.join(r["reports"])}</p>
-                <p>Asunto real que recibira cada lunes:<br>
-                   <i style="color:#c9a84c">{r["subject"]}</i></p>
+                <p>Reportes asignados: {', '.join(r["reports"])}</p>
                 <p style="color:#9aa0a8;font-size:12px">Enviado: {now_str}</p>
                 """
             ),
             attachments=[]
         )
         results[r['key']] = ok
-        log.info(f'Test email {r["name"]} -> {ok}')
+        log.info(f'Test email {r["name"]} → {ok}')
     return results
 
-@app.route('/velez/reset_manuals', methods=['POST'])
-def route_reset_manuals():
-    """Reset manual_sent flag so PDFs are re-attached on the next weekly send."""
-    jobs = load_jobs()
-    jobs['manual_sent'] = False
-    save_jobs(jobs)
-    log.info('manual_sent reset to False by admin request')
-    return jsonify({'status': 'ok', 'manual_sent': False})
+def send_test_banchero() -> dict:
+    """Test completo para Banchero con TODOS sus reportes adjuntos."""
+    config       = load_config()
+    report_paths = get_report_paths(config)
+    now_str      = datetime.now().strftime('%d/%m/%Y %H:%M')
 
-@app.route('/health', methods=['GET'])
-def health():
-    return jsonify({'status': 'ok', 'service': 'faro-velez-scheduler'})
+    banchero = next(
+        (d for d in config.get('destinatarios', []) if d['nombre'] == 'Fernando Banchero'),
+        None
+    )
+    if not banchero:
+        log.warning('Fernando Banchero no encontrado en config_velez.json')
+        return {'banchero': False}
 
-# ─── INTEGRATION — registrar en app externa (server.py / Railway) ────────────
+    atts = []
+    missing = []
+    for rep_key in banchero.get('reportes', []):
+        p = report_paths.get(rep_key)
+        if p and Path(p).exists():
+            atts.append(str(p))
+        else:
+            missing.append(rep_key)
+            log.warning(f'Reporte "{rep_key}" no encontrado para test Banchero')
+
+    ok = send_email(
+        to=banchero['email'],
+        subject=f'TEST COMPLETO · Faro Protocol · Velez · {now_str}',
+        body_html=_body_banchero(),
+        attachments=atts,
+    )
+    log.info(f'Test Banchero: {len(atts)} reportes adjuntos, missing={missing} → {ok}')
+    return {
+        'banchero':         ok,
+        'reportes_adjuntos': len(atts),
+        'keys_enviados':    [r for r in banchero.get('reportes', []) if r not in missing],
+        'keys_faltantes':   missing,
+    }
+
+# ─── INTEGRATION ─────────────────────────────────────────────────────────────
 
 def register_with_app(flask_app, apscheduler=None):
-    """Attach Vélez routes and scheduled jobs to an existing Flask app + APScheduler.
-    Used when server.py is the Railway entrypoint instead of running standalone."""
-    flask_app.add_url_rule('/velez/evento',         'velez_evento',         route_evento,         methods=['POST'])
-    flask_app.add_url_rule('/velez/status',         'velez_status',         route_status,         methods=['GET'])
-    flask_app.add_url_rule('/velez/solar',          'velez_solar',          route_solar,          methods=['GET'])
-    flask_app.add_url_rule('/velez/run_now',        'velez_run_now',        route_run_now,        methods=['POST'])
-    flask_app.add_url_rule('/velez/test_email',     'velez_test_email',     route_test_email,     methods=['POST'])
-    flask_app.add_url_rule('/velez/reset_manuals',  'velez_reset_manuals',  route_reset_manuals,  methods=['POST'])
-    log.info('Velez: routes registered on external Flask app')
+    """Registra rutas y jobs en una Flask app + APScheduler externos (Railway)."""
+    routes = [
+        ('/velez/evento',        'velez_evento',        route_evento,        ['POST']),
+        ('/velez/status',        'velez_status',        route_status,        ['GET']),
+        ('/velez/solar',         'velez_solar',         route_solar,         ['GET']),
+        ('/velez/run_now',       'velez_run_now',       route_run_now,       ['POST']),
+        ('/velez/test_email',    'velez_test_email',    route_test_email,    ['POST']),
+        ('/velez/test_banchero', 'velez_test_banchero', route_test_banchero, ['POST']),
+        ('/velez/reset_manuals', 'velez_reset_manuals', route_reset_manuals, ['POST']),
+    ]
+    for path, name, fn, methods in routes:
+        flask_app.add_url_rule(path, name, fn, methods=methods)
+    log.info('Velez: rutas registradas en Flask app externa')
 
     if apscheduler:
-        # Monday 07:00 ART = Monday 10:00 UTC  (ART = UTC-3, sin DST)
+        # Lunes 07:00 ART = Lunes 10:00 UTC (ART = UTC-3, sin DST)
         apscheduler.add_job(weekly_report,        'cron',     day_of_week='mon',
                             hour=10, minute=0,    id='velez_weekly',  replace_existing=True)
         apscheduler.add_job(check_pending_events, 'interval', hours=1,
                             id='velez_events',    replace_existing=True)
         apscheduler.add_job(flush_email_queue,    'interval', minutes=30,
                             id='velez_flush',     replace_existing=True)
-        log.info('Velez: APScheduler jobs registered — weekly Mon 10:00 UTC (07:00 ART)')
+        log.info('Velez: APScheduler registrado — semanal Lun 10:00 UTC (07:00 ART)')
 
 # ─── MAIN ────────────────────────────────────────────────────────────────────
 
 if __name__ == '__main__':
-    log.info('Faro Vélez Scheduler starting...')
+    log.info('Faro Vélez Scheduler arrancando...')
 
-    # Check required env vars
-    missing = []
-    for var in ['GMAIL_APP_PASS', 'VELEZ_EMAIL_CANCHERO', 'VELEZ_EMAIL_INTENDENTE',
-                'VELEZ_EMAIL_BANCHERO', 'VELEZ_EMAIL_PAIT', 'VELEZ_EMAIL_COMISION']:
-        if not env(var):
-            missing.append(var)
-    if missing:
-        log.warning(f'Missing env vars: {missing} — some features disabled')
+    if not CONFIG_FILE.exists():
+        log.warning(f'ATENCIÓN: {CONFIG_FILE} no existe — operación degradada')
+    else:
+        cfg = load_config()
+        log.info(f'Config cargada: {len(cfg.get("zonas", []))} zonas, '
+                 f'{len(cfg.get("destinatarios", []))} destinatarios')
 
-    # Check events on startup (in case of restart)
+    if not GMAIL_PASS:
+        log.warning('GMAIL_APP_PASS no configurado — emails desactivados')
+
     check_pending_events()
-
-    # Start scheduler thread
     setup_schedule()
-    sched_thread = threading.Thread(target=run_schedule, daemon=True)
-    sched_thread.start()
-    log.info('Scheduler thread started')
+    threading.Thread(target=run_schedule, daemon=True).start()
+    log.info('Hilo de scheduler iniciado')
 
-    # Start Flask
     app.run(host='0.0.0.0', port=PORT, debug=False)

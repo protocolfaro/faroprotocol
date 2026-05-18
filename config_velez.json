@@ -1,0 +1,94 @@
+{
+  "zonas": [
+    {
+      "nombre": "Estadio Amalfitani",
+      "lat": -34.6394,
+      "lon": -58.5297,
+      "script": "gen_velez_main.py",
+      "output": "faro_reporte_velez.png"
+    },
+    {
+      "nombre": "Villa Olimpica",
+      "lat": -34.6450,
+      "lon": -58.5280,
+      "script": "gen_velez_final.py",
+      "output": "faro_reporte_velez_agro_FINAL.png"
+    },
+    {
+      "nombre": "Solar Amalfitani",
+      "lat": -34.6394,
+      "lon": -58.5297,
+      "script": "gen_velez_solar_v2.py",
+      "output": "faro_reporte_velez_solar_v2.png"
+    },
+    {
+      "nombre": "Canchero",
+      "lat": -34.6394,
+      "lon": -58.5297,
+      "script": "gen_velez_canchero.py",
+      "output": "faro_reporte_velez_canchero.png"
+    },
+    {
+      "nombre": "Sede Central",
+      "lat": -34.6358,
+      "lon": -58.5235,
+      "script": "gen_velez_sede.py",
+      "output": "faro_reporte_velez_sede.png"
+    },
+    {
+      "nombre": "Polideportivo Feijoo",
+      "lat": -34.6375,
+      "lon": -58.5215,
+      "script": "gen_velez_poli.py",
+      "output": "faro_reporte_velez_poli.png"
+    },
+    {
+      "nombre": "Complejo Acuatico",
+      "lat": -34.6369,
+      "lon": -58.5224,
+      "script": "gen_velez_piletas.py",
+      "output": "faro_reporte_velez_piletas.png"
+    }
+  ],
+  "destinatarios": [
+    {
+      "nombre": "Roger Bernal",
+      "email": "correocancha@gmail.com",
+      "whatsapp": "541124642616",
+      "reportes": ["canchero"]
+    },
+    {
+      "nombre": "Juan Gonzalez",
+      "email": "jgonzalez@velez.com.ar",
+      "whatsapp": "541151073109",
+      "reportes": ["canchero", "agro_FINAL", "poli"]
+    },
+    {
+      "nombre": "Fernando Banchero",
+      "email": "fbanchero@velez.com.ar",
+      "whatsapp": "541167096384",
+      "reportes": ["velez", "solar_v2", "agro_FINAL", "poli", "piletas", "sede"]
+    },
+    {
+      "nombre": "Sebastian Pait",
+      "email": "spait@velez.com.ar",
+      "reportes": ["canchero", "agro_FINAL", "poli"]
+    },
+    {
+      "nombre": "Fabian Berlanga",
+      "email": "fberlanga@velez.com.ar",
+      "reportes": ["velez", "agro_FINAL", "solar_v2", "sede", "poli", "piletas"]
+    },
+    {
+      "nombre": "Nelson Pugliese",
+      "email": "npugliese@velez.com.ar",
+      "whatsapp": "541156417353",
+      "reportes": ["velez", "agro_FINAL", "solar_v2", "sede", "poli", "piletas"]
+    },
+    {
+      "nombre": "Alberto Aveleyra",
+      "email": "aaveleyra@velez.com.ar",
+      "reportes": ["velez", "agro_FINAL", "solar_v2", "sede", "poli", "piletas"]
+    }
+  ]
+}
