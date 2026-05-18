@@ -8,7 +8,7 @@ Para agregar un destinatario: editar config_velez.json → "destinatarios"
 Sin tocar código Python.
 """
 import os, json, time, hashlib, logging, smtplib, threading, traceback
-from gen_velez_data import write_velez_data
+from gen_velez_data import write_velez_data, build_velez_data
 from datetime import datetime, timedelta
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -163,6 +163,130 @@ def notify_whatsapp_all(message: str, config: dict = None):
     for d in config.get('destinatarios', []):
         if d.get('whatsapp'):
             send_whatsapp(d['whatsapp'], message)
+
+# ─── WHATSAPP ALERTS SEMANALES ────────────────────────────────────────────────
+#
+# Variables de entorno en Railway (sin defaults — deben cargarse antes del lunes):
+#   CALLMEBOT_KEY_ROGER, CALLMEBOT_KEY_JUAN, CALLMEBOT_KEY_BANCHERO, CALLMEBOT_KEY_NELSON
+#
+# Activación CallMeBot: cada número debe enviar "I allow callmebot to send me messages"
+# al +34 644 62 90 83 (WhatsApp) la primera vez.
+
+_WA_ALERT_USERS = [
+    {
+        'nombre':   'Roger Bernal',
+        'slug':     'roger',
+        'phone':    '541124642616',
+        'env_key':  'CALLMEBOT_KEY_ROGER',
+        'sectores': ['canchero'],
+    },
+    {
+        'nombre':   'Juan González',
+        'slug':     'juan',
+        'phone':    '541151073109',
+        'env_key':  'CALLMEBOT_KEY_JUAN',
+        'sectores': ['canchero', 'agro', 'poli'],
+    },
+    {
+        'nombre':   'Fernando Banchero',
+        'slug':     'banchero',
+        'phone':    '541167096384',
+        'env_key':  'CALLMEBOT_KEY_BANCHERO',
+        'sectores': ['estadio', 'agro', 'solar', 'canchero', 'sede', 'poli', 'piletas'],
+    },
+    {
+        'nombre':   'Nelson Pugliese',
+        'slug':     'nelson',
+        'phone':    '541156417353',
+        'env_key':  'CALLMEBOT_KEY_NELSON',
+        'sectores': ['estadio', 'agro', 'solar', 'canchero', 'sede', 'poli', 'piletas'],
+    },
+]
+
+_SEM_EMOJI = {'verde': '✅', 'amarillo': '⚠️', 'rojo': '🚨'}
+_SEM_ORDER = {'verde': 0, 'amarillo': 1, 'rojo': 2}
+
+
+def _build_wa_message(user: dict, sectores_data: dict, fecha: str) -> str:
+    """Construye el mensaje WhatsApp personalizado para un usuario."""
+    nombre_short   = user['nombre'].split()[0]
+    user_sectores  = [sectores_data[k] for k in user['sectores'] if k in sectores_data]
+
+    scores   = [s['score'] for s in user_sectores]
+    avg      = round(sum(scores) / len(scores)) if scores else 0
+    worst    = max(user_sectores, key=lambda s: _SEM_ORDER.get(s['sem'], 0), default={})
+    worst_sem = worst.get('sem', 'verde') if worst else 'verde'
+
+    criticos = [s for s in user_sectores if s['sem'] == 'rojo']
+    atencion = [s for s in user_sectores if s['sem'] == 'amarillo']
+
+    lines = [
+        '*Faro Protocol — Vélez Sarsfield*',
+        f'Semana {fecha}',
+        '',
+        f'Hola {nombre_short}, tu resumen:',
+        f'{_SEM_EMOJI[worst_sem]} Score: *{avg}/100*',
+        '',
+    ]
+
+    if criticos:
+        lines.append('🚨 *Acción urgente:*')
+        for s in criticos:
+            lines.append(f'  • {s["nombre"]} ({s["score"]}/100)')
+            lines.append(f'    {s["detalle"]}')
+        lines.append('')
+
+    if atencion and len(user['sectores']) > 1:
+        lines.append('⚠️ *En atención:*')
+        for s in atencion[:2]:
+            lines.append(f'  • {s["nombre"]} ({s["score"]}/100)')
+        lines.append('')
+
+    lines.append(f'📱 {PANEL_BASE_URL}#{user["slug"]}')
+
+    return '\n'.join(lines)
+
+
+def send_whatsapp_alerts() -> dict:
+    """Envía resumen semanal por WhatsApp a los 4 usuarios configurados.
+    Si la API key no está en env vars, omite ese usuario y loguea advertencia.
+    Retorna dict {nombre: True|False|None} — None = omitido por falta de key."""
+    sectores  = build_velez_data().get('sectores', {})
+    fecha_str = datetime.now().strftime('%d/%m/%Y')
+    results   = {}
+
+    for user in _WA_ALERT_USERS:
+        nombre   = user['nombre']
+        env_name = user['env_key']
+        api_key  = env(env_name)
+
+        if not api_key:
+            log.warning(f'⚠️ {env_name} no configurada — WhatsApp omitido para {nombre}')
+            results[nombre] = None
+            continue
+
+        msg = _build_wa_message(user, sectores, fecha_str)
+        try:
+            r = requests.get(
+                'https://api.callmebot.com/whatsapp.php',
+                params={'phone': user['phone'], 'text': msg, 'apikey': api_key},
+                timeout=15,
+            )
+            ok = r.status_code == 200
+            if ok:
+                log.info(f'✅ WhatsApp enviado a {nombre} ({user["phone"][:6]}***)')
+            else:
+                log.error(f'WhatsApp falló para {nombre}: HTTP {r.status_code} — {r.text[:120]}')
+            results[nombre] = ok
+        except Exception as exc:
+            log.error(f'WhatsApp excepción para {nombre}: {exc}')
+            results[nombre] = False
+
+    sent = sum(1 for v in results.values() if v is True)
+    skip = sum(1 for v in results.values() if v is None)
+    fail = sum(1 for v in results.values() if v is False)
+    log.info(f'WhatsApp semanal: {sent} enviados · {skip} omitidos (sin key) · {fail} fallidos')
+    return results
 
 # ─── EMAIL ────────────────────────────────────────────────────────────────────
 
@@ -750,6 +874,9 @@ def weekly_report(tipo: str = 'semanal', event_date: Optional[str] = None):
         log.info(f'✅ velez_data.json actualizado — {datetime.now().strftime("%Y-%m-%d %H:%M:%S")} → {json_path}')
     except Exception as e:
         log.error(f'velez_data.json: error al actualizar — {e}')
+
+    # Enviar resumen semanal por WhatsApp (CallMeBot)
+    send_whatsapp_alerts()
 
     log.info(f'=== Reporte {tipo} completado ===')
 
