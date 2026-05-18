@@ -39,8 +39,8 @@ const IPHONE14 = {
 };
 
 const SHOTS = [
-  { slug: 'roger', file: 'preview_roger.png' },
-  { slug: 'admin', file: 'preview_admin.png' },
+  { slug: 'roger', file: 'preview_roger_v2.png' },
+  { slug: 'juan',  file: 'preview_juan_v2.png' },
 ];
 
 // ── Main ──────────────────────────────────────────────────────────────────────
