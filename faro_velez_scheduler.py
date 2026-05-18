@@ -8,6 +8,7 @@ Para agregar un destinatario: editar config_velez.json → "destinatarios"
 Sin tocar código Python.
 """
 import os, json, time, hashlib, logging, smtplib, threading, traceback
+from gen_velez_data import write_velez_data
 from datetime import datetime, timedelta
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -345,18 +346,25 @@ def check_and_send_alerts(data: dict, config: dict = None):
 
 # ─── EMAIL BODIES ─────────────────────────────────────────────────────────────
 
-def _html_wrap(title: str, body: str) -> str:
+PANEL_BASE_URL = 'https://protocolfaro.github.io/faroprotocol/velez/'
+
+def _html_wrap(title: str, body: str, panel_url: str = '') -> str:
+    panel_line = (
+        f'<p style="color:#c9a84c;font-size:12px">📱 Panel móvil disponible en: '
+        f'<a href="{panel_url}" style="color:#c9a84c">{panel_url}</a></p>'
+    ) if panel_url else ''
     return f"""
 <html><body style="font-family:Arial,sans-serif;background:#06080b;color:#f2ede4;padding:20px">
 <h2 style="color:#c9a84c">{title}</h2>
 {body}
+{panel_line}
 <hr style="border-color:#c9a84c44">
 <p style="color:#9aa0a8;font-size:12px">
 Faro Protocol · Fortín Inteligente · protocolfaro@gmail.com<br>
 Generado automáticamente · {datetime.now().strftime('%d/%m/%Y %H:%M')} UTC-3
 </p></body></html>"""
 
-def _body_roger() -> str:
+def _body_roger(panel_url: str = '') -> str:
     return _html_wrap(
         'Tu Mapa de Trabajo Esta Semana — Campo Amalfitani',
         """
@@ -380,10 +388,11 @@ def _body_roger() -> str:
         <p style="font-size:13px;color:#9aa0a8">
           Cualquier duda respondeme por este mail o por WhatsApp. — Faro Protocol
         </p>
-        """
+        """,
+        panel_url=panel_url
     )
 
-def _body_juan() -> str:
+def _body_juan(panel_url: str = '') -> str:
     return _html_wrap(
         'Estado Villa Olímpica Esta Semana',
         f"""
@@ -408,10 +417,11 @@ def _body_juan() -> str:
         <p style="font-size:13px;color:#9aa0a8">
           Se adjuntan mapas de canchas, reporte agro y estado polideportivo.
         </p>
-        """
+        """,
+        panel_url=panel_url
     )
 
-def _body_banchero() -> str:
+def _body_banchero(panel_url: str = '') -> str:
     return _html_wrap(
         'Estado Operativo del Predio — Vélez Sarsfield',
         f"""
@@ -451,10 +461,11 @@ def _body_banchero() -> str:
           <li><b style="color:#f0b429">Zona E (Arco Sur):</b> 8 paneles >60°C — revisión esta semana</li>
         </ul>
         <p style="font-size:13px;color:#9aa0a8">Se adjuntan: reporte general, solar, agro, polideportivo, piletas y sede.</p>
-        """
+        """,
+        panel_url=panel_url
     )
 
-def _body_pait() -> str:
+def _body_pait(panel_url: str = '') -> str:
     return _html_wrap(
         'Estado Canchas y Campo — Visión Deportiva',
         """
@@ -476,10 +487,11 @@ def _body_pait() -> str:
           <li><b>Hockey:</b> NDVI 0.52 — apta para uso normal</li>
         </ul>
         <p style="font-size:13px;color:#9aa0a8">Se adjuntan mapa de canchas, agro detallado y polideportivo.</p>
-        """
+        """,
+        panel_url=panel_url
     )
 
-def _body_berlanga() -> str:
+def _body_berlanga(panel_url: str = '') -> str:
     return _html_wrap(
         f'Informe Ejecutivo Semanal — Vélez Sarsfield · {datetime.now().strftime("%d/%m/%Y")}',
         f"""
@@ -512,10 +524,11 @@ def _body_berlanga() -> str:
               <td style="padding:6px;border:1px solid #c9a84c22">InSAR 2.80mm — inspección estructural</td></tr>
         </table>
         <p style="font-size:13px;color:#9aa0a8">Se adjuntan reportes completos del predio.</p>
-        """
+        """,
+        panel_url=panel_url
     )
 
-def _body_nelson() -> str:
+def _body_nelson(panel_url: str = '') -> str:
     return _html_wrap(
         f'Informe Ejecutivo Semanal — Vélez Sarsfield · {datetime.now().strftime("%d/%m/%Y")}',
         f"""
@@ -537,10 +550,11 @@ def _body_nelson() -> str:
           <li>Cobertura satelital del 100% del predio operativa</li>
         </ul>
         <p style="font-size:13px;color:#9aa0a8">Se adjuntan reportes completos del predio.</p>
-        """
+        """,
+        panel_url=panel_url
     )
 
-def _body_aveleyra() -> str:
+def _body_aveleyra(panel_url: str = '') -> str:
     return _html_wrap(
         f'Dashboard Ejecutivo Semanal — Vélez Sarsfield · {datetime.now().strftime("%d/%m/%Y")}',
         f"""
@@ -570,7 +584,8 @@ def _body_aveleyra() -> str:
           Detección temprana: 80% de problemas identificados antes de ser críticos.<br>
           Se adjuntan todos los reportes del predio.
         </p>
-        """
+        """,
+        panel_url=panel_url
     )
 
 def _body_generic(nombre: str, reportes: list) -> str:
@@ -604,7 +619,7 @@ _BODY_FN_MAP = {
 
 def _make_generic_body_fn(nombre: str, reportes: list):
     """Factory para evitar captura de variable en cierre."""
-    def fn():
+    def fn(panel_url: str = ''):
         return _body_generic(nombre, reportes)
     return fn
 
@@ -644,9 +659,8 @@ def send_all_reports(tipo: str = 'semanal', config: dict = None):
     report_paths = get_report_paths(config)
 
     for r in _recipients_from_config(config):
-        subject   = f'{r["subject"]} · {date_str}'
-        body_html = r['body_fn']()
-        atts      = []
+        subject = f'{r["subject"]} · {date_str}'
+        atts    = []
 
         for rep_key in r['reports']:
             p = report_paths.get(rep_key)
@@ -666,6 +680,10 @@ def send_all_reports(tipo: str = 'semanal', config: dict = None):
             if manual_path and Path(manual_path).exists():
                 atts.append(str(manual_path))
                 log.info(f'Manual adjunto para {r["name"]}')
+
+        panel_slug = _manual_key_for_name(r['name'])
+        panel_url  = f'{PANEL_BASE_URL}#{panel_slug}' if panel_slug else ''
+        body_html  = r['body_fn'](panel_url=panel_url)
 
         ok = send_email(r['to'], subject, body_html, atts)
         if not ok:
@@ -725,6 +743,14 @@ def weekly_report(tipo: str = 'semanal', event_date: Optional[str] = None):
         'zonas_total': len(generated),
     }
     save_jobs(jobs)
+
+    # Actualizar panel móvil con datos de esta corrida
+    try:
+        json_path = write_velez_data()
+        log.info(f'✅ velez_data.json actualizado — {datetime.now().strftime("%Y-%m-%d %H:%M:%S")} → {json_path}')
+    except Exception as e:
+        log.error(f'velez_data.json: error al actualizar — {e}')
+
     log.info(f'=== Reporte {tipo} completado ===')
 
 def pre_event_report(event_date: str):

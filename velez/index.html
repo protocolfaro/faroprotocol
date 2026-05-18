@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Faro Protocol · Vélez Sarsfield</title>
+<style>
+:root {
+  --bg:    #0d1117;
+  --bg2:   #161b22;
+  --bg3:   #1c2330;
+  --gold:  #c9a84c;
+  --whi:   #e8e6e0;
+  --wdim:  #8b8680;
+  --red:   #e05252;
+  --yel:   #e0b84c;
+  --grn:   #4cad72;
+  --redd:  rgba(224,82,82,0.15);
+  --yeld:  rgba(224,184,76,0.15);
+  --grnd:  rgba(76,173,114,0.15);
+  --radius: 10px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--whi);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  min-height: 100vh;
+}
+
+/* ── HEADER ── */
+#header {
+  background: var(--bg2);
+  border-bottom: 1px solid rgba(201,168,76,0.25);
+  padding: 14px 16px 10px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logo-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.logo-dot {
+  width: 8px; height: 8px;
+  background: var(--gold);
+  border-radius: 50%;
+}
+
+.logo-text {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--gold);
+  text-transform: uppercase;
+}
+
+.header-date {
+  font-size: 10px;
+  color: var(--wdim);
+  letter-spacing: 0.05em;
+}
+
+.header-sub {
+  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--whi);
+  letter-spacing: 0.03em;
+}
+
+/* ── LOADING / ERROR ── */
+#loading, #error-msg {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  gap: 12px;
+  color: var(--wdim);
+  font-size: 13px;
+}
+
+.spinner {
+  width: 28px; height: 28px;
+  border: 2px solid rgba(201,168,76,0.2);
+  border-top-color: var(--gold);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+#error-msg { display: none; }
+
+/* ── MAIN CONTENT ── */
+#content { display: none; padding: 0 0 32px; }
+
+/* ── SCORE HERO ── */
+.score-hero {
+  padding: 20px 16px 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.gauge-wrap {
+  flex-shrink: 0;
+  position: relative;
+  width: 96px; height: 96px;
+}
+
+.gauge-wrap svg { overflow: visible; }
+
+.gauge-bg {
+  fill: none;
+  stroke: rgba(255,255,255,0.07);
+  stroke-width: 7;
+  stroke-linecap: round;
+}
+
+.gauge-arc {
+  fill: none;
+  stroke-width: 7;
+  stroke-linecap: round;
+  transform-origin: 48px 48px;
+  transform: rotate(-225deg);
+  transition: stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1),
+              stroke 0.4s ease;
+  stroke-dasharray: 226.2;
+  stroke-dashoffset: 226.2;
+}
+
+.gauge-score {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.gauge-num {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.gauge-label {
+  font-size: 8px;
+  letter-spacing: 0.1em;
+  color: var(--wdim);
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+.score-meta { flex: 1; }
+
+.score-name {
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 5px;
+}
+
+.sem-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.sem-dot { width: 6px; height: 6px; border-radius: 50%; }
+
+.sem-badge.verde    { background: var(--grnd); color: var(--grn); }
+.sem-badge.verde .sem-dot { background: var(--grn); }
+.sem-badge.amarillo { background: var(--yeld); color: var(--yel); }
+.sem-badge.amarillo .sem-dot { background: var(--yel); }
+.sem-badge.rojo     { background: var(--redd); color: var(--red); }
+.sem-badge.rojo .sem-dot { background: var(--red); }
+
+.score-sectors-label {
+  margin-top: 8px;
+  font-size: 10px;
+  color: var(--wdim);
+}
+
+/* ── SECTION TITLES ── */
+.section-title {
+  padding: 18px 16px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--gold);
+  text-transform: uppercase;
+  border-bottom: 1px solid rgba(201,168,76,0.15);
+  margin-bottom: 0;
+}
+
+/* ── KPI GRID ── */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 12px 16px;
+}
+
+.kpi-card {
+  background: var(--bg2);
+  border-radius: var(--radius);
+  padding: 12px;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+
+.kpi-card-label {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: var(--wdim);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.kpi-card-value {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.kpi-card-unit {
+  font-size: 10px;
+  color: var(--wdim);
+  margin-left: 2px;
+}
+
+.kpi-card-sub {
+  font-size: 10px;
+  color: var(--wdim);
+  margin-top: 4px;
+}
+
+/* ── SECTOR CARDS ── */
+.sectors-list {
+  padding: 8px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sector-card {
+  background: var(--bg2);
+  border-radius: var(--radius);
+  border: 1px solid rgba(255,255,255,0.05);
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Pulsing border for critical sectors (score < 50) */
+@keyframes pulse-border {
+  0%, 100% { border-color: rgba(224,82,82,0.25); }
+  50%       { border-color: rgba(224,82,82,0.75); }
+}
+
+.sector-card.critical {
+  animation: pulse-border 2s ease-in-out infinite;
+}
+
+.sector-sem-bar {
+  width: 4px;
+  border-radius: 2px;
+  align-self: stretch;
+  flex-shrink: 0;
+  min-height: 44px;
+}
+
+.sector-sem-bar.verde    { background: var(--grn); }
+.sector-sem-bar.amarillo { background: var(--yel); }
+.sector-sem-bar.rojo     { background: var(--red); }
+
+.sector-body { flex: 1; min-width: 0; }
+
+.sector-name {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sector-detail {
+  font-size: 10px;
+  color: var(--wdim);
+  margin-top: 3px;
+}
+
+.sector-score-col {
+  text-align: right;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+}
+
+.sector-score-num {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* Trend arrows */
+.trend-arrow {
+  font-size: 14px;
+  line-height: 1;
+  font-weight: 700;
+}
+
+.trend-arrow.up   { color: var(--grn); }
+.trend-arrow.down { color: var(--red); }
+.trend-arrow.flat { color: var(--wdim); }
+
+.sector-score-label {
+  font-size: 9px;
+  color: var(--wdim);
+  letter-spacing: 0.06em;
+}
+
+/* ── TREND CHART ── */
+.trend-wrap { padding: 12px 16px; }
+
+.trend-card {
+  background: var(--bg2);
+  border-radius: var(--radius);
+  border: 1px solid rgba(255,255,255,0.05);
+  padding: 14px;
+  position: relative;
+  overflow: hidden;
+}
+
+.trend-card-title {
+  font-size: 10px;
+  color: var(--wdim);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.trend-svg-wrap { position: relative; }
+.trend-svg { display: block; width: 100%; }
+
+.trend-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+}
+
+.trend-label { font-size: 9px; color: var(--wdim); }
+
+/* ── ACTIONS ── */
+.actions-list {
+  padding: 8px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.action-pill {
+  background: var(--bg2);
+  border-radius: var(--radius);
+  border: 1px solid rgba(255,255,255,0.05);
+  padding: 10px 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.action-badge {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.action-badge.urgente  { background: var(--redd); color: var(--red); }
+.action-badge.esta-sem { background: var(--yeld); color: var(--yel); }
+.action-badge.proxima  { background: var(--grnd); color: var(--grn); }
+
+.action-text {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--whi);
+}
+
+/* ── NOT AUTHORIZED ── */
+#not-auth {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  gap: 16px;
+  text-align: center;
+  padding: 32px 24px;
+}
+
+.not-auth-logo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  opacity: 0.55;
+}
+
+.not-auth-logo-dot {
+  width: 16px; height: 16px;
+  background: var(--gold);
+  border-radius: 50%;
+}
+
+.not-auth-logo-text {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: var(--gold);
+  text-transform: uppercase;
+}
+
+.not-auth-lock {
+  font-size: 36px;
+  opacity: 0.3;
+  margin-top: -4px;
+}
+
+.not-auth-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--whi);
+}
+
+.not-auth-sub {
+  font-size: 12px;
+  color: var(--wdim);
+  max-width: 270px;
+  line-height: 1.7;
+}
+
+.not-auth-sub a {
+  color: var(--gold);
+  text-decoration: none;
+  opacity: 0.85;
+}
+
+/* ── FOOTER ── */
+.panel-footer {
+  padding: 20px 16px 8px;
+  text-align: center;
+  font-size: 10px;
+  color: var(--wdim);
+  letter-spacing: 0.06em;
+  border-top: 1px solid rgba(255,255,255,0.05);
+  margin-top: 8px;
+}
+
+.panel-footer a {
+  color: var(--gold);
+  text-decoration: none;
+  opacity: 0.7;
+}
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div class="header-top">
+    <div class="logo-row">
+      <div class="logo-dot"></div>
+      <span class="logo-text">Faro Protocol</span>
+    </div>
+    <span class="header-date" id="hdr-date">—</span>
+  </div>
+  <div class="header-sub">Vélez Sarsfield · Panel de Monitoreo</div>
+</div>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <span>Cargando datos…</span>
+</div>
+
+<div id="error-msg">
+  <span style="font-size:28px;opacity:.4">⚠</span>
+  <span>No se pudieron cargar los datos.</span>
+  <span style="font-size:11px;color:#555">Verificar conexión o intentar más tarde.</span>
+</div>
+
+<div id="not-auth">
+  <div class="not-auth-logo">
+    <div class="not-auth-logo-dot"></div>
+    <div class="not-auth-logo-text">Faro Protocol</div>
+  </div>
+  <div class="not-auth-lock">🔒</div>
+  <div class="not-auth-title">Acceso no autorizado</div>
+  <div class="not-auth-sub">
+    Este panel es de acceso restringido.<br>
+    Verificá el enlace recibido o contactá a<br>
+    <a href="mailto:protocolfaro@gmail.com">protocolfaro@gmail.com</a>
+  </div>
+</div>
+
+<div id="content">
+
+  <!-- SCORE HERO -->
+  <div class="score-hero">
+    <div class="gauge-wrap">
+      <svg viewBox="0 0 96 96" width="96" height="96">
+        <circle class="gauge-bg" cx="48" cy="48" r="36"
+          stroke-dasharray="169.6 56.5"
+          stroke-linecap="round"
+          transform="rotate(-225 48 48)"/>
+        <circle class="gauge-arc" id="gauge-arc" cx="48" cy="48" r="36"
+          stroke-dasharray="169.6 56.5"/>
+      </svg>
+      <div class="gauge-score">
+        <span class="gauge-num" id="gauge-num">—</span>
+        <span class="gauge-label">score</span>
+      </div>
+    </div>
+    <div class="score-meta">
+      <div class="score-name" id="score-name">—</div>
+      <div class="sem-badge" id="sem-badge">
+        <div class="sem-dot"></div>
+        <span id="sem-text">—</span>
+      </div>
+      <div class="score-sectors-label" id="score-sectors-label"></div>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="section-title">Indicadores Clave</div>
+  <div class="kpi-grid" id="kpi-grid"></div>
+
+  <!-- SECTORES -->
+  <div class="section-title" id="sectors-title">Sectores Asignados</div>
+  <div class="sectors-list" id="sectors-list"></div>
+
+  <!-- TENDENCIA -->
+  <div class="section-title">Tendencia Semanal</div>
+  <div class="trend-wrap">
+    <div class="trend-card">
+      <div class="trend-card-title">Score histórico · últimas 6 semanas</div>
+      <div class="trend-svg-wrap">
+        <svg id="trend-svg" class="trend-svg" viewBox="0 0 320 80" preserveAspectRatio="none"></svg>
+      </div>
+      <div class="trend-labels" id="trend-labels"></div>
+    </div>
+  </div>
+
+  <!-- ACCIONES -->
+  <div class="section-title">Acciones Prioritarias</div>
+  <div class="actions-list" id="actions-list"></div>
+
+  <div class="panel-footer">
+    Actualización: <span id="footer-date">—</span> · <a href="mailto:protocolfaro@gmail.com">Faro Protocol</a>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var DATA_URL = './velez_data.json';
+  var SEM_COLOR = { verde: '#4cad72', amarillo: '#e0b84c', rojo: '#e05252' };
+  var BADGE_MAP   = ['urgente', 'esta-sem', 'proxima'];
+  var BADGE_LABEL = ['URGENTE', 'ESTA SEM.', 'PRÓXIMA'];
+
+  function slug() {
+    return (location.hash || '').replace(/^#/, '').toLowerCase().trim();
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '—';
+    var d = new Date(iso + 'T12:00:00');
+    return d.toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  function show(id) {
+    ['loading','error-msg','not-auth','content'].forEach(function(x) {
+      var el = document.getElementById(x);
+      if (x === id) {
+        el.style.display = (x === 'content') ? 'block' : 'flex';
+      } else {
+        el.style.display = 'none';
+      }
+    });
+  }
+
+  function semColor(sem) { return SEM_COLOR[sem] || '#8b8680'; }
+
+  function buildGauge(score, sem) {
+    var arc = document.getElementById('gauge-arc');
+    var num = document.getElementById('gauge-num');
+    var total = 169.6;
+    var offset = total - (score / 100) * total;
+    arc.style.stroke = semColor(sem);
+    num.style.color  = semColor(sem);
+    num.textContent  = score;
+    requestAnimationFrame(function() {
+      requestAnimationFrame(function() {
+        arc.style.strokeDashoffset = offset;
+      });
+    });
+  }
+
+  function buildSemBadge(sem) {
+    var badge = document.getElementById('sem-badge');
+    badge.className = 'sem-badge ' + sem;
+    badge.querySelector('.sem-dot').style.background = semColor(sem);
+    document.getElementById('sem-text').textContent = sem.toUpperCase();
+  }
+
+  function buildKpis(kpis) {
+    var grid = document.getElementById('kpi-grid');
+    grid.innerHTML = kpis.map(function(k) {
+      return '<div class="kpi-card">'
+        + '<div class="kpi-card-label">' + k.label + '</div>'
+        + '<div class="kpi-card-value" style="color:' + semColor(k.sem || 'verde') + '">'
+        + k.value + '<span class="kpi-card-unit">' + (k.unit || '') + '</span></div>'
+        + '<div class="kpi-card-sub">' + (k.sub || '') + '</div>'
+        + '</div>';
+    }).join('');
+  }
+
+  function buildSectors(sectorKeys, allSectors, sortByScore) {
+    var keys = sectorKeys.slice();
+
+    if (sortByScore) {
+      keys.sort(function(a, b) {
+        var sa = (allSectors[a] && allSectors[a].score) || 0;
+        var sb = (allSectors[b] && allSectors[b].score) || 0;
+        return sa - sb;
+      });
+      document.getElementById('sectors-title').textContent = 'SECTORES ASIGNADOS — CRÍTICOS PRIMERO';
+    }
+
+    var list = document.getElementById('sectors-list');
+    list.innerHTML = keys.map(function(key) {
+      var s = allSectors[key];
+      if (!s) return '';
+
+      var scorePrev = (s.score_prev != null) ? s.score_prev : s.score;
+      var diff = s.score - scorePrev;
+      var arrowClass = diff > 2 ? 'up' : (diff < -2 ? 'down' : 'flat');
+      var arrowChar  = diff > 2 ? '↑'  : (diff < -2 ? '↓'  : '→');
+      var isCritical = s.score < 50;
+
+      return '<div class="sector-card' + (isCritical ? ' critical' : '') + '">'
+        + '<div class="sector-sem-bar ' + s.sem + '"></div>'
+        + '<div class="sector-body">'
+        +   '<div class="sector-name">' + s.nombre + '</div>'
+        +   '<div class="sector-detail">' + (s.detalle || '') + '</div>'
+        + '</div>'
+        + '<div class="sector-score-col">'
+        +   '<div class="sector-score-num" style="color:' + semColor(s.sem) + '">' + s.score + '</div>'
+        +   '<div class="trend-arrow ' + arrowClass + '">' + arrowChar + '</div>'
+        +   '<div class="sector-score-label">SCORE</div>'
+        + '</div>'
+        + '</div>';
+    }).join('');
+  }
+
+  function buildTrend(history) {
+    var svg = document.getElementById('trend-svg');
+    var labelsEl = document.getElementById('trend-labels');
+    if (!history || history.length < 2) {
+      svg.closest('.trend-wrap').style.display = 'none';
+      return;
+    }
+    var W = 320, H = 80, PAD = 8;
+    var vals = history.map(function(h) { return h.score; });
+    var mn = Math.max(0,   Math.min.apply(null, vals) - 10);
+    var mx = Math.min(100, Math.max.apply(null, vals) + 10);
+    var n  = history.length;
+
+    function px(i) { return PAD + (i / (n - 1)) * (W - PAD * 2); }
+    function py(v) { return H - PAD - ((v - mn) / (mx - mn)) * (H - PAD * 2); }
+
+    var pts = history.map(function(h, i) { return px(i) + ',' + py(h.score); }).join(' ');
+    var lastSem  = history[history.length - 1].sem || 'verde';
+    var fillCol  = semColor(lastSem);
+    var areaBottom = H - PAD;
+    var areaFirst  = px(0) + ',' + areaBottom;
+    var areaLast   = px(n - 1) + ',' + areaBottom;
+    var areaPts    = areaFirst + ' ' + pts + ' ' + areaLast;
+
+    var inner =
+      '<defs><linearGradient id="tg" x1="0" y1="0" x2="0" y2="1">'
+      + '<stop offset="0%" stop-color="' + fillCol + '" stop-opacity="0.25"/>'
+      + '<stop offset="100%" stop-color="' + fillCol + '" stop-opacity="0.02"/>'
+      + '</linearGradient></defs>'
+      + '<polygon points="' + areaPts + '" fill="url(#tg)"/>'
+      + '<polyline points="' + pts + '" fill="none" stroke="' + fillCol + '" stroke-width="2" stroke-linejoin="round"/>';
+
+    history.forEach(function(h, i) {
+      var x = px(i), y = py(h.score);
+      inner += '<circle cx="' + x + '" cy="' + y + '" r="3" fill="' + semColor(h.sem || 'verde') + '"/>';
+      inner += '<text x="' + x + '" y="' + (y - 6) + '" font-size="9" text-anchor="middle" fill="#8b8680">' + h.score + '</text>';
+    });
+
+    svg.innerHTML = inner;
+    labelsEl.innerHTML = history.map(function(h) {
+      return '<span class="trend-label">' + (h.semana || '') + '</span>';
+    }).join('');
+  }
+
+  function buildActions(actions) {
+    var list = document.getElementById('actions-list');
+    list.innerHTML = (actions || []).slice(0, 3).map(function(a, i) {
+      return '<div class="action-pill">'
+        + '<span class="action-badge ' + BADGE_MAP[i] + '">' + BADGE_LABEL[i] + '</span>'
+        + '<span class="action-text">' + a + '</span>'
+        + '</div>';
+    }).join('');
+  }
+
+  function render(data) {
+    var userSlug = slug();
+
+    if (!userSlug) { show('not-auth'); return; }
+
+    var usuario = data.usuarios && data.usuarios[userSlug];
+    if (!usuario) { show('not-auth'); return; }
+
+    var mySectors  = usuario.sectores  || [];
+    var allSectors = data.sectores     || {};
+
+    var scores = mySectors.map(function(k) {
+      return (allSectors[k] && allSectors[k].score) || 0;
+    }).filter(function(s) { return s > 0; });
+
+    var avgScore = scores.length
+      ? Math.round(scores.reduce(function(a, b) { return a + b; }) / scores.length)
+      : 0;
+
+    var semOrder = { verde: 0, amarillo: 1, rojo: 2 };
+    var worstSem = mySectors.reduce(function(worst, k) {
+      var s = allSectors[k];
+      if (!s) return worst;
+      return (semOrder[s.sem] || 0) > (semOrder[worst] || 0) ? s.sem : worst;
+    }, 'verde');
+
+    var fechaStr = formatDate(data.meta && data.meta.fecha);
+    document.getElementById('hdr-date').textContent    = fechaStr;
+    document.getElementById('footer-date').textContent = fechaStr;
+
+    document.getElementById('score-name').textContent = usuario.nombre || userSlug;
+    document.getElementById('score-sectors-label').textContent =
+      mySectors.length + ' sector' + (mySectors.length !== 1 ? 'es' : '') +
+      ' monitoreado' + (mySectors.length !== 1 ? 's' : '');
+
+    buildGauge(avgScore, worstSem);
+    buildSemBadge(worstSem);
+
+    var kpis = usuario.kpis || mySectors.slice(0, 4).map(function(k) {
+      var s = allSectors[k];
+      if (!s) return null;
+      return { label: s.nombre, value: s.score, unit: '', sub: s.detalle || '', sem: s.sem };
+    }).filter(Boolean);
+    buildKpis(kpis);
+
+    buildSectors(mySectors, allSectors, !!usuario.sort_by_score);
+    buildTrend(usuario.historial || (data.meta && data.meta.historial_global) || []);
+    buildActions(usuario.acciones || []);
+
+    show('content');
+  }
+
+  function init() {
+    fetch(DATA_URL)
+      .then(function(r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(render)
+      .catch(function() { show('error-msg'); });
+  }
+
+  window.addEventListener('hashchange', function() {
+    fetch(DATA_URL)
+      .then(function(r) { return r.json(); })
+      .then(render)
+      .catch(function() { show('error-msg'); });
+  });
+
+  init();
+})();
+</script>
+</body>
+</html>
