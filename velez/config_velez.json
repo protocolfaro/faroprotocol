@@ -1,0 +1,51 @@
+{
+  "horarios_vo_semana": {
+    "semana_label": "C",
+    "fecha_inicio": "2026-05-18",
+    "fecha_fin":    "2026-05-23",
+    "dias": [
+      {"id":"lun","label":"Lun","fecha":"2026-05-18"},
+      {"id":"mar","label":"Mar","fecha":"2026-05-19"},
+      {"id":"mie","label":"Mié","fecha":"2026-05-20"},
+      {"id":"jue","label":"Jue","fecha":"2026-05-21"},
+      {"id":"vie","label":"Vie","fecha":"2026-05-22"},
+      {"id":"sab","label":"Sáb","fecha":"2026-05-23"}
+    ],
+    "horarios_categoria": {
+      "manana":     {"inicio":"08:00","fin":"11:00","label":"08–11hs"},
+      "infantiles": {"inicio":"14:00","fin":"17:30","label":"14–17:30hs"},
+      "femenino":   {"inicio":"17:30","fin":"21:00","label":"17:30–21hs"}
+    },
+    "categoria_turno": {
+      "Reserva":   "manana",
+      "Primera":   "manana",
+      "Cuarta":    "manana",
+      "Quinta":    "manana",
+      "Sexta":     "manana",
+      "Séptima":   "manana",
+      "Octava":    "manana",
+      "Novena":    "manana",
+      "Liga":      "manana",
+      "Infantiles":"infantiles",
+      "Femenino":  "femenino"
+    },
+    "canchas_libre": {
+      "lun":["c2","c3","c4","c6","c7","c9"],
+      "mar":["c2","c4","c6","c7","c8"],
+      "mie":["c2","c3","c4","c6","c7"],
+      "jue":["c2","c3","c4","c6","c7"],
+      "vie":["c2","c3","c6"]
+    },
+    "canchas": {
+      "c1":{"nombre":"Cancha 1","uso":{"lun":["Reserva","Quinta","Séptima","Femenino"],"mar":["Reserva","Femenino"],"mie":["Femenino"],"jue":["Séptima","Femenino"],"vie":["Reserva","Femenino"],"sab":["Reserva"]}},
+      "c2":{"nombre":"Cancha 2","uso":{"lun":[],"mar":[],"mie":[],"jue":[],"vie":["Liga"],"sab":["Liga"]}},
+      "c3":{"nombre":"Cancha 3","uso":{"lun":["Reserva"],"mar":["Reserva","Cuarta","Infantiles"],"mie":["Infantiles"],"jue":["Infantiles"],"vie":["Reserva","Infantiles"],"sab":["Reserva"]}},
+      "c4":{"nombre":"Cancha 4","uso":{"lun":["Cuarta"],"mar":["Sexta","Infantiles"],"mie":["Cuarta","Infantiles"],"jue":["Infantiles"],"vie":["Infantiles"],"sab":[]}},
+      "c5":{"nombre":"Cancha 5","uso":{"lun":["Reserva"],"mar":["Infantiles"],"mie":["Sexta","Infantiles"],"jue":["Quinta","Infantiles"],"vie":["Reserva","Infantiles"],"sab":[]}},
+      "c6":{"nombre":"Cancha 6","uso":{"lun":[],"mar":[],"mie":[],"jue":[],"vie":[],"sab":["Liga"]}},
+      "c7":{"nombre":"Cancha 7","uso":{"lun":[],"mar":[],"mie":[],"jue":[],"vie":[],"sab":[]}},
+      "c8":{"nombre":"Cancha 8","uso":{"lun":["Cuarta"],"mar":["Infantiles"],"mie":["Cuarta","Séptima","Infantiles"],"jue":["Séptima","Infantiles"],"vie":["Séptima","Octava","Novena","Liga","Infantiles"],"sab":["Liga"]}},
+      "c9":{"nombre":"Cancha 9","uso":{"lun":[],"mar":["Quinta","Séptima","Infantiles"],"mie":["Séptima","Infantiles"],"jue":["Cuarta","Séptima","Infantiles"],"vie":["Octava","Novena","Liga","Infantiles"],"sab":["Liga"]}}
+    }
+  }
+}

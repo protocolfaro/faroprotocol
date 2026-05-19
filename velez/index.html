@@ -287,6 +287,31 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
 .hm-gps{display:inline-flex;align-items:center;gap:4px;font-size:9px;padding:2px 8px;border-radius:3px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);color:var(--wdim)}
 .hm-gps.active-gps{color:var(--grn);border-color:rgba(76,173,114,.35);background:var(--grnd)}
 
+/* ── HORARIO GRID ── */
+.hg-wrap{padding:4px 16px 4px;overflow-x:auto;scrollbar-width:none}
+.hg-wrap::-webkit-scrollbar{display:none}
+.hg-table{border-collapse:separate;border-spacing:3px;min-width:100%}
+.hg-th{padding:3px 2px;text-align:center;font-size:8px;font-weight:700;letter-spacing:.08em;color:var(--wdim);text-transform:uppercase}
+.hg-th.hoy-col{color:var(--gold)}
+.hg-th.past-col{opacity:.4}
+.hg-row-label{font-size:8px;font-weight:700;color:var(--wdim);text-transform:uppercase;padding-right:4px;text-align:right;white-space:nowrap;vertical-align:middle;width:18px}
+.hg-td{vertical-align:top}
+.hg-cell{border-radius:4px;padding:2px 3px;text-align:center;vertical-align:middle;min-width:44px;height:34px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
+.hg-cell.libre{background:rgba(76,173,114,.15);border:1px solid rgba(76,173,114,.25)}
+.hg-cell.ocupada{background:rgba(224,184,76,.08);border:1px solid rgba(224,184,76,.14)}
+.hg-cell.ocupada-full{background:rgba(224,82,82,.07);border:1px solid rgba(224,82,82,.13)}
+.hg-cell.vacia{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.04)}
+.hg-cell.past{opacity:.35}
+.hg-cell-libre{font-size:7px;font-weight:700;letter-spacing:.07em;color:var(--grn)}
+.hg-cell-vent{font-size:6px;color:rgba(76,173,114,.6);line-height:1.2;letter-spacing:.01em}
+.hg-cell-slot{font-size:6px;font-weight:700;letter-spacing:.06em;line-height:1.6}
+.hg-slot-mn{color:#c9a84c}.hg-slot-inf{color:#64b5f6}.hg-slot-fem{color:#ce93d8}
+.hg-cell-dash{font-size:9px;color:rgba(255,255,255,.12)}
+.hg-legend{display:flex;gap:10px;padding:2px 16px 8px;flex-wrap:wrap;align-items:center}
+.hg-legend-item{display:flex;align-items:center;gap:4px;font-size:9px;color:var(--wdim)}
+.hg-legend-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+.srec-window{display:block;margin-top:4px;font-size:9px;font-weight:600;letter-spacing:.04em;color:var(--grn);opacity:.85}
+
 /* ── DISCLAIMER ── */
 .disclaimer-box{margin:8px 16px 4px;padding:10px 13px;background:rgba(255,255,255,.025);border-radius:var(--radius);border:1px solid rgba(255,255,255,.04)}
 .disclaimer-text{font-size:10px;color:var(--wdim);line-height:1.65;letter-spacing:.01em;opacity:.8}
@@ -368,6 +393,9 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
   <!-- Heatmap estado real del campo — Roger -->
   <div id="heatmap-section" style="display:none"></div>
 
+  <!-- Horario VO — Roger -->
+  <div id="horario-section" style="display:none"></div>
+
   <!-- Weather — canchero + intendente -->
   <div id="weather-section" style="display:none">
     <div class="section-title">Clima esta Semana</div>
@@ -442,6 +470,7 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
 'use strict';
 
 var DATA_URL    = './velez_data.json';
+var CONFIG_URL  = './config_velez.json';
 var WEATHER_URL = 'https://api.open-meteo.com/v1/forecast?latitude=-34.6375&longitude=-58.5215' +
   '&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,wind_speed_10m_max' +
   '&hourly=soil_moisture_0_to_7cm,soil_moisture_0_to_1cm,soil_temperature_0cm' +
@@ -721,7 +750,7 @@ function buildEtCard(wl){
 }
 
 /* ── SMART RECS (canchero) ── */
-function buildSmartRecs(usuario, sectores, w, wl){
+function buildSmartRecs(usuario, sectores, w, wl, cfg){
   document.getElementById('smart-recs-section').style.display='block';
   var canchas=(sectores.canchero&&sectores.canchero.canchas)||[];
   var recs=[];
@@ -747,12 +776,17 @@ function buildSmartRecs(usuario, sectores, w, wl){
   var c1=canchas.filter(function(c){return c.id==='c1';})[0];
 
   if(c4&&c4.sem==='rojo'){
-    if(windyToday) recs.push({icon:'🧴',text:'No aplicar fungicida C4 hoy — viento >25 km/h. Reprogramar para mañana temprano.'});
-    else           recs.push({icon:'🧴',text:'Fungicida C4 HOY: zona central y lateral sur. No esperar — foco activo confirmado.'});
+    var vc4=cfg?findMejorVentana('c4',cfg):null;
+    if(windyToday) recs.push({icon:'🧴',text:'No aplicar fungicida C4 hoy — viento >25 km/h. Reprogramar para mañana temprano.',window:vc4});
+    else           recs.push({icon:'🧴',text:'Fungicida C4 HOY: zona central y lateral sur. No esperar — foco activo confirmado.',window:vc4});
   }
-  if(c3&&c3.sem==='rojo') recs.push({icon:'🧴',text:'Fungicida C3: aplicar antes del martes — focos activos en manchas laterales.'});
+  if(c3&&c3.sem==='rojo'){
+    var vc3=cfg?findMejorVentana('c3',cfg):null;
+    recs.push({icon:'🧴',text:'Fungicida C3: aplicar antes del martes — focos activos en manchas laterales.',window:vc3});
+  }
 
   // ET-based irrigation recommendation (uses pre-computed weather_live from JSON)
+  var riegoWin=cfg?(findMejorVentana('c4',cfg)||findMejorVentana('c3',cfg)):null;
   if(wl&&wl.et0_mm_dia){
     var et=wl.et0_mm_dia, def=wl.deficit_hidrico_mm||0;
     var dOff=wl.dia_riego_offset||0;
@@ -761,18 +795,18 @@ function buildSmartRecs(usuario, sectores, w, wl){
     var rdLabel=dOff===0?'HOY':dOff===1?'mañana temprano':DIAS_ES[rdObj.getDay()];
     var riegoHora=wl.hora_riego_optima||'06:00', riegoMin=wl.riego_min_sector||25;
     if(et>4&&wl.deficit_hidrico){
-      recs.push({icon:'💧',text:'RIEGO URGENTE — mucha agua perdida ('+et+' mm/día, le falta '+def+' L/m² al suelo). Regar C3 y C4 '+rdLabel+' a las '+riegoHora+' hs · '+riegoMin+' min/sector.'});
+      recs.push({icon:'💧',text:'RIEGO URGENTE — mucha agua perdida ('+et+' mm/día, le falta '+def+' L/m² al suelo). Regar C3 y C4 '+rdLabel+' a las '+riegoHora+' hs · '+riegoMin+' min/sector.',window:riegoWin});
     } else if(et<2){
       recs.push({icon:'💧',text:'Poca agua perdida ('+et+' mm/día) — posponer riego esta semana. Evaluar el próximo jueves.'});
     } else if(wl.deficit_hidrico){
-      recs.push({icon:'💧',text:'Regar C3 y C4 '+rdLabel+' a las '+riegoHora+' hs — viento bajo, sin lluvia prevista · le falta '+def+' mm · '+riegoMin+' min/sector.'});
+      recs.push({icon:'💧',text:'Regar C3 y C4 '+rdLabel+' a las '+riegoHora+' hs — viento bajo, sin lluvia prevista · le falta '+def+' mm · '+riegoMin+' min/sector.',window:riegoWin});
     } else if(soilWet){
       recs.push({icon:'💧',text:'Posponer riego — suelo húmedo y ET normal ('+et+' mm/día). Evaluar el jueves.'});
     } else {
-      recs.push({icon:'💧',text:'Riego según programa semanal — ET '+et+' mm/día. Óptimo: '+rdLabel+' '+riegoHora+' hs.'});
+      recs.push({icon:'💧',text:'Riego según programa semanal — ET '+et+' mm/día. Óptimo: '+rdLabel+' '+riegoHora+' hs.',window:riegoWin});
     }
   } else if(!soilWet&&rainDays.length===0){
-    recs.push({icon:'💧',text:'Regar C3 y C4: martes y jueves, 25 min por sector. Suelo seco — riego necesario.'});
+    recs.push({icon:'💧',text:'Regar C3 y C4: martes y jueves, 25 min por sector. Suelo seco — riego necesario.',window:riegoWin});
   } else if(soilWet){
     recs.push({icon:'💧',text:'Posponer riego general — suelo húmedo. Evaluar el jueves.'});
   } else if(rainDays.length>0){
@@ -782,10 +816,11 @@ function buildSmartRecs(usuario, sectores, w, wl){
 
   // Corte recommendation — use hora_corte_optima if available
   var corteHora=wl&&wl.hora_corte_optima?wl.hora_corte_optima:'07:00';
+  var corteWin=cfg?(findMejorVentana('c4',cfg)||findMejorVentana('c2',cfg)):null;
   if(rainTomorrow)
-    recs.push({icon:'✂️',text:'Cortar hoy temprano (antes de las 10 hs) — lluvia prevista mañana. No cortar con pasto húmedo.'});
+    recs.push({icon:'✂️',text:'Cortar hoy temprano (antes de las 10 hs) — lluvia prevista mañana. No cortar con pasto húmedo.',window:corteWin});
   else
-    recs.push({icon:'✂️',text:'Cortar C2 y C4: miércoles a las '+corteHora+' hs (viento bajo, suelo firme). Altura: 28-30 mm.'});
+    recs.push({icon:'✂️',text:'Cortar C2 y C4: miércoles a las '+corteHora+' hs (viento bajo, suelo firme). Altura: 28-30 mm.',window:corteWin});
 
   // GNDVI-based nitrogen rec
   if(wl&&wl.gndvi_por_cancha&&wl.gndvi_por_cancha.canchas){
@@ -816,7 +851,10 @@ function buildSmartRecs(usuario, sectores, w, wl){
 
   var el=document.getElementById('smart-recs-content');
   el.innerHTML='<div class="smart-recs">'+recs.slice(0,5).map(function(r){
-    return '<div class="srec"><div class="srec-icon">'+r.icon+'</div><div class="srec-text">'+r.text+'</div></div>';
+    return '<div class="srec"><div class="srec-icon">'+r.icon+'</div>'
+      +'<div class="srec-text">'+r.text
+      +(r.window?'<span class="srec-window">Ventana: '+r.window+'</span>':'')
+      +'</div></div>';
   }).join('')+'</div>';
 }
 
@@ -1005,6 +1043,112 @@ function buildActions(actions){
   }).join('');
 }
 
+/* ── HORARIO GRID ── */
+function getTurnosUsados(uso, cfg){
+  var sched=cfg.horarios_vo_semana, t={};
+  (uso||[]).forEach(function(cat){ var s=sched.categoria_turno[cat]; if(s) t[s]=true; });
+  return t;
+}
+function getVentanaText(uso, cfg){
+  var t=getTurnosUsados(uso,cfg);
+  var ma=t.manana, inf=t.infantiles, fem=t.femenino;
+  if(!ma&&!inf&&!fem) return 'todo el día';
+  if(ma&&inf&&fem)    return '11–14hs';
+  if(ma&&inf)         return '11–14hs';
+  if(ma&&fem)         return '11–17:30hs';
+  if(ma)              return 'desde 11hs';
+  if(inf&&fem)        return 'hasta 11hs';
+  if(inf)             return 'hasta 11hs';
+  if(fem)             return 'hasta 17:30hs';
+  return 'todo el día';
+}
+function findMejorVentana(cid, cfg){
+  var sched=cfg.horarios_vo_semana;
+  var today=new Date().toISOString().slice(0,10);
+  var dias=sched.dias;
+  for(var i=0;i<dias.length;i++){
+    var d=dias[i];
+    if(d.fecha<today) continue;
+    var libre=(sched.canchas_libre[d.id]||[]).indexOf(cid)>=0;
+    if(libre){
+      var uso=(sched.canchas[cid]&&sched.canchas[cid].uso[d.id])||[];
+      var vent=getVentanaText(uso,cfg);
+      var lbl=d.fecha===today?'Hoy':d.label;
+      return lbl+' · '+vent;
+    }
+  }
+  return null;
+}
+function buildHorarioGrid(cfg){
+  var sched=cfg.horarios_vo_semana;
+  if(!sched) return;
+  var el=document.getElementById('horario-section');
+  el.style.display='block';
+
+  var dias=sched.dias;
+  var cids=['c1','c2','c3','c4','c5','c6','c7','c8','c9'];
+  var today=new Date().toISOString().slice(0,10);
+
+  var semLbl='Sem. '+sched.semana_label+' · '
+    +sched.fecha_inicio.slice(5).replace('-','/')+'–'+sched.fecha_fin.slice(5).replace('-','/');
+
+  var html='<div class="section-title">Uso de Canchas esta Semana'
+    +'<span style="font-size:9px;font-weight:400;color:var(--wdim);text-transform:none;margin-left:8px">'+semLbl+'</span></div>'
+    +'<div class="hg-wrap"><table class="hg-table"><thead><tr>'
+    +'<th class="hg-th"></th>';
+  dias.forEach(function(d){
+    var isHoy=d.fecha===today, isPast=d.fecha<today;
+    html+='<th class="hg-th'+(isHoy?' hoy-col':isPast?' past-col':'')+'">'
+      +d.label+(isHoy?'★':'')+'</th>';
+  });
+  html+='</tr></thead><tbody>';
+
+  cids.forEach(function(cid){
+    var cancha=sched.canchas[cid]; if(!cancha) return;
+    html+='<tr><td class="hg-row-label">'+cid.toUpperCase()+'</td>';
+    dias.forEach(function(d){
+      var dayId=d.id, isPast=d.fecha<today;
+      var libre=(sched.canchas_libre[dayId]||[]).indexOf(cid)>=0;
+      var uso=(cancha.uso[dayId])||[];
+      var t=getTurnosUsados(uso,cfg);
+      var nT=Object.keys(t).length;
+      var cellCls, inner;
+      if(libre){
+        cellCls='hg-cell libre'+(isPast?' past':'');
+        var vent=getVentanaText(uso,cfg);
+        inner='<div class="hg-cell-libre">LIBRE</div>'
+          +'<div class="hg-cell-vent">'+vent+'</div>';
+      } else if(uso.length>0){
+        var isFull=nT>=3;
+        cellCls='hg-cell '+(isFull?'ocupada-full':'ocupada')+(isPast?' past':'');
+        var slots=[];
+        if(t.manana)     slots.push('<span class="hg-cell-slot hg-slot-mn">MÑ</span>');
+        if(t.infantiles) slots.push('<span class="hg-cell-slot hg-slot-inf">INF</span>');
+        if(t.femenino)   slots.push('<span class="hg-cell-slot hg-slot-fem">FEM</span>');
+        inner=slots.join('');
+      } else {
+        cellCls='hg-cell vacia'+(isPast?' past':'');
+        inner='<div class="hg-cell-dash">—</div>';
+      }
+      html+='<td class="hg-td"><div class="'+cellCls+'">'+inner+'</div></td>';
+    });
+    html+='</tr>';
+  });
+  html+='</tbody></table></div>';
+  html+='<div class="hg-legend">'
+    +'<div class="hg-legend-item"><div class="hg-legend-dot" style="background:rgba(76,173,114,.4)"></div>Libre</div>'
+    +'<div class="hg-legend-item"><div class="hg-legend-dot" style="background:rgba(224,184,76,.35)"></div>En uso</div>'
+    +'<div class="hg-legend-item"><div class="hg-legend-dot" style="background:rgba(224,82,82,.3)"></div>Llena</div>'
+    +'<div class="hg-legend-item">'
+    +'<span class="hg-cell-slot hg-slot-mn">MÑ</span>&nbsp;mañana&nbsp;'
+    +'<span class="hg-cell-slot hg-slot-inf">INF</span>&nbsp;tarde&nbsp;'
+    +'<span class="hg-cell-slot hg-slot-fem">FEM</span>&nbsp;noche'
+    +'</div>'
+    +'</div>';
+
+  el.innerHTML=html;
+}
+
 /* ── HEATMAP SECTION ── */
 function buildHeatmapSection(u){
   var hmData=u.heatmaps;
@@ -1113,7 +1257,7 @@ function buildHeatmapSection(u){
 }
 
 /* ── MAIN RENDER ── */
-function render(data){
+function render(data, cfg){
   var userSlug=slug();
   if(!userSlug){show('not-auth');return;}
   var u=data.usuarios&&data.usuarios[userSlug];
@@ -1144,6 +1288,7 @@ function render(data){
     buildFungalBanner(wl);
     buildCanchasGrid(allS['canchero']);
     buildHeatmapSection(u);
+    if(cfg) buildHorarioGrid(cfg);
     buildEtCard(wl);
     buildDisclaimer('disclaimer-recs');
     buildTaskCalendar(u.tareas_semana);
@@ -1154,7 +1299,7 @@ function render(data){
     document.getElementById('weather-content').innerHTML='<div class="weather-loading">Cargando clima…</div>';
     document.getElementById('smart-recs-content').innerHTML='<div class="weather-loading">Generando recomendaciones…</div>';
     show('content');
-    fetchWeather().then(function(w){ buildWeatherStrip(w); buildSmartRecs(u,allS,w,wl); }).catch(function(){ buildSmartRecs(u,allS,null,wl); });
+    fetchWeather().then(function(w){ buildWeatherStrip(w); buildSmartRecs(u,allS,w,wl,cfg); }).catch(function(){ buildSmartRecs(u,allS,null,wl,cfg); });
 
   } else if(u.tipo==='intendente'){
     buildExecSummary(u.resumen_ejecutivo);
@@ -1177,7 +1322,10 @@ function render(data){
 }
 
 function init(){
-  fetch(DATA_URL).then(function(r){if(!r.ok)throw new Error(r.status);return r.json();}).then(render).catch(function(){show('error-msg');});
+  Promise.all([
+    fetch(DATA_URL).then(function(r){if(!r.ok)throw new Error(r.status);return r.json();}),
+    fetch(CONFIG_URL).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;})
+  ]).then(function(res){ render(res[0],res[1]); }).catch(function(){show('error-msg');});
 }
 window.addEventListener('hashchange',function(){ init(); });
 init();
