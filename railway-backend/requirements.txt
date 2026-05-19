@@ -1,6 +1,7 @@
 flask==3.0.3
 flask-cors==4.0.1
 gunicorn==22.0.0
+APScheduler==3.10.4
 matplotlib==3.9.0
 numpy==1.26.4
 scipy==1.13.1

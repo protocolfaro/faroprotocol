@@ -409,10 +409,10 @@ def load_latest_data() -> dict:
         'zones': [
             {'name': 'Campo Amalfitani', 'ndvi': 0.68, 'temp': 22.1,
              'insar_mm': 0.85, 'sem': 'verde'},
-            {'name': 'Cancha 1',  'ndvi': 0.48, 'temp': 24.3, 'insar_mm': 1.20, 'sem': 'amarillo'},
-            {'name': 'Cancha 2',  'ndvi': 0.52, 'temp': 23.8, 'insar_mm': 0.60, 'sem': 'amarillo'},
-            {'name': 'Cancha 3',  'ndvi': 0.39, 'temp': 25.1, 'insar_mm': 2.80, 'sem': 'amarillo'},
-            {'name': 'Cancha 4',  'ndvi': 0.24, 'temp': 27.8, 'insar_mm': 2.80, 'sem': 'rojo'},
+            {'name': '1FA',  'ndvi': 0.48, 'temp': 24.3, 'insar_mm': 1.20, 'sem': 'amarillo'},
+            {'name': '2FA',  'ndvi': 0.52, 'temp': 23.8, 'insar_mm': 0.60, 'sem': 'amarillo'},
+            {'name': '3FA',  'ndvi': 0.39, 'temp': 25.1, 'insar_mm': 2.80, 'sem': 'amarillo'},
+            {'name': '4FA',  'ndvi': 0.24, 'temp': 27.8, 'insar_mm': 2.80, 'sem': 'rojo'},
         ],
         'solar': {'eff_pct': 82.4, 'kwp_actual': 98.9, 'anomaly_zone': None},
         'tribunas': {'norte': 0.85, 'sur': 1.20, 'este': 0.60, 'oeste': 2.80},
@@ -496,14 +496,14 @@ def _body_roger(panel_url: str = '') -> str:
         <p style="font-size:14px">Los circulos de colores en el mapa marcan exactamente donde ir.</p>
         <h3 style="color:#e74c3c">HOY — NO PUEDE ESPERAR</h3>
         <ul style="font-size:15px;line-height:1.8">
-          <li><b>Cancha 4 — zona central y lateral sur:</b><br>
+          <li><b>4FA — zona central y lateral sur:</b><br>
               Tirar fungicida, reparar el drenaje roto, y sembrar semilla nueva donde falta pasto</li>
         </ul>
         <h3 style="color:#f0b429">Esta semana</h3>
         <ul style="font-size:15px;line-height:1.8">
-          <li><b>Cancha 1:</b> fungicida preventivo antes de que avance</li>
-          <li><b>Cancha 2:</b> fertilizar todo el campo</li>
-          <li><b>Cancha 3:</b> fungicida en las manchas + sembrar donde falta</li>
+          <li><b>1FA:</b> fungicida preventivo antes de que avance</li>
+          <li><b>2FA:</b> fertilizar todo el campo</li>
+          <li><b>3FA:</b> fungicida en las manchas + sembrar donde falta</li>
         </ul>
         <h3 style="color:#27ae60">Semana 3 (sin apuro)</h3>
         <ul style="font-size:15px;line-height:1.8">
@@ -521,7 +521,7 @@ def _body_juan(panel_url: str = '') -> str:
         'Estado Villa Olímpica Esta Semana',
         f"""
         <p>Juan, te mando el estado actualizado de las canchas, el campo y el Polideportivo.</p>
-        <h3 style="color:#e74c3c">Urgente — Cancha 4</h3>
+        <h3 style="color:#e74c3c">Urgente — 4FA</h3>
         <ul style="font-size:14px">
           <li>Focos activos de hongo en zona central (85 m²) — requiere fungicida HOY</li>
           <li>Drenaje lateral sur roto — agua estancada confirmada por satélite</li>
@@ -535,7 +535,7 @@ def _body_juan(panel_url: str = '') -> str:
         </ul>
         <h3 style="color:#f0b429">Campo Amalfitani</h3>
         <ul style="font-size:14px">
-          <li><b>Canchas 1–3:</b> tratamientos agronómicos en curso</li>
+          <li><b>1FA–3FA:</b> tratamientos agronómicos en curso</li>
           <li><b>Campo Amalfitani:</b> NDVI 0.68 — estado óptimo, mantener riego</li>
         </ul>
         <p style="font-size:13px;color:#9aa0a8">
@@ -557,10 +557,10 @@ def _body_banchero(panel_url: str = '') -> str:
             <th style="padding:8px;border:1px solid #c9a84c44;text-align:left">Estado</th>
             <th style="padding:8px;border:1px solid #c9a84c44;text-align:left">Acción requerida</th>
           </tr>
-          <tr><td style="padding:6px;border:1px solid #c9a84c22">Cancha 4</td>
+          <tr><td style="padding:6px;border:1px solid #c9a84c22">4FA</td>
               <td style="padding:6px;color:#e74c3c;border:1px solid #c9a84c22"><b>CRÍTICO</b></td>
               <td style="padding:6px;border:1px solid #c9a84c22">Intervención urgente — ver mapa</td></tr>
-          <tr><td style="padding:6px;border:1px solid #c9a84c22">Canchas 1, 2, 3</td>
+          <tr><td style="padding:6px;border:1px solid #c9a84c22">1FA, 2FA, 3FA</td>
               <td style="padding:6px;color:#f0b429;border:1px solid #c9a84c22"><b>ATENCIÓN</b></td>
               <td style="padding:6px;border:1px solid #c9a84c22">Acciones programadas esta semana</td></tr>
           <tr><td style="padding:6px;border:1px solid #c9a84c22">Campo Amalfitani</td>
@@ -596,17 +596,17 @@ def _body_pait(panel_url: str = '') -> str:
         <p>Sebastián, estado de las superficies para esta semana de entrenamiento.</p>
         <h3 style="color:#e74c3c">NO APTO para entrenamiento</h3>
         <ul style="font-size:14px">
-          <li><b>Cancha 4:</b> estado crítico — hongo activo + drenaje roto + pasto ralo</li>
+          <li><b>4FA:</b> estado crítico — hongo activo + drenaje roto + pasto ralo</li>
         </ul>
         <h3 style="color:#f0b429">Uso condicionado</h3>
         <ul style="font-size:14px">
-          <li><b>Cancha 1:</b> apta, con fungicida preventivo antes del uso</li>
-          <li><b>Cancha 3:</b> apta para trabajos livianos, tratamiento en curso</li>
+          <li><b>1FA:</b> apta, con fungicida preventivo antes del uso</li>
+          <li><b>3FA:</b> apta para trabajos livianos, tratamiento en curso</li>
           <li><b>Polideportivo:</b> Básquet y Playón Norte — evaluar antes de uso intensivo</li>
         </ul>
         <h3 style="color:#27ae60">Óptimas para uso</h3>
         <ul style="font-size:14px">
-          <li><b>Cancha 2:</b> apta — NDVI 0.52, fertilización esta semana</li>
+          <li><b>2FA:</b> apta — NDVI 0.52, fertilización esta semana</li>
           <li><b>Campo Amalfitani:</b> NDVI 0.68 — excelente condición</li>
           <li><b>Hockey:</b> NDVI 0.52 — apta para uso normal</li>
         </ul>
@@ -630,7 +630,7 @@ def _body_berlanga(panel_url: str = '') -> str:
           </tr>
           <tr><td style="padding:6px;border:1px solid #c9a84c22">Estadio Amalfitani</td>
               <td style="padding:6px;text-align:center;color:#f0b429;border:1px solid #c9a84c22"><b>ATENCIÓN</b></td>
-              <td style="padding:6px;border:1px solid #c9a84c22">Cancha 4 crítica — resto en tratamiento</td></tr>
+              <td style="padding:6px;border:1px solid #c9a84c22">4FA crítica — resto en tratamiento</td></tr>
           <tr><td style="padding:6px;border:1px solid #c9a84c22">Sistema Solar</td>
               <td style="padding:6px;text-align:center;color:#f0b429;border:1px solid #c9a84c22"><b>82.4%</b></td>
               <td style="padding:6px;border:1px solid #c9a84c22">2,840 kWh/sem — Zona E requiere revisión</td></tr>
@@ -660,7 +660,7 @@ def _body_nelson(panel_url: str = '') -> str:
         semana del {datetime.now().strftime("%d/%m/%Y")}.</p>
         <h3 style="color:#c9a84c">Estado General</h3>
         <ul style="font-size:14px;line-height:1.8">
-          <li><b>Estadio Amalfitani:</b> Cancha 4 crítica — resto en tratamiento preventivo</li>
+          <li><b>Estadio Amalfitani:</b> 4FA crítica — resto en tratamiento preventivo</li>
           <li><b>Sistema Solar:</b> Eficiencia 82.4% — Zona E requiere revisión esta semana</li>
           <li><b>Polideportivo Feijóo:</b> 2 sectores con atención (Básquet + Playón Norte)</li>
           <li><b>Complejo Acuático:</b> Calidad de agua excelente — score 91/100</li>
@@ -693,7 +693,7 @@ def _body_aveleyra(panel_url: str = '') -> str:
           </tr>
           <tr><td style="padding:6px;border:1px solid #c9a84c22">Score predio general</td>
               <td style="padding:6px;text-align:center;color:#f0b429;border:1px solid #c9a84c22"><b>67/100</b></td>
-              <td style="padding:6px;border:1px solid #c9a84c22">Intervención Cancha 4 + inspecciones</td></tr>
+              <td style="padding:6px;border:1px solid #c9a84c22">Intervención 4FA + inspecciones</td></tr>
           <tr><td style="padding:6px;border:1px solid #c9a84c22">Score complejo acuático</td>
               <td style="padding:6px;text-align:center;color:#27ae60;border:1px solid #c9a84c22"><b>91/100</b></td>
               <td style="padding:6px;border:1px solid #c9a84c22">Sin acción inmediata</td></tr>

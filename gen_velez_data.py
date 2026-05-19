@@ -43,12 +43,12 @@ SECTOR_DATA = {
         "nombre": "Villa Olímpica",
         "score": 59, "score_prev": 63,
         "sem": "rojo",
-        "detalle": "Cancha 4: fungicida urgente · NDVI: 0.31",
+        "detalle": "4FA: fungicida urgente · NDVI: 0.31",
         "canchas": [
-            {"id":"c1","nombre":"Cancha 1","score":68,"score_prev":72,"sem":"amarillo","ndvi":0.48,"ndvi_prev":0.52,"detalle":"Focos fungosos leve · tratamiento preventivo"},
-            {"id":"c2","nombre":"Cancha 2","score":75,"score_prev":70,"sem":"amarillo","ndvi":0.52,"ndvi_prev":0.48,"detalle":"Fertilización requerida · NDVI estable"},
-            {"id":"c3","nombre":"Cancha 3","score":55,"score_prev":61,"sem":"rojo","ndvi":0.38,"ndvi_prev":0.44,"detalle":"Focos fungosos activos · fungicida urgente"},
-            {"id":"c4","nombre":"Cancha 4","score":31,"score_prev":42,"sem":"rojo","ndvi":0.31,"ndvi_prev":0.38,"detalle":"CRÍTICO · fungicida + drenaje + resembrado"},
+            {"id":"1fa","nombre":"1FA","score":68,"score_prev":72,"sem":"amarillo","ndvi":0.48,"ndvi_prev":0.52,"detalle":"Focos fungosos leve · tratamiento preventivo"},
+            {"id":"2fa","nombre":"2FA","score":75,"score_prev":70,"sem":"amarillo","ndvi":0.52,"ndvi_prev":0.48,"detalle":"Fertilización requerida · NDVI estable"},
+            {"id":"3fa","nombre":"3FA","score":55,"score_prev":61,"sem":"rojo","ndvi":0.38,"ndvi_prev":0.44,"detalle":"Focos fungosos activos · fungicida urgente"},
+            {"id":"4fa","nombre":"4FA","score":31,"score_prev":42,"sem":"rojo","ndvi":0.31,"ndvi_prev":0.38,"detalle":"CRÍTICO · fungicida + drenaje + resembrado"},
         ],
     },
     "sede": {
@@ -96,10 +96,10 @@ PROXIMO_PARTIDO_ROGER = {
 }
 
 _TAREAS_BASE = [
-    ["Aplicar fungicida C4 zona central y lateral sur", "Verificar drenaje lateral C4"],
-    ["Regar C3 y C4: 25 min por sector", "Fungicida preventivo C1/C3"],
-    ["Cortar C2 y C4 temprano (7-9 hs)", "Fertilizar C2: 20 kg N/ha"],
-    ["Sembrar C4 zona central (85 m²)", "Regar C1 y C3"],
+    ["Aplicar fungicida 4FA zona central y lateral sur", "Verificar drenaje lateral 4FA"],
+    ["Regar 3FA y 4FA: 25 min por sector", "Fungicida preventivo 1FA/3FA"],
+    ["Cortar 2FA y 4FA temprano (7-9 hs)", "Fertilizar 2FA: 20 kg N/ha"],
+    ["Sembrar 4FA zona central (85 m²)", "Regar 1FA y 3FA"],
     ["Aerificar porterías Amalfitani", "Preparación previa partido: corte y riego"],
     ["Marcar líneas estadio", "Riego final: 2 h antes del partido"],
     ["PARTIDO vs Independiente — estadio abierto 2 h antes",
@@ -133,15 +133,15 @@ USUARIO_CONFIG = {
         "sort_by_score": False,
         "proximo_partido": PROXIMO_PARTIDO_ROGER,
         "kpis": [
-            {"label":"NDVI C4",     "value":"0.31","value_prev":"0.38","unit":"","sub":"CRÍTICO — resembrar",    "sem":"rojo"},
-            {"label":"NDVI C1/C3",  "value":"0.38","value_prev":"0.44","unit":"","sub":"Focos fungosos activos", "sem":"rojo"},
-            {"label":"NDVI C2",     "value":"0.52","value_prev":"0.48","unit":"","sub":"Fertilización requerida","sem":"amarillo"},
+            {"label":"NDVI 4FA",     "value":"0.31","value_prev":"0.38","unit":"","sub":"CRÍTICO — resembrar",    "sem":"rojo"},
+            {"label":"NDVI 1FA/3FA",  "value":"0.38","value_prev":"0.44","unit":"","sub":"Focos fungosos activos", "sem":"rojo"},
+            {"label":"NDVI 2FA",     "value":"0.52","value_prev":"0.48","unit":"","sub":"Fertilización requerida","sem":"amarillo"},
             {"label":"Score Fusión","value":"59",  "value_prev":"63",  "unit":"","sub":"Promedio 4 canchas",     "sem":"rojo"},
         ],
         "acciones": [
-            "Cancha 4: intervención URGENTE — fungicida + drenaje + resembrar HOY",
-            "Canchas 1 y 3: aplicar fungicida activo — focos exactos en reporte PDF",
-            "Cancha 2: fertilizar 20 kg N/ha uniformemente esta semana",
+            "4FA: intervención URGENTE — fungicida + drenaje + resembrar HOY",
+            "1FA y 3FA: aplicar fungicida activo — focos exactos en reporte PDF",
+            "2FA: fertilizar 20 kg N/ha uniformemente esta semana",
         ],
     },
     "juan": {
@@ -150,7 +150,7 @@ USUARIO_CONFIG = {
         "sectores": ["canchero", "agro", "poli"],
         "sort_by_score": True,
         "resumen_ejecutivo": [
-            "2 sectores en rojo: Poli Básquet (InSAR 0.85 mm) y Villa Olímpica C4 — acción urgente esta semana.",
+            "2 sectores en rojo: Poli Básquet (InSAR 0.85 mm) y 4FA — acción urgente esta semana.",
             "Sistema solar al 71% de eficiencia — 3 paneles en falla, pérdida de 4.2 kWp activa.",
             "Área agronómica estable (NDVI 0.58). Complejo acuático y estadio sin intervención inmediata.",
         ],
@@ -158,10 +158,10 @@ USUARIO_CONFIG = {
             "moneda": "ARS",
             "total": 180000,
             "items": [
-                {"concepto":"Fungicida + insumos resembrado C4",     "monto":85000,"sem":"rojo"},
+                {"concepto":"Fungicida + insumos resembrado 4FA",     "monto":85000,"sem":"rojo"},
                 {"concepto":"Inspección estructural Básquet Feijóo", "monto":45000,"sem":"rojo"},
                 {"concepto":"Limpieza y revisión 7 paneles solares", "monto":32000,"sem":"amarillo"},
-                {"concepto":"Reparación drenaje lateral C4",         "monto":18000,"sem":"amarillo"},
+                {"concepto":"Reparación drenaje lateral 4FA",         "monto":18000,"sem":"amarillo"},
             ],
         },
         "sectores_autorizacion": [
@@ -170,13 +170,13 @@ USUARIO_CONFIG = {
         ],
         "kpis": [
             {"label":"InSAR Básquet","value":"0.85","value_prev":"0.70","unit":"mm","sub":"SUPERA umbral 0.8 mm","sem":"rojo"},
-            {"label":"NDVI C4",      "value":"0.31","value_prev":"0.38","unit":"",  "sub":"Cancha crítica",      "sem":"rojo"},
+            {"label":"NDVI 4FA",      "value":"0.31","value_prev":"0.38","unit":"",  "sub":"Cancha crítica",      "sem":"rojo"},
             {"label":"NDVI Agro",    "value":"0.58","value_prev":"0.56","unit":"",  "sub":"Riego activo OK",     "sem":"amarillo"},
             {"label":"Score Poli",   "value":"39",  "value_prev":"44",  "unit":"",  "sub":"Atención urgente",    "sem":"rojo"},
         ],
         "acciones": [
             "Poli Básquet: inspección fisuras + drenaje URGENTE (InSAR 0.85 mm)",
-            "Cancha 4: intervención urgente — fungicida + drenaje esta semana",
+            "4FA: intervención urgente — fungicida + drenaje esta semana",
             "Agro: riego preventivo — monitorear NDVI campo norte",
         ],
     },
@@ -186,7 +186,7 @@ USUARIO_CONFIG = {
         "sectores": _ALL,
         "sort_by_score": True,
         "acciones": [
-            "Poli + Villa Olímpica C4: intervenciones urgentes esta semana",
+            "Poli + 4FA: intervenciones urgentes esta semana",
             "Sistema Solar: mantenimiento técnico + limpieza paneles degradados",
             "Sede Anexo Norte + Piletas Techo: inspección térmica preventiva",
         ],
@@ -203,15 +203,15 @@ USUARIO_CONFIG = {
         "sectores": ["canchero", "agro", "poli"],
         "sort_by_score": True,
         "resumen_ejecutivo": [
-            "Cancha 4 y Poli Básquet en estado crítico — intervención urgente requerida.",
-            "Cancha 2 y Área Agronómica en condiciones aptas para uso normal.",
+            "4FA y Poli Básquet en estado crítico — intervención urgente requerida.",
+            "2FA y Área Agronómica en condiciones aptas para uso normal.",
             "Poli Playón Norte: evaluar antes de actividades de alto impacto.",
         ],
         "presupuesto_urgente": {
             "moneda": "ARS",
             "total": 130000,
             "items": [
-                {"concepto":"Fungicida + resembrado C4",     "monto":85000,"sem":"rojo"},
+                {"concepto":"Fungicida + resembrado 4FA",     "monto":85000,"sem":"rojo"},
                 {"concepto":"Inspección estructural Básquet","monto":45000,"sem":"rojo"},
             ],
         },
@@ -220,13 +220,13 @@ USUARIO_CONFIG = {
             {"sector":"Poli Feijóo",   "accion":"Inspección estructural Básquet",     "monto":45000,"urgencia":"esta-sem"},
         ],
         "acciones": [
-            "Cancha 4: NO APTA — hongo activo + drenaje roto + pasto ralo",
+            "4FA: NO APTA — hongo activo + drenaje roto + pasto ralo",
             "Poli Básquet: evaluar antes de uso intensivo (InSAR 0.85 mm)",
-            "Cancha 2 y Campo Agro: estado óptimo — sin restricciones",
+            "2FA y Campo Agro: estado óptimo — sin restricciones",
         ],
         "kpis": [
-            {"label":"Canchas Aptas","value":"2",   "unit":"/4","sub":"C2 y campo OK",        "sem":"amarillo"},
-            {"label":"NDVI C4",      "value":"0.31","unit":"",  "sub":"NO APTA — crítica",    "sem":"rojo"},
+            {"label":"Canchas Aptas","value":"2",   "unit":"/4","sub":"2FA y campo OK",        "sem":"amarillo"},
+            {"label":"NDVI 4FA",      "value":"0.31","unit":"",  "sub":"NO APTA — crítica",    "sem":"rojo"},
             {"label":"NDVI Agro",    "value":"0.58","unit":"",  "sub":"Uso normal",           "sem":"amarillo"},
             {"label":"InSAR Básquet","value":"0.85","unit":"mm","sub":"Evaluar antes de uso", "sem":"rojo"},
         ],
@@ -288,7 +288,7 @@ USUARIO_CONFIG = {
         "sectores": _ALL,
         "sort_by_score": True,
         "acciones": [
-            "Poli Básquet + Villa Olímpica C4: intervenciones urgentes esta semana",
+            "Poli Básquet + 4FA: intervenciones urgentes esta semana",
             "Sistema Solar: mantenimiento técnico + limpieza paneles degradados",
             "Sede Anexo Norte + Piletas Techo: inspección térmica preventiva",
         ],
@@ -478,8 +478,8 @@ def _fetch_smap_cmr() -> dict:
 # GNDVI per-cancha (Sentinel-2 B3+B8). Without Sentinel Hub auth the values are
 # estimated from NDVI using a published turfgrass regression (Gitelson 1996) with
 # health-adjusted multipliers per cancha.  Label: "fuente":"estimado-ndvi".
-_CANCHA_NDVI     = {"c1": 0.48, "c2": 0.52, "c3": 0.38, "c4": 0.31}
-_GNDVI_K         = {"c1": 0.91, "c2": 0.93, "c3": 0.88, "c4": 0.84}
+_CANCHA_NDVI     = {"1fa": 0.48, "2fa": 0.52, "3fa": 0.38, "4fa": 0.31}
+_GNDVI_K         = {"1fa": 0.91, "2fa": 0.93, "3fa": 0.88, "4fa": 0.84}
 
 def _estimate_gndvi_per_cancha() -> dict:
     """GNDVI ≈ NDVI × k − 0.01 per cancha with N-stress interpretation."""
@@ -521,13 +521,13 @@ def _calc_fungal_risk(h: dict) -> dict:
         enf      = "Dollar Spot + Brown Patch"
         desc     = f"ALTO: {h_dollar}h Dollar Spot · {h_brown}h Brown Patch (últimas 48h)"
         accion   = "Aplicar fungicida preventivo HOY — ventana de 3-5 días antes del foco"
-        canchas  = ["c1", "c3", "c2"]
+        canchas  = ["1fa", "3fa", "2fa"]
     elif h_dollar >= 6 or h_brown >= 4:
         nivel    = "medio"
         enf      = "Dollar Spot"
         desc     = f"MEDIO: {h_dollar}h favorables Dollar Spot en últimas 48h"
-        accion   = "Monitorear C1/C3 — aplicar fungicida si aparecen manchas amarillas"
-        canchas  = ["c1", "c3"]
+        accion   = "Monitorear 1FA/3FA — aplicar fungicida si aparecen manchas amarillas"
+        canchas  = ["1fa", "3fa"]
     else:
         nivel    = "bajo"
         enf      = None
