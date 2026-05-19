@@ -156,6 +156,16 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
 .soil-value{font-size:11px;font-weight:600}
 .soil-value.seco{color:var(--red)}.soil-value.bajo{color:var(--yel)}.soil-value.normal{color:var(--whi)}.soil-value.humedo{color:var(--blu)}
 
+/* ── ET CARD (canchero) ── */
+.et-card{margin:8px 16px;background:var(--bg2);border-radius:var(--radius);border:1px solid rgba(100,181,246,.2);padding:13px}
+.et-card-title{font-size:9px;font-weight:700;letter-spacing:.14em;color:var(--blu);text-transform:uppercase;margin-bottom:9px}
+.et-row{display:flex;align-items:center;justify-content:space-between;padding:2px 0}
+.et-label{font-size:10px;color:var(--wdim)}
+.et-value{font-size:12px;font-weight:700}
+.et-value.urgente{color:var(--red)}.et-value.ok{color:var(--grn)}.et-value.normal{color:var(--whi)}
+.et-divider{height:1px;background:rgba(255,255,255,.05);margin:7px 0}
+.et-source{font-size:9px;color:var(--wdim);margin-top:6px;text-align:right;opacity:.7}
+
 /* ── SMART RECS (canchero) ── */
 .smart-recs{padding:8px 16px;display:flex;flex-direction:column;gap:7px}
 .srec{background:var(--bg2);border-radius:var(--radius);border:1px solid rgba(255,255,255,.05);padding:10px 12px;display:flex;align-items:flex-start;gap:10px}
@@ -316,6 +326,12 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
     <div id="weather-content"><div class="weather-loading">Cargando clima…</div></div>
   </div>
 
+  <!-- ET card — canchero -->
+  <div id="et-section" style="display:none">
+    <div class="section-title">Evapotranspiración & Riego</div>
+    <div id="et-content"></div>
+  </div>
+
   <!-- Smart recs — canchero -->
   <div id="smart-recs-section" style="display:none">
     <div class="section-title">Qué Hacer esta Semana</div>
@@ -374,7 +390,8 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
 var DATA_URL    = './velez_data.json';
 var WEATHER_URL = 'https://api.open-meteo.com/v1/forecast?latitude=-34.6375&longitude=-58.5215' +
   '&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,wind_speed_10m_max' +
-  '&hourly=soil_moisture_0_to_7cm' +
+  '&hourly=soil_moisture_0_to_7cm,soil_moisture_0_to_1cm,soil_temperature_0cm' +
+  ',precipitation_probability,wind_speed_10m,et0_fao_evapotranspiration' +
   '&timezone=America%2FArgentina%2FBuenos_Aires&forecast_days=7&wind_speed_unit=kmh';
 
 var SEM_COL = {verde:'#4cad72', amarillo:'#e0b84c', rojo:'#e05252'};
@@ -569,8 +586,57 @@ function buildWeatherCondensed(w){
   buildWeatherStrip(w); // reuse same strip for intendente
 }
 
+/* ── ET CARD (canchero) ── */
+function buildEtCard(wl){
+  if(!wl||!wl.et0_mm_dia) return;
+  document.getElementById('et-section').style.display='block';
+  var et=wl.et0_mm_dia;
+  var etCls=et>4?'urgente':et<2?'ok':'normal';
+  var etLabel=et>4?'RIEGO URGENTE':et<2?'Posponer riego':'Riego normal';
+
+  // Riego day name
+  var dOffset=wl.dia_riego_offset||0;
+  var dObj=new Date(); dObj.setDate(dObj.getDate()+dOffset);
+  var DIAS=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  var diaLabel=dOffset===0?'HOY':dOffset===1?'mañana':DIAS[dObj.getDay()];
+
+  var defHtml='';
+  if(wl.deficit_hidrico){
+    defHtml='<div class="et-divider"></div>'
+      +'<div class="et-row"><div class="et-label">Déficit hídrico semana</div>'
+      +'<div class="et-value urgente">'+wl.deficit_hidrico_mm+' L/m²</div></div>'
+      +'<div class="et-row"><div class="et-label">Riego '+diaLabel+' a las '+wl.hora_riego_optima+'</div>'
+      +'<div class="et-value urgente">'+wl.riego_min_sector+' min/sector</div></div>';
+  } else {
+    defHtml='<div class="et-row"><div class="et-label">Balance hídrico</div>'
+      +'<div class="et-value ok">sin déficit esta semana</div></div>';
+  }
+
+  var html='<div class="et-card">'
+    +'<div class="et-card-title">Evapotranspiración & Balance Hídrico</div>'
+    +'<div class="et-row"><div class="et-label">ET₀ hoy (pérdida agua pasto)</div>'
+    +'<div class="et-value '+etCls+'">'+et+' mm/día — '+etLabel+'</div></div>'
+    +'<div class="et-row"><div class="et-label">ET acum. 7 días</div>'
+    +'<div class="et-value normal">'+wl.et0_semana_mm+' mm</div></div>'
+    +'<div class="et-row"><div class="et-label">Lluvia estimada semana</div>'
+    +'<div class="et-value normal">'+wl.precipitacion_semana_mm+' mm</div></div>'
+    +defHtml
+    +'<div class="et-divider"></div>'
+    +'<div class="et-row"><div class="et-label">Hora óptima corte</div>'
+    +'<div class="et-value normal">'+wl.hora_corte_optima+' hs (viento bajo, suelo firme)</div></div>'
+    +'<div class="et-row"><div class="et-label">Suelo (SoilGrids ISRIC)</div>'
+    +'<div class="et-value normal">'+(wl.suelo_tipo||'—')+' · WHC '+wl.suelo_whc_mm+'mm</div></div>'
+    +(wl.sar_disponible
+      ?'<div class="et-row"><div class="et-label">SAR CONAE</div>'
+        +'<div class="et-value ok">'+wl.sar_mensaje+'</div></div>'
+      :'')
+    +'<div class="et-source">Fuentes: '+(wl.fuentes||[]).join(' · ')+' · '+(wl.timestamp||'').slice(0,10)+'</div>'
+    +'</div>';
+  document.getElementById('et-content').innerHTML=html;
+}
+
 /* ── SMART RECS (canchero) ── */
-function buildSmartRecs(usuario, sectores, w){
+function buildSmartRecs(usuario, sectores, w, wl){
   document.getElementById('smart-recs-section').style.display='block';
   var canchas=(sectores.canchero&&sectores.canchero.canchas)||[];
   var recs=[];
@@ -601,19 +667,40 @@ function buildSmartRecs(usuario, sectores, w){
   }
   if(c3&&c3.sem==='rojo') recs.push({icon:'🧴',text:'Fungicida C3: aplicar antes del martes — focos activos en manchas laterales.'});
 
-  if(!soilWet&&rainDays.length===0)
+  // ET-based irrigation recommendation (uses pre-computed weather_live from JSON)
+  if(wl&&wl.et0_mm_dia){
+    var et=wl.et0_mm_dia, def=wl.deficit_hidrico_mm||0;
+    var dOff=wl.dia_riego_offset||0;
+    var DIAS_ES=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+    var rdObj=new Date(); rdObj.setDate(rdObj.getDate()+dOff);
+    var rdLabel=dOff===0?'HOY':dOff===1?'mañana temprano':DIAS_ES[rdObj.getDay()];
+    var riegoHora=wl.hora_riego_optima||'06:00', riegoMin=wl.riego_min_sector||25;
+    if(et>4&&wl.deficit_hidrico){
+      recs.push({icon:'💧',text:'RIEGO URGENTE — ET alta ('+et+' mm/día, déficit '+def+' L/m²). Regar C3 y C4 '+rdLabel+' a las '+riegoHora+' hs · '+riegoMin+' min/sector.'});
+    } else if(et<2){
+      recs.push({icon:'💧',text:'ET baja ('+et+' mm/día) — posponer riego esta semana. Evaluar el próximo jueves.'});
+    } else if(wl.deficit_hidrico){
+      recs.push({icon:'💧',text:'Regar C3 y C4 '+rdLabel+' a las '+riegoHora+' hs — viento bajo, sin lluvia prevista · déficit '+def+' mm · '+riegoMin+' min/sector.'});
+    } else if(soilWet){
+      recs.push({icon:'💧',text:'Posponer riego — suelo húmedo y ET normal ('+et+' mm/día). Evaluar el jueves.'});
+    } else {
+      recs.push({icon:'💧',text:'Riego según programa semanal — ET '+et+' mm/día. Óptimo: '+rdLabel+' '+riegoHora+' hs.'});
+    }
+  } else if(!soilWet&&rainDays.length===0){
     recs.push({icon:'💧',text:'Regar C3 y C4: martes y jueves, 25 min por sector. Suelo seco — riego necesario.'});
-  else if(soilWet)
+  } else if(soilWet){
     recs.push({icon:'💧',text:'Posponer riego general — suelo húmedo. Evaluar el jueves.'});
-  else if(rainDays.length>0){
+  } else if(rainDays.length>0){
     var dnames=['hoy','mañana','pasado mañana'];
     recs.push({icon:'💧',text:'Posponer riego: lluvia prevista '+dnames[rainDays[0]]+' ('+w.daily.precipitation_probability_max[rainDays[0]]+'%). Aprovechar el agua de lluvia.'});
   }
 
+  // Corte recommendation — use hora_corte_optima if available
+  var corteHora=wl&&wl.hora_corte_optima?wl.hora_corte_optima:'07:00';
   if(rainTomorrow)
     recs.push({icon:'✂️',text:'Cortar hoy temprano (antes de las 10 hs) — lluvia prevista mañana. No cortar con pasto húmedo.'});
   else
-    recs.push({icon:'✂️',text:'Cortar C2 y C4: miércoles, antes de las 9 hs. Altura: 28-30 mm para partido del fin de semana.'});
+    recs.push({icon:'✂️',text:'Cortar C2 y C4: miércoles a las '+corteHora+' hs (viento bajo, suelo firme). Altura: 28-30 mm.'});
 
   if(c1&&c1.sem!=='verde') recs.push({icon:'🌱',text:'Fertilizar C2 esta semana: 20 kg N/ha uniforme. Sembrar C4 zona central (85 m²) el jueves.'});
 
@@ -828,9 +915,12 @@ function render(data){
   buildTrend(u.historial||(data.meta&&data.meta.historial_global)||[]);
   buildModalGrid();
 
+  var wl = data.weather_live || {};
+
   if(u.tipo==='canchero'){
     buildMatchAlert(u.proximo_partido);
     buildCanchasGrid(allS['canchero']);
+    buildEtCard(wl);
     buildTaskCalendar(u.tareas_semana);
     buildInterventionLog();
     document.getElementById('sectors-wrapper').style.display='none';
@@ -839,7 +929,7 @@ function render(data){
     document.getElementById('weather-content').innerHTML='<div class="weather-loading">Cargando clima…</div>';
     document.getElementById('smart-recs-content').innerHTML='<div class="weather-loading">Generando recomendaciones…</div>';
     show('content');
-    fetchWeather().then(function(w){ buildWeatherStrip(w); buildSmartRecs(u,allS,w); }).catch(function(){ buildSmartRecs(u,allS,null); });
+    fetchWeather().then(function(w){ buildWeatherStrip(w); buildSmartRecs(u,allS,w,wl); }).catch(function(){ buildSmartRecs(u,allS,null,wl); });
 
   } else if(u.tipo==='intendente'){
     buildExecSummary(u.resumen_ejecutivo);
