@@ -348,7 +348,7 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
 
   <!-- ET card — canchero -->
   <div id="et-section" style="display:none">
-    <div class="section-title">Evapotranspiración & Riego</div>
+    <div class="section-title">Agua perdida por día & Riego</div>
     <div id="et-content"></div>
   </div>
 
@@ -540,16 +540,16 @@ function buildCanchasGrid(sectorData){
       var gCls=nst==='ok'?'ok':nst==='borderline'?'borderline':'bajo';
       if(nst==='grave') gCls='grave';
       gndviHtml='<div class="cancha-gndvi-row">'
-        +'<span class="cancha-gndvi">GNDVI</span>'
+        +'<span class="cancha-gndvi">Nitrógeno</span>'
         +'<span class="cancha-gndvi-val '+gCls+'">'+c.gndvi.toFixed(2)+'</span>'
-        +(nst!=='ok'?'<span style="font-size:9px;color:var(--wdim)">— N '+nst+'</span>':'')
+        +(nst!=='ok'?'<span style="font-size:9px;color:var(--wdim)">— '+(nst==='borderline'?'revisar':nst==='bajo'?'falta abono':'urgente')+'</span>':'')
         +'</div>';
     }
     return '<div class="cancha-card'+(isCrit?' critica':'')+'"><div class="cancha-top">'
       +'<div class="cancha-name">'+c.nombre+'</div>'
       +'<div class="cancha-sem" style="background:'+col+'"></div></div>'
       +'<div class="cancha-score" style="color:'+col+'">'+c.score+'</div>'
-      +'<div class="cancha-ndvi-row"><span class="cancha-ndvi">NDVI '+c.ndvi.toFixed(2)+'</span>'
+      +'<div class="cancha-ndvi-row"><span class="cancha-ndvi">Pasto '+c.ndvi.toFixed(2)+'</span>'
       +'<span class="cancha-ndvi-diff '+dCls+'">'+dSym+dVal+'</span></div>'
       +gndviHtml
       +'<div class="cancha-detail">'+c.detalle+'</div></div>';
@@ -624,7 +624,7 @@ function buildFungalBanner(wl){
   var rf=wl&&wl.riesgo_fungosis;
   if(!rf||rf.nivel==='bajo'){document.getElementById('fungal-alert').innerHTML='';return;}
   var cls=rf.nivel;
-  var label=rf.nivel==='alto'?'ALERTA FUNGOSIS':'RIESGO FUNGOSIS';
+  var label=rf.nivel==='alto'?'ALERTA HONGOS':'RIESGO HONGOS';
   var canchas=(rf.canchas_en_riesgo||[]).map(function(c){
     return '<div class="fung-cancha-pill">'+c.toUpperCase()+'</div>';
   }).join('');
@@ -654,20 +654,20 @@ function buildEtCard(wl){
   var defHtml='';
   if(wl.deficit_hidrico){
     defHtml='<div class="et-divider"></div>'
-      +'<div class="et-row"><div class="et-label">Déficit hídrico semana</div>'
+      +'<div class="et-row"><div class="et-label">Le falta agua al suelo esta semana</div>'
       +'<div class="et-value urgente">'+wl.deficit_hidrico_mm+' L/m²</div></div>'
       +'<div class="et-row"><div class="et-label">Riego '+diaLabel+' a las '+wl.hora_riego_optima+'</div>'
       +'<div class="et-value urgente">'+wl.riego_min_sector+' min/sector</div></div>';
   } else {
-    defHtml='<div class="et-row"><div class="et-label">Balance hídrico</div>'
-      +'<div class="et-value ok">sin déficit esta semana</div></div>';
+    defHtml='<div class="et-row"><div class="et-label">Balance de agua</div>'
+      +'<div class="et-value ok">sin falta esta semana</div></div>';
   }
 
   var html='<div class="et-card">'
-    +'<div class="et-card-title">Evapotranspiración & Balance Hídrico</div>'
-    +'<div class="et-row"><div class="et-label">ET₀ hoy (pérdida agua pasto)</div>'
+    +'<div class="et-card-title">Agua perdida por día & Balance de Riego</div>'
+    +'<div class="et-row"><div class="et-label">Agua perdida hoy por el pasto</div>'
     +'<div class="et-value '+etCls+'">'+et+' mm/día — '+etLabel+'</div></div>'
-    +'<div class="et-row"><div class="et-label">ET acum. 7 días</div>'
+    +'<div class="et-row"><div class="et-label">Agua perdida esta semana</div>'
     +'<div class="et-value normal">'+wl.et0_semana_mm+' mm</div></div>'
     +'<div class="et-row"><div class="et-label">Lluvia estimada semana</div>'
     +'<div class="et-value normal">'+wl.precipitacion_semana_mm+' mm</div></div>'
@@ -675,13 +675,13 @@ function buildEtCard(wl){
     +'<div class="et-divider"></div>'
     +'<div class="et-row"><div class="et-label">Hora óptima corte</div>'
     +'<div class="et-value normal">'+wl.hora_corte_optima+' hs (viento bajo, suelo firme)</div></div>'
-    +'<div class="et-row"><div class="et-label">Suelo (SoilGrids ISRIC)</div>'
-    +'<div class="et-value normal">'+(wl.suelo_tipo||'—')+' · WHC '+wl.suelo_whc_mm+'mm</div></div>'
+    +'<div class="et-row"><div class="et-label">Tipo de suelo</div>'
+    +'<div class="et-value normal">'+(wl.suelo_tipo||'—')+'</div></div>'
     +(wl.sar_disponible
-      ?'<div class="et-row"><div class="et-label">SAR CONAE</div>'
+      ?'<div class="et-row"><div class="et-label">Movimiento suelo</div>'
         +'<div class="et-value ok">'+wl.sar_mensaje+'</div></div>'
       :'')
-    +'<div class="et-source">Fuentes: '+(wl.fuentes||[]).join(' · ')+' · '+(wl.timestamp||'').slice(0,10)+'</div>'
+    +'<div class="et-source">Datos satelitales actualizados · '+(wl.timestamp||'').slice(0,10)+'</div>'
     +'</div>';
   document.getElementById('et-content').innerHTML=html;
 }
@@ -727,11 +727,11 @@ function buildSmartRecs(usuario, sectores, w, wl){
     var rdLabel=dOff===0?'HOY':dOff===1?'mañana temprano':DIAS_ES[rdObj.getDay()];
     var riegoHora=wl.hora_riego_optima||'06:00', riegoMin=wl.riego_min_sector||25;
     if(et>4&&wl.deficit_hidrico){
-      recs.push({icon:'💧',text:'RIEGO URGENTE — ET alta ('+et+' mm/día, déficit '+def+' L/m²). Regar C3 y C4 '+rdLabel+' a las '+riegoHora+' hs · '+riegoMin+' min/sector.'});
+      recs.push({icon:'💧',text:'RIEGO URGENTE — mucha agua perdida ('+et+' mm/día, le falta '+def+' L/m² al suelo). Regar C3 y C4 '+rdLabel+' a las '+riegoHora+' hs · '+riegoMin+' min/sector.'});
     } else if(et<2){
-      recs.push({icon:'💧',text:'ET baja ('+et+' mm/día) — posponer riego esta semana. Evaluar el próximo jueves.'});
+      recs.push({icon:'💧',text:'Poca agua perdida ('+et+' mm/día) — posponer riego esta semana. Evaluar el próximo jueves.'});
     } else if(wl.deficit_hidrico){
-      recs.push({icon:'💧',text:'Regar C3 y C4 '+rdLabel+' a las '+riegoHora+' hs — viento bajo, sin lluvia prevista · déficit '+def+' mm · '+riegoMin+' min/sector.'});
+      recs.push({icon:'💧',text:'Regar C3 y C4 '+rdLabel+' a las '+riegoHora+' hs — viento bajo, sin lluvia prevista · le falta '+def+' mm · '+riegoMin+' min/sector.'});
     } else if(soilWet){
       recs.push({icon:'💧',text:'Posponer riego — suelo húmedo y ET normal ('+et+' mm/día). Evaluar el jueves.'});
     } else {
@@ -757,9 +757,9 @@ function buildSmartRecs(usuario, sectores, w, wl){
   if(wl&&wl.gndvi_por_cancha&&wl.gndvi_por_cancha.canchas){
     var gc=wl.gndvi_por_cancha.canchas;
     if(gc.c4&&gc.c4.n_status==='grave')
-      recs.push({icon:'🌿',text:'GNDVI C4='+gc.c4.gndvi+' — '+gc.c4.n_rec+'. Sembrar C4 zona central (85 m²) el jueves.'});
+      recs.push({icon:'🌿',text:'Nitrógeno C4 muy bajo — '+gc.c4.n_rec+'. Sembrar C4 zona central (85 m²) el jueves.'});
     else if(gc.c3&&(gc.c3.n_status==='bajo'||gc.c3.n_status==='grave'))
-      recs.push({icon:'🌿',text:'GNDVI C3='+gc.c3.gndvi+' — '+gc.c3.n_rec+'. Fertilizar C2/C3 esta semana: 20 kg N/ha.'});
+      recs.push({icon:'🌿',text:'Nitrógeno C3 bajo — '+gc.c3.n_rec+'. Fertilizar C2/C3 esta semana: 20 kg N/ha.'});
     else if(c1&&c1.sem!=='verde')
       recs.push({icon:'🌱',text:'Fertilizar C2: 20 kg N/ha uniforme. Sembrar C4 zona central (85 m²) el jueves.'});
   } else if(c1&&c1.sem!=='verde'){
@@ -771,7 +771,7 @@ function buildSmartRecs(usuario, sectores, w, wl){
     var dc=wl.dias_proximo_corte;
     var gRate=wl.gdd_rate_diario;
     if(dc<=3)
-      recs.push({icon:'✂️',text:'Cortar pronto — pasto creciendo ('+gRate+' GDD/día). Próximo corte en ~'+dc+' días.'});
+      recs.push({icon:'✂️',text:'Cortar pronto — el pasto viene creciendo fuerte. Próximo corte en ~'+dc+' días.'});
   }
 
   if(usuario.proximo_partido){
