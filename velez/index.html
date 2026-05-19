@@ -267,6 +267,26 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
 .not-auth-sub{font-size:12px;color:var(--wdim);max-width:270px;line-height:1.7}
 .not-auth-sub a{color:var(--gold);text-decoration:none}
 
+/* ── HEATMAP SECTION ── */
+#heatmap-section .section-title{border-bottom:1px solid rgba(201,168,76,.15)}
+.hm-tabs{display:flex;gap:6px;padding:6px 16px 2px;overflow-x:auto;scrollbar-width:none}
+.hm-tabs::-webkit-scrollbar{display:none}
+.hm-tab{flex-shrink:0;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:6px 13px;border-radius:6px;border:1px solid rgba(255,255,255,.08);background:var(--bg2);color:var(--wdim);cursor:pointer;transition:background .15s,border-color .15s,color .15s}
+.hm-tab.active{background:rgba(201,168,76,.12);border-color:rgba(201,168,76,.4);color:var(--gold)}
+.hm-stabs{display:flex;gap:5px;padding:4px 16px 2px;overflow-x:auto;scrollbar-width:none}
+.hm-stabs::-webkit-scrollbar{display:none}
+.hm-stab{flex-shrink:0;font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:4px 10px;border-radius:5px;border:1px solid rgba(255,255,255,.07);background:var(--bg3);color:var(--wdim);cursor:pointer;transition:all .15s}
+.hm-stab.active{background:rgba(100,181,246,.08);border-color:rgba(100,181,246,.35);color:var(--blu)}
+.hm-stab.red-tab.active{background:var(--redd);border-color:rgba(224,82,82,.55);color:var(--red)}
+.hm-img-wrap{margin:8px 16px 0;border-radius:var(--radius);overflow:hidden;background:var(--bg2);border:1px solid rgba(255,255,255,.07);min-height:160px;display:flex;align-items:center;justify-content:center}
+.hm-img{display:block;width:100%;height:auto}
+.hm-img-placeholder{font-size:11px;color:var(--wdim)}
+.hm-meta{padding:7px 16px 4px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px}
+.hm-ndvi{font-size:12px;font-weight:700}
+.hm-src{font-size:9px;color:var(--wdim);opacity:.6}
+.hm-gps{display:inline-flex;align-items:center;gap:4px;font-size:9px;padding:2px 8px;border-radius:3px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);color:var(--wdim)}
+.hm-gps.active-gps{color:var(--grn);border-color:rgba(76,173,114,.35);background:var(--grnd)}
+
 /* ── DISCLAIMER ── */
 .disclaimer-box{margin:8px 16px 4px;padding:10px 13px;background:rgba(255,255,255,.025);border-radius:var(--radius);border:1px solid rgba(255,255,255,.04)}
 .disclaimer-text{font-size:10px;color:var(--wdim);line-height:1.65;letter-spacing:.01em;opacity:.8}
@@ -344,6 +364,9 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
     <div class="section-title">Estado de Canchas</div>
     <div class="canchas-grid" id="canchas-grid"></div>
   </div>
+
+  <!-- Heatmap estado real del campo — Roger -->
+  <div id="heatmap-section" style="display:none"></div>
 
   <!-- Weather — canchero + intendente -->
   <div id="weather-section" style="display:none">
@@ -982,6 +1005,113 @@ function buildActions(actions){
   }).join('');
 }
 
+/* ── HEATMAP SECTION ── */
+function buildHeatmapSection(u){
+  var hmData=u.heatmaps;
+  if(!hmData) return;
+  var el=document.getElementById('heatmap-section');
+  el.style.display='block';
+
+  var sectors=[
+    {id:'vo',    label:'Villa Olímpica', hasSubs:true},
+    {id:'amalf', label:'Amalfitani',     hasSubs:false},
+    {id:'poli',  label:'Polideportivo',  hasSubs:false},
+  ];
+  var voSubs=[
+    {id:'c4',sem:'rojo'},
+    {id:'c3',sem:'rojo'},
+    {id:'c1',sem:'amarillo'},
+    {id:'c2',sem:'amarillo'},
+  ];
+  var hmMap={
+    'vo-c1':hmData.vo_c1,'vo-c2':hmData.vo_c2,
+    'vo-c3':hmData.vo_c3,'vo-c4':hmData.vo_c4,
+    'amalf':hmData.amalfitani,'poli':hmData.poli,
+  };
+
+  var curSec='vo', curSub='c4';
+
+  function activeKey(){ return curSec==='vo'?'vo-'+curSub:curSec; }
+
+  function renderInner(){
+    var key=activeKey(), hm=hmMap[key]||{};
+    // NDVI / InSAR value
+    var ndviHtml='';
+    if(hm.ndvi!=null){
+      var sem=hm.ndvi>=0.50?'verde':hm.ndvi>=0.35?'amarillo':'rojo';
+      ndviHtml='<span class="hm-ndvi" style="color:'+sc(sem)+'">NDVI '+hm.ndvi.toFixed(2)+'</span>';
+    } else if(hm.insar!=null){
+      var sem=hm.insar>=0.80?'rojo':hm.insar>=0.50?'amarillo':'verde';
+      ndviHtml='<span class="hm-ndvi" style="color:'+sc(sem)+'">InSAR '+hm.insar.toFixed(2)+' mm</span>';
+    }
+    var detHtml=hm.detalle?'<span class="hm-src">'+hm.detalle+'</span>':'';
+    var gpsHtml=u.heatmap_gps_overlay
+      ?'<span class="hm-gps active-gps">GPS activo · '+u.heatmap_gps_overlay.fecha+'</span>'
+      :'<span class="hm-gps">GPS cuerpo técnico — pendiente</span>';
+    var imgHtml=hm.archivo
+      ?'<img class="hm-img" src="'+hm.archivo+'" alt="Heatmap '+key+'" loading="lazy">'
+      :'<span class="hm-img-placeholder">Sin imagen esta semana</span>';
+
+    document.getElementById('hm-img-wrap').innerHTML=imgHtml;
+    document.getElementById('hm-meta').innerHTML=
+      '<div style="display:flex;align-items:center;gap:10px">'+ndviHtml+detHtml+'</div>'
+      +'<div style="display:flex;align-items:center;gap:8px">'+gpsHtml
+      +'<span class="hm-src">'+hmData.fuente+'</span></div>';
+  }
+
+  function tabsHtml(){
+    return '<div class="hm-tabs">'+sectors.map(function(s){
+      return '<div class="hm-tab'+(s.id===curSec?' active':'')
+        +'" data-sec="'+s.id+'">'+s.label+'</div>';
+    }).join('')+'</div>';
+  }
+  function subTabsHtml(){
+    return '<div class="hm-stabs" id="hm-stabs"'+(curSec!=='vo'?' style="display:none"':'')+'>'
+      +voSubs.map(function(st){
+        var isRed=st.sem==='rojo';
+        return '<div class="hm-stab'+(st.id===curSub?' active':'')
+          +(isRed?' red-tab':'')
+          +'" data-sub="'+st.id+'">C'+st.id.slice(1)+'</div>';
+      }).join('')
+      +'</div>';
+  }
+
+  el.innerHTML=
+    '<div class="section-title">Estado Real del Campo'
+    +'<span style="font-size:9px;font-weight:400;color:var(--wdim);margin-left:8px;text-transform:none">semana del '+hmData.semana+'</span></div>'
+    +tabsHtml()
+    +subTabsHtml()
+    +'<div class="hm-img-wrap" id="hm-img-wrap"></div>'
+    +'<div class="hm-meta" id="hm-meta"></div>';
+
+  renderInner();
+
+  // Wire sector tabs
+  el.querySelectorAll('.hm-tab').forEach(function(tab){
+    tab.addEventListener('click',function(){
+      curSec=tab.dataset.sec;
+      el.querySelectorAll('.hm-tab').forEach(function(t){t.classList.remove('active');});
+      tab.classList.add('active');
+      var stabs=document.getElementById('hm-stabs');
+      if(stabs) stabs.style.display=curSec==='vo'?'flex':'none';
+      renderInner();
+    });
+  });
+
+  // Wire sub tabs
+  function wireSubTabs(){
+    el.querySelectorAll('.hm-stab').forEach(function(tab){
+      tab.addEventListener('click',function(){
+        curSub=tab.dataset.sub;
+        el.querySelectorAll('.hm-stab').forEach(function(t){t.classList.remove('active');});
+        tab.classList.add('active');
+        renderInner();
+      });
+    });
+  }
+  wireSubTabs();
+}
+
 /* ── MAIN RENDER ── */
 function render(data){
   var userSlug=slug();
@@ -1013,6 +1143,7 @@ function render(data){
     buildMatchAlert(u.proximo_partido);
     buildFungalBanner(wl);
     buildCanchasGrid(allS['canchero']);
+    buildHeatmapSection(u);
     buildEtCard(wl);
     buildDisclaimer('disclaimer-recs');
     buildTaskCalendar(u.tareas_semana);
