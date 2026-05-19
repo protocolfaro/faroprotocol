@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Faro Protocol · Verificar Sello</title>
+<style>
+:root{
+  --bg:#0d1117;--bg2:#161b22;--bg3:#1c2330;
+  --gold:#c9a84c;--whi:#e8e6e0;--wdim:#8b8680;
+  --red:#e05252;--yel:#e0b84c;--grn:#4cad72;
+  --redd:rgba(224,82,82,0.12);--yeld:rgba(224,184,76,0.12);--grnd:rgba(76,173,114,0.12);
+  --radius:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh;display:flex;flex-direction:column}
+
+/* header */
+.hdr{background:var(--bg2);border-bottom:1px solid rgba(201,168,76,.22);padding:14px 16px 10px}
+.hdr-top{display:flex;align-items:center;gap:8px}
+.hdr-dot{width:8px;height:8px;background:var(--gold);border-radius:50%}
+.hdr-logo{font-size:11px;font-weight:700;letter-spacing:.12em;color:var(--gold);text-transform:uppercase}
+.hdr-sub{margin-top:4px;font-size:12px;color:var(--wdim);letter-spacing:.04em}
+
+/* main */
+.main{flex:1;padding:24px 16px 48px;max-width:540px;margin:0 auto;width:100%}
+.page-title{font-size:18px;font-weight:700;color:var(--whi);margin-bottom:6px}
+.page-desc{font-size:12px;color:var(--wdim);line-height:1.6;margin-bottom:28px}
+
+/* input area */
+.input-wrap{display:flex;flex-direction:column;gap:10px}
+.hash-label{font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--gold);text-transform:uppercase;margin-bottom:2px}
+.hash-input{width:100%;background:var(--bg2);border:1px solid rgba(201,168,76,.25);border-radius:var(--radius);padding:11px 13px;font-size:12px;font-family:monospace;color:var(--whi);outline:none;letter-spacing:.04em;transition:border-color .15s}
+.hash-input:focus{border-color:rgba(201,168,76,.55)}
+.hash-input::placeholder{color:var(--wdim);opacity:.5;letter-spacing:.02em}
+.verify-btn{width:100%;background:rgba(201,168,76,.12);border:1px solid rgba(201,168,76,.4);border-radius:var(--radius);padding:12px;font-size:13px;font-weight:700;color:var(--gold);cursor:pointer;letter-spacing:.06em;text-transform:uppercase;transition:background .15s,border-color .15s}
+.verify-btn:hover{background:rgba(201,168,76,.2);border-color:rgba(201,168,76,.6)}
+.verify-btn:active{background:rgba(201,168,76,.28)}
+.verify-btn:disabled{opacity:.45;cursor:not-allowed}
+
+/* result */
+#result{margin-top:28px;display:none}
+.result-card{border-radius:var(--radius);padding:18px;border:1px solid}
+.result-card.valid{background:var(--grnd);border-color:rgba(76,173,114,.4)}
+.result-card.invalid{background:var(--redd);border-color:rgba(224,82,82,.4)}
+.result-card.error{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.1)}
+
+.result-tag{font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;padding:2px 8px;border-radius:3px;display:inline-block;margin-bottom:10px}
+.result-tag.valid{background:var(--grnd);color:var(--grn)}
+.result-tag.invalid{background:var(--redd);color:var(--red)}
+.result-tag.error{background:rgba(255,255,255,.06);color:var(--wdim)}
+
+.result-title{font-size:15px;font-weight:700;color:var(--whi);margin-bottom:14px}
+.result-grid{display:flex;flex-direction:column;gap:9px}
+.result-row{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,.06);padding-bottom:8px}
+.result-row:last-child{border-bottom:none;padding-bottom:0}
+.result-key{font-size:10px;color:var(--wdim);letter-spacing:.06em;text-transform:uppercase}
+.result-val{font-size:11px;font-weight:700;color:var(--whi);font-family:monospace}
+.sem-badge-sm{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;padding:2px 7px;border-radius:3px}
+.sem-badge-sm.rojo{background:var(--redd);color:var(--red)}
+.sem-badge-sm.amarillo{background:var(--yeld);color:var(--yel)}
+.sem-badge-sm.verde{background:var(--grnd);color:var(--grn)}
+
+.hash-display{margin-top:14px;background:rgba(0,0,0,.35);border-radius:6px;padding:9px 11px;font-size:9px;font-family:monospace;color:var(--wdim);word-break:break-all;line-height:1.5}
+
+/* spinner */
+.spinner{width:20px;height:20px;border:2px solid rgba(201,168,76,.18);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite;display:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* footer */
+.footer{padding:16px;text-align:center;font-size:10px;color:var(--wdim);border-top:1px solid rgba(255,255,255,.05);letter-spacing:.05em}
+.footer a{color:var(--gold);text-decoration:none;opacity:.7}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-top"><div class="hdr-dot"></div><span class="hdr-logo">Faro Protocol</span></div>
+  <div class="hdr-sub">Verificación de Sello de Integridad</div>
+</div>
+
+<div class="main">
+  <div class="page-title">Verificar Reporte</div>
+  <div class="page-desc">
+    Ingresá el código SHA-256 que aparece al pie del mapa de calor para confirmar que los datos no fueron alterados.
+    El sello está ligado a la cancha, la semana, el IPOS y la fecha exacta de generación.
+  </div>
+
+  <div class="input-wrap">
+    <label class="hash-label" for="hash-in">Código SHA-256</label>
+    <input class="hash-input" id="hash-in" type="text" maxlength="64"
+      placeholder="Pegá el hash aquí (64 caracteres)" autocomplete="off" autocorrect="off" spellcheck="false">
+    <button class="verify-btn" id="verify-btn" onclick="doVerify()">Verificar autenticidad</button>
+  </div>
+
+  <div style="display:flex;justify-content:center;margin-top:16px"><div class="spinner" id="spinner"></div></div>
+  <div id="result"></div>
+</div>
+
+<div class="footer">
+  <a href="../" style="opacity:.55">← Volver al panel</a>
+  &nbsp;·&nbsp; Faro Protocol &nbsp;·&nbsp; <a href="mailto:protocolfaro@gmail.com">protocolfaro@gmail.com</a>
+</div>
+
+<script>
+var CONFIG_URL = '../config_velez.json';
+var _cfg = null;
+
+function sc(s){ return s==='verde'?'#4cad72':s==='amarillo'?'#e0b84c':'#e05252'; }
+
+function fmtFecha(iso){
+  if(!iso) return '—';
+  try {
+    var d=new Date(iso);
+    return d.toLocaleDateString('es-AR',{weekday:'short',day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',timeZone:'America/Argentina/Buenos_Aires'});
+  } catch(e){ return iso; }
+}
+
+function loadCfg(){
+  if(_cfg) return Promise.resolve(_cfg);
+  return fetch(CONFIG_URL).then(function(r){
+    if(!r.ok) throw new Error('Config no disponible');
+    return r.json();
+  }).then(function(d){ _cfg=d; return d; });
+}
+
+function showSpinner(on){
+  document.getElementById('spinner').style.display=on?'block':'none';
+  document.getElementById('verify-btn').disabled=on;
+}
+
+function showResult(html){ var el=document.getElementById('result'); el.style.display='block'; el.innerHTML=html; }
+
+function doVerify(){
+  var hash=(document.getElementById('hash-in').value||'').trim().toLowerCase();
+  if(!hash){ alert('Ingresá el código SHA-256.'); return; }
+  if(!/^[0-9a-f]{64}$/.test(hash)){
+    showResult('<div class="result-card invalid">'
+      +'<div class="result-tag invalid">Formato inválido</div>'
+      +'<div class="result-title">El código debe tener exactamente 64 caracteres hexadecimales (0-9, a-f).</div>'
+      +'</div>');
+    return;
+  }
+
+  showSpinner(true);
+  loadCfg().then(function(cfg){
+    showSpinner(false);
+    var hashes=cfg.verify_hashes||{};
+    var entry=hashes[hash]||hashes[hash.toUpperCase()]||null;
+
+    if(!entry){
+      showResult('<div class="result-card invalid">'
+        +'<div class="result-tag invalid">No verificado</div>'
+        +'<div class="result-title">Este sello no se encuentra en el registro de esta semana.</div>'
+        +'<div class="hash-display">SHA-256: '+hash+'</div>'
+        +'<div style="margin-top:12px;font-size:11px;color:var(--wdim)">El hash puede corresponder a una semana anterior o puede haber sido modificado.</div>'
+        +'</div>');
+      return;
+    }
+
+    var sem=entry.semaforo||'verde';
+    var ndvi=typeof entry.ndvi==='number'?entry.ndvi.toFixed(4):'—';
+    var ipos=typeof entry.ipos==='number'?entry.ipos.toFixed(0):'—';
+    var cancha=(entry.cancha||'—').toUpperCase();
+    var semLabel=entry.semana||'—';
+    var fecha=fmtFecha(entry.fecha_generacion);
+
+    showResult('<div class="result-card valid">'
+      +'<div class="result-tag valid">✓ Sello verificado</div>'
+      +'<div class="result-title">Reporte auténtico — datos no alterados</div>'
+      +'<div class="result-grid">'
+      +'<div class="result-row"><span class="result-key">Cancha</span><span class="result-val">'+cancha+'</span></div>'
+      +'<div class="result-row"><span class="result-key">Semana</span><span class="result-val">'+semLabel+'</span></div>'
+      +'<div class="result-row"><span class="result-key">IPOS</span><span class="result-val">'+ipos+'</span></div>'
+      +'<div class="result-row"><span class="result-key">NDVI estimado</span><span class="result-val">'+ndvi+'</span></div>'
+      +'<div class="result-row"><span class="result-key">Estado</span>'
+      +'<span class="sem-badge-sm '+sem+'">'+(sem==='rojo'?'🔴':sem==='amarillo'?'🟡':'🟢')+' '+sem+'</span></div>'
+      +'<div class="result-row"><span class="result-key">Generado</span><span class="result-val" style="font-size:10px">'+fecha+'</span></div>'
+      +'</div>'
+      +'<div class="hash-display">SHA-256: '+hash+'</div>'
+      +'</div>');
+  }).catch(function(err){
+    showSpinner(false);
+    showResult('<div class="result-card error">'
+      +'<div class="result-tag error">Error de conexión</div>'
+      +'<div class="result-title">No se pudo cargar el registro de sellos.</div>'
+      +'<div style="margin-top:8px;font-size:11px;color:var(--wdim)">Revisá tu conexión e intentá de nuevo.</div>'
+      +'</div>');
+  });
+}
+
+document.getElementById('hash-in').addEventListener('keydown',function(e){
+  if(e.key==='Enter') doVerify();
+});
+</script>
+</body>
+</html>

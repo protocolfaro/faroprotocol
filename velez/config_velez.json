@@ -1,51 +1,657 @@
 {
+  "admin": {
+    "pin_hash": "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4",
+    "railway_url": ""
+  },
   "horarios_vo_semana": {
     "semana_label": "C",
     "fecha_inicio": "2026-05-18",
-    "fecha_fin":    "2026-05-23",
+    "fecha_fin": "2026-05-23",
     "dias": [
-      {"id":"lun","label":"Lun","fecha":"2026-05-18"},
-      {"id":"mar","label":"Mar","fecha":"2026-05-19"},
-      {"id":"mie","label":"Mié","fecha":"2026-05-20"},
-      {"id":"jue","label":"Jue","fecha":"2026-05-21"},
-      {"id":"vie","label":"Vie","fecha":"2026-05-22"},
-      {"id":"sab","label":"Sáb","fecha":"2026-05-23"}
+      {
+        "id": "lun",
+        "label": "Lun",
+        "fecha": "2026-05-18"
+      },
+      {
+        "id": "mar",
+        "label": "Mar",
+        "fecha": "2026-05-19"
+      },
+      {
+        "id": "mie",
+        "label": "Mié",
+        "fecha": "2026-05-20"
+      },
+      {
+        "id": "jue",
+        "label": "Jue",
+        "fecha": "2026-05-21"
+      },
+      {
+        "id": "vie",
+        "label": "Vie",
+        "fecha": "2026-05-22"
+      },
+      {
+        "id": "sab",
+        "label": "Sáb",
+        "fecha": "2026-05-23"
+      }
     ],
-    "horarios_categoria": {
-      "manana":     {"inicio":"08:00","fin":"11:00","label":"08–11hs"},
-      "infantiles": {"inicio":"14:00","fin":"17:30","label":"14–17:30hs"},
-      "femenino":   {"inicio":"17:30","fin":"21:00","label":"17:30–21hs"}
-    },
-    "categoria_turno": {
-      "Reserva":   "manana",
-      "Primera":   "manana",
-      "Cuarta":    "manana",
-      "Quinta":    "manana",
-      "Sexta":     "manana",
-      "Séptima":   "manana",
-      "Octava":    "manana",
-      "Novena":    "manana",
-      "Liga":      "manana",
-      "Infantiles":"infantiles",
-      "Femenino":  "femenino"
-    },
-    "canchas_libre": {
-      "lun":["c2","c3","c4","c6","c7","c9"],
-      "mar":["c2","c4","c6","c7","c8"],
-      "mie":["c2","c3","c4","c6","c7"],
-      "jue":["c2","c3","c4","c6","c7"],
-      "vie":["c2","c3","c6"]
-    },
+    "sessions": [
+      {
+        "categoria": "Reserva",
+        "dia": "lun",
+        "canchas": [
+          "1fa"
+        ],
+        "turno": "manana"
+      },
+      {
+        "categoria": "Reserva",
+        "dia": "mar",
+        "canchas": [
+          "3fa"
+        ],
+        "turno": "manana"
+      },
+      {
+        "categoria": "Reserva",
+        "dia": "vie",
+        "canchas": [
+          "1fa",
+          "5fa"
+        ],
+        "turno": "manana"
+      },
+      {
+        "categoria": "Reserva",
+        "dia": "sab",
+        "canchas": [
+          "3fa"
+        ],
+        "turno": "manana"
+      },
+      {
+        "categoria": "Cuarta",
+        "dia": "lun",
+        "canchas": [
+          "8fa"
+        ],
+        "turno": "manana"
+      },
+      {
+        "categoria": "Cuarta",
+        "dia": "mar",
+        "canchas": [
+          "1fa"
+        ],
+        "turno": "manana"
+      },
+      {
+        "categoria": "Cuarta",
+        "dia": "mie",
+        "canchas": [
+          "9fa"
+        ],
+        "turno": "manana"
+      },
+      {
+        "categoria": "Cuarta",
+        "dia": "jue",
+        "canchas": [
+          "5fa"
+        ],
+        "turno": "manana"
+      },
+      {
+        "categoria": "Cuarta",
+        "dia": "vie",
+        "canchas": [
+          "1fa"
+        ],
+        "turno": "manana"
+      },
+      {
+        "categoria": "Cuarta",
+        "dia": "sab",
+        "canchas": [
+          "1fa"
+        ],
+        "turno": "manana"
+      },
+      {
+        "categoria": "Quinta",
+        "dia": "lun",
+        "canchas": [
+          "1fa"
+        ],
+        "turno": "manana"
+      },
+      {
+        "categoria": "Quinta",
+        "dia": "mar",
+        "canchas": [
+          "9fa"
+        ],
+        "turno": "manana"
+      },
+      {
+        "categoria": "Quinta",
+        "dia": "mie",
+        "canchas": [
+          "1fa"
+        ],
+        "turno": "manana"
+      },
+      {
+        "categoria": "Quinta",
+        "dia": "jue",
+        "canchas": [
+          "8fa"
+        ],
+        "turno": "manana"
+      },
+      {
+        "categoria": "Quinta",
+        "dia": "vie",
+        "canchas": [
+          "1fa"
+        ],
+        "turno": "manana"
+      },
+      {
+        "categoria": "Quinta",
+        "dia": "sab",
+        "canchas": [
+          "1fa"
+        ],
+        "turno": "manana"
+      },
+      {
+        "categoria": "Sexta",
+        "dia": "lun",
+        "canchas": [
+          "8fa"
+        ],
+        "turno": "manana"
+      },
+      {
+        "categoria": "Sexta",
+        "dia": "mar",
+        "canchas": [
+          "1fa"
+        ],
+        "turno": "manana"
+      },
+      {
+        "categoria": "Sexta",
+        "dia": "mie",
+        "canchas": [
+          "5fa"
+        ],
+        "turno": "manana"
+      },
+      {
+        "categoria": "Sexta",
+        "dia": "jue",
+        "canchas": [
+          "1fa"
+        ],
+        "turno": "manana"
+      },
+      {
+        "categoria": "Sexta",
+        "dia": "vie",
+        "canchas": [
+          "1fa"
+        ],
+        "turno": "manana"
+      },
+      {
+        "categoria": "Sexta",
+        "dia": "sab",
+        "canchas": [
+          "1fa"
+        ],
+        "turno": "manana"
+      },
+      {
+        "categoria": "Séptima",
+        "dia": "lun",
+        "canchas": [
+          "1fa"
+        ],
+        "turno": "manana"
+      },
+      {
+        "categoria": "Séptima",
+        "dia": "mar",
+        "canchas": [
+          "9fa"
+        ],
+        "turno": "manana"
+      },
+      {
+        "categoria": "Séptima",
+        "dia": "mie",
+        "canchas": [
+          "8fa"
+        ],
+        "turno": "manana"
+      },
+      {
+        "categoria": "Séptima",
+        "dia": "jue",
+        "canchas": [
+          "9fa"
+        ],
+        "turno": "manana"
+      },
+      {
+        "categoria": "Séptima",
+        "dia": "vie",
+        "canchas": [
+          "8fa"
+        ],
+        "turno": "manana"
+      },
+      {
+        "categoria": "Octava",
+        "dia": "lun",
+        "canchas": [
+          "campus"
+        ],
+        "turno": "manana"
+      },
+      {
+        "categoria": "Octava",
+        "dia": "mar",
+        "canchas": [
+          "campus"
+        ],
+        "turno": "manana"
+      },
+      {
+        "categoria": "Octava",
+        "dia": "mie",
+        "canchas": [
+          "campus"
+        ],
+        "turno": "manana"
+      },
+      {
+        "categoria": "Octava",
+        "dia": "jue",
+        "canchas": [
+          "campus"
+        ],
+        "turno": "manana"
+      },
+      {
+        "categoria": "Octava",
+        "dia": "vie",
+        "canchas": [
+          "8fa"
+        ],
+        "turno": "manana"
+      },
+      {
+        "categoria": "Novena",
+        "dia": "lun",
+        "canchas": [
+          "campus"
+        ],
+        "turno": "manana"
+      },
+      {
+        "categoria": "Novena",
+        "dia": "mar",
+        "canchas": [
+          "campus"
+        ],
+        "turno": "manana"
+      },
+      {
+        "categoria": "Novena",
+        "dia": "mie",
+        "canchas": [
+          "campus"
+        ],
+        "turno": "manana"
+      },
+      {
+        "categoria": "Novena",
+        "dia": "jue",
+        "canchas": [
+          "campus"
+        ],
+        "turno": "manana"
+      },
+      {
+        "categoria": "Novena",
+        "dia": "vie",
+        "canchas": [
+          "9fa"
+        ],
+        "turno": "manana"
+      },
+      {
+        "categoria": "Liga",
+        "dia": "vie",
+        "canchas": [
+          "9fa"
+        ],
+        "turno": "manana"
+      },
+      {
+        "categoria": "Liga",
+        "dia": "sab",
+        "canchas": [
+          "8fa",
+          "9fa"
+        ],
+        "turno": "manana"
+      },
+      {
+        "categoria": "Femenino",
+        "dia": "lun",
+        "canchas": [
+          "1fa"
+        ],
+        "turno": "femenino"
+      },
+      {
+        "categoria": "Femenino",
+        "dia": "mar",
+        "canchas": [
+          "1fa"
+        ],
+        "turno": "femenino"
+      },
+      {
+        "categoria": "Femenino",
+        "dia": "mie",
+        "canchas": [
+          "1fa"
+        ],
+        "turno": "femenino"
+      },
+      {
+        "categoria": "Femenino",
+        "dia": "jue",
+        "canchas": [
+          "1fa"
+        ],
+        "turno": "femenino"
+      },
+      {
+        "categoria": "Femenino",
+        "dia": "vie",
+        "canchas": [
+          "1fa"
+        ],
+        "turno": "femenino"
+      },
+      {
+        "categoria": "Infantiles",
+        "dia": "mar",
+        "canchas": [
+          "1fa",
+          "5fa",
+          "8fa",
+          "9fa"
+        ],
+        "turno": "infantiles"
+      },
+      {
+        "categoria": "Infantiles",
+        "dia": "mie",
+        "canchas": [
+          "1fa",
+          "5fa",
+          "8fa",
+          "9fa"
+        ],
+        "turno": "infantiles"
+      },
+      {
+        "categoria": "Infantiles",
+        "dia": "jue",
+        "canchas": [
+          "1fa",
+          "5fa",
+          "8fa",
+          "9fa"
+        ],
+        "turno": "infantiles"
+      },
+      {
+        "categoria": "Infantiles",
+        "dia": "vie",
+        "canchas": [
+          "1fa",
+          "5fa",
+          "8fa",
+          "9fa"
+        ],
+        "turno": "infantiles"
+      }
+    ]
+  },
+  "ipos_semana": {
+    "label": "C",
+    "fecha_inicio": "2026-05-18",
+    "fecha_fin": "2026-05-23",
+    "generado_en": "2026-05-19T19:48:32Z",
     "canchas": {
-      "c1":{"nombre":"Cancha 1","uso":{"lun":["Reserva","Quinta","Séptima","Femenino"],"mar":["Reserva","Femenino"],"mie":["Femenino"],"jue":["Séptima","Femenino"],"vie":["Reserva","Femenino"],"sab":["Reserva"]}},
-      "c2":{"nombre":"Cancha 2","uso":{"lun":[],"mar":[],"mie":[],"jue":[],"vie":["Liga"],"sab":["Liga"]}},
-      "c3":{"nombre":"Cancha 3","uso":{"lun":["Reserva"],"mar":["Reserva","Cuarta","Infantiles"],"mie":["Infantiles"],"jue":["Infantiles"],"vie":["Reserva","Infantiles"],"sab":["Reserva"]}},
-      "c4":{"nombre":"Cancha 4","uso":{"lun":["Cuarta"],"mar":["Sexta","Infantiles"],"mie":["Cuarta","Infantiles"],"jue":["Infantiles"],"vie":["Infantiles"],"sab":[]}},
-      "c5":{"nombre":"Cancha 5","uso":{"lun":["Reserva"],"mar":["Infantiles"],"mie":["Sexta","Infantiles"],"jue":["Quinta","Infantiles"],"vie":["Reserva","Infantiles"],"sab":[]}},
-      "c6":{"nombre":"Cancha 6","uso":{"lun":[],"mar":[],"mie":[],"jue":[],"vie":[],"sab":["Liga"]}},
-      "c7":{"nombre":"Cancha 7","uso":{"lun":[],"mar":[],"mie":[],"jue":[],"vie":[],"sab":[]}},
-      "c8":{"nombre":"Cancha 8","uso":{"lun":["Cuarta"],"mar":["Infantiles"],"mie":["Cuarta","Séptima","Infantiles"],"jue":["Séptima","Infantiles"],"vie":["Séptima","Octava","Novena","Liga","Infantiles"],"sab":["Liga"]}},
-      "c9":{"nombre":"Cancha 9","uso":{"lun":[],"mar":["Quinta","Séptima","Infantiles"],"mie":["Séptima","Infantiles"],"jue":["Cuarta","Séptima","Infantiles"],"vie":["Octava","Novena","Liga","Infantiles"],"sab":["Liga"]}}
+      "1fa": {
+        "score": 1845.0,
+        "semaforo": "rojo",
+        "icono": "🔴",
+        "texto": "Cancha al límite — necesita descanso",
+        "personas": 585,
+        "horas": 74.0,
+        "detalle": "Esta semana pisaron esta cancha 585 personas durante 74 horas en total"
+      },
+      "3fa": {
+        "score": 180.0,
+        "semaforo": "amarillo",
+        "icono": "🟡",
+        "texto": "Uso moderado — seguir de cerca",
+        "personas": 60,
+        "horas": 6.0,
+        "detalle": "Esta semana pisaron esta cancha 60 personas durante 6 horas en total"
+      },
+      "5fa": {
+        "score": 298.5,
+        "semaforo": "rojo",
+        "icono": "🔴",
+        "texto": "Uso muy alto — monitorear de cerca",
+        "personas": 105,
+        "horas": 23.0,
+        "detalle": "Esta semana pisaron esta cancha 105 personas durante 23 horas en total"
+      },
+      "8fa": {
+        "score": 676.5,
+        "semaforo": "rojo",
+        "icono": "🔴",
+        "texto": "Cancha al límite — necesita descanso",
+        "personas": 240,
+        "horas": 33.0,
+        "detalle": "Esta semana pisaron esta cancha 240 personas durante 33 horas en total"
+      },
+      "9fa": {
+        "score": 676.5,
+        "semaforo": "rojo",
+        "icono": "🔴",
+        "texto": "Cancha al límite — necesita descanso",
+        "personas": 240,
+        "horas": 33.0,
+        "detalle": "Esta semana pisaron esta cancha 240 personas durante 33 horas en total"
+      },
+      "2fa": {
+        "score": 0,
+        "semaforo": "verde",
+        "icono": "🟢",
+        "texto": "Cancha descansada",
+        "personas": 0,
+        "horas": 0,
+        "detalle": "Esta semana no se usó esta cancha"
+      },
+      "4fa": {
+        "score": 0,
+        "semaforo": "verde",
+        "icono": "🟢",
+        "texto": "Cancha descansada",
+        "personas": 0,
+        "horas": 0,
+        "detalle": "Esta semana no se usó esta cancha"
+      },
+      "6fa": {
+        "score": 0,
+        "semaforo": "verde",
+        "icono": "🟢",
+        "texto": "Cancha descansada",
+        "personas": 0,
+        "horas": 0,
+        "detalle": "Esta semana no se usó esta cancha"
+      },
+      "7fa": {
+        "score": 0,
+        "semaforo": "verde",
+        "icono": "🟢",
+        "texto": "Cancha descansada",
+        "personas": 0,
+        "horas": 0,
+        "detalle": "Esta semana no se usó esta cancha"
+      },
+      "10fa": {
+        "score": 0,
+        "semaforo": "verde",
+        "icono": "🟢",
+        "texto": "Cancha descansada",
+        "personas": 0,
+        "horas": 0,
+        "detalle": "Esta semana no se usó esta cancha"
+      },
+      "1fp": {
+        "score": 0,
+        "semaforo": "verde",
+        "icono": "🟢",
+        "texto": "Cancha descansada",
+        "personas": 0,
+        "horas": 0,
+        "detalle": "Cancha de primer equipo — sin carga registrada esta semana"
+      },
+      "2fp": {
+        "score": 0,
+        "semaforo": "verde",
+        "icono": "🟢",
+        "texto": "Cancha descansada",
+        "personas": 0,
+        "horas": 0,
+        "detalle": "Cancha de primer equipo — sin carga registrada esta semana"
+      }
+    }
+  },
+  "verify_hashes": {
+    "ceb535754f883e56b8280cb69333b385667f87646d0695c51d8aeb52e899ef47": {
+      "cancha": "1FA",
+      "semana": "C",
+      "ipos": 1845.0,
+      "ndvi": 0.18,
+      "semaforo": "rojo",
+      "fecha_generacion": "2026-05-19T19:48:32Z"
+    },
+    "6c0bbf9eedd61ef22e5a72e23af4433ec1e5931dd050ab3a8ac12f9a033b3e24": {
+      "cancha": "3FA",
+      "semana": "C",
+      "ipos": 180.0,
+      "ndvi": 0.4423,
+      "semaforo": "amarillo",
+      "fecha_generacion": "2026-05-19T19:48:32Z"
+    },
+    "1e36669c7e963275e526dffbbd82e238e019848e0fa8e5e7c35d6f42bcb89dd8": {
+      "cancha": "5FA",
+      "semana": "C",
+      "ipos": 298.5,
+      "ndvi": 0.2595,
+      "semaforo": "rojo",
+      "fecha_generacion": "2026-05-19T19:48:32Z"
+    },
+    "d4e4bb9469ef2e751d5676c0973fd80848effd4542319e5246b7146864505060": {
+      "cancha": "8FA",
+      "semana": "C",
+      "ipos": 676.5,
+      "ndvi": 0.18,
+      "semaforo": "rojo",
+      "fecha_generacion": "2026-05-19T19:48:32Z"
+    },
+    "87287acf75982b41e450b00fc67a28706ce5bae372118078edd93424828f2712": {
+      "cancha": "9FA",
+      "semana": "C",
+      "ipos": 676.5,
+      "ndvi": 0.18,
+      "semaforo": "rojo",
+      "fecha_generacion": "2026-05-19T19:48:32Z"
+    },
+    "a330d03deb4117775e45e02df9035792e58bd5842448d2f59ad6af6f1d86ed8f": {
+      "cancha": "2FA",
+      "semana": "C",
+      "ipos": 0,
+      "ndvi": 0.72,
+      "semaforo": "verde",
+      "fecha_generacion": "2026-05-19T19:48:32Z"
+    },
+    "06a12f500ac0764a51cf24c710bf1b4967d9f1145ebb1feaee2b960a43bf4f80": {
+      "cancha": "4FA",
+      "semana": "C",
+      "ipos": 0,
+      "ndvi": 0.72,
+      "semaforo": "verde",
+      "fecha_generacion": "2026-05-19T19:48:32Z"
+    },
+    "ebc76173e0c0743581a2684d316fb827dad5b739ffcd6ad1ad0aa9d0a177aaf5": {
+      "cancha": "6FA",
+      "semana": "C",
+      "ipos": 0,
+      "ndvi": 0.72,
+      "semaforo": "verde",
+      "fecha_generacion": "2026-05-19T19:48:32Z"
+    },
+    "777af20d955d89ef1560050084c2c3caa7d149a64a21d039985ce01010001dc0": {
+      "cancha": "7FA",
+      "semana": "C",
+      "ipos": 0,
+      "ndvi": 0.72,
+      "semaforo": "verde",
+      "fecha_generacion": "2026-05-19T19:48:32Z"
+    },
+    "f00b7f4eec8356bc5ded1145bcadcbdd0c48a1045e780182a77c65788a8a00fd": {
+      "cancha": "10FA",
+      "semana": "C",
+      "ipos": 0,
+      "ndvi": 0.72,
+      "semaforo": "verde",
+      "fecha_generacion": "2026-05-19T19:48:32Z"
+    },
+    "5fbb5de866b798c775bd425672c36881d171a42c07d09914576179f85c2b4d6b": {
+      "cancha": "1FP",
+      "semana": "C",
+      "ipos": 0,
+      "ndvi": 0.72,
+      "semaforo": "verde",
+      "fecha_generacion": "2026-05-19T19:48:32Z"
+    },
+    "a2f5d672a96f5a5afc22682ee0167e4e880b349901d4679f0c5564e3e691ee12": {
+      "cancha": "2FP",
+      "semana": "C",
+      "ipos": 0,
+      "ndvi": 0.72,
+      "semaforo": "verde",
+      "fecha_generacion": "2026-05-19T19:48:32Z"
     }
   }
 }

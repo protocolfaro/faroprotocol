@@ -776,17 +776,17 @@ function buildSmartRecs(usuario, sectores, w, wl, cfg){
   var c1=canchas.filter(function(c){return c.id==='c1';})[0];
 
   if(c4&&c4.sem==='rojo'){
-    var vc4=cfg?findMejorVentana('c4',cfg):null;
+    var vc4=cfg?findMejorVentana('1fa',cfg):null;
     if(windyToday) recs.push({icon:'🧴',text:'No aplicar fungicida C4 hoy — viento >25 km/h. Reprogramar para mañana temprano.',window:vc4});
     else           recs.push({icon:'🧴',text:'Fungicida C4 HOY: zona central y lateral sur. No esperar — foco activo confirmado.',window:vc4});
   }
   if(c3&&c3.sem==='rojo'){
-    var vc3=cfg?findMejorVentana('c3',cfg):null;
+    var vc3=cfg?findMejorVentana('8fa',cfg):null;
     recs.push({icon:'🧴',text:'Fungicida C3: aplicar antes del martes — focos activos en manchas laterales.',window:vc3});
   }
 
   // ET-based irrigation recommendation (uses pre-computed weather_live from JSON)
-  var riegoWin=cfg?(findMejorVentana('c4',cfg)||findMejorVentana('c3',cfg)):null;
+  var riegoWin=cfg?(findMejorVentana('1fa',cfg)||findMejorVentana('8fa',cfg)):null;
   if(wl&&wl.et0_mm_dia){
     var et=wl.et0_mm_dia, def=wl.deficit_hidrico_mm||0;
     var dOff=wl.dia_riego_offset||0;
@@ -816,7 +816,7 @@ function buildSmartRecs(usuario, sectores, w, wl, cfg){
 
   // Corte recommendation — use hora_corte_optima if available
   var corteHora=wl&&wl.hora_corte_optima?wl.hora_corte_optima:'07:00';
-  var corteWin=cfg?(findMejorVentana('c4',cfg)||findMejorVentana('c2',cfg)):null;
+  var corteWin=cfg?(findMejorVentana('1fa',cfg)||findMejorVentana('3fa',cfg)):null;
   if(rainTomorrow)
     recs.push({icon:'✂️',text:'Cortar hoy temprano (antes de las 10 hs) — lluvia prevista mañana. No cortar con pasto húmedo.',window:corteWin});
   else
@@ -1044,16 +1044,26 @@ function buildActions(actions){
 }
 
 /* ── HORARIO GRID ── */
-function getTurnosUsados(uso, cfg){
-  var sched=cfg.horarios_vo_semana, t={};
-  (uso||[]).forEach(function(cat){ var s=sched.categoria_turno[cat]; if(s) t[s]=true; });
-  return t;
+function _buildSessionUsage(cfg){
+  var sched=cfg&&cfg.horarios_vo_semana;
+  if(!sched||!sched.sessions) return {};
+  var u={};
+  sched.sessions.forEach(function(s){
+    var dia=s.dia,turno=s.turno;
+    (s.canchas||[]).forEach(function(cid){
+      cid=cid.toLowerCase();
+      if(cid==='campus') return;
+      if(!u[cid]) u[cid]={};
+      if(!u[cid][dia]) u[cid][dia]={};
+      u[cid][dia][turno]=true;
+    });
+  });
+  return u;
 }
-function getVentanaText(uso, cfg){
-  var t=getTurnosUsados(uso,cfg);
-  var ma=t.manana, inf=t.infantiles, fem=t.femenino;
+function _ventanaFromTurnos(t){
+  var ma=!!t.manana,inf=!!t.infantiles,fem=!!t.femenino;
   if(!ma&&!inf&&!fem) return 'todo el día';
-  if(ma&&inf&&fem)    return '11–14hs';
+  if(ma&&inf&&fem)    return null;
   if(ma&&inf)         return '11–14hs';
   if(ma&&fem)         return '11–17:30hs';
   if(ma)              return 'desde 11hs';
@@ -1063,16 +1073,17 @@ function getVentanaText(uso, cfg){
   return 'todo el día';
 }
 function findMejorVentana(cid, cfg){
-  var sched=cfg.horarios_vo_semana;
+  var sched=cfg&&cfg.horarios_vo_semana;
+  if(!sched||!sched.dias) return null;
+  cid=cid.toLowerCase();
   var today=new Date().toISOString().slice(0,10);
-  var dias=sched.dias;
-  for(var i=0;i<dias.length;i++){
-    var d=dias[i];
+  var u=_buildSessionUsage(cfg);
+  for(var i=0;i<sched.dias.length;i++){
+    var d=sched.dias[i];
     if(d.fecha<today) continue;
-    var libre=(sched.canchas_libre[d.id]||[]).indexOf(cid)>=0;
-    if(libre){
-      var uso=(sched.canchas[cid]&&sched.canchas[cid].uso[d.id])||[];
-      var vent=getVentanaText(uso,cfg);
+    var t=(u[cid]&&u[cid][d.id])||{};
+    var vent=_ventanaFromTurnos(t);
+    if(vent!==null){
       var lbl=d.fecha===today?'Hoy':d.label;
       return lbl+' · '+vent;
     }
@@ -1080,17 +1091,31 @@ function findMejorVentana(cid, cfg){
   return null;
 }
 function buildHorarioGrid(cfg){
-  var sched=cfg.horarios_vo_semana;
-  if(!sched) return;
+  var sched=cfg&&cfg.horarios_vo_semana;
+  if(!sched||!sched.sessions) return;
   var el=document.getElementById('horario-section');
   el.style.display='block';
 
   var dias=sched.dias;
-  var cids=['c1','c2','c3','c4','c5','c6','c7','c8','c9'];
   var today=new Date().toISOString().slice(0,10);
-
   var semLbl='Sem. '+sched.semana_label+' · '
     +sched.fecha_inicio.slice(5).replace('-','/')+'–'+sched.fecha_fin.slice(5).replace('-','/');
+
+  // Build usage from sessions and collect ordered cids
+  var u=_buildSessionUsage(cfg);
+  var seen={}, cids=[];
+  sched.sessions.forEach(function(s){
+    (s.canchas||[]).forEach(function(cid){
+      cid=cid.toLowerCase();
+      if(cid==='campus'||seen[cid]) return;
+      seen[cid]=1; cids.push(cid);
+    });
+  });
+  // Sort by IPOS score desc if available
+  if(cfg.ipos_semana&&cfg.ipos_semana.canchas){
+    var ic=cfg.ipos_semana.canchas;
+    cids.sort(function(a,b){ return ((ic[b]&&ic[b].score)||0)-((ic[a]&&ic[a].score)||0); });
+  }
 
   var html='<div class="section-title">Uso de Canchas esta Semana'
     +'<span style="font-size:9px;font-weight:400;color:var(--wdim);text-transform:none;margin-left:8px">'+semLbl+'</span></div>'
@@ -1104,120 +1129,134 @@ function buildHorarioGrid(cfg){
   html+='</tr></thead><tbody>';
 
   cids.forEach(function(cid){
-    var cancha=sched.canchas[cid]; if(!cancha) return;
     html+='<tr><td class="hg-row-label">'+cid.toUpperCase()+'</td>';
     dias.forEach(function(d){
       var dayId=d.id, isPast=d.fecha<today;
-      var libre=(sched.canchas_libre[dayId]||[]).indexOf(cid)>=0;
-      var uso=(cancha.uso[dayId])||[];
-      var t=getTurnosUsados(uso,cfg);
-      var nT=Object.keys(t).length;
+      var t=(u[cid]&&u[cid][dayId])||{};
+      var ma=!!t.manana,inf=!!t.infantiles,fem=!!t.femenino;
+      var allFull=ma&&inf&&fem;
       var cellCls, inner;
-      if(libre){
-        cellCls='hg-cell libre'+(isPast?' past':'');
-        var vent=getVentanaText(uso,cfg);
-        inner='<div class="hg-cell-libre">LIBRE</div>'
-          +'<div class="hg-cell-vent">'+vent+'</div>';
-      } else if(uso.length>0){
-        var isFull=nT>=3;
-        cellCls='hg-cell '+(isFull?'ocupada-full':'ocupada')+(isPast?' past':'');
-        var slots=[];
-        if(t.manana)     slots.push('<span class="hg-cell-slot hg-slot-mn">MÑ</span>');
-        if(t.infantiles) slots.push('<span class="hg-cell-slot hg-slot-inf">INF</span>');
-        if(t.femenino)   slots.push('<span class="hg-cell-slot hg-slot-fem">FEM</span>');
-        inner=slots.join('');
+      if(allFull){
+        cellCls='hg-cell ocupada-full'+(isPast?' past':'');
+        inner='<span class="hg-cell-slot hg-slot-mn">MÑ</span>'
+          +'<span class="hg-cell-slot hg-slot-inf">INF</span>'
+          +'<span class="hg-cell-slot hg-slot-fem">FEM</span>';
       } else {
-        cellCls='hg-cell vacia'+(isPast?' past':'');
-        inner='<div class="hg-cell-dash">—</div>';
+        cellCls='hg-cell libre'+(isPast?' past':'');
+        var vent=_ventanaFromTurnos(t)||'todo el día';
+        var slots=[];
+        if(ma)  slots.push('<span class="hg-cell-slot hg-slot-mn">MÑ</span>');
+        if(inf) slots.push('<span class="hg-cell-slot hg-slot-inf">INF</span>');
+        if(fem) slots.push('<span class="hg-cell-slot hg-slot-fem">FEM</span>');
+        inner='<div class="hg-cell-libre">LIBRE</div>'
+          +'<div class="hg-cell-vent">'+vent+'</div>'
+          +(slots.length?'<div style="display:flex;gap:1px">'+slots.join('')+'</div>':'');
       }
       html+='<td class="hg-td"><div class="'+cellCls+'">'+inner+'</div></td>';
     });
     html+='</tr>';
   });
+
   html+='</tbody></table></div>';
   html+='<div class="hg-legend">'
     +'<div class="hg-legend-item"><div class="hg-legend-dot" style="background:rgba(76,173,114,.4)"></div>Libre</div>'
-    +'<div class="hg-legend-item"><div class="hg-legend-dot" style="background:rgba(224,184,76,.35)"></div>En uso</div>'
     +'<div class="hg-legend-item"><div class="hg-legend-dot" style="background:rgba(224,82,82,.3)"></div>Llena</div>'
     +'<div class="hg-legend-item">'
     +'<span class="hg-cell-slot hg-slot-mn">MÑ</span>&nbsp;mañana&nbsp;'
     +'<span class="hg-cell-slot hg-slot-inf">INF</span>&nbsp;tarde&nbsp;'
     +'<span class="hg-cell-slot hg-slot-fem">FEM</span>&nbsp;noche'
-    +'</div>'
-    +'</div>';
+    +'</div></div>';
 
   el.innerHTML=html;
 }
 
 /* ── HEATMAP SECTION ── */
-function buildHeatmapSection(u){
+function buildHeatmapSection(u, cfg){
   var hmData=u.heatmaps;
   if(!hmData) return;
   var el=document.getElementById('heatmap-section');
   el.style.display='block';
+
+  // FA cancha IDs ordered by IPOS criticality (rojos first)
+  var FA_ALL=['1fa','8fa','9fa','5fa','3fa','2fa','4fa','6fa','7fa','10fa','1fp','2fp'];
+  var iposC=(cfg&&cfg.ipos_semana&&cfg.ipos_semana.canchas)||{};
+  var voSubs=FA_ALL.slice().sort(function(a,b){
+    return ((iposC[b]&&iposC[b].score)||0)-((iposC[a]&&iposC[a].score)||0);
+  });
 
   var sectors=[
     {id:'vo',    label:'Villa Olímpica', hasSubs:true},
     {id:'amalf', label:'Amalfitani',     hasSubs:false},
     {id:'poli',  label:'Polideportivo',  hasSubs:false},
   ];
-  var voSubs=[
-    {id:'c4',sem:'rojo'},
-    {id:'c3',sem:'rojo'},
-    {id:'c1',sem:'amarillo'},
-    {id:'c2',sem:'amarillo'},
-  ];
-  var hmMap={
-    'vo-c1':hmData.vo_c1,'vo-c2':hmData.vo_c2,
-    'vo-c3':hmData.vo_c3,'vo-c4':hmData.vo_c4,
-    'amalf':hmData.amalfitani,'poli':hmData.poli,
-  };
 
-  var curSec='vo', curSub='c4';
+  var curSec='vo', curSub=voSubs[0]||'1fa';
 
-  function activeKey(){ return curSec==='vo'?'vo-'+curSub:curSec; }
+  function getHm(sec, sub){
+    if(sec==='amalf') return hmData.amalfitani||{};
+    if(sec==='poli')  return hmData.poli||{};
+    return hmData[sub]||{};
+  }
 
   function renderInner(){
-    var key=activeKey(), hm=hmMap[key]||{};
-    // NDVI / InSAR value
+    var hm=getHm(curSec,curSub);
+    var ipos=iposC[curSub];
     var ndviHtml='';
     if(hm.ndvi!=null){
-      var sem=hm.ndvi>=0.50?'verde':hm.ndvi>=0.35?'amarillo':'rojo';
-      ndviHtml='<span class="hm-ndvi" style="color:'+sc(sem)+'">NDVI '+hm.ndvi.toFixed(2)+'</span>';
+      var nsem=hm.ndvi>=0.50?'verde':hm.ndvi>=0.35?'amarillo':'rojo';
+      ndviHtml='<span class="hm-ndvi" style="color:'+sc(nsem)+'">NDVI '+hm.ndvi.toFixed(2)+'</span>';
     } else if(hm.insar!=null){
-      var sem=hm.insar>=0.80?'rojo':hm.insar>=0.50?'amarillo':'verde';
-      ndviHtml='<span class="hm-ndvi" style="color:'+sc(sem)+'">InSAR '+hm.insar.toFixed(2)+' mm</span>';
+      var nsem=hm.insar>=0.80?'rojo':hm.insar>=0.50?'amarillo':'verde';
+      ndviHtml='<span class="hm-ndvi" style="color:'+sc(nsem)+'">InSAR '+hm.insar.toFixed(2)+' mm</span>';
+    }
+    var iposHtml='';
+    if(ipos){
+      iposHtml='<span class="hm-ndvi" style="color:'+sc(ipos.semaforo)+'">'+ipos.icono+' IPOS '+ipos.score.toFixed(0)+'</span>';
     }
     var detHtml=hm.detalle?'<span class="hm-src">'+hm.detalle+'</span>':'';
-    var gpsHtml=u.heatmap_gps_overlay
-      ?'<span class="hm-gps active-gps">GPS activo · '+u.heatmap_gps_overlay.fecha+'</span>'
-      :'<span class="hm-gps">GPS cuerpo técnico — pendiente</span>';
     var imgHtml=hm.archivo
-      ?'<img class="hm-img" src="'+hm.archivo+'" alt="Heatmap '+key+'" loading="lazy">'
-      :'<span class="hm-img-placeholder">Sin imagen esta semana</span>';
-
+      ?'<img class="hm-img" src="'+hm.archivo+'" alt="Heatmap '+curSub+'" loading="lazy">'
+      :'<span class="hm-img-placeholder">Heatmap no disponible — ejecutá generate_heatmaps_v2.py</span>';
     document.getElementById('hm-img-wrap').innerHTML=imgHtml;
     document.getElementById('hm-meta').innerHTML=
-      '<div style="display:flex;align-items:center;gap:10px">'+ndviHtml+detHtml+'</div>'
-      +'<div style="display:flex;align-items:center;gap:8px">'+gpsHtml
-      +'<span class="hm-src">'+hmData.fuente+'</span></div>';
+      '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'+iposHtml+ndviHtml+detHtml+'</div>'
+      +'<span class="hm-src">'+hmData.fuente+'</span>';
   }
 
   function tabsHtml(){
     return '<div class="hm-tabs">'+sectors.map(function(s){
-      return '<div class="hm-tab'+(s.id===curSec?' active':'')
-        +'" data-sec="'+s.id+'">'+s.label+'</div>';
+      return '<div class="hm-tab'+(s.id===curSec?' active':'')+'" data-sec="'+s.id+'">'+s.label+'</div>';
     }).join('')+'</div>';
   }
   function subTabsHtml(){
     return '<div class="hm-stabs" id="hm-stabs"'+(curSec!=='vo'?' style="display:none"':'')+'>'
-      +voSubs.map(function(st){
-        var isRed=st.sem==='rojo';
-        return '<div class="hm-stab'+(st.id===curSub?' active':'')
-          +(isRed?' red-tab':'')
-          +'" data-sub="'+st.id+'">C'+st.id.slice(1)+'</div>';
+      +voSubs.map(function(cid){
+        var ip=iposC[cid], isRed=ip&&ip.semaforo==='rojo';
+        return '<div class="hm-stab'+(cid===curSub?' active':'')+(isRed?' red-tab':'')
+          +'" data-sub="'+cid+'">'+cid.toUpperCase()+'</div>';
       }).join('')
       +'</div>';
+  }
+
+  // IPOS summary table (all FA canchas, ordered by score desc)
+  function iposSummaryHtml(){
+    var ipKeys=FA_ALL.slice().sort(function(a,b){
+      return ((iposC[b]&&iposC[b].score)||0)-((iposC[a]&&iposC[a].score)||0);
+    });
+    var rows=ipKeys.map(function(cid){
+      var ip=iposC[cid]; if(!ip) return '';
+      var col=sc(ip.semaforo);
+      return '<div style="display:flex;align-items:flex-start;gap:10px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.05)">'
+        +'<span style="font-size:11px;font-weight:700;color:'+col+';min-width:32px">'+ip.icono+'</span>'
+        +'<span style="font-size:10px;font-weight:700;color:var(--wdim);min-width:36px;letter-spacing:.06em">'+cid.toUpperCase()+'</span>'
+        +'<div style="flex:1"><div style="font-size:11px;color:var(--whi)">'+ip.texto+'</div>'
+        +(ip.score>0?'<div style="font-size:9px;color:var(--wdim);margin-top:2px">'+ip.detalle+'</div>':'')
+        +'</div>'
+        +'<span style="font-size:10px;font-weight:700;color:'+col+';white-space:nowrap">IPOS '+ip.score.toFixed(0)+'</span>'
+        +'</div>';
+    }).join('');
+    return '<div class="section-title" style="margin-top:8px">IPOS · Estado de Canchas esta Semana</div>'
+      +'<div style="padding:4px 16px 8px">'+rows+'</div>';
   }
 
   el.innerHTML=
@@ -1226,11 +1265,11 @@ function buildHeatmapSection(u){
     +tabsHtml()
     +subTabsHtml()
     +'<div class="hm-img-wrap" id="hm-img-wrap"></div>'
-    +'<div class="hm-meta" id="hm-meta"></div>';
+    +'<div class="hm-meta" id="hm-meta"></div>'
+    +(Object.keys(iposC).length?iposSummaryHtml():'');
 
   renderInner();
 
-  // Wire sector tabs
   el.querySelectorAll('.hm-tab').forEach(function(tab){
     tab.addEventListener('click',function(){
       curSec=tab.dataset.sec;
@@ -1242,18 +1281,14 @@ function buildHeatmapSection(u){
     });
   });
 
-  // Wire sub tabs
-  function wireSubTabs(){
-    el.querySelectorAll('.hm-stab').forEach(function(tab){
-      tab.addEventListener('click',function(){
-        curSub=tab.dataset.sub;
-        el.querySelectorAll('.hm-stab').forEach(function(t){t.classList.remove('active');});
-        tab.classList.add('active');
-        renderInner();
-      });
+  el.querySelectorAll('.hm-stab').forEach(function(tab){
+    tab.addEventListener('click',function(){
+      curSub=tab.dataset.sub;
+      el.querySelectorAll('.hm-stab').forEach(function(t){t.classList.remove('active');});
+      tab.classList.add('active');
+      renderInner();
     });
-  }
-  wireSubTabs();
+  });
 }
 
 /* ── MAIN RENDER ── */
@@ -1287,7 +1322,7 @@ function render(data, cfg){
     buildMatchAlert(u.proximo_partido);
     buildFungalBanner(wl);
     buildCanchasGrid(allS['canchero']);
-    buildHeatmapSection(u);
+    buildHeatmapSection(u,cfg);
     if(cfg) buildHorarioGrid(cfg);
     buildEtCard(wl);
     buildDisclaimer('disclaimer-recs');

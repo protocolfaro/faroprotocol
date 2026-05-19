@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
+<title>Faro Protocol · Carga Semanal</title>
+<style>
+:root{--bg:#0d1117;--bg2:#161b22;--bg3:#1c2330;--gold:#c9a84c;--whi:#e8e6e0;--wdim:#8b8680;--red:#e05252;--grn:#4cad72;--yel:#e0b84c;--radius:10px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh}
+#header{background:var(--bg2);border-bottom:1px solid rgba(201,168,76,.25);padding:14px 16px 10px;position:sticky;top:0;z-index:100}
+.logo-row{display:flex;align-items:center;gap:8px}
+.logo-dot{width:8px;height:8px;background:var(--gold);border-radius:50%}
+.logo-text{font-size:11px;font-weight:700;letter-spacing:.12em;color:var(--gold);text-transform:uppercase}
+.header-sub{margin-top:4px;font-size:13px;font-weight:600;color:var(--whi)}
+
+/* PIN screen */
+#pin-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:80vh;gap:20px;padding:24px}
+.pin-lock{font-size:40px;opacity:.4}
+.pin-title{font-size:16px;font-weight:600}
+.pin-sub{font-size:12px;color:var(--wdim);text-align:center;max-width:260px;line-height:1.7}
+.pin-input{width:160px;height:52px;background:var(--bg2);border:2px solid rgba(201,168,76,.3);border-radius:var(--radius);color:var(--whi);font-size:28px;font-weight:700;letter-spacing:.3em;text-align:center;outline:none}
+.pin-input:focus{border-color:var(--gold)}
+.pin-btn{width:160px;height:48px;background:var(--gold);color:#0d1117;border:none;border-radius:var(--radius);font-size:14px;font-weight:700;letter-spacing:.05em;cursor:pointer}
+.pin-btn:active{opacity:.8}
+.pin-error{font-size:12px;color:var(--red);display:none}
+
+/* Main panel */
+#main-panel{display:none;padding:0 0 80px}
+.section{padding:16px 16px 4px;font-size:10px;font-weight:700;letter-spacing:.14em;color:var(--gold);text-transform:uppercase;border-bottom:1px solid rgba(201,168,76,.15)}
+
+/* Semana card */
+.semana-card{margin:10px 16px;background:var(--bg2);border-radius:var(--radius);border:1px solid rgba(255,255,255,.06);padding:13px}
+.semana-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.semana-label{font-size:11px;color:var(--wdim)}
+.semana-input{background:var(--bg3);border:1px solid rgba(255,255,255,.1);border-radius:6px;color:var(--whi);font-size:12px;padding:6px 10px;width:100%;outline:none}
+.semana-input:focus{border-color:var(--gold)}
+
+/* Schedule table */
+.sched-wrap{padding:4px 16px;overflow-x:auto}
+.sched-table{border-collapse:collapse;min-width:100%;font-size:10px}
+.sched-table th{padding:5px 4px;text-align:center;font-size:8px;font-weight:700;letter-spacing:.06em;color:var(--wdim);text-transform:uppercase;background:var(--bg2);position:sticky;top:0}
+.sched-table th.cat-col{text-align:left;min-width:80px}
+.sched-table td{padding:3px 3px}
+.sched-table tr:nth-child(even) td{background:rgba(255,255,255,.02)}
+.cat-label{font-size:9px;font-weight:600;color:var(--whi);white-space:nowrap}
+.factor-pill{display:inline-block;font-size:7px;font-weight:700;padding:1px 4px;border-radius:2px;margin-top:1px}
+.factor-pill.f10{background:rgba(76,173,114,.15);color:var(--grn)}
+.factor-pill.f07{background:rgba(224,184,76,.1);color:var(--yel)}
+.sched-input{width:100%;background:var(--bg3);border:1px solid rgba(255,255,255,.08);border-radius:4px;color:var(--whi);font-size:9px;padding:4px 5px;text-align:center;outline:none;min-width:44px}
+.sched-input:focus{border-color:var(--gold)}
+.sched-input::placeholder{color:rgba(255,255,255,.18);font-size:8px}
+
+/* Bottom action */
+.bottom-bar{position:fixed;bottom:0;left:0;right:0;background:var(--bg2);border-top:1px solid rgba(201,168,76,.2);padding:12px 16px;z-index:200}
+.save-btn{width:100%;height:52px;background:var(--gold);color:#0d1117;border:none;border-radius:var(--radius);font-size:15px;font-weight:700;letter-spacing:.04em;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+.save-btn:active{opacity:.8}
+.save-btn:disabled{opacity:.45;cursor:not-allowed}
+
+/* Status */
+#status{margin:10px 16px;padding:12px 14px;border-radius:var(--radius);display:none}
+#status.ok{background:rgba(76,173,114,.12);border:1px solid rgba(76,173,114,.3);color:var(--grn)}
+#status.err{background:rgba(224,82,82,.12);border:1px solid rgba(224,82,82,.3);color:var(--red)}
+.status-text{font-size:13px;font-weight:600;line-height:1.5}
+
+/* IPOS preview */
+.ipos-grid{padding:6px 16px;display:flex;flex-direction:column;gap:5px}
+.ipos-row{display:flex;align-items:center;gap:8px;background:var(--bg2);border-radius:8px;padding:8px 10px;border:1px solid rgba(255,255,255,.05)}
+.ipos-icon{font-size:16px;flex-shrink:0}
+.ipos-body{flex:1;min-width:0}
+.ipos-cancha{font-size:11px;font-weight:700}
+.ipos-txt{font-size:10px;color:var(--wdim);line-height:1.4;margin-top:2px}
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div class="logo-row"><div class="logo-dot"></div><span class="logo-text">Faro Protocol</span></div>
+  <div class="header-sub">Carga Semanal · Villa Olímpica</div>
+</div>
+
+<!-- PIN screen -->
+<div id="pin-screen">
+  <div class="pin-lock">🔒</div>
+  <div class="pin-title">Acceso restringido</div>
+  <div class="pin-sub">Ingresá tu PIN de 4 dígitos para cargar el diagrama de la semana.</div>
+  <input id="pin-input" class="pin-input" type="password" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="off">
+  <button class="pin-btn" onclick="verifyPin()">ENTRAR</button>
+  <div class="pin-error" id="pin-error">PIN incorrecto</div>
+</div>
+
+<!-- Main panel -->
+<div id="main-panel">
+  <div class="section">Semana</div>
+  <div class="semana-card">
+    <div class="semana-row">
+      <span class="semana-label">Semana:</span>
+      <input id="sem-label" class="semana-input" style="width:60px" value="C" maxlength="4">
+      <span class="semana-label">Del:</span>
+      <input id="sem-ini" class="semana-input" style="width:120px" type="date" value="2026-05-18">
+      <span class="semana-label">Al:</span>
+      <input id="sem-fin" class="semana-input" style="width:120px" type="date" value="2026-05-23">
+    </div>
+  </div>
+
+  <div class="section" style="margin-top:6px">Diagrama de Canchas</div>
+  <div style="padding:4px 16px 2px;font-size:9px;color:var(--wdim);line-height:1.6">
+    Escribí el código de cancha en cada día (ej: <strong>1FA</strong>, <strong>8FA/9FA</strong>, <strong>CAMPUS</strong>). Dejá vacío si no entrena.
+  </div>
+
+  <div class="sched-wrap" id="sched-wrap"></div>
+
+  <div id="status"><div class="status-text" id="status-text"></div></div>
+  <div id="ipos-preview" style="display:none">
+    <div class="section" style="margin-top:8px">Presión de Uso — Semana calculada</div>
+    <div class="ipos-grid" id="ipos-grid"></div>
+  </div>
+
+  <div style="height:70px"></div>
+</div>
+
+<div class="bottom-bar" id="bottom-bar" style="display:none">
+  <button class="save-btn" id="save-btn" onclick="guardarSemana()">
+    <span>💾</span><span>GUARDAR SEMANA</span>
+  </button>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+var CONFIG_URL = '../config_velez.json';
+var RAILWAY_URL = '';  // loaded from config
+var PIN_HASH   = '';   // sha256 of PIN, loaded from config
+
+// Categories with fixed turno and factor
+var CATS = [
+  {id:'Reserva',   factor:'1.0', turno:'manana'},
+  {id:'Primera',   factor:'1.0', turno:'manana'},
+  {id:'Cuarta',    factor:'1.0', turno:'manana'},
+  {id:'Quinta',    factor:'1.0', turno:'manana'},
+  {id:'Sexta',     factor:'1.0', turno:'manana'},
+  {id:'Séptima',   factor:'1.0', turno:'manana'},
+  {id:'Octava',    factor:'0.7', turno:'manana'},
+  {id:'Novena',    factor:'0.7', turno:'manana'},
+  {id:'Infantiles',factor:'0.7', turno:'infantiles'},
+  {id:'Femenino',  factor:'1.0', turno:'femenino'},
+  {id:'Liga',      factor:'1.0', turno:'manana'},
+  {id:'Campus',    factor:'0.7', turno:'manana'},
+];
+var DIAS = [
+  {id:'lun',label:'Lun'},
+  {id:'mar',label:'Mar'},
+  {id:'mie',label:'Mié'},
+  {id:'jue',label:'Jue'},
+  {id:'vie',label:'Vie'},
+  {id:'sab',label:'Sáb'},
+];
+
+// ── SHA-256 via WebCrypto ──
+async function sha256(text){
+  var buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+// ── Load config ──
+async function loadConfig(){
+  try{
+    var r = await fetch(CONFIG_URL);
+    if(!r.ok) return;
+    var cfg = await r.json();
+    PIN_HASH   = (cfg.admin && cfg.admin.pin_hash) || '';
+    RAILWAY_URL= (cfg.admin && cfg.admin.railway_url) || '';
+    // Pre-fill semana if config has it
+    var s = cfg.horarios_vo_semana;
+    if(s){
+      if(s.semana_label) document.getElementById('sem-label').value = s.semana_label;
+      if(s.fecha_inicio) document.getElementById('sem-ini').value   = s.fecha_inicio;
+      if(s.fecha_fin)    document.getElementById('sem-fin').value    = s.fecha_fin;
+      if(s.sessions)     fillFromSessions(s.sessions);
+    }
+  } catch(e){ console.warn('Config load error:',e); }
+}
+
+// ── Build schedule table ──
+function buildTable(){
+  var wrap = document.getElementById('sched-wrap');
+  var html = '<table class="sched-table"><thead><tr><th class="cat-col">Categoría</th>';
+  DIAS.forEach(function(d){ html+='<th>'+d.label+'</th>'; });
+  html+='</tr></thead><tbody>';
+  CATS.forEach(function(cat){
+    var fCls = cat.factor==='1.0'?'f10':'f07';
+    html+='<tr><td><div class="cat-label">'+cat.id+'</div>'
+      +'<div><span class="factor-pill '+fCls+'">×'+cat.factor+'</span></div></td>';
+    DIAS.forEach(function(d){
+      var id='cell_'+cat.id+'_'+d.id;
+      html+='<td><input id="'+id+'" class="sched-input" type="text" '
+        +'placeholder="—" maxlength="16" autocomplete="off" '
+        +'autocorrect="off" autocapitalize="characters"></td>';
+    });
+    html+='</tr>';
+  });
+  html+='</tbody></table>';
+  wrap.innerHTML=html;
+}
+
+function fillFromSessions(sessions){
+  // Clear all first
+  CATS.forEach(function(cat){
+    DIAS.forEach(function(d){
+      var el=document.getElementById('cell_'+cat.id+'_'+d.id);
+      if(el) el.value='';
+    });
+  });
+  // Group by cat+dia
+  var grouped={};
+  sessions.forEach(function(s){
+    var key=s.categoria+'__'+s.dia;
+    grouped[key]=(grouped[key]||[]).concat(s.canchas||[]);
+  });
+  Object.keys(grouped).forEach(function(key){
+    var parts=key.split('__');
+    var cat=parts[0], dia=parts[1];
+    var id='cell_'+cat+'_'+dia;
+    var el=document.getElementById(id);
+    if(el) el.value=grouped[key].join('/').toUpperCase();
+  });
+}
+
+// ── Parse table → sessions ──
+function collectSessions(){
+  var sessions=[];
+  CATS.forEach(function(cat){
+    DIAS.forEach(function(d){
+      var el=document.getElementById('cell_'+cat.id+'_'+d.id);
+      if(!el||!el.value.trim()) return;
+      var val=el.value.trim().toUpperCase();
+      var canchas=val.split('/').map(function(c){return c.trim().toLowerCase();}).filter(Boolean);
+      if(canchas.length>0){
+        sessions.push({
+          categoria: cat.id,
+          dia:       d.id,
+          canchas:   canchas,
+          turno:     cat.turno,
+          factor:    parseFloat(cat.factor),
+        });
+      }
+    });
+  });
+  return sessions;
+}
+
+// ── Verify PIN ──
+window.verifyPin = async function(){
+  var pin=document.getElementById('pin-input').value.trim();
+  if(pin.length!==4){
+    document.getElementById('pin-error').style.display='block';
+    document.getElementById('pin-error').textContent='El PIN tiene 4 dígitos';
+    return;
+  }
+  var h = await sha256(pin);
+  if(PIN_HASH && h!==PIN_HASH){
+    document.getElementById('pin-error').style.display='block';
+    document.getElementById('pin-error').textContent='PIN incorrecto';
+    return;
+  }
+  document.getElementById('pin-screen').style.display='none';
+  document.getElementById('main-panel').style.display='block';
+  document.getElementById('bottom-bar').style.display='block';
+  // Store pin for POST
+  window._userPin = pin;
+};
+
+// ── Save week ──
+window.guardarSemana = async function(){
+  var btn=document.getElementById('save-btn');
+  var stEl=document.getElementById('status');
+  var stTxt=document.getElementById('status-text');
+  btn.disabled=true;
+  btn.querySelector('span:last-child').textContent='Enviando…';
+  stEl.style.display='none';
+
+  var sessions=collectSessions();
+  if(sessions.length===0){
+    stEl.className='status err'; stEl.style.display='block';
+    stTxt.textContent='No hay sesiones cargadas. Completá al menos una cancha.';
+    btn.disabled=false;
+    btn.querySelector('span:last-child').textContent='GUARDAR SEMANA';
+    return;
+  }
+
+  var payload={
+    pin:      window._userPin,
+    semana:{
+      label:       document.getElementById('sem-label').value.trim(),
+      fecha_inicio:document.getElementById('sem-ini').value,
+      fecha_fin:   document.getElementById('sem-fin').value,
+    },
+    sessions: sessions,
+  };
+
+  var url = RAILWAY_URL
+    ? (RAILWAY_URL.replace(/\/$/,'') + '/velez/horarios')
+    : null;
+
+  if(!url){
+    // No Railway URL — show simulated IPOS result
+    var simResult = simulateIpos(sessions);
+    showIposPreview(simResult);
+    stEl.className='status ok'; stEl.style.display='block';
+    stTxt.innerHTML='✅ Semana calculada localmente.<br><small>Configurá Railway en config_velez.json para activar heatmaps.</small>';
+    btn.disabled=false;
+    btn.querySelector('span:last-child').textContent='GUARDAR SEMANA';
+    return;
+  }
+
+  try{
+    var r = await fetch(url, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload),
+    });
+    var data = await r.json();
+    if(data.status==='ok'){
+      showIposPreview(data.ipos);
+      stEl.className='status ok'; stEl.style.display='block';
+      stTxt.innerHTML='✅ Semana cargada — heatmaps actualizados<br>'
+        +'<small style="opacity:.7">GitHub Pages actualiza en ~60 segundos</small>';
+    } else {
+      stEl.className='status err'; stEl.style.display='block';
+      stTxt.textContent='Error: '+(data.error||'respuesta inesperada');
+    }
+  } catch(e){
+    stEl.className='status err'; stEl.style.display='block';
+    stTxt.textContent='Error de conexión: '+e.message;
+  }
+
+  btn.disabled=false;
+  btn.querySelector('span:last-child').textContent='GUARDAR SEMANA';
+};
+
+// ── Simple local IPOS simulation (mirrors railway-backend/ipos.py) ──
+function simulateIpos(sessions){
+  var FACTORS={reserva:1,primera:1,cuarta:1,quinta:1,sexta:1,séptima:1,septima:1,octava:1,femenino:1,liga:1,novena:.7,infantiles:.7,campus:.7};
+  var HOURS={manana:3,mañana:3,infantiles:3.5,femenino:3.5};
+  var acc={};
+  sessions.forEach(function(s){
+    var cat=s.categoria.toLowerCase(); var turno=s.turno||'manana';
+    var f=FACTORS[cat]||1; var h=HOURS[turno.toLowerCase()]||3;
+    var clist=s.canchas||[]; var n=clist.length;
+    var isLiga=cat==='liga';
+    clist.forEach(function(cid){
+      if(cid==='campus') return;
+      var p=isLiga?30:(30/n);
+      acc[cid]=acc[cid]||{score:0,personas:0,horas:0};
+      acc[cid].score+=p*f*h;
+      acc[cid].personas+=p;
+      acc[cid].horas+=h;
+    });
+  });
+  var result={};
+  Object.keys(acc).forEach(function(cid){
+    var a=acc[cid]; var s=Math.round(a.score*10)/10;
+    var sem,icon,txt;
+    if(s>=350){sem='rojo';icon='🔴';txt='Cancha al límite — necesita descanso';}
+    else if(s>=200){sem='rojo';icon='🔴';txt='Uso muy alto — monitorear de cerca';}
+    else if(s>=140){sem='amarillo';icon='🟡';txt='Uso moderado — seguir de cerca';}
+    else if(s>=100){sem='amarillo';icon='🟡';txt='Uso normal';}
+    else{sem='verde';icon='🟢';txt='Cancha descansada';}
+    result[cid]={score:s,semaforo:sem,icono:icon,texto:txt,
+                 personas:Math.round(a.personas),horas:Math.round(a.horas),
+                 detalle:'Esta semana pisaron esta cancha '+Math.round(a.personas)+
+                         ' personas durante '+Math.round(a.horas)+' horas en total'};
+  });
+  return result;
+}
+
+function showIposPreview(ipos){
+  var el=document.getElementById('ipos-preview');
+  var grid=document.getElementById('ipos-grid');
+  if(!ipos||!Object.keys(ipos).length){el.style.display='none';return;}
+  el.style.display='block';
+  var sorted=Object.keys(ipos).sort(function(a,b){return ipos[b].score-ipos[a].score;});
+  grid.innerHTML=sorted.map(function(cid){
+    var d=ipos[cid];
+    return '<div class="ipos-row">'
+      +'<div class="ipos-icon">'+d.icono+'</div>'
+      +'<div class="ipos-body">'
+      +'<div class="ipos-cancha">'+cid.toUpperCase()+'</div>'
+      +'<div class="ipos-txt">'+d.detalle+'</div>'
+      +'</div></div>';
+  }).join('');
+}
+
+// ── ENTER key on PIN ──
+document.addEventListener('DOMContentLoaded', function(){
+  buildTable();
+  loadConfig();
+  var pi=document.getElementById('pin-input');
+  pi.addEventListener('keydown',function(e){
+    if(e.key==='Enter') window.verifyPin();
+  });
+});
+})();
+</script>
+</body>
+</html>
