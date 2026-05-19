@@ -59,6 +59,19 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
 .chk-item input[type=checkbox]{width:14px;height:14px;accent-color:var(--gold);flex-shrink:0}
 .chk-item.done{opacity:.45;text-decoration:line-through}
 
+/* ── FUNGAL RISK BANNER ── */
+.fung-banner{margin:8px 16px 4px;border-radius:var(--radius);padding:12px 14px;border:1px solid}
+.fung-banner.alto{background:rgba(224,82,82,.1);border-color:rgba(224,82,82,.45)}
+.fung-banner.medio{background:rgba(255,140,0,.08);border-color:rgba(255,140,0,.4)}
+.fung-tag{display:inline-flex;align-items:center;gap:5px;font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;padding:2px 7px;border-radius:3px;margin-bottom:5px}
+.fung-tag.alto{background:rgba(224,82,82,.2);color:var(--red)}
+.fung-tag.medio{background:rgba(255,140,0,.15);color:#ff8c00}
+.fung-title{font-size:13px;font-weight:700;color:var(--whi);line-height:1.35}
+.fung-sub{font-size:10px;color:var(--wdim);margin-top:3px}
+.fung-accion{font-size:11px;margin-top:6px;font-weight:600;color:var(--whi)}
+.fung-canchas{display:flex;gap:5px;margin-top:7px}
+.fung-cancha-pill{font-size:9px;font-weight:700;padding:2px 7px;border-radius:3px;background:rgba(255,255,255,.08);color:var(--wdim);letter-spacing:.08em;text-transform:uppercase}
+
 /* ── SCORE HERO ── */
 .score-hero{padding:18px 16px 14px;display:flex;align-items:center;gap:16px;border-bottom:1px solid rgba(255,255,255,.06)}
 .gauge-wrap{flex-shrink:0;position:relative;width:92px;height:92px}
@@ -136,6 +149,10 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
 .cancha-ndvi-diff{font-size:10px;font-weight:600}
 .cancha-ndvi-diff.up{color:var(--grn)}.cancha-ndvi-diff.down{color:var(--red)}.cancha-ndvi-diff.flat{color:var(--wdim)}
 .cancha-detail{font-size:10px;color:var(--wdim);margin-top:4px;line-height:1.4}
+.cancha-gndvi-row{display:flex;align-items:center;gap:6px;margin-top:2px}
+.cancha-gndvi{font-size:10px;color:var(--wdim)}
+.cancha-gndvi-val{font-size:10px;font-weight:700}
+.cancha-gndvi-val.ok{color:var(--grn)}.cancha-gndvi-val.borderline{color:var(--yel)}.cancha-gndvi-val.bajo{color:var(--red)}.cancha-gndvi-val.grave{color:var(--red)}
 
 /* ── WEATHER STRIP ── */
 .weather-outer{padding:10px 0 4px}
@@ -278,6 +295,9 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
 <div id="content">
   <!-- Match alert — canchero -->
   <div id="match-alert"></div>
+
+  <!-- Fungal risk banner — canchero -->
+  <div id="fungal-alert"></div>
 
   <!-- Exec summary — intendente -->
   <div id="exec-summary"></div>
@@ -513,12 +533,25 @@ function buildCanchasGrid(sectorData){
     var dCls=ndvDiff>0.01?'up':ndvDiff<-0.01?'down':'flat';
     var dSym=ndvDiff>0.01?'↑ +':ndvDiff<-0.01?'↓ ':'→ ';
     var dVal=Math.abs(ndvDiff).toFixed(2);
+    // GNDVI row
+    var gndviHtml='';
+    if(c.gndvi!=null){
+      var nst=c.n_status||'ok';
+      var gCls=nst==='ok'?'ok':nst==='borderline'?'borderline':'bajo';
+      if(nst==='grave') gCls='grave';
+      gndviHtml='<div class="cancha-gndvi-row">'
+        +'<span class="cancha-gndvi">GNDVI</span>'
+        +'<span class="cancha-gndvi-val '+gCls+'">'+c.gndvi.toFixed(2)+'</span>'
+        +(nst!=='ok'?'<span style="font-size:9px;color:var(--wdim)">— N '+nst+'</span>':'')
+        +'</div>';
+    }
     return '<div class="cancha-card'+(isCrit?' critica':'')+'"><div class="cancha-top">'
       +'<div class="cancha-name">'+c.nombre+'</div>'
       +'<div class="cancha-sem" style="background:'+col+'"></div></div>'
       +'<div class="cancha-score" style="color:'+col+'">'+c.score+'</div>'
       +'<div class="cancha-ndvi-row"><span class="cancha-ndvi">NDVI '+c.ndvi.toFixed(2)+'</span>'
       +'<span class="cancha-ndvi-diff '+dCls+'">'+dSym+dVal+'</span></div>'
+      +gndviHtml
       +'<div class="cancha-detail">'+c.detalle+'</div></div>';
   }).join('');
   document.getElementById('canchas-grid').innerHTML=html;
@@ -584,6 +617,24 @@ function buildWeatherCondensed(w){
   document.getElementById('weather-section').style.display='block';
   if(!w||!w.daily){ document.getElementById('weather-content').innerHTML='<div class="weather-loading">Clima no disponible</div>'; return; }
   buildWeatherStrip(w); // reuse same strip for intendente
+}
+
+/* ── FUNGAL RISK BANNER (canchero) ── */
+function buildFungalBanner(wl){
+  var rf=wl&&wl.riesgo_fungosis;
+  if(!rf||rf.nivel==='bajo'){document.getElementById('fungal-alert').innerHTML='';return;}
+  var cls=rf.nivel;
+  var label=rf.nivel==='alto'?'ALERTA FUNGOSIS':'RIESGO FUNGOSIS';
+  var canchas=(rf.canchas_en_riesgo||[]).map(function(c){
+    return '<div class="fung-cancha-pill">'+c.toUpperCase()+'</div>';
+  }).join('');
+  document.getElementById('fungal-alert').innerHTML=
+    '<div class="fung-banner '+cls+'">'
+    +'<div class="fung-tag '+cls+'">'+label+'</div>'
+    +'<div class="fung-title">'+(rf.enfermedad||'Hongos')+' — '+rf.descripcion+'</div>'
+    +'<div class="fung-accion">'+rf.accion_recomendada+'</div>'
+    +(canchas?'<div class="fung-canchas">Canchas en riesgo: '+canchas+'</div>':'')
+    +'</div>';
 }
 
 /* ── ET CARD (canchero) ── */
@@ -702,7 +753,26 @@ function buildSmartRecs(usuario, sectores, w, wl){
   else
     recs.push({icon:'✂️',text:'Cortar C2 y C4: miércoles a las '+corteHora+' hs (viento bajo, suelo firme). Altura: 28-30 mm.'});
 
-  if(c1&&c1.sem!=='verde') recs.push({icon:'🌱',text:'Fertilizar C2 esta semana: 20 kg N/ha uniforme. Sembrar C4 zona central (85 m²) el jueves.'});
+  // GNDVI-based nitrogen rec
+  if(wl&&wl.gndvi_por_cancha&&wl.gndvi_por_cancha.canchas){
+    var gc=wl.gndvi_por_cancha.canchas;
+    if(gc.c4&&gc.c4.n_status==='grave')
+      recs.push({icon:'🌿',text:'GNDVI C4='+gc.c4.gndvi+' — '+gc.c4.n_rec+'. Sembrar C4 zona central (85 m²) el jueves.'});
+    else if(gc.c3&&(gc.c3.n_status==='bajo'||gc.c3.n_status==='grave'))
+      recs.push({icon:'🌿',text:'GNDVI C3='+gc.c3.gndvi+' — '+gc.c3.n_rec+'. Fertilizar C2/C3 esta semana: 20 kg N/ha.'});
+    else if(c1&&c1.sem!=='verde')
+      recs.push({icon:'🌱',text:'Fertilizar C2: 20 kg N/ha uniforme. Sembrar C4 zona central (85 m²) el jueves.'});
+  } else if(c1&&c1.sem!=='verde'){
+    recs.push({icon:'🌱',text:'Fertilizar C2 esta semana: 20 kg N/ha uniforme. Sembrar C4 zona central (85 m²) el jueves.'});
+  }
+
+  // GDD-based days-to-cut
+  if(wl&&wl.gdd_rate_diario&&wl.dias_proximo_corte){
+    var dc=wl.dias_proximo_corte;
+    var gRate=wl.gdd_rate_diario;
+    if(dc<=3)
+      recs.push({icon:'✂️',text:'Cortar pronto — pasto creciendo ('+gRate+' GDD/día). Próximo corte en ~'+dc+' días.'});
+  }
 
   if(usuario.proximo_partido){
     var dias=getDaysUntil(usuario.proximo_partido.fecha);
@@ -919,6 +989,7 @@ function render(data){
 
   if(u.tipo==='canchero'){
     buildMatchAlert(u.proximo_partido);
+    buildFungalBanner(wl);
     buildCanchasGrid(allS['canchero']);
     buildEtCard(wl);
     buildTaskCalendar(u.tareas_semana);

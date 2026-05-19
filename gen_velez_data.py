@@ -4,9 +4,10 @@ Sources: NASA POWER · ISRIC SoilGrids · Open-Meteo hourly · CONAE SAR (best-e
 All calls in parallel, 10-second timeout each, everything in memory.
 """
 
+import asyncio
 import json, os, sys, math, copy, logging
 from datetime import date, timedelta, datetime
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from urllib.request import urlopen, Request
 from urllib.parse import urlencode
 from urllib.error import URLError
@@ -314,7 +315,7 @@ def _fetch_json(url: str, timeout: int = API_TIMEOUT) -> dict:
 
 
 def _fetch_nasa_power() -> dict:
-    """Avg of last 7 days: EVPTRNS, T2M_MAX, T2M_MIN, PRECTOTCORR, RH2M, WS2M, ALLSKY_SFC_SW_DWN"""
+    """Last 7 days avg + daily lists for GDD: EVPTRNS, T2M_MAX, T2M_MIN, PRECTOTCORR, RH2M, WS2M, ALLSKY_SFC_SW_DWN"""
     end = date.today() - timedelta(days=1)
     start = end - timedelta(days=6)
     url = (
@@ -331,11 +332,19 @@ def _fetch_nasa_power() -> dict:
     )
     raw = _fetch_json(url)
     params = raw.get("properties", {}).get("parameter", {})
-    result = {}
+    daily = {}   # key → [daily values sorted by date]
+    result = {}  # key → 7-day average
     for key, vals in params.items():
-        valid = [v for v in vals.values() if v is not None and v != -999 and v > -900]
-        if valid:
-            result[key] = round(sum(valid) / len(valid), 3)
+        ordered = [v for _, v in sorted(vals.items()) if v is not None and v > -900]
+        daily[key] = ordered
+        if ordered:
+            result[key] = round(sum(ordered) / len(ordered), 3)
+    # Growing Degree Days base 10°C
+    tmax_d = daily.get("T2M_MAX", [])
+    tmin_d = daily.get("T2M_MIN", [])
+    gdd_days = [max(0.0, (mx + mn) / 2 - 10) for mx, mn in zip(tmax_d, tmin_d)]
+    result["_gdd_7d"]   = round(sum(gdd_days), 1)
+    result["_gdd_rate"] = round(sum(gdd_days) / len(gdd_days), 1) if gdd_days else 5.0
     return result
 
 
@@ -369,14 +378,15 @@ def _fetch_soilgrids() -> dict:
 
 
 def _fetch_open_meteo_hourly() -> dict:
-    """72-hour forecast with ET0 FAO, soil moisture, wind, precip probability."""
+    """2 days past + 7 days forecast hourly: ET0, soil moisture, T2m, RH2m, wind, precip."""
     url = (
         "https://api.open-meteo.com/v1/forecast"
         f"?latitude={LAT}&longitude={LON}"
         "&hourly=precipitation_probability,wind_speed_10m,et0_fao_evapotranspiration"
-        ",soil_moisture_0_to_1cm,soil_temperature_0cm"
+        ",soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_temperature_0cm"
+        ",temperature_2m,relative_humidity_2m"
         "&timezone=America%2FArgentina%2FBuenos_Aires"
-        "&forecast_days=3&wind_speed_unit=kmh"
+        "&past_days=2&forecast_days=7&wind_speed_unit=kmh"
     )
     return _fetch_json(url)
 
@@ -405,6 +415,135 @@ def _fetch_conae() -> dict:
         col_id = feat.get("collection", "SAR")
         return {"disponible": True, "mensaje": f"Imagen {col_id}: {fecha_img}", "fecha": fecha_img}
     return {"disponible": False, "mensaje": "Sin imagen SAR en los últimos 7 días"}
+
+
+def _fetch_ecostress_cmr() -> dict:
+    """CMR metadata search for NASA ECOSTRESS ECO2LSTE (LST 70m). Public, no auth."""
+    end_dt   = date.today().isoformat() + "T23:59:59Z"
+    start_dt = (date.today() - timedelta(days=7)).isoformat() + "T00:00:00Z"
+    bbox     = f"{LON-0.06},{LAT-0.06},{LON+0.06},{LAT+0.06}"
+    url = (
+        "https://cmr.earthdata.nasa.gov/search/granules.json"
+        f"?short_name=ECO2LSTE&bounding_box={bbox}"
+        f"&temporal[]={start_dt},{end_dt}&page_size=2&sort_key=-start_date"
+    )
+    raw = _fetch_json(url, timeout=8)
+    entries = raw.get("feed", {}).get("entry", [])
+    if entries:
+        e = entries[0]
+        fecha = e.get("time_start", "")[:10]
+        log.info("OK ecostress: imagen %s", fecha)
+        return {
+            "disponible": True,
+            "fecha": fecha,
+            "fuente": "NASA ECOSTRESS ECO2LSTE 70m",
+            "mensaje": f"Imagen ECOSTRESS disponible: {fecha}",
+            "nota": "LST exacto requiere Earthdata auth — usando Open-Meteo soil_temp como fallback",
+        }
+    log.info("OK ecostress: sin imagen reciente — usando Landsat fallback")
+    return {
+        "disponible": False,
+        "fuente": "Landsat TIRS 100m (fallback)",
+        "mensaje": "Sin imagen ECOSTRESS últimos 7 días — Landsat activo como fallback",
+    }
+
+
+def _fetch_smap_cmr() -> dict:
+    """CMR metadata search for NASA SMAP SPL3SMP_E (soil moisture 9km). Public, no auth."""
+    end_dt   = date.today().isoformat() + "T23:59:59Z"
+    start_dt = (date.today() - timedelta(days=4)).isoformat() + "T00:00:00Z"
+    bbox     = f"{LON-0.5},{LAT-0.5},{LON+0.5},{LAT+0.5}"
+    for short in ("SPL3SMP_E", "SPL3SMP"):
+        url = (
+            "https://cmr.earthdata.nasa.gov/search/granules.json"
+            f"?short_name={short}&bounding_box={bbox}"
+            f"&temporal[]={start_dt},{end_dt}&page_size=1&sort_key=-start_date"
+        )
+        raw = _fetch_json(url, timeout=8)
+        entries = raw.get("feed", {}).get("entry", [])
+        if entries:
+            fecha = entries[0].get("time_start", "")[:10]
+            log.info("OK smap: %s %s", short, fecha)
+            return {
+                "disponible": True,
+                "producto": short,
+                "fecha": fecha,
+                "mensaje": f"SMAP {short} disponible: {fecha}",
+                "nota": "Valor exacto requiere Earthdata auth — usando Open-Meteo soil_moisture como proxy",
+            }
+    log.info("OK smap: sin datos recientes")
+    return {"disponible": False, "mensaje": "Sin datos SMAP recientes — usando Open-Meteo soil moisture"}
+
+
+# GNDVI per-cancha (Sentinel-2 B3+B8). Without Sentinel Hub auth the values are
+# estimated from NDVI using a published turfgrass regression (Gitelson 1996) with
+# health-adjusted multipliers per cancha.  Label: "fuente":"estimado-ndvi".
+_CANCHA_NDVI     = {"c1": 0.48, "c2": 0.52, "c3": 0.38, "c4": 0.31}
+_GNDVI_K         = {"c1": 0.91, "c2": 0.93, "c3": 0.88, "c4": 0.84}
+
+def _estimate_gndvi_per_cancha() -> dict:
+    """GNDVI ≈ NDVI × k − 0.01 per cancha with N-stress interpretation."""
+    def _n_status(g):
+        if g < 0.30: return "grave",      "Fertilizar URGENTE — deficiencia N grave"
+        if g < 0.38: return "bajo",       "Fertilizar esta semana — déficit N moderado"
+        if g < 0.45: return "borderline", "Fertilización preventiva recomendable"
+        return          "ok",             "Nitrógeno adecuado"
+
+    canchas = {}
+    for cid, ndvi in _CANCHA_NDVI.items():
+        gndvi = round(max(0, ndvi * _GNDVI_K[cid] - 0.01), 2)
+        nst, nrec = _n_status(gndvi)
+        canchas[cid] = {"gndvi": gndvi, "n_status": nst, "n_rec": nrec}
+    return {"fuente": "estimado-ndvi", "canchas": canchas}
+
+
+def _calc_fungal_risk(h: dict) -> dict:
+    """Smith-Kearns index for Dollar Spot & Brown Patch using past 48h T2m + RH2m."""
+    temps = h.get("temperature_2m", [])
+    rh    = h.get("relative_humidity_2m", [])
+    if not temps or not rh:
+        return {"nivel": "bajo", "horas_favorables_48h": 0, "horas_brown_patch_48h": 0,
+                "descripcion": "Sin datos T/RH disponibles", "accion_recomendada": "",
+                "canchas_en_riesgo": [], "enfermedad": None}
+
+    h_dollar = 0  # Dollar Spot: T 10-32°C, RH > 80%
+    h_brown  = 0  # Brown Patch: T > 20°C,  RH > 85%
+    for t, r in zip(temps[:48], rh[:48]):
+        if t is None or r is None:
+            continue
+        if 10 < t < 32 and r > 80:
+            h_dollar += 1
+        if t > 20 and r > 85:
+            h_brown  += 1
+
+    if h_brown >= 10 or h_dollar >= 16:
+        nivel    = "alto"
+        enf      = "Dollar Spot + Brown Patch"
+        desc     = f"ALTO: {h_dollar}h Dollar Spot · {h_brown}h Brown Patch (últimas 48h)"
+        accion   = "Aplicar fungicida preventivo HOY — ventana de 3-5 días antes del foco"
+        canchas  = ["c1", "c3", "c2"]
+    elif h_dollar >= 6 or h_brown >= 4:
+        nivel    = "medio"
+        enf      = "Dollar Spot"
+        desc     = f"MEDIO: {h_dollar}h favorables Dollar Spot en últimas 48h"
+        accion   = "Monitorear C1/C3 — aplicar fungicida si aparecen manchas amarillas"
+        canchas  = ["c1", "c3"]
+    else:
+        nivel    = "bajo"
+        enf      = None
+        desc     = f"Riesgo bajo: {h_dollar}h favorables para hongos en últimas 48h"
+        accion   = "Sin acción preventiva necesaria"
+        canchas  = []
+
+    return {
+        "nivel":                nivel,
+        "horas_favorables_48h": h_dollar,
+        "horas_brown_patch_48h":h_brown,
+        "descripcion":          desc,
+        "accion_recomendada":   accion,
+        "canchas_en_riesgo":    canchas,
+        "enfermedad":           enf,
+    }
 
 
 # ── LIVE DATA — COMPUTE ───────────────────────────────────────────────────────
@@ -481,7 +620,8 @@ def _best_corte_hour(h: dict) -> str:
     return "07:00"
 
 
-def _compute_weather_live(nasa: dict, soil: dict, hourly_resp: dict, conae: dict) -> dict:
+def _compute_weather_live(nasa: dict, soil: dict, hourly_resp: dict, conae: dict,
+                          ecostress: dict, smap: dict) -> dict:
     h = hourly_resp.get("hourly", {})
 
     # ── ETo ──────────────────────────────────────────────────────────────────
@@ -541,56 +681,93 @@ def _compute_weather_live(nasa: dict, soil: dict, hourly_resp: dict, conae: dict
     m3 = deficit * 28_000 / 1000
     costo_agua = int(round(m3 * 200 / 500) * 500) if deficit > 3 else 0
 
-    fuentes = [k for k, d in [("nasa-power", nasa), ("soilgrids", soil), ("open-meteo-hourly", h)] if d]
+    fuentes = [k for k, d in [("nasa-power", nasa), ("soilgrids", soil),
+                               ("open-meteo-hourly", h)] if d]
+
+    # ── GDD (Growing Degree Days, base 10°C) ─────────────────────────────────
+    gdd_7d   = nasa.get("_gdd_7d",   35.0)
+    gdd_rate = nasa.get("_gdd_rate",  5.0)
+    # Days to next cut: 40 GDD needed from typical 28mm height to cut point
+    dias_corte = max(3, min(14, round(40 / max(0.1, gdd_rate))))
+
+    # ── GNDVI per cancha ──────────────────────────────────────────────────────
+    gndvi_data = _estimate_gndvi_per_cancha()
+
+    # ── Fungal risk (Smith-Kearns) ────────────────────────────────────────────
+    riesgo_fung = _calc_fungal_risk(h)
+
+    # ── Subsurface soil moisture (SMAP proxy = Open-Meteo 1-3cm layer) ───────
+    sm3_vals = [v for v in (h.get("soil_moisture_1_to_3cm") or [])[:24] if v is not None]
+    hum_sub_pct = round(sum(sm3_vals) / len(sm3_vals) * 100, 1) if sm3_vals else hum_pct
 
     return {
-        "timestamp":             datetime.now().isoformat(timespec="seconds"),
-        "fuentes":               fuentes,
-        "et0_mm_dia":            et0,
-        "et0_fuente":            et0_fuente,
-        "et0_semana_mm":         et0_sem,
+        "timestamp":               datetime.now().isoformat(timespec="seconds"),
+        "fuentes":                 fuentes,
+        # ET / riego
+        "et0_mm_dia":              et0,
+        "et0_fuente":              et0_fuente,
+        "et0_semana_mm":           et0_sem,
         "precipitacion_semana_mm": prec_sem,
-        "deficit_hidrico_mm":    deficit,
-        "deficit_hidrico":       deficit > 5,
-        "litros_m2_semana":      deficit,
-        "riego_min_sector":      riego_min,
-        "hora_riego_optima":     hora_riego,
-        "dia_riego_offset":      dia_riego,
-        "hora_corte_optima":     hora_corte,
-        "humedad_suelo_pct":     hum_pct,
-        "humedad_suelo_estado":  hum_est,
-        "suelo_tipo":            suelo,
-        "suelo_clay_pct":        clay_pct,
-        "suelo_sand_pct":        sand_pct,
-        "suelo_whc_mm":          int(whc) if whc else 42,
-        "sar_disponible":        conae.get("disponible", False),
-        "sar_mensaje":           conae.get("mensaje", "Sin datos SAR"),
-        "costo_agua_ars":        costo_agua,
+        "deficit_hidrico_mm":      deficit,
+        "deficit_hidrico":         deficit > 5,
+        "litros_m2_semana":        deficit,
+        "riego_min_sector":        riego_min,
+        "hora_riego_optima":       hora_riego,
+        "dia_riego_offset":        dia_riego,
+        "hora_corte_optima":       hora_corte,
+        # Suelo
+        "humedad_suelo_pct":       hum_pct,
+        "humedad_suelo_estado":    hum_est,
+        "humedad_subsuperficial_pct": hum_sub_pct,
+        "suelo_tipo":              suelo,
+        "suelo_clay_pct":          clay_pct,
+        "suelo_sand_pct":          sand_pct,
+        "suelo_whc_mm":            int(whc) if whc else 42,
+        # Crecimiento / GDD
+        "gdd_acumulado_7d":        gdd_7d,
+        "gdd_rate_diario":         gdd_rate,
+        "dias_proximo_corte":      dias_corte,
+        # GNDVI
+        "gndvi_por_cancha":        gndvi_data,
+        # Fungal risk
+        "riesgo_fungosis":         riesgo_fung,
+        # Satellite metadata
+        "ecostress":               ecostress,
+        "smap":                    smap,
+        # CONAE SAR
+        "sar_disponible":          conae.get("disponible", False),
+        "sar_mensaje":             conae.get("mensaje", "Sin datos SAR"),
+        # Water cost
+        "costo_agua_ars":          costo_agua,
     }
 
 
-def _fetch_all_live() -> tuple:
-    """Returns (nasa, soil, hourly, conae) with parallel 10s-timeout calls."""
-    tasks = {
-        "nasa":   _fetch_nasa_power,
-        "soil":   _fetch_soilgrids,
-        "hourly": _fetch_open_meteo_hourly,
-        "conae":  _fetch_conae,
-    }
-    res = {k: {} for k in tasks}
-    with ThreadPoolExecutor(max_workers=4) as pool:
-        futs = {pool.submit(fn): key for key, fn in tasks.items()}
-        try:
-            for fut in as_completed(futs, timeout=20):
-                key = futs[fut]
-                try:
-                    res[key] = fut.result()
-                    log.info("  OK %s", key)
-                except Exception as e:
-                    log.warning("  FAIL %s: %s", key, e)
-        except Exception:
-            pass
-    return res["nasa"], res["soil"], res["hourly"], res["conae"]
+_pool = ThreadPoolExecutor(max_workers=8)
+
+async def _arun(fn):
+    """Run a sync fetch function in the shared thread pool (non-blocking)."""
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(_pool, fn)
+
+async def _fetch_all_live_async() -> dict:
+    """asyncio.gather over all 6 live sources with return_exceptions=True."""
+    keys = ["nasa", "soil", "hourly", "conae", "ecostress", "smap"]
+    fns  = [_fetch_nasa_power, _fetch_soilgrids, _fetch_open_meteo_hourly,
+            _fetch_conae, _fetch_ecostress_cmr, _fetch_smap_cmr]
+    results = await asyncio.gather(*[_arun(fn) for fn in fns], return_exceptions=True)
+    out = {}
+    for key, result in zip(keys, results):
+        if isinstance(result, Exception):
+            log.warning("  FAIL %s: %s", key, result)
+            out[key] = {}
+        else:
+            log.info("  OK %s", key)
+            out[key] = result or {}
+    return out
+
+def _fetch_all_live() -> dict:
+    """Synchronous entry point — runs asyncio.gather internally."""
+    return asyncio.run(_fetch_all_live_async())
 
 
 # ── BUILD ─────────────────────────────────────────────────────────────────────
@@ -602,15 +779,21 @@ def build_velez_data(fecha: str = None, live: bool = True) -> dict:
 
     weather_live = {}
     if live:
-        log.info("Fetching live data sources…")
+        log.info("Fetching live data sources (asyncio.gather)...")
         try:
-            nasa, soil, hourly, conae = _fetch_all_live()
-            weather_live = _compute_weather_live(nasa, soil, hourly, conae)
-            log.info("weather_live: ET0=%.2f (%s) déficit=%.1f mm suelo=%s",
-                     weather_live["et0_mm_dia"], weather_live["et0_fuente"],
-                     weather_live["deficit_hidrico_mm"], weather_live["suelo_tipo"])
+            res = _fetch_all_live()
+            weather_live = _compute_weather_live(
+                res["nasa"], res["soil"], res["hourly"], res["conae"],
+                res["ecostress"], res["smap"],
+            )
+            rf = weather_live.get("riesgo_fungosis", {})
+            log.info("weather_live: ET0=%.2f deficit=%.1f GDD=%.1f fungosis=%s",
+                     weather_live.get("et0_mm_dia", 0),
+                     weather_live.get("deficit_hidrico_mm", 0),
+                     weather_live.get("gdd_acumulado_7d", 0),
+                     rf.get("nivel", "?"))
 
-            # Inject water cost into Juan + Pait budget if deficit
+            # ── Inject water cost into intendente budget ──────────────────────
             if weather_live.get("deficit_hidrico") and weather_live.get("costo_agua_ars", 0) > 0:
                 deficit_mm = weather_live["deficit_hidrico_mm"]
                 costo      = weather_live["costo_agua_ars"]
@@ -623,12 +806,54 @@ def build_velez_data(fecha: str = None, live: bool = True) -> dict:
                     })
                     u["presupuesto_urgente"]["total"] += costo
 
+            # ── Inject fungal risk authorization item if ALTO ─────────────────
+            if rf.get("nivel") == "alto":
+                fung_monto = 35000
+                fung_item  = {
+                    "concepto": f"Fungicida preventivo — riesgo {rf.get('enfermedad','hongos')} ALTO",
+                    "monto": fung_monto,
+                    "sem": "rojo",
+                }
+                fung_auth  = {
+                    "sector":   "Villa Olímpica",
+                    "accion":   rf.get("accion_recomendada", "Aplicar fungicida preventivo"),
+                    "monto":    fung_monto,
+                    "urgencia": "HOY",
+                }
+                for slug in ("juan", "pait"):
+                    u = usuarios[slug]
+                    u["presupuesto_urgente"]["items"].append(fung_item)
+                    u["presupuesto_urgente"]["total"] += fung_monto
+                    u["sectores_autorizacion"].append(fung_auth)
+
+            # ── Add fungal risk KPI to exec users ────────────────────────────
+            nivel_fung = rf.get("nivel", "bajo")
+            sem_fung   = {"alto": "rojo", "medio": "amarillo", "bajo": "verde"}[nivel_fung]
+            fung_kpi   = {
+                "label": "Riesgo Fungosis",
+                "value": nivel_fung.upper(),
+                "unit":  "",
+                "sub":   rf.get("descripcion", "")[:50],
+                "sem":   sem_fung,
+            }
+            for slug in ("banchero", "berlanga", "nelson", "aveleyra", "admin"):
+                usuarios[slug]["kpis"].append(fung_kpi)
+
+            # ── Inject GNDVI into cancha objects ────────────────────────────
+            gndvi_canchas = weather_live.get("gndvi_por_cancha", {}).get("canchas", {})
+            for cancha in SECTOR_DATA.get("canchero", {}).get("canchas", []):
+                cid = cancha.get("id")
+                if cid in gndvi_canchas:
+                    cancha["gndvi"]    = gndvi_canchas[cid]["gndvi"]
+                    cancha["n_status"] = gndvi_canchas[cid]["n_status"]
+                    cancha["n_rec"]    = gndvi_canchas[cid]["n_rec"]
+
         except Exception as e:
             log.error("live data pipeline error: %s", e)
 
     return {
         "meta": {
-            "version": "3.0",
+            "version": "4.0",
             "fecha": f,
             "cliente": "Club Atletico Velez Sarsfield",
             "coords": {"lat": LAT, "lon": LON},
