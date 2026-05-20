@@ -771,18 +771,18 @@ function buildSmartRecs(usuario, sectores, w, wl, cfg){
     }
   }
 
-  var c4=canchas.filter(function(c){return c.id==='c4';})[0];
-  var c3=canchas.filter(function(c){return c.id==='c3';})[0];
-  var c1=canchas.filter(function(c){return c.id==='c1';})[0];
+  var c4=canchas.filter(function(c){return c.id==='1fa';})[0];
+  var c3=canchas.filter(function(c){return c.id==='8fa';})[0];
+  var c1=canchas.filter(function(c){return c.id==='3fa';})[0];
 
   if(c4&&c4.sem==='rojo'){
     var vc4=cfg?findMejorVentana('1fa',cfg):null;
-    if(windyToday) recs.push({icon:'🧴',text:'No aplicar fungicida C4 hoy — viento >25 km/h. Reprogramar para mañana temprano.',window:vc4});
-    else           recs.push({icon:'🧴',text:'Fungicida C4 HOY: zona central y lateral sur. No esperar — foco activo confirmado.',window:vc4});
+    if(windyToday) recs.push({icon:'🧴',text:'No aplicar fungicida 1FA hoy — viento >25 km/h. Reprogramar para mañana temprano.',window:vc4});
+    else           recs.push({icon:'🧴',text:'Fungicida 1FA HOY: zona central y lateral sur. No esperar — foco activo confirmado.',window:vc4});
   }
   if(c3&&c3.sem==='rojo'){
     var vc3=cfg?findMejorVentana('8fa',cfg):null;
-    recs.push({icon:'🧴',text:'Fungicida C3: aplicar antes del martes — focos activos en manchas laterales.',window:vc3});
+    recs.push({icon:'🧴',text:'Fungicida 8FA: aplicar antes del martes — focos activos en manchas laterales.',window:vc3});
   }
 
   // ET-based irrigation recommendation (uses pre-computed weather_live from JSON)
@@ -795,18 +795,18 @@ function buildSmartRecs(usuario, sectores, w, wl, cfg){
     var rdLabel=dOff===0?'HOY':dOff===1?'mañana temprano':DIAS_ES[rdObj.getDay()];
     var riegoHora=wl.hora_riego_optima||'06:00', riegoMin=wl.riego_min_sector||25;
     if(et>4&&wl.deficit_hidrico){
-      recs.push({icon:'💧',text:'RIEGO URGENTE — mucha agua perdida ('+et+' mm/día, le falta '+def+' L/m² al suelo). Regar C3 y C4 '+rdLabel+' a las '+riegoHora+' hs · '+riegoMin+' min/sector.',window:riegoWin});
+      recs.push({icon:'💧',text:'RIEGO URGENTE — mucha agua perdida ('+et+' mm/día, le falta '+def+' L/m² al suelo). Regar 8FA y 1FA '+rdLabel+' a las '+riegoHora+' hs · '+riegoMin+' min/sector.',window:riegoWin});
     } else if(et<2){
       recs.push({icon:'💧',text:'Poca agua perdida ('+et+' mm/día) — posponer riego esta semana. Evaluar el próximo jueves.'});
     } else if(wl.deficit_hidrico){
-      recs.push({icon:'💧',text:'Regar C3 y C4 '+rdLabel+' a las '+riegoHora+' hs — viento bajo, sin lluvia prevista · le falta '+def+' mm · '+riegoMin+' min/sector.',window:riegoWin});
+      recs.push({icon:'💧',text:'Regar 8FA y 1FA '+rdLabel+' a las '+riegoHora+' hs — viento bajo, sin lluvia prevista · le falta '+def+' mm · '+riegoMin+' min/sector.',window:riegoWin});
     } else if(soilWet){
       recs.push({icon:'💧',text:'Posponer riego — suelo húmedo y ET normal ('+et+' mm/día). Evaluar el jueves.'});
     } else {
       recs.push({icon:'💧',text:'Riego según programa semanal — ET '+et+' mm/día. Óptimo: '+rdLabel+' '+riegoHora+' hs.',window:riegoWin});
     }
   } else if(!soilWet&&rainDays.length===0){
-    recs.push({icon:'💧',text:'Regar C3 y C4: martes y jueves, 25 min por sector. Suelo seco — riego necesario.',window:riegoWin});
+    recs.push({icon:'💧',text:'Regar 8FA y 1FA: martes y jueves, 25 min por sector. Suelo seco — riego necesario.',window:riegoWin});
   } else if(soilWet){
     recs.push({icon:'💧',text:'Posponer riego general — suelo húmedo. Evaluar el jueves.'});
   } else if(rainDays.length>0){
@@ -820,19 +820,19 @@ function buildSmartRecs(usuario, sectores, w, wl, cfg){
   if(rainTomorrow)
     recs.push({icon:'✂️',text:'Cortar hoy temprano (antes de las 10 hs) — lluvia prevista mañana. No cortar con pasto húmedo.',window:corteWin});
   else
-    recs.push({icon:'✂️',text:'Cortar C2 y C4: miércoles a las '+corteHora+' hs (viento bajo, suelo firme). Altura: 28-30 mm.',window:corteWin});
+    recs.push({icon:'✂️',text:'Cortar 2FA y 1FA: miércoles a las '+corteHora+' hs (viento bajo, suelo firme). Altura: 28-30 mm.',window:corteWin});
 
   // GNDVI-based nitrogen rec
   if(wl&&wl.gndvi_por_cancha&&wl.gndvi_por_cancha.canchas){
     var gc=wl.gndvi_por_cancha.canchas;
-    if(gc.c4&&gc.c4.n_status==='grave')
-      recs.push({icon:'🌿',text:'Nitrógeno C4 muy bajo — '+gc.c4.n_rec+'. Sembrar C4 zona central (85 m²) el jueves.'});
-    else if(gc.c3&&(gc.c3.n_status==='bajo'||gc.c3.n_status==='grave'))
-      recs.push({icon:'🌿',text:'Nitrógeno C3 bajo — '+gc.c3.n_rec+'. Fertilizar C2/C3 esta semana: 20 kg N/ha.'});
+    if(gc['1fa']&&gc['1fa'].n_status==='grave')
+      recs.push({icon:'🌿',text:'Nitrógeno 1FA muy bajo — '+gc['1fa'].n_rec+'. Sembrar 1FA zona central (85 m²) el jueves.'});
+    else if(gc['8fa']&&(gc['8fa'].n_status==='bajo'||gc['8fa'].n_status==='grave'))
+      recs.push({icon:'🌿',text:'Nitrógeno 8FA bajo — '+gc['8fa'].n_rec+'. Fertilizar 2FA/8FA esta semana: 20 kg N/ha.'});
     else if(c1&&c1.sem!=='verde')
-      recs.push({icon:'🌱',text:'Fertilizar C2: 20 kg N/ha uniforme. Sembrar C4 zona central (85 m²) el jueves.'});
+      recs.push({icon:'🌱',text:'Fertilizar 2FA: 20 kg N/ha uniforme. Sembrar 1FA zona central (85 m²) el jueves.'});
   } else if(c1&&c1.sem!=='verde'){
-    recs.push({icon:'🌱',text:'Fertilizar C2 esta semana: 20 kg N/ha uniforme. Sembrar C4 zona central (85 m²) el jueves.'});
+    recs.push({icon:'🌱',text:'Fertilizar 2FA esta semana: 20 kg N/ha uniforme. Sembrar 1FA zona central (85 m²) el jueves.'});
   }
 
   // GDD-based days-to-cut

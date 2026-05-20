@@ -70,6 +70,18 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
 .ipos-body{flex:1;min-width:0}
 .ipos-cancha{font-size:11px;font-weight:700}
 .ipos-txt{font-size:10px;color:var(--wdim);line-height:1.4;margin-top:2px}
+
+/* Exposición solar */
+.solar-block{margin:10px 16px;background:var(--bg2);border-radius:var(--radius);border:1px solid rgba(255,255,255,.06);overflow:hidden}
+.solar-loc-title{font-size:12px;font-weight:700;color:var(--whi);padding:10px 12px 6px}
+.solar-stats{display:flex;gap:6px;padding:0 12px 10px;flex-wrap:wrap}
+.solar-stat{display:flex;align-items:center;gap:4px;font-size:9px;background:var(--bg3);padding:3px 8px;border-radius:4px;white-space:nowrap}
+.solar-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.solar-dot.plena{background:#4cad72}
+.solar-dot.parcial{background:#e0b84c}
+.solar-dot.permanente{background:#e05252}
+.solar-img{width:100%;display:block;background:#000;border-top:1px solid rgba(255,255,255,.06)}
+.solar-note{font-size:9px;color:var(--wdim);padding:6px 12px 10px;line-height:1.5}
 </style>
 </head>
 <body>
@@ -114,6 +126,11 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
   <div id="ipos-preview" style="display:none">
     <div class="section" style="margin-top:8px">Presión de Uso — Semana calculada</div>
     <div class="ipos-grid" id="ipos-grid"></div>
+  </div>
+
+  <div id="solar-section" style="display:none">
+    <div class="section" style="margin-top:8px">Exposición Solar — Análisis Histórico</div>
+    <div id="solar-grid"></div>
   </div>
 
   <div style="height:70px"></div>
@@ -392,10 +409,43 @@ function showIposPreview(ipos){
   }).join('');
 }
 
+// ── Shadow / solar exposure ──
+async function loadShadowMaps(){
+  try{
+    var r = await fetch('../velez_data.json');
+    if(!r.ok) return;
+    var data = await r.json();
+    var sm = data && data.shadow_maps;
+    if(!sm) return;
+    var LOCS = [
+      {id:'amalfitani', png:'../heatmaps/heatmap_amalfitani_shadow.png'},
+      {id:'1fp',        png:'../heatmaps/heatmap_1fp_shadow.png'},
+      {id:'2fp',        png:'../heatmaps/heatmap_2fp_shadow.png'},
+    ];
+    var grid = document.getElementById('solar-grid');
+    grid.innerHTML = LOCS.filter(function(l){return sm[l.id];}).map(function(l){
+      var d = sm[l.id];
+      var plena = Math.max(0, 100 - d.sombra_permanente_pct - d.sombra_parcial_pct).toFixed(0);
+      return '<div class="solar-block">'
+        +'<div class="solar-loc-title">'+d.label+'</div>'
+        +'<div class="solar-stats">'
+        +'<div class="solar-stat"><div class="solar-dot plena"></div>Plena: '+plena+'%</div>'
+        +'<div class="solar-stat"><div class="solar-dot parcial"></div>Parcial: '+d.sombra_parcial_pct+'%</div>'
+        +'<div class="solar-stat"><div class="solar-dot permanente"></div>Permanente: '+d.sombra_permanente_pct+'%</div>'
+        +'</div>'
+        +'<img class="solar-img" src="'+l.png+'" alt="Mapa sombras" loading="lazy">'
+        +'<div class="solar-note">'+d.imagenes_analizadas+' imágenes Sentinel-2 · '+d.periodo_analisis+' · '+d.resolucion_m+'m/px</div>'
+        +'</div>';
+    }).join('');
+    if(grid.innerHTML) document.getElementById('solar-section').style.display='block';
+  } catch(e){ console.warn('Shadow maps:', e); }
+}
+
 // ── ENTER key on PIN ──
 document.addEventListener('DOMContentLoaded', function(){
   buildTable();
   loadConfig();
+  loadShadowMaps();
   var pi=document.getElementById('pin-input');
   pi.addEventListener('keydown',function(e){
     if(e.key==='Enter') window.verifyPin();
