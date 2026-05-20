@@ -14,6 +14,8 @@ from urllib.error import URLError
 
 import requests as _req
 
+import ndvi_real
+
 log = logging.getLogger(__name__)
 
 LAT, LON, ELEV_M = -34.6375, -58.5215, 25
@@ -382,6 +384,12 @@ def run_refresh() -> dict:
         weather = compute_weather_live(
             raw["nasa"], raw["soil"], raw["hourly"], raw["ecostress"], raw["smap"]
         )
+        try:
+            ndvi_data = ndvi_real.fetch_ndvi()
+            if ndvi_data:
+                weather["gndvi_por_cancha"] = ndvi_data
+        except Exception as _ndvi_err:
+            log.warning("ndvi_real (non-fatal): %s", _ndvi_err)
         commit_url = push_weather_update(weather)
         rf = weather.get("riesgo_fungosis", {})
         ts = weather["timestamp"]
