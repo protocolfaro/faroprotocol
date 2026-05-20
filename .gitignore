@@ -36,3 +36,8 @@ patch_*.py
 
 # Verification screenshots — never commit
 velez/screenshots/
+
+# Pitch/demo PNGs — kept locally, not in repo
+faro_cert_*.png
+faro_report_*.png
+faro_reporte_fusion_*.png
