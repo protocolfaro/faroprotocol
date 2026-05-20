@@ -20,3 +20,19 @@ firebase-service-account.json
 *-firebase-adminsdk-*.json
 accounts.json
 .claude/
+
+# Local-only scripts with credentials
+setup_railway*.py
+patch_*.py
+
+# Generated/temp local output folders
+/outputs/
+/logs/
+/cache/
+/datos/
+/artifacts/
+/archive/
+*.tmp
+
+# Verification screenshots — never commit
+velez/screenshots/
