@@ -1,6 +1,6 @@
 """
 app.py — Flask backend: Vélez IPOS + heatmap pipeline + daily weather refresh
-Faro Protocol · Railway-ready
+Faro Protocol · Railway-ready · v2026-05-20
 """
 from __future__ import annotations
 import hashlib, logging, os, traceback
@@ -87,13 +87,25 @@ def horarios():
     except Exception as e:
         log.error(traceback.format_exc()); cfg_url = f"ERROR:{e}"
 
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    vd_url = ""
+    try:
+        vd_url = github_push.push_velez_data(ipos_results, ts)
+        log.info("velez_data.json updated: %s", vd_url)
+    except EnvironmentError:
+        pass
+    except Exception as e:
+        log.error("push_velez_data failed: %s", traceback.format_exc())
+        vd_url = f"ERROR:{e}"
+
     return jsonify({
         "status": "ok",
         "semana": semana,
         "ipos": ipos_results,
         "heatmaps": hm_urls,
         "config_commit": cfg_url,
-        "generado_en": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "velez_data_commit": vd_url,
+        "generado_en": ts,
     })
 
 

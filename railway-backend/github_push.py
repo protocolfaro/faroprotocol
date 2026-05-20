@@ -8,11 +8,12 @@ from datetime import datetime, timezone
 import requests
 
 log = logging.getLogger(__name__)
-API   = "https://api.github.com"
-OWNER = "protocolfaro"
-REPO  = "faroprotocol"
-BRANCH = "main"
+API      = "https://api.github.com"
+OWNER    = "protocolfaro"
+REPO     = "faroprotocol"
+BRANCH   = "main"
 CFG_PATH = "velez/config_velez.json"
+VD_PATH  = "velez/velez_data.json"
 HM_DIR   = "velez/heatmaps"
 
 def _token():
@@ -65,6 +66,52 @@ def push_heatmaps(png_bytes: dict, semana_label: str, ipos: dict) -> dict:
         urls[cid] = (resp.get("content",{}).get("html_url") or
                      f"https://github.com/{OWNER}/{REPO}/blob/{BRANCH}/{path}")
     return urls
+
+def _ipos_to_health(ipos_score: float, semaforo: str) -> int:
+    """Convert IPOS usage load → 0-100 health score (inverse: higher load = lower health)."""
+    if semaforo == "verde":
+        return max(80, round(100 - ipos_score * 0.22))
+    elif semaforo == "amarillo":
+        return max(55, round(80 - (ipos_score - 90) * 0.25))
+    return max(10, round(55 - (ipos_score - 200) * 0.14))
+
+
+def push_velez_data(ipos: dict, ts: str) -> str:
+    """Update sectores.canchero.canchas + updated_at in velez_data.json from IPOS results."""
+    r = requests.get(f"{API}/repos/{OWNER}/{REPO}/contents/{VD_PATH}",
+                     headers=_hdrs(), params={"ref": BRANCH}, timeout=15)
+    if r.status_code != 200:
+        raise RuntimeError(f"velez_data.json fetch failed: {r.status_code}")
+    d = r.json()
+    existing_sha = d["sha"]
+    vd = json.loads(base64.b64decode(d["content"]).decode())
+
+    canchas = vd.get("sectores", {}).get("canchero", {}).get("canchas", [])
+    for cancha in canchas:
+        cid = cancha.get("id", "")
+        if cid in ipos:
+            ip = ipos[cid]
+            sem = ip.get("semaforo", "verde")
+            score_new = _ipos_to_health(float(ip.get("score", 0)), sem)
+            cancha["score_prev"] = cancha.get("score", score_new)
+            cancha["score"]      = score_new
+            cancha["sem"]        = sem
+            cancha["detalle"]    = (f"{ip.get('texto', '')} · "
+                                    f"{ip.get('personas', 0)} pers · {ip.get('horas', 0)}h")
+        else:
+            cancha["score_prev"] = cancha.get("score", 100)
+            cancha["score"]      = 100
+            cancha["sem"]        = "verde"
+            cancha["detalle"]    = "Sin actividad esta semana — cancha descansada"
+
+    vd["updated_at"] = ts
+
+    data = json.dumps(vd, ensure_ascii=False, indent=2).encode()
+    msg  = f"ipos sync velez_data — canchas + updated_at [{ts}]"
+    resp = _put(VD_PATH, data, msg, existing_sha)
+    return (resp.get("commit", {}).get("html_url") or
+            f"https://github.com/{OWNER}/{REPO}/blob/{BRANCH}/{VD_PATH}")
+
 
 def push_config(ipos: dict, semana_label: str, semana_info: dict,
                 verify_hashes: dict, sessions: list) -> str:
