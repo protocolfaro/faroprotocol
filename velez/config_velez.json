@@ -653,5 +653,93 @@
       "semaforo": "verde",
       "fecha_generacion": "2026-05-19T19:48:32Z"
     }
+  },
+  "canchas_coords": {
+    "_fuente": "Plano NUMERACION DE CANCHAS 2024.pdf — escala anclada en acceso Calle Dardo Cabo. Precision ±50-100m, verificar con GPS en campo.",
+    "_sistema": "WGS84 — lat/lon centro de cancha",
+    "1fa": {
+      "lat": -34.6355,
+      "lon": -58.522,
+      "zona": "oeste",
+      "orientacion": "diagonal ~15deg",
+      "dim_m": "105x68"
+    },
+    "2fa": {
+      "lat": -34.6355,
+      "lon": -58.5209,
+      "zona": "oeste",
+      "orientacion": "diagonal ~15deg",
+      "dim_m": "105x68"
+    },
+    "3fa": {
+      "lat": -34.6359,
+      "lon": -58.5188,
+      "zona": "central",
+      "orientacion": "rotada ~40deg",
+      "dim_m": "105x68"
+    },
+    "4fa": {
+      "lat": -34.6353,
+      "lon": -58.519,
+      "zona": "central",
+      "orientacion": "rotada ~40deg",
+      "dim_m": "105x68"
+    },
+    "5fa": {
+      "lat": -34.6366,
+      "lon": -58.5182,
+      "zona": "este",
+      "orientacion": "norte-sur",
+      "dim_m": "105x68"
+    },
+    "6fa": {
+      "lat": -34.636,
+      "lon": -58.5174,
+      "zona": "este",
+      "orientacion": "norte-sur",
+      "dim_m": "105x68"
+    },
+    "7fa": {
+      "lat": -34.636,
+      "lon": -58.5167,
+      "zona": "este",
+      "orientacion": "norte-sur",
+      "dim_m": "105x68"
+    },
+    "8fa": {
+      "lat": -34.6359,
+      "lon": -58.516,
+      "zona": "este",
+      "orientacion": "norte-sur",
+      "dim_m": "105x68"
+    },
+    "9fa": {
+      "lat": -34.6355,
+      "lon": -58.5162,
+      "zona": "este",
+      "orientacion": "norte-sur",
+      "dim_m": "105x68"
+    },
+    "10fa": {
+      "lat": -34.6357,
+      "lon": -58.5149,
+      "zona": "este",
+      "orientacion": "norte-sur",
+      "dim_m": "105x68"
+    },
+    "1fp": {
+      "lat": -34.6366,
+      "lon": -58.5213,
+      "zona": "sur-oeste",
+      "orientacion": "horizontal",
+      "dim_m": "105x70"
+    },
+    "2fp": {
+      "lat": -34.6366,
+      "lon": -58.5202,
+      "zona": "sur-oeste",
+      "orientacion": "horizontal",
+      "dim_m": "105x70"
+    }
   }
 }

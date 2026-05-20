@@ -2,6 +2,9 @@
 ndvi_real.py — Real Sentinel-2 NDVI via Microsoft Planetary Computer.
 Windowed COG read: fetches only the exact pixels of each cancha.
 No auth required for public STAC access. Called from data_refresh.run_refresh().
+
+Cancha coordinates derived from architectural plan "NUMERACION DE CANCHAS 2024.pdf".
+Scale anchored at Acceso Calle Dardo Cabo. Accuracy ±50-100m — refine with GPS survey.
 """
 from __future__ import annotations
 import logging
@@ -20,28 +23,42 @@ def _bbox(lat: float, lon: float, w_m: float = 105, h_m: float = 68, buf_m: floa
     return (lon - dlon, lat - dlat, lon + dlon, lat + dlat)
 
 
-# Villa Olímpica cluster center — canchas 1FA-10FA
-_VO_LAT, _VO_LON = -34.6375, -58.5215
-_ROW = 120 * _DEG_PER_M_LAT   # ~0.00108° N→S between cancha centers
-_COL = 120 * _DEG_PER_M_LON   # ~0.00132° E→W between cancha centers
+# ── Cancha centers — derived from plano "NUMERACION DE CANCHAS 2024" ─────────
+#
+# Layout (NOT a simple grid):
+#
+#  [General de la Guitarra]          [Dardo Cabo]
+#   1FA  2FA    [4FA]                6FA  9FA
+#                 [3FA]       5FA    7FA
+#   1FP  2FP               [asfalt]  8FA  10FA
+#  [═══════════ Camino del Buen Ayre ═════════════]
+#
+# Zones:
+#  WEST  — 1FA, 2FA: large angled fields (~15° rotation), near Gral. de la Guitarra
+#  SW    — 1FP, 2FP: full-size primer equipo pitches, horizontal, south of west block
+#  CENTER— 3FA, 4FA: significantly rotated (~40°), near Dardo Cabo entrance
+#  EAST  — 5FA (isolated south), 6FA/7FA/8FA (column), 9FA/10FA (upper-right)
 
-# Primer equipo / Amalfitani
-_PE_LAT, _PE_LON = -34.6358, -58.5224
-
-# Per-cancha bounding boxes (WGS84). Grid: 5 rows × 2 cols for Villa Olímpica.
 CANCHA_BBOXES: dict[str, tuple] = {
-    "1fa":  _bbox(_VO_LAT,           _VO_LON),
-    "2fa":  _bbox(_VO_LAT,           _VO_LON + _COL),
-    "3fa":  _bbox(_VO_LAT - _ROW,    _VO_LON),
-    "4fa":  _bbox(_VO_LAT - _ROW,    _VO_LON + _COL),
-    "5fa":  _bbox(_VO_LAT - 2*_ROW,  _VO_LON),
-    "6fa":  _bbox(_VO_LAT - 2*_ROW,  _VO_LON + _COL),
-    "7fa":  _bbox(_VO_LAT - 3*_ROW,  _VO_LON),
-    "8fa":  _bbox(_VO_LAT - 3*_ROW,  _VO_LON + _COL),
-    "9fa":  _bbox(_VO_LAT - 4*_ROW,  _VO_LON),
-    "10fa": _bbox(_VO_LAT - 4*_ROW,  _VO_LON + _COL),
-    "1fp":  _bbox(_PE_LAT,           _PE_LON),
-    "2fp":  _bbox(_PE_LAT,           _PE_LON + _COL),
+    # WEST block — diagonal orientation, near General de la Guitarra
+    "1fa":  _bbox(-34.6355, -58.5220),   # westernmost, larger field
+    "2fa":  _bbox(-34.6355, -58.5209),   # adjacent east of 1FA
+
+    # SW — Primer Equipo full-size pitches (south of west block)
+    "1fp":  _bbox(-34.6366, -58.5213, w_m=105, h_m=70),
+    "2fp":  _bbox(-34.6366, -58.5202, w_m=105, h_m=70),
+
+    # CENTER — rotated ~40°, near Dardo Cabo (use larger buffer for rotation)
+    "4fa":  _bbox(-34.6353, -58.5190, buf_m=18),   # upper of rotated pair
+    "3fa":  _bbox(-34.6359, -58.5188, buf_m=18),   # lower of rotated pair
+
+    # EAST — right section
+    "5fa":  _bbox(-34.6366, -58.5182),   # isolated, south of east block
+    "6fa":  _bbox(-34.6360, -58.5174),   # east block, leftmost column
+    "7fa":  _bbox(-34.6360, -58.5167),   # east block, center column
+    "8fa":  _bbox(-34.6359, -58.5160),   # east block, right column
+    "9fa":  _bbox(-34.6355, -58.5162),   # east block, upper row
+    "10fa": _bbox(-34.6357, -58.5149),   # far east
 }
 
 # Cluster bbox covering all canchas for STAC search
