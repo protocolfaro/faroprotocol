@@ -1171,7 +1171,7 @@ function buildHorarioGrid(cfg){
 }
 
 /* ── HEATMAP SECTION ── */
-function buildHeatmapSection(u, cfg){
+function buildHeatmapSection(u, cfg, shadowMaps){
   var hmData=u.heatmaps;
   if(!hmData) return;
   var el=document.getElementById('heatmap-section');
@@ -1185,9 +1185,10 @@ function buildHeatmapSection(u, cfg){
   });
 
   var sectors=[
-    {id:'vo',    label:'Villa Olímpica', hasSubs:true},
-    {id:'amalf', label:'Amalfitani',     hasSubs:false},
-    {id:'poli',  label:'Polideportivo',  hasSubs:false},
+    {id:'vo',    label:'Villa Olímpica',   hasSubs:true},
+    {id:'amalf', label:'Amalfitani',       hasSubs:false},
+    {id:'poli',  label:'Polideportivo',    hasSubs:false},
+    {id:'solar', label:'Exposición Solar', hasSubs:false},
   ];
 
   var curSec='vo', curSub=voSubs[0]||'1fa';
@@ -1198,7 +1199,37 @@ function buildHeatmapSection(u, cfg){
     return hmData[sub]||{};
   }
 
+  function renderSolar(){
+    var LOCS=[
+      {id:'amalfitani', png:'heatmaps/heatmap_amalfitani_shadow.png'},
+      {id:'1fp',        png:'heatmaps/heatmap_1fp_shadow.png'},
+      {id:'2fp',        png:'heatmaps/heatmap_2fp_shadow.png'},
+    ];
+    if(!shadowMaps){
+      document.getElementById('hm-img-wrap').innerHTML='<div style="padding:16px;font-size:11px;color:var(--wdim)">Análisis de sombras no disponible — ejecutá shadow_analysis.py</div>';
+      document.getElementById('hm-meta').innerHTML='';
+      return;
+    }
+    var dot=function(col){return '<span style="width:6px;height:6px;border-radius:50%;background:'+col+';display:inline-block;flex-shrink:0"></span>';};
+    var pill=function(color,label,val){return '<span style="font-size:9px;background:var(--bg3);padding:2px 7px;border-radius:4px;display:flex;align-items:center;gap:3px">'+dot(color)+label+': '+val+'%</span>';};
+    var html=LOCS.filter(function(l){return shadowMaps[l.id];}).map(function(l){
+      var d=shadowMaps[l.id];
+      var plena=Math.max(0,100-d.sombra_permanente_pct-d.sombra_parcial_pct).toFixed(0);
+      return '<div style="margin-bottom:10px;background:var(--bg2);border-radius:8px;border:1px solid rgba(255,255,255,.06);overflow:hidden">'
+        +'<div style="padding:9px 12px 5px;font-size:11px;font-weight:700">'+d.label+'</div>'
+        +'<div style="display:flex;gap:5px;padding:0 12px 8px;flex-wrap:wrap">'
+        +pill('#4cad72','Plena',plena)+pill('#e0b84c','Parcial',d.sombra_parcial_pct)+pill('#e05252','Permanente',d.sombra_permanente_pct)
+        +'</div>'
+        +'<img style="width:100%;display:block;background:#000;border-top:1px solid rgba(255,255,255,.06)" src="'+l.png+'" alt="Sombras '+d.label+'" loading="lazy">'
+        +'<div style="font-size:9px;color:var(--wdim);padding:5px 12px 9px">'+d.imagenes_analizadas+' imágenes Sentinel-2 · '+d.periodo_analisis+' · '+d.resolucion_m+'m/px</div>'
+        +'</div>';
+    }).join('');
+    document.getElementById('hm-img-wrap').innerHTML=html||'<div style="padding:16px;font-size:11px;color:var(--wdim)">Sin datos de sombras</div>';
+    document.getElementById('hm-meta').innerHTML='';
+  }
+
   function renderInner(){
+    if(curSec==='solar'){renderSolar();return;}
     var hm=getHm(curSec,curSub);
     var ipos=iposC[curSub];
     var ndviHtml='';
@@ -1322,7 +1353,7 @@ function render(data, cfg){
     buildMatchAlert(u.proximo_partido);
     buildFungalBanner(wl);
     buildCanchasGrid(allS['canchero']);
-    buildHeatmapSection(u,cfg);
+    buildHeatmapSection(u,cfg,data.shadow_maps);
     if(cfg) buildHorarioGrid(cfg);
     buildEtCard(wl);
     buildDisclaimer('disclaimer-recs');
