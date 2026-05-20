@@ -119,7 +119,7 @@
     "label": "D",
     "fecha_inicio": "2026-05-25",
     "fecha_fin": "2026-05-30",
-    "generado_en": "2026-05-20T10:34:22Z",
+    "generado_en": "2026-05-20T16:10:37Z",
     "canchas": {
       "1fa": {
         "score": 375.0,
@@ -178,53 +178,53 @@
     }
   },
   "verify_hashes": {
-    "288649307777c38951a842108dae328d12001c1731c1e1bb9ba7640bc6e6b679": {
+    "0c57c31ef4fbeedce40a41850b9e0460d89546be6647e714a0d553e78a0e6c0d": {
       "cancha": "1FA",
       "semana": "D",
       "ipos": 375.0,
       "ndvi": 0.18,
       "semaforo": "rojo",
-      "fecha_generacion": "2026-05-20T10:33:59Z"
+      "fecha_generacion": "2026-05-20T16:10:23Z"
     },
-    "a5e6afac74273f0677dfdff6b281ea7d2a03ced3b9f210f2928d2c6ad8b5e19e": {
+    "f6967693f39563a2e3ebddac83669c3a858d9b30d6748b67f1259933c35e82c3": {
       "cancha": "8FA",
       "semana": "D",
       "ipos": 118.5,
       "ndvi": 0.5372,
       "semaforo": "amarillo",
-      "fecha_generacion": "2026-05-20T10:33:59Z"
+      "fecha_generacion": "2026-05-20T16:10:23Z"
     },
-    "aa8838906064b6a8a90f000e79bc7c7c973f1bd196f1e96f2ef50266f4902817": {
+    "559f1e10586544bb30c8551081ae4b14c7d440c98f090d8c2fff02befd8f0445": {
       "cancha": "9FA",
       "semana": "D",
       "ipos": 45.0,
       "ndvi": 0.6506,
       "semaforo": "verde",
-      "fecha_generacion": "2026-05-20T10:33:59Z"
+      "fecha_generacion": "2026-05-20T16:10:23Z"
     },
-    "5a69cd26716f989da302477fd23f16a408873d1f73cb5e6fa0a79eee0bf9220e": {
+    "d1ad32845a3e76d70a4ae9264f12b83e8de29e76d8d988ac014789cdd2ebd5e8": {
       "cancha": "5FA",
       "semana": "D",
       "ipos": 105.0,
       "ndvi": 0.558,
       "semaforo": "amarillo",
-      "fecha_generacion": "2026-05-20T10:33:59Z"
+      "fecha_generacion": "2026-05-20T16:10:23Z"
     },
-    "bb3ca667c1ec1997ed4a30730b9754ac4d3a6dbe5841d212660e732879a9cfa0": {
+    "df4b42ad80a1fbc933697eb72a106a43a3397df8970ea1f08005fa09ee4e7bd3": {
       "cancha": "3FA",
       "semana": "D",
       "ipos": 90.0,
       "ndvi": 0.5811,
       "semaforo": "verde",
-      "fecha_generacion": "2026-05-20T10:33:59Z"
+      "fecha_generacion": "2026-05-20T16:10:23Z"
     },
-    "3f0940b794af3b4616786f3ec901ea786048736a826e391898c482a8fe8c72c9": {
+    "612f6a7c5c69c265d28c4a2def30cc0ff5c34da518d33f5a3d62e3ddd14efb15": {
       "cancha": "1FP",
       "semana": "D",
       "ipos": 90.0,
       "ndvi": 0.5811,
       "semaforo": "verde",
-      "fecha_generacion": "2026-05-20T10:33:59Z"
+      "fecha_generacion": "2026-05-20T16:10:23Z"
     }
   },
   "ipos_historial": [
@@ -232,6 +232,19 @@
       "label": "D",
       "fecha": "2026-05-25",
       "ts": "2026-05-20T10:34:22Z",
+      "canchas": {
+        "1fa": 375.0,
+        "8fa": 118.5,
+        "9fa": 45.0,
+        "5fa": 105.0,
+        "3fa": 90.0,
+        "1fp": 90.0
+      }
+    },
+    {
+      "label": "D",
+      "fecha": "2026-05-25",
+      "ts": "2026-05-20T16:10:37Z",
       "canchas": {
         "1fa": 375.0,
         "8fa": 118.5,
