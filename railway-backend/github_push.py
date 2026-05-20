@@ -76,6 +76,13 @@ def _ipos_to_health(ipos_score: float, semaforo: str) -> int:
     return max(10, round(55 - (ipos_score - 200) * 0.14))
 
 
+def _shadow_penalty(sombra_permanente_pct: float) -> float:
+    """Multiplicador por sombra permanente: menos sol → pasto más débil."""
+    if sombra_permanente_pct >= 30: return 0.85
+    if sombra_permanente_pct >= 15: return 0.92
+    return 1.0
+
+
 def _combined_score(ndvi: float, ipos_score: float, ipos_sem: str) -> tuple:
     """Score fusión: NDVI Planetary Computer 60% + IPOS invertido 40%. Returns (score, sem)."""
     ndvi_norm = min(100, round((ndvi / 0.75) * 100))
@@ -83,6 +90,15 @@ def _combined_score(ndvi: float, ipos_score: float, ipos_sem: str) -> tuple:
     combined  = round(ndvi_norm * 0.60 + ipos_inv * 0.40)
     sem = "verde" if combined >= 70 else "amarillo" if combined >= 50 else "rojo"
     return combined, sem
+
+
+def _apply_shadow(score: int, sem: str, sombra_pct: float) -> tuple:
+    """Apply shadow penalty and recompute semaforo."""
+    penalty = _shadow_penalty(sombra_pct)
+    if penalty < 1.0:
+        score = round(score * penalty)
+        sem   = "verde" if score >= 70 else "amarillo" if score >= 50 else "rojo"
+    return score, sem
 
 
 def push_velez_data(ipos: dict, ts: str) -> str:
@@ -98,6 +114,7 @@ def push_velez_data(ipos: dict, ts: str) -> str:
     # Real NDVI per cancha from Planetary Computer heatmap pipeline
     roger = vd.get("usuarios", {}).get("roger", {})
     hm    = roger.get("heatmaps", {})
+    shadow_maps = vd.get("shadow_maps", {})
 
     # Migrate fuente/semana out of heatmaps → heatmaps_meta (one-shot if not done yet)
     if "fuente" in hm or "semana" in hm:
@@ -115,26 +132,35 @@ def push_velez_data(ipos: dict, ts: str) -> str:
         ndvi = (hm_e.get("ndvi") if isinstance(hm_e, dict) and hm_e.get("ndvi") is not None
                 else cancha.get("ndvi", 0.4))
 
+        # Shadow permanent % from shadow_maps analysis
+        sm_data     = shadow_maps.get(cid, {})
+        sombra_pct  = sm_data.get("sombra_permanente_pct", 0) if isinstance(sm_data, dict) else 0
+
         if cid in ipos:
             ip       = ipos[cid]
             ipos_sem = ip.get("semaforo", "verde")
             score, sem = _combined_score(ndvi, float(ip.get("score", 0)), ipos_sem)
+            score, sem = _apply_shadow(score, sem, sombra_pct)
+            shadow_note = f" · {sombra_pct:.0f}% sombra perm." if sombra_pct >= 15 else ""
             cancha["score_prev"] = cancha.get("score", score)
             cancha["score"]      = score
             cancha["sem"]        = sem
             cancha["ndvi"]       = ndvi
             cancha["detalle"]    = (f"NDVI {ndvi:.2f} · {ip.get('texto', '')} · "
-                                    f"{ip.get('personas', 0)} pers · {ip.get('horas', 0)}h")
+                                    f"{ip.get('personas', 0)} pers · {ip.get('horas', 0)}h"
+                                    + shadow_note)
         else:
             # 0 sessions this week — fully rested, NDVI governs
             ndvi_norm = min(100, round((ndvi / 0.75) * 100))
             score     = round(ndvi_norm * 0.60 + 100 * 0.40)
             sem       = "verde" if score >= 70 else "amarillo" if score >= 50 else "rojo"
+            score, sem = _apply_shadow(score, sem, sombra_pct)
+            shadow_note = f" · {sombra_pct:.0f}% sombra perm." if sombra_pct >= 15 else ""
             cancha["score_prev"] = cancha.get("score", score)
             cancha["score"]      = score
             cancha["sem"]        = sem
             cancha["ndvi"]       = ndvi
-            cancha["detalle"]    = f"NDVI {ndvi:.2f} · Sin uso esta semana — descansada"
+            cancha["detalle"]    = f"NDVI {ndvi:.2f} · Sin uso esta semana — descansada" + shadow_note
 
     vd["updated_at"] = ts
 
@@ -208,4 +234,28 @@ def push_config(ipos: dict, semana_label: str, semana_info: dict,
     msg = f"ipos update semana {semana_label} [{ts}]"
     resp = _put(CFG_PATH, data, msg, existing_sha)
     return (resp.get("commit",{}).get("html_url") or
+            f"https://github.com/{OWNER}/{REPO}/blob/{BRANCH}/{CFG_PATH}")
+
+
+def push_aspersores(cid: str, aspersores: list) -> str:
+    """Store sprinkler positions for a cancha in config_velez.json.aspersores_por_cancha."""
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    r = requests.get(f"{API}/repos/{OWNER}/{REPO}/contents/{CFG_PATH}",
+                     headers=_hdrs(), params={"ref": BRANCH}, timeout=15)
+    existing_sha = None
+    cfg = {}
+    if r.status_code == 200:
+        d = r.json()
+        existing_sha = d.get("sha")
+        try:
+            cfg = json.loads(base64.b64decode(d["content"]).decode())
+        except Exception as e:
+            log.warning(f"push_aspersores parse error: {e}")
+    elif r.status_code != 404:
+        r.raise_for_status()
+    cfg.setdefault("aspersores_por_cancha", {})[cid] = aspersores
+    data = json.dumps(cfg, ensure_ascii=False, indent=2).encode()
+    msg  = f"aspersores {cid.upper()} n={len(aspersores)} [{ts}]"
+    resp = _put(CFG_PATH, data, msg, existing_sha)
+    return (resp.get("commit", {}).get("html_url") or
             f"https://github.com/{OWNER}/{REPO}/blob/{BRANCH}/{CFG_PATH}")

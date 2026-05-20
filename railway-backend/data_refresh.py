@@ -182,29 +182,46 @@ def _gndvi_per_cancha():
     return {"fuente": "estimado-ndvi", "canchas": canchas}
 
 
-def _fungal_risk(h: dict) -> dict:
+def _fungal_risk(h: dict, shadow_pct_by_cancha: dict = None) -> dict:
+    """Fungal risk model. shadow_pct_by_cancha: {cid: sombra_permanente_pct}."""
     temps = h.get("temperature_2m", [])
     rh    = h.get("relative_humidity_2m", [])
+    shadow_pct_by_cancha = shadow_pct_by_cancha or {}
+    # Canchas with >20% permanent shadow accumulate moisture — elevated baseline risk
+    shadowed = sorted(c for c, p in shadow_pct_by_cancha.items() if p > 20)
+
     if not temps or not rh:
         return {"nivel":"bajo","horas_favorables_48h":0,"horas_brown_patch_48h":0,
                 "descripcion":"Sin datos T/RH","accion_recomendada":"",
-                "canchas_en_riesgo":[],"enfermedad":None}
+                "canchas_en_riesgo":shadowed,"enfermedad":None}
     h_dollar = sum(1 for t,r in zip(temps[:48],rh[:48]) if t and r and 10<t<32 and r>80)
     h_brown  = sum(1 for t,r in zip(temps[:48],rh[:48]) if t and r and t>20 and r>85)
+
     if h_brown >= 10 or h_dollar >= 16:
+        base_canchas = ["1fa","3fa","2fa"]
+        canchas_riesgo = list(dict.fromkeys(base_canchas + shadowed))
         return {"nivel":"alto","horas_favorables_48h":h_dollar,"horas_brown_patch_48h":h_brown,
                 "descripcion":f"ALTO: {h_dollar}h Dollar Spot · {h_brown}h Brown Patch (48h)",
                 "accion_recomendada":"Aplicar fungicida preventivo HOY",
-                "canchas_en_riesgo":["1fa","3fa","2fa"],"enfermedad":"Dollar Spot + Brown Patch"}
+                "canchas_en_riesgo":canchas_riesgo,"enfermedad":"Dollar Spot + Brown Patch"}
     if h_dollar >= 6 or h_brown >= 4:
+        base_canchas = ["1fa","3fa"]
+        canchas_riesgo = list(dict.fromkeys(base_canchas + shadowed))
         return {"nivel":"medio","horas_favorables_48h":h_dollar,"horas_brown_patch_48h":h_brown,
                 "descripcion":f"MEDIO: {h_dollar}h favorables Dollar Spot en últimas 48h",
-                "accion_recomendada":"Monitorear 1FA/3FA — aplicar fungicida si aparecen manchas amarillas",
-                "canchas_en_riesgo":["1fa","3fa"],"enfermedad":"Dollar Spot"}
+                "accion_recomendada":"Monitorear canchas afectadas — aplicar fungicida si aparecen manchas",
+                "canchas_en_riesgo":canchas_riesgo,"enfermedad":"Dollar Spot"}
+    # Low overall conditions but shadowed canchas still have elevated risk
+    if shadowed and h_dollar >= 3:
+        shadow_names = ", ".join(c.upper() for c in shadowed)
+        return {"nivel":"medio","horas_favorables_48h":h_dollar,"horas_brown_patch_48h":h_brown,
+                "descripcion":f"Riesgo moderado por sombra en {shadow_names} ({h_dollar}h favorables)",
+                "accion_recomendada":f"Monitorear {shadow_names} — humedad acumulada favorece hongos en zonas sin sol",
+                "canchas_en_riesgo":shadowed,"enfermedad":"Dollar Spot"}
     return {"nivel":"bajo","horas_favorables_48h":h_dollar,"horas_brown_patch_48h":h_brown,
             "descripcion":f"Riesgo bajo: {h_dollar}h favorables en últimas 48h",
             "accion_recomendada":"Sin acción preventiva necesaria",
-            "canchas_en_riesgo":[],"enfermedad":None}
+            "canchas_en_riesgo":shadowed if shadowed else [],"enfermedad":None}
 
 
 def _best_riego_hour(h: dict):
@@ -220,6 +237,20 @@ def _best_riego_hour(h: dict):
     return "06:00", 1
 
 
+def _best_riego_hour_alt(h: dict) -> str:
+    """Best late-afternoon irrigation window (17:00–19:00 ART) as backup option."""
+    times = h.get("time", []); winds = h.get("wind_speed_10m", [])
+    probs = h.get("precipitation_probability", [])
+    for i, t in enumerate(times[:96]):
+        hr = int(t[11:13]) if len(t) >= 13 else -1
+        if 17 <= hr <= 19:
+            w = winds[i] if i < len(winds) else 99
+            p = probs[i] if i < len(probs) else 99
+            if w is not None and p is not None and w < 15 and p < 30:
+                return f"{hr:02d}:00"
+    return "18:00"
+
+
 def _best_corte_hour(h: dict):
     times = h.get("time", []); winds = h.get("wind_speed_10m", [])
     probs = h.get("precipitation_probability", [])
@@ -233,7 +264,25 @@ def _best_corte_hour(h: dict):
     return "07:00"
 
 
-def compute_weather_live(nasa, soil, hourly_resp, ecostress, smap) -> dict:
+def _riego_min_from_aspersores(deficit: float, aspersores_cfg: dict) -> int:
+    """Compute irrigation minutes from real sprinkler positions stored in config_velez.json."""
+    import math as _math
+    all_asp = [a for lst in aspersores_cfg.values() for a in lst]
+    if not all_asp:
+        return max(10, round(deficit / 0.167 / 2)) if deficit > 3 else 0
+    # Each sprinkler: r meters, 15 L/min flow — rate = flow / coverage_area
+    # riego_min per zone = deficit_mm / rate_mm_per_min
+    avg_r   = sum(a.get("r", 8) for a in all_asp) / len(all_asp)
+    coverage_m2 = _math.pi * avg_r ** 2  # per sprinkler
+    flow_lpm    = 15.0                    # L/min per sprinkler (standard sports irrigation)
+    # Application rate (mm/min) = flow(L/min) / coverage(m²)  [1 L/m² = 1 mm]
+    rate_mm_per_min = flow_lpm / coverage_m2
+    riego_min = round(deficit / rate_mm_per_min) if deficit > 0 else 0
+    return max(10, riego_min) if deficit > 3 else 0
+
+
+def compute_weather_live(nasa, soil, hourly_resp, ecostress, smap,
+                         aspersores_cfg: dict = None) -> dict:
     h = hourly_resp.get("hourly", {})
 
     et0_nasa = nasa.get("EVPTRNS"); et0_pm = None
@@ -266,14 +315,21 @@ def compute_weather_live(nasa, soil, hourly_resp, ecostress, smap) -> dict:
     sm3  = [v for v in (h.get("soil_moisture_1_to_3cm") or [])[:24] if v is not None]
     hum3 = round(sum(sm3)/len(sm3)*100, 1) if sm3 else hum_pct
 
-    hora_riego, dia_riego = _best_riego_hour(h)
-    hora_corte            = _best_corte_hour(h)
+    hora_riego,     dia_riego = _best_riego_hour(h)
+    hora_corte                = _best_corte_hour(h)
+    hora_riego_alt            = _best_riego_hour_alt(h)
 
     clay_pct = round(soil.get("clay", 32), 1)
     sand_pct = round(soil.get("sand", 28), 1)
     whc      = soil.get("whc_mm", 42)
 
-    riego_min  = max(10, round(deficit / 0.167 / 2)) if deficit > 3 else 0
+    if aspersores_cfg:
+        riego_min = _riego_min_from_aspersores(deficit, aspersores_cfg)
+        riego_fuente = "aspersores-reales"
+    else:
+        riego_min    = max(10, round(deficit / 0.167 / 2)) if deficit > 3 else 0
+        riego_fuente = "estimado"
+
     m3         = deficit * 28_000 / 1000
     costo_agua = int(round(m3 * 200 / 500) * 500) if deficit > 3 else 0
 
@@ -288,7 +344,9 @@ def compute_weather_live(nasa, soil, hourly_resp, ecostress, smap) -> dict:
         "et0_semana_mm": et0_sem, "precipitacion_semana_mm": prec_sem,
         "deficit_hidrico_mm": deficit, "deficit_hidrico": deficit > 5,
         "litros_m2_semana": deficit, "riego_min_sector": riego_min,
+        "riego_min_fuente": riego_fuente,
         "hora_riego_optima": hora_riego, "dia_riego_offset": dia_riego,
+        "hora_riego_alternativa": hora_riego_alt,
         "hora_corte_optima": hora_corte,
         "humedad_suelo_pct": hum_pct, "humedad_suelo_estado": hum_est,
         "humedad_subsuperficial_pct": hum3,
@@ -327,11 +385,12 @@ async def _fetch_all_async() -> dict:
 
 # ── GitHub push ───────────────────────────────────────────────────────────────
 
-_GH_API  = "https://api.github.com"
-_OWNER   = "protocolfaro"
-_REPO    = "faroprotocol"
-_BRANCH  = "main"
-_VD_PATH = "velez/velez_data.json"
+_GH_API   = "https://api.github.com"
+_OWNER    = "protocolfaro"
+_REPO     = "faroprotocol"
+_BRANCH   = "main"
+_VD_PATH  = "velez/velez_data.json"
+_CFG_PATH = "velez/config_velez.json"
 
 
 def _gh_headers():
@@ -383,9 +442,37 @@ def run_refresh() -> dict:
     log.info("data_refresh: starting live weather fetch")
     try:
         raw = asyncio.run(_fetch_all_async())
+
+        # Read velez_data.json for shadow_maps and config_velez.json for aspersores
+        shadow_pct_by_cancha = {}
+        aspersores_cfg       = None
+        try:
+            _, vd = _gh_get_sha_and_content(_VD_PATH)
+            shadow_maps = vd.get("shadow_maps", {})
+            shadow_pct_by_cancha = {
+                cid: sm.get("sombra_permanente_pct", 0)
+                for cid, sm in shadow_maps.items()
+                if isinstance(sm, dict) and sm.get("sombra_permanente_pct", 0) > 0
+            }
+            log.info("shadow_pct_by_cancha: %s", shadow_pct_by_cancha)
+        except Exception as _ve:
+            log.warning("shadow_maps read (non-fatal): %s", _ve)
+        try:
+            _, cfg_vz = _gh_get_sha_and_content(_CFG_PATH)
+            aspersores_cfg = cfg_vz.get("aspersores_por_cancha") or None
+            if aspersores_cfg:
+                log.info("aspersores_cfg: %d canchas", len(aspersores_cfg))
+        except Exception as _ae:
+            log.warning("aspersores_cfg read (non-fatal): %s", _ae)
+
         weather = compute_weather_live(
-            raw["nasa"], raw["soil"], raw["hourly"], raw["ecostress"], raw["smap"]
+            raw["nasa"], raw["soil"], raw["hourly"], raw["ecostress"], raw["smap"],
+            aspersores_cfg=aspersores_cfg,
         )
+        # Override fungal risk with shadow data (compute_weather_live uses default _fungal_risk)
+        hourly_h = raw["hourly"].get("hourly", {})
+        weather["riesgo_fungosis"] = _fungal_risk(hourly_h, shadow_pct_by_cancha)
+
         try:
             ndvi_data = ndvi_real.fetch_ndvi()
             if ndvi_data:
@@ -397,10 +484,11 @@ def run_refresh() -> dict:
         ts = weather["timestamp"]
         log.info(
             "✅ Datos actualizados — ET0=%.2f mm/día · déficit=%.1f mm · "
-            "riesgo fungoso=%s · [%s]",
+            "riesgo fungoso=%s · riego_fuente=%s · [%s]",
             weather.get("et0_mm_dia", 0),
             weather.get("deficit_hidrico_mm", 0),
             rf.get("nivel", "?"),
+            weather.get("riego_min_fuente", "?"),
             ts,
         )
         return {"ok": True, "ts": ts, "commit": commit_url}

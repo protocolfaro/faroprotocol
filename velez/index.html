@@ -144,6 +144,8 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
 .cancha-name{font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--wdim);text-transform:uppercase}
 .cancha-sem{width:7px;height:7px;border-radius:50%;margin-top:1px;flex-shrink:0}
 .cancha-score{font-size:26px;font-weight:700;margin-top:4px;line-height:1}
+.cancha-score-row{display:flex;align-items:baseline;gap:6px;margin-top:4px}
+.cancha-score-diff{font-size:11px;font-weight:600}
 .cancha-ndvi-row{display:flex;align-items:center;gap:5px;margin-top:3px}
 .cancha-ndvi{font-size:11px;color:var(--wdim)}
 .cancha-ndvi-diff{font-size:10px;font-weight:600}
@@ -153,6 +155,22 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
 .cancha-gndvi{font-size:10px;color:var(--wdim)}
 .cancha-gndvi-val{font-size:10px;font-weight:700}
 .cancha-gndvi-val.ok{color:var(--grn)}.cancha-gndvi-val.borderline{color:var(--yel)}.cancha-gndvi-val.bajo{color:var(--red)}.cancha-gndvi-val.grave{color:var(--red)}
+
+/* ── CSV UPLOAD ── */
+.csv-upload-area{margin-top:14px;border:1px dashed rgba(201,168,76,.3);border-radius:8px;padding:12px 14px;background:rgba(201,168,76,.04)}
+.csv-upload-title{font-size:11px;font-weight:700;color:var(--gold);letter-spacing:.06em;margin-bottom:8px}
+.csv-file-input{display:none}
+.csv-upload-results{margin-top:10px}
+.csv-row-item{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:10px}
+.csv-row-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.csv-row-val{font-weight:700;color:var(--text)}
+.csv-row-sub{color:var(--wdim);flex:1}
+.csv-row-interp{font-size:9px;padding:2px 6px;border-radius:4px;white-space:nowrap}
+.csv-row-interp.ok{background:rgba(76,173,114,.15);color:#4cad72}
+.csv-row-interp.warn{background:rgba(224,184,76,.15);color:#e0b84c}
+.csv-row-interp.alert{background:rgba(224,82,82,.15);color:#e05252}
+.csv-sha{font-size:8px;color:var(--wdim);margin-top:6px;word-break:break-all;font-family:monospace;opacity:.7}
+.csv-map-overlay{pointer-events:none}
 
 /* ── WEATHER STRIP ── */
 .weather-outer{padding:10px 0 4px}
@@ -681,10 +699,17 @@ function buildCanchasGrid(sectorData){
         +(nst!=='ok'?'<span style="font-size:9px;color:var(--wdim)">— '+(nst==='borderline'?'revisar':nst==='bajo'?'falta abono':'urgente')+'</span>':'')
         +'</div>';
     }
+    var scoreDiff = (c.score_prev != null) ? c.score - c.score_prev : null;
+    var sdHtml = '';
+    if(scoreDiff !== null && Math.abs(scoreDiff) > 0){
+      var sdCls = scoreDiff > 1 ? 'up' : scoreDiff < -1 ? 'down' : 'flat';
+      var sdSym = scoreDiff > 1 ? '↑ +' : scoreDiff < -1 ? '↓ ' : '→ ';
+      sdHtml = '<span class="cancha-score-diff cancha-ndvi-diff '+sdCls+'">'+sdSym+Math.abs(scoreDiff)+'</span>';
+    }
     return '<div class="cancha-card'+(isCrit?' critica':'')+'"><div class="cancha-top">'
       +'<div class="cancha-name">'+c.nombre+'</div>'
       +'<div class="cancha-sem" style="background:'+col+'"></div></div>'
-      +'<div class="cancha-score" style="color:'+col+'">'+c.score+'</div>'
+      +'<div class="cancha-score-row"><div class="cancha-score" style="color:'+col+'">'+c.score+'</div>'+sdHtml+'</div>'
       +'<div class="cancha-ndvi-row"><span class="cancha-ndvi">Pasto '+c.ndvi.toFixed(2)+'</span>'
       +'<span class="cancha-ndvi-diff '+dCls+'">'+dSym+dVal+'</span></div>'
       +gndviHtml
@@ -809,6 +834,10 @@ function buildEtCard(wl){
     +'<div class="et-value normal">'+wl.precipitacion_semana_mm+' mm</div></div>'
     +defHtml
     +'<div class="et-divider"></div>'
+    +(wl.hora_riego_alternativa
+      ?'<div class="et-row"><div class="et-label">Opción alternativa si no podés regar de madrugada</div>'
+        +'<div class="et-value normal">'+wl.hora_riego_alternativa+' hs — tarde (más evaporación)</div></div>'
+      :'')
     +'<div class="et-row"><div class="et-label">Hora óptima corte</div>'
     +'<div class="et-value normal">'+wl.hora_corte_optima+' hs (viento bajo, suelo firme)</div></div>'
     +'<div class="et-row"><div class="et-label">Tipo de suelo</div>'
@@ -1473,7 +1502,21 @@ function aspSave(){
   aspRender(_mcCurrentCancha);
   var h=document.getElementById('asp-hint');
   if(h){h.textContent='✅ Guardado correctamente';}
-  setTimeout(function(){var h2=document.getElementById('asp-hint');if(h2)h2.textContent='Presioná "Editar" y tocá el campo para colocar o quitar aspersores';},2000);
+  setTimeout(function(){var h2=document.getElementById('asp-hint');if(h2)h2.textContent='Presioná "Editar" y tocá el campo para colocar o quitar aspersores';},2500);
+  // Sync to Railway so data_refresh.py can use real coverage for riego_min_sector
+  var RAILWAY=typeof RAILWAY_URL!=='undefined'?RAILWAY_URL:null;
+  var PIN=typeof _pinValue!=='undefined'?_pinValue:null;
+  var asp=_aspState[_mcCurrentCancha]||[];
+  if(RAILWAY&&PIN&&asp.length){
+    fetch(RAILWAY+'/velez/aspersores',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({pin:PIN,cancha:_mcCurrentCancha,aspersores:asp})})
+      .then(function(r){return r.json();})
+      .then(function(d){
+        var h3=document.getElementById('asp-hint');
+        if(h3&&d.status==='ok') h3.textContent='✅ '+asp.length+' aspersores sincronizados con Railway';
+        setTimeout(function(){var h4=document.getElementById('asp-hint');if(h4)h4.textContent='Presioná "Editar" y tocá el campo para colocar o quitar aspersores';},3000);
+      }).catch(function(){});
+  }
 }
 
 function aspCancel(){
@@ -1600,6 +1643,152 @@ function mcSaveSombra(sid,val,rowEl){
   }
 }
 
+/* ── CSV UPLOAD ── */
+async function csvHash(text){
+  try{
+    var buf=new TextEncoder().encode(text);
+    var digest=await crypto.subtle.digest('SHA-256',buf);
+    return Array.from(new Uint8Array(digest)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
+  }catch(e){return 'sha256-unavailable';}
+}
+
+function csvDetectColumns(headers){
+  var map={};
+  headers.forEach(function(h,i){
+    var lc=h.toLowerCase();
+    if(/grav|clegg|impact|penetr|average/.test(lc)) map.clegg=i;
+    else if(/vwc|moisture|water|humedad/.test(lc)) map.tdr_hum=i;
+    else if(/\bec\b|conduct|electr|salin|salt/.test(lc)) map.tdr_sal=i;
+    else if(/firm|colchon|thatch/.test(lc)) map.truefirm=i;
+    else if(/traccion|traction|torque/.test(lc)) map.traccion=i;
+    else if(/altura|height|mow|corte/.test(lc)) map.altura=i;
+    else if(/\blat\b|latitude/.test(lc)) map._lat=i;
+    else if(/\blon\b|\blng\b|longitude/.test(lc)) map._lon=i;
+    else if(/\bx\b/.test(lc)) map._x=i;
+    else if(/\by\b/.test(lc)) map._y=i;
+  });
+  return map;
+}
+
+// Vélez Villa Olímpica main field center (approximate)
+var CSV_FIELD_LAT=-34.6375, CSV_FIELD_LON=-58.5215;
+
+function csvLatLonToSvg(lat,lon){
+  // 1 deg lat ≈ 111000m, 1 deg lon ≈ cos(-34.6°)×111000 ≈ 91200m
+  var dx=(lon-CSV_FIELD_LON)*91200; // meters east
+  var dy=(CSV_FIELD_LAT-lat)*111000; // meters south (SVG y increases downward)
+  var sx=FIELD_W/2+dx; var sy=FIELD_H/2+dy;
+  return {x:sx,y:sy};
+}
+
+function csvAddMapOverlay(dots){
+  var svg=document.getElementById('asp-svg'); if(!svg) return;
+  var old=svg.querySelector('.csv-map-overlay'); if(old) old.remove();
+  var g=document.createElementNS('http://www.w3.org/2000/svg','g');
+  g.setAttribute('class','csv-map-overlay');
+  dots.forEach(function(d,i){
+    var col=d.cls==='ok'?'#4cad72':d.cls==='warn'?'#e0b84c':'#e05252';
+    var cx=d.svgX!=null?d.svgX:(10+((i%8)*(FIELD_W-20)/8));
+    var cy=d.svgY!=null?d.svgY:(10+Math.floor(i/8)*(FIELD_H-20)/Math.max(1,Math.ceil(dots.length/8)));
+    var c=document.createElementNS('http://www.w3.org/2000/svg','circle');
+    c.setAttribute('cx',cx.toFixed(1)); c.setAttribute('cy',cy.toFixed(1));
+    c.setAttribute('r','2.5'); c.setAttribute('fill',col); c.setAttribute('opacity','0.85');
+    c.setAttribute('stroke','#fff'); c.setAttribute('stroke-width','0.4');
+    var t=document.createElementNS('http://www.w3.org/2000/svg','title');
+    t.textContent=d.label||d.val; c.appendChild(t);
+    g.appendChild(c);
+  });
+  svg.appendChild(g);
+}
+
+function csvParseAndLoad(file){
+  var reader=new FileReader();
+  reader.onload=function(ev){
+    var text=ev.target.result;
+    var lines=text.split(/\r?\n/).filter(function(l){return l.trim();});
+    if(lines.length<2){alert('El CSV está vacío o tiene solo encabezados.');return;}
+    var sep=lines[0].includes('\t')?'\t':',';
+    var headers=lines[0].split(sep).map(function(h){return h.trim().replace(/^"|"$/g,'');});
+    var colMap=csvDetectColumns(headers);
+    var measTypes=Object.keys(colMap).filter(function(k){return !k.startsWith('_');});
+    if(!measTypes.length){alert('No se detectaron columnas de medición.\nEsperadas: Gravity/Clegg, VWC%, EC, Firm, Traction, Height.');return;}
+
+    var recs=[]; var mapDots=[];
+    var cancha=(document.getElementById('med-cancha')||{}).value||_mcCurrentCancha||'1fa';
+    csvHash(text).then(function(sha){
+      lines.slice(1).forEach(function(line,idx){
+        if(!line.trim()) return;
+        var cells=line.split(sep).map(function(c){return c.trim().replace(/^"|"$/g,'');});
+        var lat=colMap._lat!=null?parseFloat(cells[colMap._lat]):NaN;
+        var lon=colMap._lon!=null?parseFloat(cells[colMap._lon]):NaN;
+        var fx=colMap._x!=null?parseFloat(cells[colMap._x]):NaN;
+        var fy=colMap._y!=null?parseFloat(cells[colMap._y]):NaN;
+        var svgPos=null;
+        if(!isNaN(lat)&&!isNaN(lon)) svgPos=csvLatLonToSvg(lat,lon);
+        else if(!isNaN(fx)&&!isNaN(fy)) svgPos={x:fx,y:fy};
+
+        measTypes.forEach(function(tipo){
+          var raw=parseFloat(cells[colMap[tipo]]);
+          if(isNaN(raw)) return;
+          var t=MC_TIPOS.find(function(x){return x.id===tipo;});
+          var interp=medInterpretar(tipo,raw,_mcData);
+          var rec={cancha:cancha,tipo:tipo,valor:raw,zona:'CSV #'+(idx+1),
+            nota:'CSV: '+file.name,fecha:new Date().toISOString().slice(0,10),
+            timestamp:new Date().toISOString(),
+            icon:t?t.icon:'📐',unit:t?t.unit:'',
+            interp:interp.text,interp_cls:interp.cls,
+            fuente_csv:file.name,fuente_sha256:sha};
+          recs.push(rec);
+          if(svgPos) mapDots.push({svgX:svgPos.x,svgY:svgPos.y,cls:interp.cls,val:raw,label:tipo+' '+raw});
+          else mapDots.push({cls:interp.cls,val:raw,label:tipo+' '+raw});
+        });
+      });
+
+      // Save to localStorage
+      var hist=[];
+      try{hist=JSON.parse(localStorage.getItem('mc_mediciones')||'[]');}catch(e){}
+      hist=recs.concat(hist).slice(0,50);
+      localStorage.setItem('mc_mediciones',JSON.stringify(hist));
+
+      // Overlay on SVG
+      if(mapDots.length) csvAddMapOverlay(mapDots);
+
+      // Sync first 10 to Railway
+      var RAILWAY=typeof RAILWAY_URL!=='undefined'?RAILWAY_URL:null;
+      var PIN=typeof _pinValue!=='undefined'?_pinValue:null;
+      if(RAILWAY&&PIN){
+        recs.slice(0,10).forEach(function(rec){
+          fetch(RAILWAY+'/velez/mediciones',{method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({pin:PIN,medicion:rec})}).catch(function(){});
+        });
+      }
+
+      // Show results
+      var resEl=document.getElementById('csv-results');
+      if(resEl){
+        var sumHtml='<div style="font-size:11px;color:var(--gold);font-weight:700;margin-bottom:8px">'+
+          recs.length+' medición'+(recs.length!==1?'es':'')+' cargadas de '+lines.length-1+' filas</div>';
+        var rowHtml=recs.slice(0,15).map(function(r){
+          var col=r.interp_cls==='ok'?'#4cad72':r.interp_cls==='warn'?'#e0b84c':'#e05252';
+          return '<div class="csv-row-item">'
+            +'<div class="csv-row-dot" style="background:'+col+'"></div>'
+            +'<div class="csv-row-val">'+r.valor+' '+r.unit+'</div>'
+            +'<div class="csv-row-sub">'+r.tipo+' · '+r.zona+'</div>'
+            +'<div class="csv-row-interp '+r.interp_cls+'">'+r.interp_cls.toUpperCase()+'</div>'
+            +'</div>';
+        }).join('');
+        resEl.innerHTML=sumHtml+rowHtml
+          +'<div class="csv-sha">SHA-256: '+sha+'</div>';
+      }
+      medRenderHistory();
+      if(mapDots.length&&document.getElementById('mc-asp').style.display!=='none'){
+        // already on aspersores tab, overlay visible
+      }
+    });
+  };
+  reader.readAsText(file);
+}
+
 /* ── MÓDULO 3: MEDICIONES DE CAMPO ── */
 function buildMedicionesModule(u,wl){
   var el=document.getElementById('mc-med'); if(!el) return;
@@ -1622,6 +1811,14 @@ function buildMedicionesModule(u,wl){
     +'<button class="mc-btn mc-btn-primary mc-btn-wide" onclick="medGuardar(event)">Guardar medición</button>'
     +'<div id="med-interp" style="margin-top:10px"></div>'
     +'<div id="med-save-status"></div>'
+    +'<div class="csv-upload-area">'
+    +'<div class="csv-upload-title">SUBIR ARCHIVO DEL EQUIPO</div>'
+    +'<div style="font-size:10px;color:var(--wdim);margin-bottom:8px">CSV exportado por Turf-Tec Clegg / FieldScout TDR — columnas detectadas automáticamente</div>'
+    +'<input type="file" id="csv-file-input" class="csv-file-input" accept=".csv,.txt" onchange="if(this.files[0])csvParseAndLoad(this.files[0])"/>'
+    +'<button class="mc-btn mc-btn-secondary" onclick="document.getElementById(\'csv-file-input\').click()">📂 Seleccionar CSV…</button>'
+    +'<div style="font-size:9px;color:var(--wdim);margin-top:5px">Columnas soportadas: Gravity/Clegg · VWC% · EC · Firmness · Traction · Height · Lat/Lon (GPS opcional)</div>'
+    +'<div id="csv-results" class="csv-upload-results"></div>'
+    +'</div>'
     +'<div class="mc-med-history" id="med-history"></div>'
     +'<div class="mc-disclaimer">'+MC_DISCLAIMER+'</div>';
   medRenderHistory();

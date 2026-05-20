@@ -129,6 +129,28 @@ def mediciones():
         return jsonify({"status": "error", "error": str(e)}), 500
 
 
+@app.route("/velez/aspersores", methods=["POST"])
+def aspersores():
+    body = request.get_json(silent=True)
+    if not body:
+        return jsonify({"status": "error", "error": "JSON body required"}), 400
+    if not _ok_pin(body.get("pin")):
+        return jsonify({"status": "error", "error": "PIN inválido"}), 401
+    cid = body.get("cancha", "")
+    asp = body.get("aspersores")
+    if not cid or not isinstance(asp, list):
+        return jsonify({"status": "error", "error": "cancha y aspersores[] requeridos"}), 400
+    try:
+        commit_url = github_push.push_aspersores(cid, asp)
+        log.info("Aspersores %s guardados: %d puntos → %s", cid.upper(), len(asp), commit_url)
+        return jsonify({"status": "ok", "cancha": cid, "n": len(asp), "commit": commit_url})
+    except EnvironmentError as e:
+        return jsonify({"status": "error", "error": str(e)}), 503
+    except Exception as e:
+        log.error(traceback.format_exc())
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
 @app.route("/velez/refresh", methods=["POST"])
 def manual_refresh():
     """Trigger an immediate weather refresh (admin use, no PIN required from Railway)."""
