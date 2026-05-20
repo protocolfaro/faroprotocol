@@ -1178,8 +1178,9 @@ function buildHorarioGrid(cfg){
 
 /* ── HEATMAP SECTION ── */
 function buildHeatmapSection(u, cfg, shadowMaps){
-  var hmData=u.heatmaps;
-  if(!hmData) return;
+  var hmData=u.heatmaps||{};
+  // Show section when we have heatmap data OR shadow maps — solar tab is always available
+  if(!Object.keys(hmData).length && !shadowMaps) return;
   var el=document.getElementById('heatmap-section');
   el.style.display='block';
 
@@ -1200,6 +1201,7 @@ function buildHeatmapSection(u, cfg, shadowMaps){
   var curSec='vo', curSub=voSubs[0]||'1fa';
 
   function getHm(sec, sub){
+    if(!hmData) return {};
     if(sec==='amalf') return hmData.amalfitani||{};
     if(sec==='poli')  return hmData.poli||{};
     return hmData[sub]||{};
@@ -1257,7 +1259,7 @@ function buildHeatmapSection(u, cfg, shadowMaps){
     document.getElementById('hm-img-wrap').innerHTML=imgHtml;
     document.getElementById('hm-meta').innerHTML=
       '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'+iposHtml+ndviHtml+detHtml+'</div>'
-      +'<span class="hm-src">'+hmData.fuente+'</span>';
+      +(hmData.fuente?'<span class="hm-src">'+hmData.fuente+'</span>':'');
   }
 
   function tabsHtml(){
@@ -1298,7 +1300,7 @@ function buildHeatmapSection(u, cfg, shadowMaps){
 
   el.innerHTML=
     '<div class="section-title">Estado Real del Campo'
-    +'<span style="font-size:9px;font-weight:400;color:var(--wdim);margin-left:8px;text-transform:none">semana del '+hmData.semana+'</span></div>'
+    +(hmData.semana?'<span style="font-size:9px;font-weight:400;color:var(--wdim);margin-left:8px;text-transform:none">semana del '+hmData.semana+'</span>':'')+'</div>'
     +tabsHtml()
     +subTabsHtml()
     +'<div class="hm-img-wrap" id="hm-img-wrap"></div>'
