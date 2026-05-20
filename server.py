@@ -1,5 +1,5 @@
 """
-FARO PROTOCOL — Backend Railway v3.0
+FARO PROTOCOL — Backend Railway v3.1
 Servidor principal: registra todos los endpoints en una sola app Flask.
 """
 
