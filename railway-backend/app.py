@@ -145,8 +145,13 @@ def _start_scheduler():
     return scheduler
 
 
-_scheduler = _start_scheduler()
-velez_scheduler.register_jobs(_scheduler)
+try:
+    _scheduler = _start_scheduler()
+    velez_scheduler.register_jobs(_scheduler)
+    log.info("Schedulers registered: daily weather + weekly reports")
+except Exception as _sched_err:
+    _scheduler = None
+    log.error("Scheduler failed to start (non-fatal): %s", _sched_err)
 
 # ── Scheduler routes ──────────────────────────────────────────────────────────
 app.add_url_rule("/velez/run_now",       "velez_run_now",       velez_scheduler.route_run_now,       methods=["POST"])
