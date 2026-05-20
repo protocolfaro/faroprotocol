@@ -145,6 +145,27 @@ def push_velez_data(ipos: dict, ts: str) -> str:
             f"https://github.com/{OWNER}/{REPO}/blob/{BRANCH}/{VD_PATH}")
 
 
+def push_medicion(med: dict) -> str:
+    """Append a field measurement to velez_data.json.mediciones_campo."""
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    med = {**med, "timestamp": ts}
+    r = requests.get(f"{API}/repos/{OWNER}/{REPO}/contents/{VD_PATH}",
+                     headers=_hdrs(), params={"ref": BRANCH}, timeout=15)
+    if r.status_code != 200:
+        raise RuntimeError(f"velez_data.json fetch failed: {r.status_code}")
+    d = r.json()
+    existing_sha = d["sha"]
+    vd = json.loads(base64.b64decode(d["content"]).decode())
+    vd.setdefault("mediciones_campo", [])
+    vd["mediciones_campo"].insert(0, med)
+    vd["mediciones_campo"] = vd["mediciones_campo"][:100]
+    data = json.dumps(vd, ensure_ascii=False, indent=2).encode()
+    msg  = f"medicion {med.get('cancha','?')} {med.get('tipo','?')} [{ts}]"
+    resp = _put(VD_PATH, data, msg, existing_sha)
+    return (resp.get("commit", {}).get("html_url") or
+            f"https://github.com/{OWNER}/{REPO}/blob/{BRANCH}/{VD_PATH}")
+
+
 def push_config(ipos: dict, semana_label: str, semana_info: dict,
                 verify_hashes: dict, sessions: list) -> str:
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")

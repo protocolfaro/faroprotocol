@@ -109,6 +109,26 @@ def horarios():
     })
 
 
+@app.route("/velez/mediciones", methods=["POST"])
+def mediciones():
+    body = request.get_json(silent=True)
+    if not body:
+        return jsonify({"status": "error", "error": "JSON body required"}), 400
+    if not _ok_pin(body.get("pin")):
+        return jsonify({"status": "error", "error": "PIN inválido"}), 401
+    med = body.get("medicion")
+    if not med or not med.get("tipo") or not med.get("cancha"):
+        return jsonify({"status": "error", "error": "medicion.tipo y medicion.cancha requeridos"}), 400
+    try:
+        commit_url = github_push.push_medicion(med)
+        return jsonify({"status": "ok", "commit": commit_url})
+    except EnvironmentError as e:
+        return jsonify({"status": "error", "error": str(e)}), 503
+    except Exception as e:
+        log.error(traceback.format_exc())
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
 @app.route("/velez/refresh", methods=["POST"])
 def manual_refresh():
     """Trigger an immediate weather refresh (admin use, no PIN required from Railway)."""

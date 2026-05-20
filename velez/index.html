@@ -320,6 +320,59 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
 .panel-footer{padding:18px 16px 8px;text-align:center;font-size:10px;color:var(--wdim);letter-spacing:.06em;border-top:1px solid rgba(255,255,255,.05);margin-top:8px}
 .panel-footer a{color:var(--gold);text-decoration:none;opacity:.7}
 .panel-footer-disclaimer{font-size:9px;color:var(--wdim);opacity:.45;margin-top:5px;line-height:1.55;letter-spacing:.01em}
+
+/* ── MI CAMPO ── */
+.mc-tabs{display:flex;gap:4px;padding:10px 16px 0;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.mc-tab{background:rgba(255,255,255,.06);border:none;border-radius:8px;color:var(--wdim);font-size:11px;font-family:inherit;padding:8px 14px;cursor:pointer;letter-spacing:.04em;white-space:nowrap;flex-shrink:0}
+.mc-tab.active{background:rgba(201,168,76,.18);color:var(--gold);border:1px solid rgba(201,168,76,.25)}
+.mc-module{padding:12px 16px 4px}
+.mc-disclaimer{font-size:9px;color:var(--wdim);opacity:.5;line-height:1.6;margin-top:14px;padding:9px 11px;border:1px solid rgba(255,255,255,.05);border-radius:6px;letter-spacing:.01em}
+/* Aspersores */
+.asp-map-container{position:relative;width:100%;border-radius:10px;overflow:hidden;background:rgba(30,45,30,.5);border:1px solid rgba(76,173,114,.2);margin:10px 0;user-select:none}
+.asp-map-svg{width:100%;display:block;cursor:crosshair}
+.asp-map-svg.view-only{cursor:default}
+.asp-controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.mc-btn{padding:8px 16px;border-radius:8px;border:1px solid;font-size:11px;font-family:inherit;cursor:pointer;letter-spacing:.04em;display:inline-flex;align-items:center;gap:5px}
+.mc-btn-primary{background:rgba(201,168,76,.15);border-color:rgba(201,168,76,.35);color:var(--gold)}
+.mc-btn-secondary{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.1);color:var(--wdim)}
+.mc-btn-danger{background:rgba(224,82,82,.1);border-color:rgba(224,82,82,.25);color:#e05252}
+.mc-btn-wide{width:100%;justify-content:center}
+.asp-legend{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px;font-size:10px;color:var(--wdim);letter-spacing:.03em}
+.asp-leg-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:3px;vertical-align:middle}
+.asp-cancha-sel{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}
+.asp-cancha-btn{padding:5px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04);color:var(--wdim);font-size:10px;font-family:inherit;cursor:pointer}
+.asp-cancha-btn.active{border-color:rgba(201,168,76,.4);background:rgba(201,168,76,.1);color:var(--gold)}
+.asp-hint{font-size:10px;color:var(--wdim);text-align:center;padding:4px 0;font-style:italic}
+/* Sombras */
+.mc-shadow-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.mc-shadow-info{flex:1;margin-right:12px}
+.mc-shadow-label{font-size:12px;color:var(--text);font-weight:500}
+.mc-shadow-sub{font-size:10px;color:var(--wdim);margin-top:3px;line-height:1.4}
+.mc-shadow-cal{font-size:9px;color:#e05252;margin-top:3px}
+.mc-toggle{position:relative;width:42px;height:24px;flex-shrink:0}
+.mc-toggle input{opacity:0;width:0;height:0;position:absolute}
+.mc-toggle-slider{position:absolute;inset:0;background:rgba(255,255,255,.1);border-radius:24px;cursor:pointer;transition:.25s}
+.mc-toggle-slider:before{content:'';position:absolute;width:18px;height:18px;border-radius:50%;background:#fff;left:3px;top:3px;transition:.25s;box-shadow:0 1px 3px rgba(0,0,0,.4)}
+.mc-toggle input:checked+.mc-toggle-slider{background:rgba(76,173,114,.55)}
+.mc-toggle input:checked+.mc-toggle-slider:before{transform:translateX(18px)}
+.mc-toggle input:not(:checked)+.mc-toggle-slider{background:rgba(224,82,82,.45)}
+/* Mediciones */
+.mc-form-row{margin-bottom:11px}
+.mc-label{font-size:9px;color:var(--wdim);letter-spacing:.08em;text-transform:uppercase;margin-bottom:5px}
+.mc-select,.mc-input{width:100%;padding:10px 12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:var(--text);font-size:13px;font-family:inherit;box-sizing:border-box;-webkit-appearance:none;appearance:none}
+.mc-select option{background:#1a1f2e;color:#fff}
+.mc-med-history{margin-top:16px}
+.mc-history-title{font-size:9px;color:var(--wdim);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px}
+.mc-med-row{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.mc-med-icon{font-size:18px;flex-shrink:0;margin-top:1px}
+.mc-med-body{flex:1;min-width:0}
+.mc-med-title{font-size:12px;color:var(--text);font-weight:600}
+.mc-med-sub{font-size:10px;color:var(--wdim);margin-top:2px}
+.mc-med-interp{font-size:10px;margin-top:5px;padding:5px 8px;border-radius:5px;line-height:1.4}
+.mc-med-interp.ok{background:rgba(76,173,114,.12);color:#4cad72}
+.mc-med-interp.warn{background:rgba(224,184,76,.12);color:#e0b84c}
+.mc-med-interp.alert{background:rgba(224,82,82,.12);color:#e05252}
+.mc-save-status{font-size:10px;color:#4cad72;padding:6px 0;text-align:center}
 </style>
 </head>
 <body>
@@ -433,6 +486,19 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
   <div id="log-section" style="display:none">
     <div class="section-title">Registro de Intervenciones</div>
     <div id="log-content"></div>
+  </div>
+
+  <!-- Mi Campo — canchero/roger only -->
+  <div id="micampo-section" style="display:none">
+    <div class="section-title">Mi Campo <span style="font-size:9px;font-weight:400;color:var(--wdim);text-transform:none;margin-left:6px;letter-spacing:0">herramientas del responsable</span></div>
+    <div class="mc-tabs" id="mc-tabs">
+      <button class="mc-tab active" data-mod="asp" onclick="mcSwitchTab('asp')">💧 Aspersores</button>
+      <button class="mc-tab" data-mod="sombras" onclick="mcSwitchTab('sombras')">🌑 Sombras</button>
+      <button class="mc-tab" data-mod="med" onclick="mcSwitchTab('med')">📐 Mediciones</button>
+    </div>
+    <div id="mc-asp" class="mc-module"></div>
+    <div id="mc-sombras" class="mc-module" style="display:none"></div>
+    <div id="mc-med" class="mc-module" style="display:none"></div>
   </div>
 
   <!-- Trend -->
@@ -1332,6 +1398,358 @@ function buildHeatmapSection(u, cfg, shadowMaps){
 }
 
 /* ── MAIN RENDER ── */
+/* ══════════════════════════════════════════════════════
+   MI CAMPO — Aspersores · Sombras · Mediciones
+   ══════════════════════════════════════════════════════ */
+var _mcData=null, _aspState={}, _aspEditMode=false, _mcCurrentCancha='1fa';
+var MC_DISCLAIMER='Datos cargados por el responsable de campo. Faro Protocol los integra como capa de validación sobre los datos satelitales.';
+var MC_CANCHAS=['1fa','2fa','3fa','4fa','5fa','6fa','7fa','8fa','9fa','10fa','1fp','2fp'];
+var FIELD_W=105, FIELD_H=68, ASP_R=8; // FIFA field (m), default sprinkler radius
+var MC_TIPOS=[
+  {id:'clegg',    label:'Clegg (Penetrómetro)',unit:'kg',   icon:'⚖️'},
+  {id:'tdr_hum',  label:'TDR Humedad',         unit:'%',    icon:'💧'},
+  {id:'tdr_sal',  label:'TDR Sales',           unit:'dS/m', icon:'🧂'},
+  {id:'truefirm', label:'TRUEFIRM (Colchón)',  unit:'g',    icon:'🌿'},
+  {id:'traccion', label:'Tracción',            unit:'Nm',   icon:'👟'},
+  {id:'altura',   label:'Altura de corte',     unit:'mm',   icon:'✂️'},
+];
+var MC_ZONAS=['Centro','Lateral N','Lateral S','Área chica N','Área chica S','Portería N','Portería S'];
+
+function mcSwitchTab(mod){
+  document.querySelectorAll('.mc-tab').forEach(function(t){t.classList.toggle('active',t.dataset.mod===mod);});
+  ['asp','sombras','med'].forEach(function(m){document.getElementById('mc-'+m).style.display=m===mod?'':'none';});
+}
+
+/* ── MÓDULO 1: ASPERSORES ── */
+function buildAspersores(){
+  var el=document.getElementById('mc-asp'); if(!el) return;
+  try{_aspState=JSON.parse(localStorage.getItem('mc_aspersores')||'{}');}catch(e){_aspState={};}
+  var selHtml=MC_CANCHAS.map(function(c){
+    return '<button class="asp-cancha-btn'+(c===_mcCurrentCancha?' active':'')+'" onclick="mcSelectCancha(\''+c+'\')">'+c.toUpperCase()+'</button>';
+  }).join('');
+  el.innerHTML=
+    '<div class="asp-cancha-sel" id="asp-cancha-sel">'+selHtml+'</div>'
+    +'<div class="asp-controls">'
+    +'<button class="mc-btn mc-btn-primary" id="asp-edit-btn" onclick="aspToggleEdit()">✏️ Editar aspersores</button>'
+    +'<button class="mc-btn mc-btn-secondary" id="asp-save-btn" onclick="aspSave()" style="display:none">💾 Guardar</button>'
+    +'<button class="mc-btn mc-btn-danger" id="asp-cancel-btn" onclick="aspCancel()" style="display:none">✕ Cancelar</button>'
+    +'</div>'
+    +'<div class="asp-legend">'
+    +'<span><span class="asp-leg-dot" style="background:#4cad72"></span>Cubierto</span>'
+    +'<span><span class="asp-leg-dot" style="background:#e0b84c"></span>Solapado</span>'
+    +'<span><span class="asp-leg-dot" style="background:#e05252"></span>Sin cobertura</span>'
+    +'<span><span class="asp-leg-dot" style="background:#5f8fe8"></span>Aspersor</span>'
+    +'</div>'
+    +'<div class="asp-map-container" id="asp-map-container"><svg id="asp-svg" class="asp-map-svg view-only" viewBox="0 0 '+FIELD_W+' '+FIELD_H+'" preserveAspectRatio="xMidYMid meet"></svg></div>'
+    +'<div id="asp-hint" class="asp-hint">Presioná "Editar" y tocá el campo para colocar o quitar aspersores</div>'
+    +'<div id="asp-coverage" style="font-size:11px;color:var(--wdim);margin-top:4px;text-align:center"></div>'
+    +'<div class="mc-disclaimer">'+MC_DISCLAIMER+'</div>';
+  aspRender(_mcCurrentCancha);
+  aspSetupEvents();
+}
+
+function mcSelectCancha(cid){
+  _mcCurrentCancha=cid;
+  document.querySelectorAll('.asp-cancha-btn').forEach(function(b){b.classList.toggle('active',b.textContent.toLowerCase()===cid);});
+  aspRender(cid);
+}
+
+function aspToggleEdit(){
+  _aspEditMode=!_aspEditMode;
+  var svg=document.getElementById('asp-svg');
+  document.getElementById('asp-edit-btn').style.display=_aspEditMode?'none':'';
+  document.getElementById('asp-save-btn').style.display=_aspEditMode?'':'none';
+  document.getElementById('asp-cancel-btn').style.display=_aspEditMode?'':'none';
+  document.getElementById('asp-hint').textContent=_aspEditMode
+    ?'Toca el campo para colocar · toca un 💧 para quitar':'Presioná "Editar" y tocá el campo para colocar o quitar aspersores';
+  if(svg){svg.classList.toggle('view-only',!_aspEditMode);}
+  var container=document.getElementById('asp-map-container');
+  if(container) container.style.borderColor=_aspEditMode?'rgba(201,168,76,.6)':'rgba(76,173,114,.2)';
+}
+
+function aspSave(){
+  localStorage.setItem('mc_aspersores',JSON.stringify(_aspState));
+  aspToggleEdit();
+  aspRender(_mcCurrentCancha);
+  var h=document.getElementById('asp-hint');
+  if(h){h.textContent='✅ Guardado correctamente';}
+  setTimeout(function(){var h2=document.getElementById('asp-hint');if(h2)h2.textContent='Presioná "Editar" y tocá el campo para colocar o quitar aspersores';},2000);
+}
+
+function aspCancel(){
+  try{_aspState=JSON.parse(localStorage.getItem('mc_aspersores')||'{}');}catch(e){_aspState={};}
+  aspToggleEdit();
+  aspRender(_mcCurrentCancha);
+}
+
+function aspSetupEvents(){
+  var svg=document.getElementById('asp-svg'); if(!svg) return;
+  function svgPt(e){
+    var rect=svg.getBoundingClientRect();
+    var cx=e.touches?e.touches[0].clientX:e.clientX;
+    var cy=e.touches?e.touches[0].clientY:e.clientY;
+    return {x:Math.round(((cx-rect.left)/rect.width)*FIELD_W*10)/10,
+            y:Math.round(((cy-rect.top)/rect.height)*FIELD_H*10)/10};
+  }
+  function onTap(e){
+    if(!_aspEditMode) return;
+    e.preventDefault();
+    var pt=svgPt(e);
+    if(pt.x<0||pt.x>FIELD_W||pt.y<0||pt.y>FIELD_H) return;
+    var asps=_aspState[_mcCurrentCancha]||[];
+    var SNAP=ASP_R*0.7;
+    var idx=asps.findIndex(function(a){return Math.sqrt(Math.pow(a.x-pt.x,2)+Math.pow(a.y-pt.y,2))<SNAP;});
+    if(idx>=0){asps.splice(idx,1);}else{asps.push({x:pt.x,y:pt.y,r:ASP_R});}
+    _aspState[_mcCurrentCancha]=asps;
+    aspRender(_mcCurrentCancha);
+  }
+  svg.addEventListener('click',onTap);
+  svg.addEventListener('touchend',onTap,{passive:false});
+}
+
+function aspRender(cid){
+  var svg=document.getElementById('asp-svg'); if(!svg) return;
+  var asps=_aspState[cid]||[];
+  var W=FIELD_W, H=FIELD_H, GX=42, GY=27;
+  var cW=W/GX, cH=H/GY;
+  // Coverage grid
+  var covered=0,overlapped=0;
+  var gridHtml=[];
+  for(var gy=0;gy<GY;gy++){for(var gx=0;gx<GX;gx++){
+    var px=(gx+0.5)*cW, py=(gy+0.5)*cH;
+    var cnt=asps.reduce(function(n,a){return n+(Math.sqrt(Math.pow(a.x-px,2)+Math.pow(a.y-py,2))<=a.r?1:0);},0);
+    if(cnt===1){covered++;gridHtml.push('<rect x="'+(gx*cW).toFixed(1)+'" y="'+(gy*cH).toFixed(1)+'" width="'+cW.toFixed(1)+'" height="'+cH.toFixed(1)+'" fill="rgba(76,173,114,.22)"/>');}
+    else if(cnt>1){overlapped++;gridHtml.push('<rect x="'+(gx*cW).toFixed(1)+'" y="'+(gy*cH).toFixed(1)+'" width="'+cW.toFixed(1)+'" height="'+cH.toFixed(1)+'" fill="rgba(224,184,76,.3)"/>');}
+  }}
+  var total=GX*GY, none=total-covered-overlapped;
+  // Field markings
+  var field=
+    '<rect x="0" y="0" width="'+W+'" height="'+H+'" fill="rgba(20,40,20,.65)"/>'
+    +'<rect x="0" y="0" width="'+W+'" height="'+H+'" fill="none" stroke="rgba(255,255,255,.13)" stroke-width=".5"/>'
+    +'<line x1="'+(W/2)+'" y1="0" x2="'+(W/2)+'" y2="'+H+'" stroke="rgba(255,255,255,.1)" stroke-width=".4"/>'
+    +'<ellipse cx="'+(W/2)+'" cy="'+(H/2)+'" rx="9.15" ry="9.15" fill="none" stroke="rgba(255,255,255,.1)" stroke-width=".4"/>'
+    +'<circle cx="'+(W/2)+'" cy="'+(H/2)+'" r="0.8" fill="rgba(255,255,255,.2)"/>'
+    +'<rect x="0" y="'+(H/2-10.08)+'" width="16.5" height="20.16" fill="none" stroke="rgba(255,255,255,.1)" stroke-width=".4"/>'
+    +'<rect x="'+(W-16.5)+'" y="'+(H/2-10.08)+'" width="16.5" height="20.16" fill="none" stroke="rgba(255,255,255,.1)" stroke-width=".4"/>'
+    +'<rect x="0" y="'+(H/2-5.5)+'" width="5.5" height="11" fill="none" stroke="rgba(255,255,255,.08)" stroke-width=".4"/>'
+    +'<rect x="'+(W-5.5)+'" y="'+(H/2-5.5)+'" width="5.5" height="11" fill="none" stroke="rgba(255,255,255,.08)" stroke-width=".4"/>';
+  // Aspersores: radio + icono
+  var aspHtml=asps.map(function(a){
+    return '<circle cx="'+a.x+'" cy="'+a.y+'" r="'+a.r+'" fill="rgba(95,143,232,.1)" stroke="rgba(95,143,232,.45)" stroke-width=".4" stroke-dasharray="2 1.5"/>'
+      +'<circle cx="'+a.x+'" cy="'+a.y+'" r="1.4" fill="#5f8fe8" opacity=".9"/>'
+      +'<text x="'+a.x+'" y="'+(a.y+1.2)+'" font-size="3" text-anchor="middle" dominant-baseline="middle">💧</text>';
+  }).join('');
+  svg.innerHTML=field+gridHtml.join('')+aspHtml;
+  // Summary
+  var covEl=document.getElementById('asp-coverage');
+  if(covEl){
+    if(!asps.length){covEl.innerHTML='';}
+    else{
+      covEl.innerHTML='<span style="color:#4cad72">🟢 '+Math.round(covered/total*100)+'%</span> &nbsp;'
+        +'<span style="color:#e0b84c">🟡 '+Math.round(overlapped/total*100)+'%</span> &nbsp;'
+        +'<span style="color:#e05252">🔴 '+Math.round(none/total*100)+'%</span> &nbsp;·&nbsp; '+asps.length+' aspersores';
+    }
+  }
+}
+
+/* ── MÓDULO 2: CALIBRACIÓN DE SOMBRAS ── */
+function buildSombrasModule(shadowMaps){
+  var el=document.getElementById('mc-sombras'); if(!el) return;
+  var saved={};
+  try{saved=JSON.parse(localStorage.getItem('mc_sombras_cal')||'{}');}catch(e){}
+  if(!shadowMaps||!Object.keys(shadowMaps).length){
+    el.innerHTML='<div style="color:var(--wdim);font-size:12px;padding:8px 0">Sin datos de análisis de sombras disponibles.</div>';
+    return;
+  }
+  var rows=Object.keys(shadowMaps).map(function(sid){
+    var sm=shadowMaps[sid];
+    var isCorrect=sid in saved?saved[sid]:true; // default: trust satellite
+    var calNote=!isCorrect?'<div class="mc-shadow-cal">⚠️ Marcado como error del satélite — excluido del análisis de sombras</div>':'';
+    return '<div class="mc-shadow-row">'
+      +'<div class="mc-shadow-info">'
+      +'<div class="mc-shadow-label">'+(sm.label||sid)+'</div>'
+      +'<div class="mc-shadow-sub">🌑 '+sm.sombra_permanente_pct+'% permanente · '+sm.sombra_parcial_pct+'% parcial · '+sm.imagenes_analizadas+' imgs Sentinel-2</div>'
+      +calNote+'</div>'
+      +'<label class="mc-toggle" title="ON = satélite correcto · OFF = no hay sombra real aquí">'
+      +'<input type="checkbox" '+(isCorrect?'checked':'')+' onchange="mcSaveSombra(\''+sid+'\',this.checked,this.closest(\'.mc-shadow-row\'))">'
+      +'<span class="mc-toggle-slider"></span>'
+      +'</label>'
+      +'</div>';
+  }).join('');
+  el.innerHTML=
+    '<div style="font-size:11px;color:var(--wdim);line-height:1.55;margin-bottom:12px">'
+    +'Desactivá el toggle si el satélite detecta sombra donde <em>no hay sombra real</em>. '
+    +'Faro excluirá ese sector en las próximas corridas.</div>'
+    +rows
+    +'<div class="mc-disclaimer">'+MC_DISCLAIMER+'</div>';
+}
+
+function mcSaveSombra(sid,val,rowEl){
+  var saved={};
+  try{saved=JSON.parse(localStorage.getItem('mc_sombras_cal')||'{}');}catch(e){}
+  saved[sid]=val;
+  localStorage.setItem('mc_sombras_cal',JSON.stringify(saved));
+  var note=rowEl&&rowEl.querySelector('.mc-shadow-cal');
+  if(!val){
+    if(!note){
+      var info=rowEl&&rowEl.querySelector('.mc-shadow-info');
+      if(info){var d=document.createElement('div');d.className='mc-shadow-cal';d.textContent='⚠️ Marcado como error del satélite — excluido del análisis de sombras';info.appendChild(d);}
+    }
+  } else {
+    if(note) note.remove();
+  }
+}
+
+/* ── MÓDULO 3: MEDICIONES DE CAMPO ── */
+function buildMedicionesModule(u,wl){
+  var el=document.getElementById('mc-med'); if(!el) return;
+  var canchaOpts=MC_CANCHAS.map(function(c){return '<option value="'+c+'">'+c.toUpperCase()+'</option>';}).join('');
+  var tipoOpts=MC_TIPOS.map(function(t){return '<option value="'+t.id+'">'+t.icon+' '+t.label+' ('+t.unit+')</option>';}).join('');
+  var zonaOpts=MC_ZONAS.map(function(z){return '<option value="'+z+'">'+z+'</option>';}).join('');
+  el.innerHTML=
+    '<div class="mc-form-row"><div class="mc-label">Cancha</div>'
+    +'<select class="mc-select" id="med-cancha">'+canchaOpts+'</select></div>'
+    +'<div class="mc-form-row"><div class="mc-label">Tipo de medición</div>'
+    +'<select class="mc-select" id="med-tipo" onchange="medTipoChange()">'+tipoOpts+'</select></div>'
+    +'<div style="display:flex;gap:8px">'
+    +'<div class="mc-form-row" style="flex:1"><div class="mc-label" id="med-unit-label">Valor (kg)</div>'
+    +'<input class="mc-input" id="med-valor" type="number" step="0.1" min="0" placeholder="0.0" inputmode="decimal"/></div>'
+    +'<div class="mc-form-row" style="flex:1"><div class="mc-label">Zona</div>'
+    +'<select class="mc-select" id="med-zona">'+zonaOpts+'</select></div>'
+    +'</div>'
+    +'<div class="mc-form-row"><div class="mc-label">Nota (opcional)</div>'
+    +'<input class="mc-input" id="med-nota" type="text" placeholder="Observación libre…"/></div>'
+    +'<button class="mc-btn mc-btn-primary mc-btn-wide" onclick="medGuardar(event)">Guardar medición</button>'
+    +'<div id="med-interp" style="margin-top:10px"></div>'
+    +'<div id="med-save-status"></div>'
+    +'<div class="mc-med-history" id="med-history"></div>'
+    +'<div class="mc-disclaimer">'+MC_DISCLAIMER+'</div>';
+  medRenderHistory();
+}
+
+function medTipoChange(){
+  var tipo=document.getElementById('med-tipo').value;
+  var t=MC_TIPOS.find(function(x){return x.id===tipo;});
+  if(t) document.getElementById('med-unit-label').textContent='Valor ('+t.unit+')';
+}
+
+function medGuardar(ev){
+  if(ev) ev.preventDefault();
+  var cancha=(document.getElementById('med-cancha')||{}).value;
+  var tipo=(document.getElementById('med-tipo')||{}).value;
+  var valor=parseFloat((document.getElementById('med-valor')||{}).value);
+  var zona=(document.getElementById('med-zona')||{}).value;
+  var nota=(document.getElementById('med-nota')||{}).value||'';
+  var interpEl=document.getElementById('med-interp');
+  if(!cancha||!tipo||isNaN(valor)){
+    if(interpEl) interpEl.innerHTML='<div class="mc-med-interp warn">Completá cancha, tipo y valor.</div>';
+    return;
+  }
+  var t=MC_TIPOS.find(function(x){return x.id===tipo;});
+  var interp=medInterpretar(tipo,valor,_mcData);
+  var rec={cancha:cancha,tipo:tipo,valor:valor,zona:zona,nota:nota,
+    fecha:new Date().toISOString().slice(0,10),
+    timestamp:new Date().toISOString(),
+    icon:t?t.icon:'📐', unit:t?t.unit:'',
+    interp:interp.text, interp_cls:interp.cls};
+  // Save locally
+  var hist=[];
+  try{hist=JSON.parse(localStorage.getItem('mc_mediciones')||'[]');}catch(e){}
+  hist.unshift(rec); hist=hist.slice(0,50);
+  localStorage.setItem('mc_mediciones',JSON.stringify(hist));
+  if(interpEl) interpEl.innerHTML='<div class="mc-med-interp '+interp.cls+'">'+interp.text+'</div>';
+  document.getElementById('med-valor').value='';
+  document.getElementById('med-nota').value='';
+  medRenderHistory();
+  // Optional Railway sync (when backend is deployed)
+  var RAILWAY=typeof RAILWAY_URL!=='undefined'?RAILWAY_URL:null;
+  var PIN=typeof _pinValue!=='undefined'?_pinValue:null;
+  if(RAILWAY&&PIN){
+    fetch(RAILWAY+'/velez/mediciones',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({pin:PIN,medicion:rec})})
+      .then(function(r){return r.json();})
+      .then(function(d){
+        var st=document.getElementById('med-save-status');
+        if(st) st.innerHTML='<div class="mc-save-status">✅ Sincronizado con GitHub</div>';
+        setTimeout(function(){var s=document.getElementById('med-save-status');if(s)s.innerHTML='';},3000);
+      }).catch(function(){});
+  }
+}
+
+function medInterpretar(tipo,valor,data){
+  var wl=(data&&data.weather_live)||{};
+  if(tipo==='clegg'){
+    if(valor<60)  return{cls:'ok',   text:'✅ Suelo blando — óptimo para jugadores, bajo riesgo de lesión.'};
+    if(valor<100) return{cls:'ok',   text:'✅ Dureza normal — dentro del rango FIFA (60–100 kg).'};
+    if(valor<130) return{cls:'warn', text:'⚠️ Algo duro — monitorear. Considerar aerificación si persiste.'};
+    if(valor<160) return{cls:'warn', text:'⚠️ Duro — riesgo de lesión aumentado. Aerificar y regar.'};
+    return{cls:'alert',text:'🔴 Muy duro (>160 kg) — riesgo alto de lesión. Suspender entrenamientos pesados.'};
+  }
+  if(tipo==='tdr_hum'){
+    var note=wl.et0_diario_mm?' · ET₀ hoy: '+wl.et0_diario_mm+' mm/día':'';
+    if(valor<15)  return{cls:'alert',text:'🔴 Muy seco (<15%) — estrés hídrico severo. Regar urgente.'+note};
+    if(valor<20)  return{cls:'warn', text:'⚠️ Seco (15–20%) — inicio de estrés. Regar pronto.'+note};
+    if(valor<35)  return{cls:'ok',   text:'✅ Humedad óptima (20–35%) para gramíneas de estadio.'+note};
+    if(valor<45)  return{cls:'warn', text:'⚠️ Saturado (35–45%) — riesgo de compactación y enfermedades fungosas.'};
+    return{cls:'alert',text:'🔴 Saturado (>45%) — suspender riego, verificar drenaje.'};
+  }
+  if(tipo==='tdr_sal'){
+    if(valor<2)  return{cls:'ok',   text:'✅ Sales normales (<2 dS/m) — sin estrés osmótico.'};
+    if(valor<4)  return{cls:'warn', text:'⚠️ Sales moderadas — Ryegrass y Bermuda pueden verse afectadas.'};
+    return{cls:'alert',text:'🔴 Salinidad alta (>4 dS/m) — estrés osmótico severo. Lavado con agua limpia urgente.'};
+  }
+  if(tipo==='truefirm'){
+    if(valor<3)  return{cls:'alert',text:'🔴 Colchón muy bajo (<3 g) — pasto ralo, riesgo de quemadura de corte.'};
+    if(valor<7)  return{cls:'ok',   text:'✅ Colchón óptimo (3–7 g) — buena densidad de césped.'};
+    if(valor<12) return{cls:'warn', text:'⚠️ Colchón alto (7–12 g) — posible musgo o felt. Escarificar.'};
+    return{cls:'alert',text:'🔴 Felt excesivo (>12 g) — escarificación urgente.'};
+  }
+  if(tipo==='traccion'){
+    if(valor<15) return{cls:'warn', text:'⚠️ Tracción baja — riesgo de resbalones. Verificar estado del pasto.'};
+    if(valor<35) return{cls:'ok',   text:'✅ Tracción óptima FIFA (15–35 Nm) — condición de juego correcta.'};
+    if(valor<50) return{cls:'warn', text:'⚠️ Tracción alta — riesgo de lesión articular en giros.'};
+    return{cls:'alert',text:'🔴 Tracción excesiva (>50 Nm) — riesgo alto de lesión de rodilla/tobillo.'};
+  }
+  if(tipo==='altura'){
+    if(valor<20) return{cls:'warn', text:'⚠️ Corte muy bajo (<20 mm) — estrés de corte, debilita el pasto.'};
+    if(valor<40) return{cls:'ok',   text:'✅ Altura óptima (20–40 mm) para fútbol de élite.'};
+    if(valor<60) return{cls:'warn', text:'⚠️ Algo largo (40–60 mm) — puede afectar el rodado de la pelota.'};
+    return{cls:'alert',text:'🔴 Muy largo (>60 mm) — cortar respetando la regla del 1/3.'};
+  }
+  return{cls:'ok',text:'Medición registrada correctamente.'};
+}
+
+function medRenderHistory(){
+  var el=document.getElementById('med-history'); if(!el) return;
+  var hist=[];
+  try{hist=JSON.parse(localStorage.getItem('mc_mediciones')||'[]');}catch(e){}
+  if(!hist.length){
+    el.innerHTML='<div style="font-size:11px;color:var(--wdim);margin-top:12px;text-align:center">Sin mediciones registradas aún.</div>';
+    return;
+  }
+  var html='<div class="mc-history-title">Historial reciente ('+hist.length+')</div>';
+  html+=hist.slice(0,12).map(function(r){
+    var t=MC_TIPOS.find(function(x){return x.id===r.tipo;});
+    return '<div class="mc-med-row">'
+      +'<div class="mc-med-icon">'+(r.icon||'📐')+'</div>'
+      +'<div class="mc-med-body">'
+      +'<div class="mc-med-title">'+r.cancha.toUpperCase()+' · '+(t?t.label:r.tipo)+' · <b>'+r.valor+'</b> '+(r.unit||'')+'</div>'
+      +'<div class="mc-med-sub">'+r.zona+' · '+r.fecha+(r.nota?' · '+r.nota:'')+'</div>'
+      +(r.interp?'<div class="mc-med-interp '+(r.interp_cls||'ok')+'">'+r.interp+'</div>':'')
+      +'</div></div>';
+  }).join('');
+  el.innerHTML=html;
+}
+
+function buildMiCampo(u,data,cfg){
+  var el=document.getElementById('micampo-section'); if(!el) return;
+  el.style.display='block';
+  _mcData=data;
+  buildAspersores();
+  buildSombrasModule(data.shadow_maps);
+  buildMedicionesModule(u,data.weather_live||{});
+}
+
 function render(data, cfg){
   var userSlug=slug();
   if(!userSlug){show('not-auth');return;}
@@ -1368,6 +1786,7 @@ function render(data, cfg){
     buildDisclaimer('disclaimer-recs');
     buildTaskCalendar(u.tareas_semana);
     buildInterventionLog();
+    buildMiCampo(u, data, cfg);
     document.getElementById('sectors-wrapper').style.display='none';
     document.getElementById('weather-section').style.display='block';
     document.getElementById('smart-recs-section').style.display='block';
