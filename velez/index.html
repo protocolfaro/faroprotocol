@@ -497,6 +497,13 @@ function slug(){ return (location.hash||'').replace(/^#/,'').toLowerCase().trim(
 function sc(sem){ return SEM_COL[sem]||'#8b8680'; }
 function fmtDate(iso){ if(!iso) return '—'; var d=new Date(iso+'T12:00:00'); return d.toLocaleDateString('es-AR',{day:'numeric',month:'short',year:'numeric'}); }
 function fmtMonto(n){ return '$'+n.toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.'); }
+function currentWeekRange(){
+  var d=new Date(), day=d.getDay();
+  var mon=new Date(d); mon.setDate(d.getDate()-(day===0?6:day-1));
+  var sun=new Date(mon); sun.setDate(mon.getDate()+6);
+  function mm_dd(dt){ return (dt.getMonth()+1).toString().padStart(2,'0')+'/'+dt.getDate().toString().padStart(2,'0'); }
+  return mm_dd(mon)+'–'+mm_dd(sun);
+}
 
 function show(id){
   ['loading','error-msg','not-auth','content'].forEach(function(x){
@@ -1098,8 +1105,7 @@ function buildHorarioGrid(cfg){
 
   var dias=sched.dias;
   var today=new Date().toISOString().slice(0,10);
-  var semLbl='Sem. '+sched.semana_label+' · '
-    +sched.fecha_inicio.slice(5).replace('-','/')+'–'+sched.fecha_fin.slice(5).replace('-','/');
+  var semLbl='Sem. '+(sched.semana_label||'—')+' · '+currentWeekRange();
 
   // Build usage from sessions and collect ordered cids
   var u=_buildSessionUsage(cfg);

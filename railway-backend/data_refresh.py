@@ -357,6 +357,8 @@ def push_weather_update(weather_live: dict) -> str:
     ts = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
     sha, cfg = _gh_get_sha_and_content(_VD_PATH)
     cfg["weather_live"] = weather_live
+    cfg.setdefault("meta", {})["fecha"] = date.today().isoformat()
+    cfg["updated_at"] = ts
 
     payload = {
         "message": f"data refresh: weather_live [{ts}]",
