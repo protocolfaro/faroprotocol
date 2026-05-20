@@ -76,8 +76,17 @@ def _ipos_to_health(ipos_score: float, semaforo: str) -> int:
     return max(10, round(55 - (ipos_score - 200) * 0.14))
 
 
+def _combined_score(ndvi: float, ipos_score: float, ipos_sem: str) -> tuple:
+    """Score fusión: NDVI Planetary Computer 60% + IPOS invertido 40%. Returns (score, sem)."""
+    ndvi_norm = min(100, round((ndvi / 0.75) * 100))
+    ipos_inv  = _ipos_to_health(ipos_score, ipos_sem)
+    combined  = round(ndvi_norm * 0.60 + ipos_inv * 0.40)
+    sem = "verde" if combined >= 70 else "amarillo" if combined >= 50 else "rojo"
+    return combined, sem
+
+
 def push_velez_data(ipos: dict, ts: str) -> str:
-    """Update sectores.canchero.canchas + updated_at in velez_data.json from IPOS results."""
+    """Update velez_data.json: score fusión en canchas, heatmaps_meta, updated_at."""
     r = requests.get(f"{API}/repos/{OWNER}/{REPO}/contents/{VD_PATH}",
                      headers=_hdrs(), params={"ref": BRANCH}, timeout=15)
     if r.status_code != 200:
@@ -86,28 +95,51 @@ def push_velez_data(ipos: dict, ts: str) -> str:
     existing_sha = d["sha"]
     vd = json.loads(base64.b64decode(d["content"]).decode())
 
+    # Real NDVI per cancha from Planetary Computer heatmap pipeline
+    roger = vd.get("usuarios", {}).get("roger", {})
+    hm    = roger.get("heatmaps", {})
+
+    # Migrate fuente/semana out of heatmaps → heatmaps_meta (one-shot if not done yet)
+    if "fuente" in hm or "semana" in hm:
+        roger.setdefault("heatmaps_meta", {})
+        if "fuente" in hm:
+            roger["heatmaps_meta"]["fuente"] = hm.pop("fuente")
+        if "semana" in hm:
+            roger["heatmaps_meta"]["semana"] = hm.pop("semana")
+
     canchas = vd.get("sectores", {}).get("canchero", {}).get("canchas", [])
     for cancha in canchas:
-        cid = cancha.get("id", "")
+        cid  = cancha.get("id", "")
+        # Prefer real NDVI from Planetary Computer pipeline; fall back to existing value
+        hm_e = hm.get(cid)
+        ndvi = (hm_e.get("ndvi") if isinstance(hm_e, dict) and hm_e.get("ndvi") is not None
+                else cancha.get("ndvi", 0.4))
+
         if cid in ipos:
-            ip = ipos[cid]
-            sem = ip.get("semaforo", "verde")
-            score_new = _ipos_to_health(float(ip.get("score", 0)), sem)
-            cancha["score_prev"] = cancha.get("score", score_new)
-            cancha["score"]      = score_new
+            ip       = ipos[cid]
+            ipos_sem = ip.get("semaforo", "verde")
+            score, sem = _combined_score(ndvi, float(ip.get("score", 0)), ipos_sem)
+            cancha["score_prev"] = cancha.get("score", score)
+            cancha["score"]      = score
             cancha["sem"]        = sem
-            cancha["detalle"]    = (f"{ip.get('texto', '')} · "
+            cancha["ndvi"]       = ndvi
+            cancha["detalle"]    = (f"NDVI {ndvi:.2f} · {ip.get('texto', '')} · "
                                     f"{ip.get('personas', 0)} pers · {ip.get('horas', 0)}h")
         else:
-            cancha["score_prev"] = cancha.get("score", 100)
-            cancha["score"]      = 100
-            cancha["sem"]        = "verde"
-            cancha["detalle"]    = "Sin actividad esta semana — cancha descansada"
+            # 0 sessions this week — fully rested, NDVI governs
+            ndvi_norm = min(100, round((ndvi / 0.75) * 100))
+            score     = round(ndvi_norm * 0.60 + 100 * 0.40)
+            sem       = "verde" if score >= 70 else "amarillo" if score >= 50 else "rojo"
+            cancha["score_prev"] = cancha.get("score", score)
+            cancha["score"]      = score
+            cancha["sem"]        = sem
+            cancha["ndvi"]       = ndvi
+            cancha["detalle"]    = f"NDVI {ndvi:.2f} · Sin uso esta semana — descansada"
 
     vd["updated_at"] = ts
 
     data = json.dumps(vd, ensure_ascii=False, indent=2).encode()
-    msg  = f"ipos sync velez_data — canchas + updated_at [{ts}]"
+    msg  = f"ipos sync velez_data — score fusión + heatmaps_meta [{ts}]"
     resp = _put(VD_PATH, data, msg, existing_sha)
     return (resp.get("commit", {}).get("html_url") or
             f"https://github.com/{OWNER}/{REPO}/blob/{BRANCH}/{VD_PATH}")
