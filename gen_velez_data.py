@@ -135,7 +135,7 @@ USUARIO_CONFIG = {
         "sort_by_score": True,
         "resumen_ejecutivo": [
             "2 sectores en rojo: Poli Básquet (InSAR 0.85 mm) y 4FA — acción urgente esta semana.",
-            "Sistema solar al 71% de eficiencia — 3 paneles en falla, pérdida de 4.2 kWp activa.",
+            "Sistema solar al 71% de eficiencia — 13 paneles en falla, pérdida de 4.2 kWp activa.",
             "Área agronómica estable (NDVI 0.58). Complejo acuático y estadio sin intervención inmediata.",
         ],
         "presupuesto_urgente": {
