@@ -107,10 +107,16 @@ def _find_pair(granules: list[dict]) -> tuple[dict, dict] | None:
 def _submit_and_wait(granule1: dict, granule2: dict, timeout_s: int = 7200) -> object:
     """Submit HyP3 D-InSAR job and block until SUCCEEDED (up to timeout_s). Returns job."""
     import hyp3_sdk
-    username = os.environ.get("EARTHDATA_USERNAME", "")
-    password = os.environ.get("EARTHDATA_PASSWORD", "")
+    # Accept both naming conventions present in the project
+    username = (os.environ.get("NASA_EARTHDATA_USER")
+                or os.environ.get("EARTHDATA_USERNAME", ""))
+    password = (os.environ.get("NASA_EARTHDATA_PASS")
+                or os.environ.get("EARTHDATA_PASSWORD", ""))
     if not username or not password:
-        raise EnvironmentError("EARTHDATA_USERNAME / EARTHDATA_PASSWORD not set")
+        raise EnvironmentError(
+            "NASA Earthdata credentials not set — "
+            "add NASA_EARTHDATA_USER + NASA_EARTHDATA_PASS to Railway env vars"
+        )
 
     hyp3 = hyp3_sdk.HyP3(username=username, password=password)
 
