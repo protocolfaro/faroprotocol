@@ -50,6 +50,10 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
 .sched-input{width:100%;background:var(--bg3);border:1px solid rgba(255,255,255,.08);border-radius:4px;color:var(--whi);font-size:9px;padding:4px 5px;text-align:center;outline:none;min-width:44px}
 .sched-input:focus{border-color:var(--gold)}
 .sched-input::placeholder{color:rgba(255,255,255,.18);font-size:8px}
+.cell-wrap{display:flex;align-items:center;gap:1px}
+.cell-del{width:14px;min-width:14px;background:none;border:none;color:transparent;font-size:13px;line-height:1;padding:0;cursor:pointer;flex-shrink:0;transition:color .15s}
+.cell-del.vis{color:rgba(224,82,82,.5)}
+.cell-del.vis:active{color:var(--red)}
 
 /* Bottom action */
 .bottom-bar{position:fixed;bottom:0;left:0;right:0;background:var(--bg2);border-top:1px solid rgba(201,168,76,.2);padding:12px 16px;z-index:200}
@@ -211,9 +215,14 @@ function buildTable(){
       +'<div><span class="factor-pill '+fCls+'">×'+cat.factor+'</span></div></td>';
     DIAS.forEach(function(d){
       var id='cell_'+cat.id+'_'+d.id;
-      html+='<td><input id="'+id+'" class="sched-input" type="text" '
+      html+='<td><div class="cell-wrap">'
+        +'<input id="'+id+'" class="sched-input" type="text" '
         +'placeholder="—" maxlength="16" autocomplete="off" '
-        +'autocorrect="off" autocapitalize="characters"></td>';
+        +'autocorrect="off" autocapitalize="characters" '
+        +'oninput="updateDel(\''+id+'\')">'
+        +'<button class="cell-del" id="del_'+id+'" '
+        +'onclick="clearCell(\''+id+'\')" title="Borrar evento">×</button>'
+        +'</div></td>';
     });
     html+='</tr>';
   });
@@ -242,6 +251,7 @@ function fillFromSessions(sessions){
     var el=document.getElementById(id);
     if(el) el.value=grouped[key].join('/').toUpperCase();
   });
+  updateAllDels();
 }
 
 // ── Parse table → sessions ──
@@ -265,6 +275,22 @@ function collectSessions(){
     });
   });
   return sessions;
+}
+
+// ── Cell delete helpers ──
+window.clearCell = function(id){
+  var el=document.getElementById(id);
+  if(el){ el.value=''; updateDel(id); }
+};
+function updateDel(id){
+  var btn=document.getElementById('del_'+id);
+  var el=document.getElementById(id);
+  if(btn) btn.classList.toggle('vis', !!(el&&el.value.trim()));
+}
+function updateAllDels(){
+  CATS.forEach(function(cat){
+    DIAS.forEach(function(d){ updateDel('cell_'+cat.id+'_'+d.id); });
+  });
 }
 
 // ── Verify PIN ──
