@@ -37,7 +37,7 @@ SECTOR_DATA = {
         "nombre": "Sistema Solar",
         "score": 71, "score_prev": 75,
         "sem": "amarillo",
-        "detalle": "Eficiencia: 71% · 3 paneles en falla",
+        "detalle": "Eficiencia: 71% · 13 paneles en falla",
     },
     "canchero": {
         "nombre": "Villa Olímpica",
@@ -55,7 +55,7 @@ SECTOR_DATA = {
         "nombre": "Sede Central",
         "score": 75, "score_prev": 75,
         "sem": "amarillo",
-        "detalle": "InSAR Anexo Norte: 0.55 mm · Landsat: 41.2°C",
+        "detalle": "InSAR Anexo Norte: 0.22 mm · Landsat: 41.2°C",
     },
     "poli": {
         "nombre": "Polideportivo Feijóo",
@@ -169,6 +169,7 @@ USUARIO_CONFIG = {
         "tipo": "ejecutivo",
         "sectores": _ALL,
         "sort_by_score": True,
+        "nota_calibracion": "Datos de infraestructura en calibración · Actualización próxima semana",
         "acciones": [
             "Poli + 4FA: intervenciones urgentes esta semana",
             "Sistema Solar: mantenimiento técnico + limpieza paneles degradados",

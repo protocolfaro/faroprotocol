@@ -239,6 +239,11 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
 .trend-arrow.up{color:var(--grn)}.trend-arrow.down{color:var(--red)}.trend-arrow.flat{color:var(--wdim)}
 .sector-score-label{font-size:9px;color:var(--wdim);letter-spacing:.06em}
 
+/* ── CALIBRACION NOTA ── */
+.calib-banner{margin:8px 16px 4px;padding:10px 13px;background:rgba(201,168,76,.07);border:1px solid rgba(201,168,76,.25);border-radius:8px;display:flex;align-items:center;gap:9px}
+.calib-icon{font-size:14px;flex-shrink:0;opacity:.8}
+.calib-text{font-size:10px;color:var(--wdim);line-height:1.5}
+
 /* ── INTERVENTION LOG ── */
 .log-history{padding:8px 16px 4px;display:flex;flex-direction:column;gap:6px}
 .log-empty{font-size:11px;color:var(--wdim);padding:8px 16px}
@@ -492,6 +497,7 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
   <div id="sectors-wrapper">
     <div class="section-title" id="sectors-title">Sectores Asignados</div>
     <div class="sectors-list" id="sectors-list"></div>
+    <div id="calib-banner" style="display:none"></div>
   </div>
 
   <!-- Task calendar — canchero -->
@@ -1123,6 +1129,17 @@ function buildTrend(history){
   });
   svg.innerHTML=inner;
   lblEl.innerHTML=history.map(function(h){return '<span class="trend-label">'+(h.semana||'')+'</span>';}).join('');
+}
+
+/* ── CALIBRACION BANNER ── */
+function buildCalibBanner(txt){
+  var el=document.getElementById('calib-banner');
+  if(!el||!txt) return;
+  el.style.display='block';
+  el.innerHTML='<div class="calib-banner">'
+    +'<span class="calib-icon">🔧</span>'
+    +'<span class="calib-text">'+txt+'</span>'
+    +'</div>';
 }
 
 /* ── DISCLAIMER ── */
@@ -2006,6 +2023,7 @@ function render(data, cfg){
 
   } else {
     buildSectors(mySectors, allS, u.sort_by_score);
+    buildCalibBanner(u.nota_calibracion);
     buildDisclaimer('disclaimer-actions');
     buildActions(u.acciones);
     show('content');
