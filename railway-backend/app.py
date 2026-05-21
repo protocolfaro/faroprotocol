@@ -160,6 +160,15 @@ def manual_refresh():
     return jsonify({"status": status, **result}), code
 
 
+@app.route("/velez/refresh_insar", methods=["POST"])
+def manual_insar_refresh():
+    """Trigger an immediate InSAR refresh (admin use — takes up to 2h for HyP3 processing)."""
+    result = data_refresh.run_insar_refresh()
+    status = "ok" if result.get("ok") else "error"
+    code   = 200 if result.get("ok") else 500
+    return jsonify({"status": status, **result}), code
+
+
 @app.route("/velez/refresh_status", methods=["GET"])
 def refresh_status():
     return jsonify({
@@ -172,6 +181,8 @@ def refresh_status():
 # ── Daily weather cron ────────────────────────────────────────────────────────
 
 _last_refresh: dict = {}
+_last_insar:   dict = {}
+
 
 def _daily_refresh():
     global _last_refresh
@@ -184,6 +195,17 @@ def _daily_refresh():
         log.error("=== Cron: daily weather refresh FAILED: %s ===", result.get("error"))
 
 
+def _weekly_insar_refresh():
+    global _last_insar
+    log.info("=== Cron: weekly InSAR refresh starting ===")
+    result = data_refresh.run_insar_refresh()
+    _last_insar = {**result, "ran_at": datetime.now(timezone.utc).isoformat()}
+    if result.get("ok"):
+        log.info("=== Cron: weekly InSAR refresh OK ===")
+    else:
+        log.error("=== Cron: weekly InSAR refresh FAILED: %s ===", result.get("error"))
+
+
 def _start_scheduler():
     scheduler = BackgroundScheduler(timezone="UTC")
     # 06:00 ART = 09:00 UTC (ART is UTC-3, no DST in Argentina)
@@ -194,8 +216,16 @@ def _start_scheduler():
         replace_existing=True,
         misfire_grace_time=3600,
     )
+    # Monday 10:00 UTC = Monday 07:00 ART — S1 12-day repeat, post-acquisition processing window
+    scheduler.add_job(
+        _weekly_insar_refresh,
+        CronTrigger(day_of_week="mon", hour=10, minute=0, timezone="UTC"),
+        id="weekly_insar_refresh",
+        replace_existing=True,
+        misfire_grace_time=7200,
+    )
     scheduler.start()
-    log.info("APScheduler started — daily refresh at 06:00 ART (09:00 UTC)")
+    log.info("APScheduler started — daily refresh at 09:00 UTC · InSAR Mondays at 10:00 UTC")
     return scheduler
 
 

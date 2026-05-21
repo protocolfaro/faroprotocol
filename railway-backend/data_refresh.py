@@ -435,6 +435,88 @@ def push_weather_update(weather_live: dict) -> str:
     return r.json().get("commit", {}).get("html_url", "")
 
 
+# ── InSAR sector mapping ──────────────────────────────────────────────────────
+
+# insar_hyp3 sector_id → (velez_data.json sector key, display label)
+_INSAR_SECTOR_MAP: dict[str, tuple[str, str]] = {
+    "estadio":           ("estadio", "InSAR Estadio"),
+    "poli_basquet":      ("poli",    "InSAR Básquet"),
+    "poli_playon_norte": ("poli",    "InSAR Playón Norte"),
+    "sede_anexo_norte":  ("sede",    "InSAR Anexo Norte"),
+    "piletas":           ("piletas", "InSAR Piletas"),
+}
+
+
+def push_insar_update(insar_result: dict) -> str:
+    """Update sectores.{key}.insar_mm and .detalle in velez_data.json and push to GitHub."""
+    ts  = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    sha, cfg = _gh_get_sha_and_content(_VD_PATH)
+    sectores  = cfg.setdefault("sectores", {})
+    sector_mm = insar_result.get("sectores", {})
+
+    # Aggregate poli (may have basquet + playon readings — use mean)
+    poli_vals: list[tuple[float, str]] = []
+
+    for insar_id, val_mm in sector_mm.items():
+        json_key, label = _INSAR_SECTOR_MAP.get(insar_id, (None, None))
+        if json_key is None:
+            continue
+        if json_key == "poli":
+            poli_vals.append((val_mm, label))
+            continue
+        sec = sectores.setdefault(json_key, {})
+        sec["insar_mm"] = val_mm
+        sec["detalle"]  = f"{label}: {val_mm:+.2f} mm"
+
+    if poli_vals:
+        mean_mm   = round(sum(v for v, _ in poli_vals) / len(poli_vals), 2)
+        poli_label = poli_vals[0][1]
+        poli_sec   = sectores.setdefault("poli", {})
+        poli_sec["insar_mm"] = mean_mm
+        poli_sec["detalle"]  = f"{poli_label}: {mean_mm:+.2f} mm"
+
+    cfg.setdefault("meta", {})["fecha"] = date.today().isoformat()
+    cfg["updated_at"] = ts
+
+    ref  = insar_result.get("fecha_ref", "?")
+    sec_ = insar_result.get("fecha_sec", "?")
+    payload = {
+        "message": f"data refresh: InSAR update [{ref}/{sec_}] [{ts}]",
+        "content": base64.b64encode(
+            json.dumps(cfg, ensure_ascii=False, separators=(",", ":")).encode()
+        ).decode(),
+        "branch": _BRANCH,
+    }
+    if sha:
+        payload["sha"] = sha
+
+    r = _req.put(f"{_GH_API}/repos/{_OWNER}/{_REPO}/contents/{_VD_PATH}",
+                 headers=_gh_headers(), json=payload, timeout=35)
+    r.raise_for_status()
+    return r.json().get("commit", {}).get("html_url", "")
+
+
+def run_insar_refresh() -> dict:
+    """Fetch Sentinel-1 InSAR displacement and push updated sector data to GitHub."""
+    log.info("data_refresh: starting InSAR refresh")
+    try:
+        import insar_hyp3
+        insar_data = insar_hyp3.fetch_insar()
+        if not insar_data:
+            log.warning("insar_hyp3: returned None — no update pushed")
+            return {"ok": False, "error": "No InSAR data available"}
+        commit_url = push_insar_update(insar_data)
+        log.info(
+            "✅ InSAR actualizado — %d sectores · %s",
+            len(insar_data.get("sectores", {})),
+            insar_data.get("fuente", ""),
+        )
+        return {"ok": True, "commit": commit_url, "sectores": insar_data.get("sectores", {})}
+    except Exception as e:
+        log.error("run_insar_refresh FAILED: %s", e)
+        return {"ok": False, "error": str(e)}
+
+
 # ── Public entry point ────────────────────────────────────────────────────────
 
 def run_refresh() -> dict:
