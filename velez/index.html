@@ -1599,30 +1599,41 @@ function buildHeatmapSection(u, cfg, shadowMaps){
    ══════════════════════════════════════════════════════ */
 
 async function fetchPartidosAPI(cfg){
+  // Primary: ESPN public API — covers Liga Profesional Argentina, no key required
   var fApi = cfg && cfg.football_api;
-  if(!fApi || !fApi.key) return null;
-  var teamId = fApi.team_id || 462;
-  var today = new Date().toISOString().slice(0,10);
-  var dateTo = new Date(); dateTo.setDate(dateTo.getDate()+21);
-  var dateToStr = dateTo.toISOString().slice(0,10);
+  var espnTeamId = (fApi && fApi.espn_team_id) || 21;        // 21 = Vélez Sarsfield
+  var espnComp   = (fApi && fApi.espn_competition) || 'arg.1';
+  var today      = new Date(); today.setHours(0,0,0,0);
+  var todayIso   = today.toISOString().slice(0,10);
   try{
     var r = await fetch(
-      'https://api.football-data.org/v4/teams/'+teamId+'/matches?status=SCHEDULED&dateFrom='+today+'&dateTo='+dateToStr,
-      {headers:{'X-Auth-Token': fApi.key}}
+      'https://site.api.espn.com/apis/site/v2/sports/soccer/'+espnComp+'/teams/'+espnTeamId+'/schedule'
     );
-    if(!r.ok) return null;
+    if(!r.ok) throw new Error(r.status);
     var d = await r.json();
-    var matches = (d.matches||[]).filter(function(m){
-      return m.homeTeam && m.homeTeam.id === teamId;
+    var events = d.events || [];
+    // Filter: not finished + Vélez at home + future date
+    var upcoming = events.filter(function(e){
+      var comp = (e.competitions||[])[0]||{};
+      var status = (comp.status||{}).type||{};
+      if(status.completed) return false;                         // skip finished
+      var fecha = (e.date||'').slice(0,10);
+      if(fecha < todayIso) return false;                         // skip past
+      var competitors = comp.competitors || [];
+      var velez = competitors.find(function(c){ return String(c.id)===String(espnTeamId); });
+      return velez && velez.homeAway === 'home';                 // only home matches
     });
-    if(!matches.length) return null;
-    var m = matches[0];
-    var fechaIso = (m.utcDate||'').slice(0,10);
-    if(!fechaIso) return null;
+    if(!upcoming.length) return null;
+    upcoming.sort(function(a,b){ return a.date<b.date?-1:1; }); // nearest first
+    var ev     = upcoming[0];
+    var comp   = (ev.competitions||[])[0]||{};
+    var away   = (comp.competitors||[]).find(function(c){ return c.homeAway==='away'; });
+    var rival  = (away && away.team && (away.team.shortDisplayName||away.team.displayName)) || 'Rival';
+    var fecha  = ev.date.slice(0,10);
     return {
-      fecha: fechaIso,
-      rival: (m.awayTeam && m.awayTeam.shortName) || (m.awayTeam && m.awayTeam.name) || 'Rival',
-      tipo: 'local',
+      fecha:  fecha,
+      rival:  rival,
+      tipo:   'local',
       cancha: 'J. Amalfitani',
       fuente: 'api',
       checklist: ['Corte final Amalfitani (24hs antes)', 'Marcación de líneas', 'Riego preventivo (no dentro de 12hs)'],
