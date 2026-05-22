@@ -3,7 +3,7 @@ app.py — Flask backend: Vélez IPOS + heatmap pipeline + daily weather refresh
 Faro Protocol · Railway-ready · v2026-05-20
 """
 from __future__ import annotations
-import hashlib, logging, os, traceback
+import hashlib, logging, os, threading, traceback
 from datetime import datetime, timezone
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -160,21 +160,62 @@ def manual_refresh():
     return jsonify({"status": status, **result}), code
 
 
+_insar_running = False
+
+
 @app.route("/velez/refresh_insar", methods=["POST"])
 def manual_insar_refresh():
-    """Trigger an immediate InSAR refresh (admin use — takes up to 2h for HyP3 processing)."""
-    result = data_refresh.run_insar_refresh()
-    status = "ok" if result.get("ok") else "error"
-    code   = 200 if result.get("ok") else 500
-    return jsonify({"status": status, **result}), code
+    """
+    Trigger InSAR refresh asynchronously.
+    Returns 202 immediately — HyP3 processing takes 30-120 min.
+    Poll /velez/refresh_status to see result.
+    """
+    global _insar_running
+    if _insar_running:
+        return jsonify({
+            "status": "running",
+            "msg": "InSAR job ya en progreso — revisá /velez/refresh_status en ~60 min",
+        }), 409
+
+    def _run():
+        global _insar_running, _last_insar
+        _insar_running = True
+        try:
+            result = data_refresh.run_insar_refresh()
+            _last_insar = {**result, "ran_at": datetime.now(timezone.utc).isoformat()}
+            if result.get("ok"):
+                log.info("=== InSAR manual: OK — %s ===", result.get("sectores"))
+            else:
+                log.error("=== InSAR manual: FAILED — %s ===", result.get("error"))
+        except Exception as _e:
+            log.error("=== InSAR manual: EXCEPTION — %s ===", _e)
+            _last_insar = {"ok": False, "error": str(_e),
+                           "ran_at": datetime.now(timezone.utc).isoformat()}
+        finally:
+            _insar_running = False
+
+    threading.Thread(target=_run, daemon=True).start()
+    return jsonify({
+        "status": "accepted",
+        "msg": "InSAR job iniciado en background (HyP3 tarda 30-120 min). "
+               "Revisá /velez/refresh_status para ver resultado.",
+        "check": "/velez/refresh_status",
+    }), 202
 
 
 @app.route("/velez/refresh_status", methods=["GET"])
 def refresh_status():
     return jsonify({
-        "last_refresh": _last_refresh,
-        "next_refresh": "06:00 ART daily (09:00 UTC)",
         "service": "velez-ipos",
+        "weather": {
+            "last": _last_refresh,
+            "next": "09:00 UTC diario (06:00 ART)",
+        },
+        "insar": {
+            "running": _insar_running,
+            "last": _last_insar,
+            "schedule": "Lunes 10:00 UTC (07:00 ART) · Sentinel-1 12-day repeat",
+        },
     })
 
 
