@@ -790,6 +790,16 @@
       ]
     }
   },
+  "eventos_estadio": [],
+  "mantenimiento": {
+    "items": [
+      {"id":"paneles_solares",  "label":"Inspección paneles solares",       "frecuencia_dias":30, "base_fecha":"2026-05-22"},
+      {"id":"drenajes",         "label":"Inspección drenajes",              "frecuencia_dias":60, "base_fecha":"2026-05-22"},
+      {"id":"inspeccion_poli",  "label":"Insp. estructural Poli Feijóo",   "frecuencia_dias":90, "base_fecha":"2026-05-22"},
+      {"id":"limpieza_piletas", "label":"Limpieza piletas",                 "frecuencia_dias":15, "base_fecha":"2026-05-22"},
+      {"id":"revision_riego",   "label":"Revisión sistema de riego",        "frecuencia_dias":45, "base_fecha":"2026-05-22"}
+    ]
+  },
   "shadow_maps": {
     "amalfitani": {
       "generado_en": "2026-05-20T12:52:39Z",

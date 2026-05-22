@@ -396,6 +396,66 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
 .mc-med-interp.warn{background:rgba(224,184,76,.12);color:#e0b84c}
 .mc-med-interp.alert{background:rgba(224,82,82,.12);color:#e05252}
 .mc-save-status{font-size:10px;color:#4cad72;padding:6px 0;text-align:center}
+
+/* ── EVENTS CALENDAR ── */
+.events-list{padding:8px 16px;display:flex;flex-direction:column;gap:6px}
+.event-card{background:var(--bg2);border-radius:var(--radius);border:1px solid rgba(255,255,255,.05);padding:11px 13px;display:flex;align-items:flex-start;gap:10px}
+.event-card.rojo{border-color:rgba(224,82,82,.35);background:rgba(224,82,82,.04)}
+.event-card.amarillo{border-color:rgba(224,184,76,.3)}
+.event-icon{font-size:20px;flex-shrink:0;line-height:1.3;margin-top:1px}
+.event-body{flex:1;min-width:0}
+.event-tipo{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--wdim)}
+.event-fecha-txt{font-size:14px;font-weight:700;margin-top:2px}
+.event-obs{font-size:10px;color:var(--wdim);margin-top:3px;line-height:1.45}
+.event-impacto{font-size:9px;font-weight:700;margin-top:6px;padding:2px 7px;border-radius:3px;display:inline-block;letter-spacing:.04em}
+.event-impacto.rojo{background:rgba(224,82,82,.15);color:var(--red)}
+.event-impacto.amarillo{background:rgba(224,184,76,.12);color:var(--yel)}
+.event-impacto.verde{background:rgba(76,173,114,.12);color:var(--grn)}
+.event-dias-col{text-align:right;flex-shrink:0;min-width:54px}
+.event-dias{font-size:24px;font-weight:700;line-height:1}
+.event-dias-lbl{font-size:9px;color:var(--wdim);margin-top:2px}
+.events-empty{padding:10px 16px;font-size:11px;color:var(--wdim)}
+.add-event-btn{margin:6px 16px 10px;padding:10px 14px;background:rgba(201,168,76,.06);border:1px dashed rgba(201,168,76,.3);border-radius:var(--radius);display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:var(--gold);cursor:pointer}
+.add-event-btn:active{opacity:.7}
+
+/* ── EVENT MODAL ── */
+#event-overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:299;display:none}
+#event-modal{position:fixed;bottom:0;left:0;right:0;z-index:300;background:var(--bg2);border-radius:16px 16px 0 0;transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);padding-bottom:32px;max-height:85vh;overflow-y:auto}
+#event-modal.open{transform:translateY(0)}
+.em-title{font-size:12px;font-weight:700;color:var(--gold);text-align:center;padding:8px 0 14px;letter-spacing:.1em;text-transform:uppercase}
+.em-body{padding:0 16px}
+.em-label{font-size:9px;color:var(--wdim);letter-spacing:.08em;text-transform:uppercase;margin-bottom:5px;margin-top:13px}
+.em-select,.em-input{width:100%;padding:10px 12px;background:var(--bg3);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:var(--whi);font-size:13px;font-family:inherit;box-sizing:border-box;-webkit-appearance:none;appearance:none}
+.em-select option{background:#1a1f2e;color:#fff}
+.em-textarea{width:100%;padding:10px 12px;background:var(--bg3);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:var(--whi);font-size:13px;font-family:inherit;resize:none;height:72px;line-height:1.45;box-sizing:border-box}
+.em-save{width:100%;margin-top:16px;height:52px;background:var(--gold);color:#0d1117;border:none;border-radius:var(--radius);font-size:15px;font-weight:700;letter-spacing:.04em;cursor:pointer}
+.em-save:active{opacity:.8}
+
+/* ── NDVI IMPACT IN LOG ── */
+.log-entry-ext{flex-direction:column;align-items:flex-start;gap:5px}
+.log-row-main{display:flex;align-items:center;gap:10px;width:100%}
+.log-ndvi{font-size:10px;padding:3px 9px;border-radius:4px;margin-top:2px;line-height:1.4}
+.log-ndvi.pos{background:rgba(76,173,114,.12);color:var(--grn)}
+.log-ndvi.neg{background:rgba(224,82,82,.1);color:var(--red)}
+.log-ndvi.neutral{background:rgba(255,255,255,.05);color:var(--wdim)}
+.log-ndvi.pending{background:rgba(100,181,246,.08);color:var(--blu)}
+
+/* ── MAINTENANCE SCHEDULE ── */
+.maint-list{padding:8px 16px;display:flex;flex-direction:column;gap:6px}
+.maint-item{background:var(--bg2);border-radius:var(--radius);border:1px solid rgba(255,255,255,.05);padding:11px 12px;display:flex;align-items:center;gap:10px}
+.maint-item.vence-critico{border-color:rgba(224,82,82,.35);background:rgba(224,82,82,.03)}
+.maint-item.vence-proximo{border-color:rgba(224,184,76,.28)}
+.maint-icon{font-size:18px;flex-shrink:0}
+.maint-body{flex:1;min-width:0}
+.maint-label{font-size:12px;font-weight:600;line-height:1.3}
+.maint-freq{font-size:10px;color:var(--wdim);margin-top:2px}
+.maint-ultima{font-size:10px;color:var(--wdim);margin-top:1px}
+.maint-right{text-align:right;flex-shrink:0;min-width:72px}
+.maint-dias{font-size:22px;font-weight:700;line-height:1}
+.maint-dias-lbl{font-size:9px;color:var(--wdim);margin-top:1px}
+.maint-done-btn{display:block;margin-top:6px;padding:4px 8px;background:rgba(76,173,114,.1);border:1px solid rgba(76,173,114,.3);border-radius:5px;color:var(--grn);font-size:9px;font-weight:700;font-family:inherit;cursor:pointer;letter-spacing:.05em;width:100%;text-align:center}
+.maint-done-btn:active{opacity:.7}
+.maint-hist{font-size:9px;color:var(--wdim);margin-top:4px;line-height:1.55}
 </style>
 </head>
 <body>
@@ -421,6 +481,12 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
 <div id="content">
   <!-- Match alert — canchero -->
   <div id="match-alert"></div>
+
+  <!-- Events calendar — canchero + intendente -->
+  <div id="events-section" style="display:none">
+    <div class="section-title">Próximos Eventos del Estadio</div>
+    <div id="events-content"></div>
+  </div>
 
   <!-- Fungal risk banner — canchero -->
   <div id="fungal-alert"></div>
@@ -525,6 +591,12 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
     <div id="mc-med" class="mc-module" style="display:none"></div>
   </div>
 
+  <!-- Mantenimiento programado — intendente + ejecutivo -->
+  <div id="maint-section" style="display:none">
+    <div class="section-title">Mantenimiento Programado</div>
+    <div id="maint-content"></div>
+  </div>
+
   <!-- Trend -->
   <div class="section-title">Tendencia Semanal</div>
   <div class="trend-wrap">
@@ -553,6 +625,29 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
   <div class="modal-handle"></div>
   <div class="modal-title">¿Qué hiciste hoy?</div>
   <div class="modal-grid" id="modal-grid"></div>
+</div>
+
+<div id="event-overlay" onclick="closeEventModal()"></div>
+<div id="event-modal">
+  <div class="modal-handle"></div>
+  <div class="em-title">Agregar Evento al Estadio</div>
+  <div class="em-body">
+    <div class="em-label">Tipo de evento</div>
+    <select class="em-select" id="ev-tipo">
+      <option value="partido">⚽ Partido</option>
+      <option value="show">🎤 Show</option>
+      <option value="recital">🎸 Recital</option>
+      <option value="evento_institucional">🏛️ Evento institucional</option>
+      <option value="entrenamiento">🏃 Entrenamiento especial</option>
+    </select>
+    <div class="em-label">Fecha</div>
+    <input class="em-input" type="date" id="ev-fecha">
+    <div class="em-label">Duración estimada (horas)</div>
+    <input class="em-input" type="number" id="ev-duracion" min="0.5" max="24" step="0.5" placeholder="2" inputmode="decimal">
+    <div class="em-label">Observaciones</div>
+    <textarea class="em-textarea" id="ev-obs" placeholder="Rival, artista, detalles del evento…"></textarea>
+    <button class="em-save" onclick="saveEventForm()">GUARDAR EVENTO</button>
+  </div>
 </div>
 
 <script>
@@ -726,6 +821,29 @@ function buildCanchasGrid(sectorData){
 
 /* ── WEATHER ── */
 var _weather = null;
+var _currentData = null;
+var _apiPartido = null;
+
+var EVENTS_KEY = 'faro_eventos_estadio';
+var MAINT_KEY  = 'faro_mantenimiento_velez';
+var MAINT_BASE = '2026-05-22';
+
+var EVENT_TIPOS = {
+  partido:              {icon:'⚽', label:'Partido',          impacto:'alto'},
+  show:                 {icon:'🎤', label:'Show',             impacto:'alto'},
+  recital:              {icon:'🎸', label:'Recital',          impacto:'alto'},
+  evento_institucional: {icon:'🏛️', label:'Evento inst.',    impacto:'bajo'},
+  entrenamiento:        {icon:'🏃', label:'Entrenamiento esp.',impacto:'medio'},
+};
+
+var MAINT_ITEMS = [
+  {id:'paneles_solares',  icon:'☀️',  label:'Inspección paneles solares',      frecuencia_dias:30},
+  {id:'drenajes',         icon:'🔧',  label:'Inspección drenajes',             frecuencia_dias:60},
+  {id:'inspeccion_poli',  icon:'🏗️', label:'Insp. estructural Poli Feijóo',  frecuencia_dias:90},
+  {id:'limpieza_piletas', icon:'🏊',  label:'Limpieza piletas',                frecuencia_dias:15},
+  {id:'revision_riego',   icon:'💧',  label:'Revisión sistema de riego',       frecuencia_dias:45},
+];
+
 function fetchWeather(){
   return fetch(WEATHER_URL).then(function(r){ return r.json(); }).then(function(d){ _weather=d; return d; });
 }
@@ -1049,15 +1167,47 @@ function buildInterventionLog(){
 }
 
 function renderLogHistory(){
-  var log=loadLog().slice(0,5);
+  var log=loadLog().slice(0,10);
   var el=document.getElementById('log-content');
   if(!log.length){
     el.innerHTML='<div class="log-empty">No hay intervenciones registradas aún.</div>';
     return;
   }
+  var now=Date.now();
+  var SEVEN_DAYS=7*24*3600*1000;
+  var currentNdvi=getCurrentNdvi();
+
   el.innerHTML='<div class="log-history">'+log.map(function(e){
-    return '<div class="log-entry"><div class="log-emoji">'+e.emoji+'</div>'
+    var ndviHtml='';
+    if(e.ndvi_antes && Object.keys(e.ndvi_antes).length){
+      var isOld=(now - e.ts) >= SEVEN_DAYS;
+      if(!isOld){
+        ndviHtml='<div class="log-ndvi pending">Impacto NDVI: pendiente (falta '
+          +Math.ceil((SEVEN_DAYS-(now-e.ts))/(1000*60*60*24))+'d para completar 7 días)</div>';
+      } else {
+        var deltas=[];
+        Object.keys(e.ndvi_antes).forEach(function(cid){
+          var antes=e.ndvi_antes[cid];
+          var despues=currentNdvi[cid];
+          if(antes!=null && despues!=null) deltas.push(despues-antes);
+        });
+        if(deltas.length){
+          var avgD=deltas.reduce(function(s,d){return s+d;},0)/deltas.length;
+          var cls=avgD>0.02?'pos':avgD<-0.02?'neg':'neutral';
+          var sym=avgD>0.02?'↑ +':avgD<-0.02?'↓ ':'→ ';
+          var desc=avgD>0.02?'mejora vegetativa':avgD<-0.02?'baja detectable':'sin cambio detectable';
+          ndviHtml='<div class="log-ndvi '+cls+'">Impacto NDVI: '+sym+avgD.toFixed(2)+' en 7 días — '+desc+'</div>';
+        } else {
+          ndviHtml='<div class="log-ndvi neutral">Impacto NDVI: sin dato posterior disponible</div>';
+        }
+      }
+    }
+    var hasNdvi=!!ndviHtml;
+    return '<div class="log-entry'+(hasNdvi?' log-entry-ext':'')+'"><div class="log-row-main">'
+      +'<div class="log-emoji">'+e.emoji+'</div>'
       +'<div style="flex:1"><div class="log-action">'+e.label+'</div><div class="log-date">'+e.fecha+'</div></div>'
+      +'</div>'
+      +ndviHtml
       +'</div>';
   }).join('')+'</div>';
 }
@@ -1081,7 +1231,8 @@ window.logAction=function(id,emoji,label){
   var d=new Date();
   var fecha=d.toLocaleDateString('es-AR',{weekday:'short',day:'numeric',month:'short'});
   var log=loadLog();
-  log.unshift({id:id,emoji:emoji,label:label,fecha:fecha,ts:d.getTime()});
+  var ndviSnap = captureNdviSnapshot();
+  log.unshift({id:id,emoji:emoji,label:label,fecha:fecha,ts:d.getTime(),ndvi_antes:ndviSnap});
   saveLog(log.slice(0,30));
   closeLogModal();
   renderLogHistory();
@@ -1441,6 +1592,262 @@ function buildHeatmapSection(u, cfg, shadowMaps){
       renderInner();
     });
   });
+}
+
+/* ══════════════════════════════════════════════════════
+   FEATURE 1 — EVENTOS DEL ESTADIO
+   ══════════════════════════════════════════════════════ */
+
+async function fetchPartidosAPI(cfg){
+  var fApi = cfg && cfg.football_api;
+  if(!fApi || !fApi.key) return null;
+  var teamId = fApi.team_id || 462;
+  var today = new Date().toISOString().slice(0,10);
+  var dateTo = new Date(); dateTo.setDate(dateTo.getDate()+21);
+  var dateToStr = dateTo.toISOString().slice(0,10);
+  try{
+    var r = await fetch(
+      'https://api.football-data.org/v4/teams/'+teamId+'/matches?status=SCHEDULED&dateFrom='+today+'&dateTo='+dateToStr,
+      {headers:{'X-Auth-Token': fApi.key}}
+    );
+    if(!r.ok) return null;
+    var d = await r.json();
+    var matches = (d.matches||[]).filter(function(m){
+      return m.homeTeam && m.homeTeam.id === teamId;
+    });
+    if(!matches.length) return null;
+    var m = matches[0];
+    var fechaIso = (m.utcDate||'').slice(0,10);
+    if(!fechaIso) return null;
+    return {
+      fecha: fechaIso,
+      rival: (m.awayTeam && m.awayTeam.shortName) || (m.awayTeam && m.awayTeam.name) || 'Rival',
+      tipo: 'local',
+      cancha: 'J. Amalfitani',
+      fuente: 'api',
+      checklist: ['Corte final Amalfitani (24hs antes)', 'Marcación de líneas', 'Riego preventivo (no dentro de 12hs)'],
+    };
+  } catch(e){ return null; }
+}
+
+function loadEvents(){
+  try{ return JSON.parse(localStorage.getItem(EVENTS_KEY)||'[]'); } catch(e){ return []; }
+}
+function persistEvents(evs){
+  localStorage.setItem(EVENTS_KEY, JSON.stringify(evs.slice(0,60)));
+}
+
+window.openEventModal = function(){
+  var fd = document.getElementById('ev-fecha');
+  if(fd){ var t=new Date(); t.setDate(t.getDate()+1); fd.value=t.toISOString().slice(0,10); }
+  document.getElementById('event-overlay').style.display='block';
+  document.getElementById('event-modal').classList.add('open');
+};
+window.closeEventModal = function(){
+  document.getElementById('event-overlay').style.display='none';
+  document.getElementById('event-modal').classList.remove('open');
+};
+window.saveEventForm = function(){
+  var tipo     = document.getElementById('ev-tipo').value;
+  var fecha    = document.getElementById('ev-fecha').value;
+  var duracion = parseFloat(document.getElementById('ev-duracion').value)||2;
+  var obs      = (document.getElementById('ev-obs').value||'').trim();
+  if(!fecha){ alert('Seleccioná una fecha.'); return; }
+  var t = EVENT_TIPOS[tipo]||{icon:'📅', label:tipo, impacto:'bajo'};
+  var ev = {
+    id:      'ev_'+Date.now(),
+    tipo:    tipo,
+    icon:    t.icon,
+    label:   t.label,
+    impacto: t.impacto,
+    fecha:   fecha,
+    duracion:duracion,
+    obs:     obs,
+    ts:      Date.now(),
+    fuente:  'manual',
+  };
+  var evs = loadEvents();
+  evs.push(ev);
+  persistEvents(evs);
+  closeEventModal();
+  renderEventsCalendar(_apiPartido);
+};
+
+function getUpcomingEvents(apiPartido){
+  var today = new Date(); today.setHours(0,0,0,0);
+  var todayIso = today.toISOString().slice(0,10);
+  var evs = loadEvents().slice();
+  // Inject API partido if not already in manual list
+  if(apiPartido){
+    var dup = evs.some(function(e){ return e.fecha===apiPartido.fecha && e.tipo==='partido'; });
+    if(!dup){
+      var t = EVENT_TIPOS.partido;
+      evs.push({
+        id:'api_'+apiPartido.fecha, tipo:'partido', icon:t.icon,
+        label:'Partido vs '+apiPartido.rival+' (API)',
+        impacto:t.impacto, fecha:apiPartido.fecha, duracion:2,
+        obs:apiPartido.cancha, ts:0, fuente:'api',
+      });
+    }
+  }
+  evs.sort(function(a,b){ return a.fecha<b.fecha?-1:a.fecha>b.fecha?1:0; });
+  return evs.filter(function(e){ return e.fecha>=todayIso; }).slice(0,8);
+}
+
+function eventSem(ev){
+  var today = new Date(); today.setHours(0,0,0,0);
+  var d = new Date(ev.fecha+'T12:00:00');
+  var dias = Math.ceil((d-today)/(1000*60*60*24));
+  if(ev.impacto==='alto' && dias<=2) return 'rojo';
+  if(ev.impacto!=='bajo'  && dias<=7) return 'amarillo';
+  return 'verde';
+}
+
+function renderEventsCalendar(apiPartido){
+  if(apiPartido !== undefined) _apiPartido = apiPartido;
+  var el = document.getElementById('events-content'); if(!el) return;
+  var today = new Date(); today.setHours(0,0,0,0);
+  var evs = getUpcomingEvents(_apiPartido);
+  var impactLabels = {alto:'Impacto alto en césped', medio:'Impacto moderado', bajo:'Impacto leve'};
+  var html = '';
+  if(evs.length){
+    html = '<div class="events-list">'+evs.map(function(ev){
+      var d = new Date(ev.fecha+'T12:00:00');
+      var dias = Math.ceil((d-today)/(1000*60*60*24));
+      var sem = eventSem(ev);
+      var diasLbl = dias===0?'HOY': dias===1?'MAÑANA': dias+' días';
+      return '<div class="event-card '+sem+'">'
+        +'<div class="event-icon">'+ev.icon+'</div>'
+        +'<div class="event-body">'
+        +'<div class="event-tipo">'+(ev.fuente==='api'?'● API · ':'')+ev.label+'</div>'
+        +'<div class="event-fecha-txt">'+fmtDate(ev.fecha)+(ev.duracion?' · '+ev.duracion+'hs':'')+'</div>'
+        +(ev.obs?'<div class="event-obs">'+ev.obs+'</div>':'')
+        +'<div class="event-impacto '+eventSem(ev)+'">'+impactLabels[ev.impacto]
+        +(sem==='rojo'?' — ajuste automático de riego':'')+'</div>'
+        +'</div>'
+        +'<div class="event-dias-col"><div class="event-dias" style="color:'+sc(sem)+'">'+diasLbl+'</div>'
+        +'<div class="event-dias-lbl">para el evento</div></div>'
+        +'</div>';
+    }).join('')+'</div>';
+  } else {
+    html = '<div class="events-empty">Sin eventos próximos cargados.</div>';
+  }
+  html += '<div class="add-event-btn" onclick="openEventModal()">＋ Agregar evento al estadio</div>';
+  el.innerHTML = html;
+
+  // Auto-adjust smart recs if rojo event in next 48hs
+  var urgentEv = evs.find(function(e){ return eventSem(e)==='rojo'; });
+  if(urgentEv){
+    var srec = document.getElementById('smart-recs-content');
+    if(srec && !document.getElementById('ev-srec-inject')){
+      var d2 = new Date(urgentEv.fecha+'T12:00:00');
+      var dias2 = Math.ceil((d2-today)/(1000*60*60*24));
+      var inject = '<div class="srec" id="ev-srec-inject"><div class="srec-icon">'+urgentEv.icon+'</div>'
+        +'<div class="srec-text"><strong>'+urgentEv.label+'</strong> en '
+        +(dias2===0?'HOY':dias2+' día'+(dias2===1?'':'s'))
+        +' — adelantar riego, corte final hoy antes de las 16hs, no regar dentro de las 12hs previas al evento.</div></div>';
+      var recs = srec.querySelector('.smart-recs');
+      if(recs) recs.insertAdjacentHTML('afterbegin',inject);
+      else srec.insertAdjacentHTML('afterbegin','<div class="smart-recs">'+inject+'</div>');
+    }
+  }
+}
+
+function buildEventsSection(apiPartido){
+  document.getElementById('events-section').style.display='block';
+  renderEventsCalendar(apiPartido);
+}
+
+/* ══════════════════════════════════════════════════════
+   FEATURE 2 — NDVI IMPACT EN LOG INTERVENCIONES
+   ══════════════════════════════════════════════════════ */
+
+function captureNdviSnapshot(){
+  var snap = {};
+  if(!_currentData) return snap;
+  // From heatmaps data (more complete)
+  var u = _currentData.usuarios && _currentData.usuarios.roger;
+  if(u && u.heatmaps){
+    Object.keys(u.heatmaps).forEach(function(cid){
+      var hm = u.heatmaps[cid];
+      if(hm.ndvi != null) snap[cid] = hm.ndvi;
+    });
+  }
+  // Also from canchas in sectores
+  var canchero = _currentData.sectores && _currentData.sectores.canchero;
+  if(canchero && canchero.canchas){
+    canchero.canchas.forEach(function(c){ if(c.ndvi != null) snap[c.id] = c.ndvi; });
+  }
+  return snap;
+}
+
+function getCurrentNdvi(){
+  // Same as captureNdviSnapshot but always uses _currentData's current values
+  return captureNdviSnapshot();
+}
+
+/* ══════════════════════════════════════════════════════
+   FEATURE 3 — MANTENIMIENTO PROGRAMADO
+   ══════════════════════════════════════════════════════ */
+
+function loadMaint(){
+  try{ return JSON.parse(localStorage.getItem(MAINT_KEY)||'{}'); } catch(e){ return {}; }
+}
+
+function getMaintStates(){
+  var saved = loadMaint();
+  return MAINT_ITEMS.map(function(item){
+    var hist = saved[item.id] || [];
+    var lastDate = hist.length ? hist[hist.length-1].fecha : MAINT_BASE;
+    var lastD = new Date(lastDate+'T12:00:00');
+    var nextD = new Date(lastD); nextD.setDate(lastD.getDate()+item.frecuencia_dias);
+    var today = new Date(); today.setHours(0,0,0,0);
+    var diasFalta = Math.ceil((nextD-today)/(1000*60*60*24));
+    var sem = diasFalta<=0?'rojo': diasFalta<=7?'rojo': diasFalta<=15?'amarillo': 'verde';
+    var venceLbl = diasFalta<=0?'VENCIDO': diasFalta===1?'MAÑANA': diasFalta+' días';
+    return {item:item, lastDate:lastDate, diasFalta:diasFalta, sem:sem, venceLbl:venceLbl, hist:hist};
+  });
+}
+
+window.completeMaintItem = function(id){
+  var saved = loadMaint();
+  if(!saved[id]) saved[id]=[];
+  var today = new Date().toISOString().slice(0,10);
+  saved[id].push({fecha:today, ts:Date.now()});
+  localStorage.setItem(MAINT_KEY, JSON.stringify(saved));
+  buildMantenimientoSection();
+};
+
+function buildMantenimientoSection(){
+  var el = document.getElementById('maint-section'); if(!el) return;
+  el.style.display='block';
+  var states = getMaintStates();
+  var html = '<div class="maint-list">'+states.map(function(s){
+    var venceCls = s.sem==='rojo'?'vence-critico': s.sem==='amarillo'?'vence-proximo': '';
+    var lastHist = s.hist;
+    var histHtml = '';
+    if(lastHist.length>=2){
+      histHtml = '<div class="maint-hist">Ult: '+fmtDate(lastHist[lastHist.length-1].fecha)
+        +'<br>Ant: '+fmtDate(lastHist[lastHist.length-2].fecha)+'</div>';
+    } else if(lastHist.length===1){
+      histHtml = '<div class="maint-hist">Completado: '+fmtDate(lastHist[0].fecha)+'</div>';
+    } else {
+      histHtml = '<div class="maint-hist">Base: '+fmtDate(MAINT_BASE)+'</div>';
+    }
+    return '<div class="maint-item '+venceCls+'">'
+      +'<div class="maint-icon">'+s.item.icon+'</div>'
+      +'<div class="maint-body">'
+      +'<div class="maint-label">'+s.item.label+'</div>'
+      +'<div class="maint-freq">Cada '+s.item.frecuencia_dias+' días · Últ: '+fmtDate(s.lastDate)+'</div>'
+      +'</div>'
+      +'<div class="maint-right">'
+      +'<div class="maint-dias" style="color:'+sc(s.sem)+'">'+s.venceLbl+'</div>'
+      +'<div class="maint-dias-lbl">'+(s.diasFalta<=0?'ATRASADO':'para próximo')+'</div>'
+      +'<button class="maint-done-btn" onclick="completeMaintItem(\''+s.item.id+'\')">✓ Hecho hoy</button>'
+      +histHtml
+      +'</div></div>';
+  }).join('')+'</div>';
+  document.getElementById('maint-content').innerHTML = html;
 }
 
 /* ── MAIN RENDER ── */
@@ -1970,6 +2377,8 @@ function render(data, cfg){
   var u=data.usuarios&&data.usuarios[userSlug];
   if(!u){show('not-auth');return;}
 
+  _currentData = data; // make available for NDVI capture
+
   var mySectors=u.sectores||[], allS=data.sectores||{};
   var scores=mySectors.map(function(k){return (allS[k]&&allS[k].score)||0;}).filter(function(s){return s>0;});
   var avg=scores.length?Math.round(scores.reduce(function(a,b){return a+b;})/scores.length):0;
@@ -1992,6 +2401,7 @@ function render(data, cfg){
 
   if(u.tipo==='canchero'){
     buildMatchAlert(u.proximo_partido);
+    buildEventsSection(_apiPartido); // Feature 1 — eventos
     buildFungalBanner(wl);
     buildCanchasGrid(allS['canchero']);
     buildHeatmapSection(u,cfg,data.shadow_maps);
@@ -1999,7 +2409,7 @@ function render(data, cfg){
     buildEtCard(wl);
     buildDisclaimer('disclaimer-recs');
     buildTaskCalendar(u.tareas_semana);
-    buildInterventionLog();
+    buildInterventionLog(); // Feature 2 — log con NDVI
     buildMiCampo(u, data, cfg);
     document.getElementById('sectors-wrapper').style.display='none';
     document.getElementById('weather-section').style.display='block';
@@ -2010,10 +2420,12 @@ function render(data, cfg){
     fetchWeather().then(function(w){ buildWeatherStrip(w); buildSmartRecs(u,allS,w,wl,cfg); }).catch(function(){ buildSmartRecs(u,allS,null,wl,cfg); });
 
   } else if(u.tipo==='intendente'){
+    buildEventsSection(_apiPartido); // Feature 1 — eventos (Juan también los ve)
     buildExecSummary(u.resumen_ejecutivo);
     buildBudget(u.presupuesto_urgente);
     buildAuthorization(u.sectores_autorizacion);
     buildSectors(mySectors, allS, u.sort_by_score);
+    buildMantenimientoSection(); // Feature 3 — mantenimiento
     buildDisclaimer('disclaimer-actions');
     buildActions(u.acciones);
     document.getElementById('weather-section').style.display='block';
@@ -2024,6 +2436,7 @@ function render(data, cfg){
   } else {
     buildSectors(mySectors, allS, u.sort_by_score);
     buildCalibBanner(u.nota_calibracion);
+    buildMantenimientoSection(); // Feature 3 — mantenimiento (ejecutivos: Banchero, etc.)
     buildDisclaimer('disclaimer-actions');
     buildActions(u.acciones);
     show('content');
@@ -2034,7 +2447,24 @@ function init(){
   Promise.all([
     fetch(DATA_URL).then(function(r){if(!r.ok)throw new Error(r.status);return r.json();}),
     fetch(CONFIG_URL).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;})
-  ]).then(function(res){ render(res[0],res[1]); }).catch(function(){show('error-msg');});
+  ]).then(function(res){
+    var data = res[0], cfg = res[1];
+    render(data, cfg);
+    // Feature 1A: fetch football API asynchronously after initial render
+    if(cfg) fetchPartidosAPI(cfg).then(function(partido){
+      _apiPartido = partido;
+      var userSlug = slug();
+      var u = data.usuarios && data.usuarios[userSlug];
+      if(u && (u.tipo==='canchero' || u.tipo==='intendente')){
+        // Re-render events calendar with API data
+        renderEventsCalendar(partido);
+        // If Roger has no partido in JSON, inject API partido into match alert
+        if(u.tipo==='canchero' && partido && !u.proximo_partido){
+          buildMatchAlert(partido);
+        }
+      }
+    }).catch(function(){});
+  }).catch(function(){show('error-msg');});
 }
 window.addEventListener('hashchange',function(){ init(); });
 init();

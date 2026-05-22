@@ -3,6 +3,10 @@
     "pin_hash": "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4",
     "railway_url": "https://velez-ipos-production.up.railway.app"
   },
+  "football_api": {
+    "key": "",
+    "team_id": 462
+  },
   "horarios_vo_semana": {
     "semana_label": "C",
     "fecha_inicio": "2026-05-18",
