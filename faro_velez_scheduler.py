@@ -488,27 +488,62 @@ Faro Protocol · Fortín Inteligente · protocolfaro@gmail.com<br>
 Generado automáticamente · {datetime.now().strftime('%d/%m/%Y %H:%M')} UTC-3
 </p></body></html>"""
 
+VELEZ_DATA_PATH = BASE_DIR / 'velez' / 'velez_data.json'
+
+_SEM_COLOR = {'verde': '#27ae60', 'amarillo': '#f0b429', 'rojo': '#e74c3c'}
+_SEM_LABEL = {'verde': 'ÓPTIMO', 'amarillo': 'ATENCIÓN', 'rojo': 'CRÍTICO'}
+
+
+def _load_velez_data() -> dict:
+    """Lee velez/velez_data.json en tiempo de envío. Retorna {} si no existe."""
+    if VELEZ_DATA_PATH.exists():
+        try:
+            return json.loads(VELEZ_DATA_PATH.read_text(encoding='utf-8'))
+        except Exception as e:
+            log.warning(f'No se pudo leer velez_data.json: {e}')
+    return {}
+
+
 def _body_roger(panel_url: str = '') -> str:
+    d          = _load_velez_data()
+    sectores   = d.get('sectores', {})
+    u          = d.get('usuarios', {}).get('roger', {})
+    canchas    = sectores.get('canchero', {}).get('canchas', [])
+    acciones   = u.get('acciones', [])
+    tareas_sem = u.get('tareas_semana', [])
+
+    criticas = [c for c in canchas if c.get('sem') == 'rojo']
+    atencion = [c for c in canchas if c.get('sem') == 'amarillo']
+
+    def _cancha_li(c):
+        ndvi  = c.get('ndvi', '—')
+        score = c.get('score', '—')
+        det   = c.get('detalle', '')
+        return f'<li><b>{c["nombre"]}:</b> NDVI {ndvi} · Score {score}/100<br><span style="font-size:13px;color:#ccc">{det}</span></li>'
+
+    sections = ''
+    if criticas:
+        rows = ''.join(_cancha_li(c) for c in criticas)
+        sections += f'<h3 style="color:#e74c3c">HOY — NO PUEDE ESPERAR</h3><ul style="font-size:15px;line-height:1.8">{rows}</ul>'
+    if atencion:
+        rows = ''.join(_cancha_li(c) for c in atencion)
+        sections += f'<h3 style="color:#f0b429">Esta semana</h3><ul style="font-size:15px;line-height:1.8">{rows}</ul>'
+    if acciones:
+        items = ''.join(f'<li>{a}</li>' for a in acciones)
+        sections += f'<h3 style="color:#c9a84c">Acciones recomendadas</h3><ul style="font-size:14px;line-height:1.8">{items}</ul>'
+    if tareas_sem:
+        items = ''
+        for t in tareas_sem[:3]:
+            tasks = ' · '.join(t.get('tareas', []))
+            items += f'<li><b>{t.get("dia_nombre","?")}:</b> {tasks}</li>'
+        sections += f'<h3 style="color:#c9a84c">Próximos días</h3><ul style="font-size:14px;line-height:1.7">{items}</ul>'
+
     return _html_wrap(
         'Tu Mapa de Trabajo Esta Semana — Campo Amalfitani',
-        """
+        f"""
         <p style="font-size:16px;font-weight:bold">Roger, te mando el mapa de esta semana.</p>
-        <p style="font-size:14px">Los circulos de colores en el mapa marcan exactamente donde ir.</p>
-        <h3 style="color:#e74c3c">HOY — NO PUEDE ESPERAR</h3>
-        <ul style="font-size:15px;line-height:1.8">
-          <li><b>4FA — zona central y lateral sur:</b><br>
-              Tirar fungicida, reparar el drenaje roto, y sembrar semilla nueva donde falta pasto</li>
-        </ul>
-        <h3 style="color:#f0b429">Esta semana</h3>
-        <ul style="font-size:15px;line-height:1.8">
-          <li><b>1FA:</b> fungicida preventivo antes de que avance</li>
-          <li><b>2FA:</b> fertilizar todo el campo</li>
-          <li><b>3FA:</b> fungicida en las manchas + sembrar donde falta</li>
-        </ul>
-        <h3 style="color:#27ae60">Semana 3 (sin apuro)</h3>
-        <ul style="font-size:15px;line-height:1.8">
-          <li><b>Campo Amalfitani:</b> aerificar las dos porterias</li>
-        </ul>
+        <p style="font-size:14px">Los círculos de colores en el mapa marcan exactamente donde ir.</p>
+        {sections}
         <p style="font-size:13px;color:#9aa0a8">
           Cualquier duda respondeme por este mail o por WhatsApp. — Faro Protocol
         </p>
@@ -516,36 +551,89 @@ def _body_roger(panel_url: str = '') -> str:
         panel_url=panel_url
     )
 
+
 def _body_juan(panel_url: str = '') -> str:
+    d        = _load_velez_data()
+    sectores = d.get('sectores', {})
+    u        = d.get('usuarios', {}).get('juan', {})
+    canchas  = sectores.get('canchero', {}).get('canchas', [])
+    poli     = sectores.get('poli', {})
+    agro     = sectores.get('agro', {})
+    resumen  = u.get('resumen_ejecutivo', [])
+    acciones = u.get('acciones', [])
+    presup   = u.get('presupuesto_urgente', {})
+
+    criticas = [c for c in canchas if c.get('sem') == 'rojo']
+    criticas_li = ''.join(
+        f'<li><b>{c["nombre"]}:</b> NDVI {c.get("ndvi","—")} · Score {c.get("score","—")}/100 — {c.get("detalle","")}</li>'
+        for c in criticas
+    ) or '<li>Sin canchas en estado crítico esta semana</li>'
+
+    poli_color = _SEM_COLOR.get(poli.get('sem', 'amarillo'), '#f0b429')
+    poli_label = _SEM_LABEL.get(poli.get('sem', 'amarillo'), 'ATENCIÓN')
+
+    presup_html = ''
+    if presup.get('items'):
+        total = presup.get('total', 0)
+        items = ''.join(
+            f'<li style="color:{_SEM_COLOR.get(i.get("sem","amarillo"),"#f0b429")}"><b>${i["monto"]:,}:</b> {i["concepto"]}</li>'
+            for i in presup['items']
+        )
+        presup_html = f'<h3 style="color:#c9a84c">Presupuesto Urgente — ${total:,} ARS</h3><ul style="font-size:14px;line-height:1.8">{items}</ul>'
+
+    resumen_html = ''.join(f'<li>{r}</li>' for r in resumen)
+    acc_html     = ''.join(f'<li>{a}</li>' for a in acciones)
+
     return _html_wrap(
         'Estado Villa Olímpica Esta Semana',
         f"""
         <p>Juan, te mando el estado actualizado de las canchas, el campo y el Polideportivo.</p>
-        <h3 style="color:#e74c3c">Urgente — 4FA</h3>
+        <h3 style="color:#e74c3c">Urgente — Canchas Críticas</h3>
+        <ul style="font-size:14px">{criticas_li}</ul>
+        <h3 style="color:{poli_color}">Polideportivo Feijóo — {poli_label}</h3>
         <ul style="font-size:14px">
-          <li>Focos activos de hongo en zona central (85 m²) — requiere fungicida HOY</li>
-          <li>Drenaje lateral sur roto — agua estancada confirmada por satélite</li>
-          <li>Resembrado zona central necesario esta semana</li>
+          <li>Score: <b>{poli.get("score","—")}/100</b> · {poli.get("detalle","")}</li>
         </ul>
-        <h3 style="color:#f0b429">Polideportivo Feijóo — Esta Semana</h3>
+        <h3 style="color:#c9a84c">Área Agronómica</h3>
         <ul style="font-size:14px">
-          <li><b>Básquet (ext):</b> fisuras detectadas — inspección urgente</li>
-          <li><b>Playón Norte:</b> relevamiento estructural recomendado</li>
-          <li><b>Tenis 1 y 2:</b> riego preventivo programado</li>
+          <li>Score: <b>{agro.get("score","—")}/100</b> · {agro.get("detalle","")}</li>
         </ul>
-        <h3 style="color:#f0b429">Campo Amalfitani</h3>
-        <ul style="font-size:14px">
-          <li><b>1FA–3FA:</b> tratamientos agronómicos en curso</li>
-          <li><b>Campo Amalfitani:</b> NDVI 0.68 — estado óptimo, mantener riego</li>
-        </ul>
-        <p style="font-size:13px;color:#9aa0a8">
-          Se adjuntan mapas de canchas, reporte agro y estado polideportivo.
-        </p>
+        {"<h3 style='color:#c9a84c'>Resumen ejecutivo</h3><ul style='font-size:14px;line-height:1.7'>" + resumen_html + "</ul>" if resumen else ""}
+        {presup_html}
+        {"<h3 style='color:#c9a84c'>Acciones</h3><ul style='font-size:14px;line-height:1.8'>" + acc_html + "</ul>" if acciones else ""}
+        <p style="font-size:13px;color:#9aa0a8">Se adjuntan mapas de canchas, reporte agro y estado polideportivo.</p>
         """,
         panel_url=panel_url
     )
 
+
 def _body_banchero(panel_url: str = '') -> str:
+    d        = _load_velez_data()
+    sectores = d.get('sectores', {})
+    u        = d.get('usuarios', {}).get('banchero', {})
+    acciones = u.get('acciones', [])
+
+    SECTOR_ORDER = ['canchero', 'poli', 'sede', 'estadio', 'agro', 'solar', 'piletas']
+    rows = ''
+    for key in SECTOR_ORDER:
+        s = sectores.get(key, {})
+        if not s:
+            continue
+        nombre  = s.get('nombre', key)
+        score   = s.get('score', '—')
+        sem     = s.get('sem', 'amarillo')
+        detalle = s.get('detalle', '')
+        color   = _SEM_COLOR.get(sem, '#f0b429')
+        label   = _SEM_LABEL.get(sem, 'ATENCIÓN')
+        rows += f'''<tr>
+          <td style="padding:6px;border:1px solid #c9a84c22">{nombre}</td>
+          <td style="padding:6px;text-align:center;color:{color};border:1px solid #c9a84c22"><b>{score}/100</b></td>
+          <td style="padding:6px;color:{color};border:1px solid #c9a84c22"><b>{label}</b></td>
+          <td style="padding:6px;border:1px solid #c9a84c22;font-size:13px">{detalle}</td>
+        </tr>'''
+
+    acc_html = ''.join(f'<li>{a}</li>' for a in acciones)
+
     return _html_wrap(
         'Estado Operativo del Predio — Vélez Sarsfield',
         f"""
@@ -554,131 +642,193 @@ def _body_banchero(panel_url: str = '') -> str:
         <table style="color:#f2ede4;border-collapse:collapse;width:100%;font-size:14px">
           <tr style="background:#141c24">
             <th style="padding:8px;border:1px solid #c9a84c44;text-align:left">Área</th>
+            <th style="padding:8px;border:1px solid #c9a84c44;text-align:center">Score</th>
             <th style="padding:8px;border:1px solid #c9a84c44;text-align:left">Estado</th>
-            <th style="padding:8px;border:1px solid #c9a84c44;text-align:left">Acción requerida</th>
+            <th style="padding:8px;border:1px solid #c9a84c44;text-align:left">Detalle satelital</th>
           </tr>
-          <tr><td style="padding:6px;border:1px solid #c9a84c22">4FA</td>
-              <td style="padding:6px;color:#e74c3c;border:1px solid #c9a84c22"><b>CRÍTICO</b></td>
-              <td style="padding:6px;border:1px solid #c9a84c22">Intervención urgente — ver mapa</td></tr>
-          <tr><td style="padding:6px;border:1px solid #c9a84c22">1FA, 2FA, 3FA</td>
-              <td style="padding:6px;color:#f0b429;border:1px solid #c9a84c22"><b>ATENCIÓN</b></td>
-              <td style="padding:6px;border:1px solid #c9a84c22">Acciones programadas esta semana</td></tr>
-          <tr><td style="padding:6px;border:1px solid #c9a84c22">Campo Amalfitani</td>
-              <td style="padding:6px;color:#27ae60;border:1px solid #c9a84c22"><b>ÓPTIMO</b></td>
-              <td style="padding:6px;border:1px solid #c9a84c22">Sin acción inmediata</td></tr>
-          <tr><td style="padding:6px;border:1px solid #c9a84c22">Polideportivo Feijóo</td>
-              <td style="padding:6px;color:#f0b429;border:1px solid #c9a84c22"><b>ATENCIÓN</b></td>
-              <td style="padding:6px;border:1px solid #c9a84c22">Básquet y Playón Norte — inspección</td></tr>
-          <tr><td style="padding:6px;border:1px solid #c9a84c22">Complejo Acuático</td>
-              <td style="padding:6px;color:#27ae60;border:1px solid #c9a84c22"><b>ÓPTIMO</b></td>
-              <td style="padding:6px;border:1px solid #c9a84c22">Calidad agua excelente — score 91/100</td></tr>
-          <tr><td style="padding:6px;border:1px solid #c9a84c22">Sede Central & Instituto</td>
-              <td style="padding:6px;color:#f0b429;border:1px solid #c9a84c22"><b>ATENCIÓN</b></td>
-              <td style="padding:6px;border:1px solid #c9a84c22">Anexo Norte — revisar aislamiento térmico</td></tr>
-          <tr><td style="padding:6px;border:1px solid #c9a84c22">Tribuna Oeste</td>
-              <td style="padding:6px;color:#e74c3c;border:1px solid #c9a84c22"><b>ALERTA</b></td>
-              <td style="padding:6px;border:1px solid #c9a84c22">InSAR 2.80mm — inspección estructural</td></tr>
+          {rows}
         </table>
-        <h3 style="color:#c9a84c">Sistema Solar (210 paneles — 120 kWp)</h3>
-        <ul style="font-size:14px">
-          <li>Eficiencia: <b>82.4%</b> — Producción: 2,840 kWh/sem</li>
-          <li><b style="color:#f0b429">Zona E (Arco Sur):</b> 8 paneles >60°C — revisión esta semana</li>
-        </ul>
+        {"<h3 style='color:#c9a84c'>Acciones recomendadas</h3><ul style='font-size:14px;line-height:1.8'>" + acc_html + "</ul>" if acciones else ""}
         <p style="font-size:13px;color:#9aa0a8">Se adjuntan: reporte general, solar, agro, polideportivo, piletas y sede.</p>
         """,
         panel_url=panel_url
     )
 
+
 def _body_pait(panel_url: str = '') -> str:
+    d        = _load_velez_data()
+    sectores = d.get('sectores', {})
+    u        = d.get('usuarios', {}).get('pait', {})
+    canchas  = sectores.get('canchero', {}).get('canchas', [])
+    poli     = sectores.get('poli', {})
+    acciones = u.get('acciones', [])
+
+    def _c_li(c):
+        return f'<li><b>{c["nombre"]}:</b> NDVI {c.get("ndvi","—")} · Score {c.get("score","—")}/100 — {c.get("detalle","")}</li>'
+
+    no_apto_li     = ''.join(_c_li(c) for c in canchas if c.get('sem') == 'rojo')
+    condicionado_li= ''.join(_c_li(c) for c in canchas if c.get('sem') == 'amarillo')
+    optimas_li     = ''.join(_c_li(c) for c in canchas if c.get('sem') == 'verde')
+
+    poli_score = poli.get('score', '—')
+    poli_det   = poli.get('detalle', '')
+    if poli.get('sem') == 'rojo':
+        no_apto_li += f'<li><b>Polideportivo Feijóo:</b> Score {poli_score}/100 · {poli_det} — evaluar antes de uso intensivo</li>'
+    else:
+        condicionado_li += f'<li><b>Polideportivo Feijóo:</b> Score {poli_score}/100 · {poli_det}</li>'
+
+    acc_html = ''.join(f'<li>{a}</li>' for a in acciones)
+
+    sections = ''
+    if no_apto_li:
+        sections += f'<h3 style="color:#e74c3c">NO APTO para entrenamiento</h3><ul style="font-size:14px">{no_apto_li}</ul>'
+    if condicionado_li:
+        sections += f'<h3 style="color:#f0b429">Uso condicionado</h3><ul style="font-size:14px">{condicionado_li}</ul>'
+    if optimas_li:
+        sections += f'<h3 style="color:#27ae60">Óptimas para uso</h3><ul style="font-size:14px">{optimas_li}</ul>'
+    if acciones:
+        sections += f'<h3 style="color:#c9a84c">Acciones recomendadas</h3><ul style="font-size:14px;line-height:1.8">{acc_html}</ul>'
+
     return _html_wrap(
         'Estado Canchas y Campo — Visión Deportiva',
-        """
+        f"""
         <p>Sebastián, estado de las superficies para esta semana de entrenamiento.</p>
-        <h3 style="color:#e74c3c">NO APTO para entrenamiento</h3>
-        <ul style="font-size:14px">
-          <li><b>4FA:</b> estado crítico — hongo activo + drenaje roto + pasto ralo</li>
-        </ul>
-        <h3 style="color:#f0b429">Uso condicionado</h3>
-        <ul style="font-size:14px">
-          <li><b>1FA:</b> apta, con fungicida preventivo antes del uso</li>
-          <li><b>3FA:</b> apta para trabajos livianos, tratamiento en curso</li>
-          <li><b>Polideportivo:</b> Básquet y Playón Norte — evaluar antes de uso intensivo</li>
-        </ul>
-        <h3 style="color:#27ae60">Óptimas para uso</h3>
-        <ul style="font-size:14px">
-          <li><b>2FA:</b> apta — NDVI 0.52, fertilización esta semana</li>
-          <li><b>Campo Amalfitani:</b> NDVI 0.68 — excelente condición</li>
-          <li><b>Hockey:</b> NDVI 0.52 — apta para uso normal</li>
-        </ul>
+        {sections}
         <p style="font-size:13px;color:#9aa0a8">Se adjuntan mapa de canchas, agro detallado y polideportivo.</p>
         """,
         panel_url=panel_url
     )
 
+
 def _body_berlanga(panel_url: str = '') -> str:
+    d        = _load_velez_data()
+    sectores = d.get('sectores', {})
+    u        = d.get('usuarios', {}).get('berlanga', {})
+    kpis     = u.get('kpis', [])
+    acciones = u.get('acciones', [])
+
+    SECTOR_ORDER = ['estadio', 'solar', 'poli', 'piletas', 'sede', 'canchero']
+    rows = ''
+    for key in SECTOR_ORDER:
+        s = sectores.get(key, {})
+        if not s:
+            continue
+        nombre  = s.get('nombre', key)
+        score   = s.get('score', '—')
+        sem     = s.get('sem', 'amarillo')
+        detalle = s.get('detalle', '')
+        color   = _SEM_COLOR.get(sem, '#f0b429')
+        label   = _SEM_LABEL.get(sem, 'ATENCIÓN')
+        rows += f'''<tr>
+          <td style="padding:6px;border:1px solid #c9a84c22">{nombre}</td>
+          <td style="padding:6px;text-align:center;color:{color};border:1px solid #c9a84c22"><b>{score}/100</b></td>
+          <td style="padding:6px;text-align:center;color:{color};border:1px solid #c9a84c22"><b>{label}</b></td>
+          <td style="padding:6px;border:1px solid #c9a84c22;font-size:13px">{detalle}</td>
+        </tr>'''
+
+    kpi_html = ''
+    if kpis:
+        cells = ''
+        for k in kpis:
+            col  = _SEM_COLOR.get(k.get('sem', 'amarillo'), '#f0b429')
+            val  = f'{k["value"]}{k.get("unit","")}'
+            cells += f'<td style="text-align:center;padding:10px;border:1px solid #c9a84c22"><span style="font-size:22px;color:{col}"><b>{val}</b></span><br><span style="font-size:12px;color:#9aa0a8">{k["label"]}<br>{k.get("sub","")}</span></td>'
+        kpi_html = f'<table style="width:100%;border-collapse:collapse;margin-bottom:16px"><tr>{cells}</tr></table>'
+
+    acc_html = ''.join(f'<li>{a}</li>' for a in acciones)
+
     return _html_wrap(
         f'Informe Ejecutivo Semanal — Vélez Sarsfield · {datetime.now().strftime("%d/%m/%Y")}',
         f"""
         <p>Fabián, resumen ejecutivo satelital del predio completo,
         semana del {datetime.now().strftime("%d/%m/%Y")}.</p>
-        <h3 style="color:#c9a84c">Indicadores Clave del Club</h3>
+        {kpi_html}
+        <h3 style="color:#c9a84c">Indicadores por Área</h3>
         <table style="color:#f2ede4;border-collapse:collapse;width:100%;font-size:14px">
           <tr style="background:#141c24">
             <th style="padding:8px;border:1px solid #c9a84c44;text-align:left">Área</th>
+            <th style="padding:8px;border:1px solid #c9a84c44;text-align:center">Score</th>
             <th style="padding:8px;border:1px solid #c9a84c44;text-align:center">Estado</th>
             <th style="padding:8px;border:1px solid #c9a84c44;text-align:left">Detalle</th>
           </tr>
-          <tr><td style="padding:6px;border:1px solid #c9a84c22">Estadio Amalfitani</td>
-              <td style="padding:6px;text-align:center;color:#f0b429;border:1px solid #c9a84c22"><b>ATENCIÓN</b></td>
-              <td style="padding:6px;border:1px solid #c9a84c22">4FA crítica — resto en tratamiento</td></tr>
-          <tr><td style="padding:6px;border:1px solid #c9a84c22">Sistema Solar</td>
-              <td style="padding:6px;text-align:center;color:#f0b429;border:1px solid #c9a84c22"><b>82.4%</b></td>
-              <td style="padding:6px;border:1px solid #c9a84c22">2,840 kWh/sem — Zona E requiere revisión</td></tr>
-          <tr><td style="padding:6px;border:1px solid #c9a84c22">Polideportivo Feijóo</td>
-              <td style="padding:6px;text-align:center;color:#f0b429;border:1px solid #c9a84c22"><b>ATENCIÓN</b></td>
-              <td style="padding:6px;border:1px solid #c9a84c22">Básquet y Playón Norte — inspección</td></tr>
-          <tr><td style="padding:6px;border:1px solid #c9a84c22">Complejo Acuático</td>
-              <td style="padding:6px;text-align:center;color:#27ae60;border:1px solid #c9a84c22"><b>ÓPTIMO</b></td>
-              <td style="padding:6px;border:1px solid #c9a84c22">Score calidad agua 91/100</td></tr>
-          <tr><td style="padding:6px;border:1px solid #c9a84c22">Sede Central & Instituto</td>
-              <td style="padding:6px;text-align:center;color:#f0b429;border:1px solid #c9a84c22"><b>ATENCIÓN</b></td>
-              <td style="padding:6px;border:1px solid #c9a84c22">Anexo Norte — temperatura elevada</td></tr>
-          <tr><td style="padding:6px;border:1px solid #c9a84c22">Tribuna Oeste</td>
-              <td style="padding:6px;text-align:center;color:#e74c3c;border:1px solid #c9a84c22"><b>ALERTA</b></td>
-              <td style="padding:6px;border:1px solid #c9a84c22">InSAR 2.80mm — inspección estructural</td></tr>
+          {rows}
         </table>
+        {"<ul style='font-size:14px;line-height:1.8'>" + acc_html + "</ul>" if acciones else ""}
         <p style="font-size:13px;color:#9aa0a8">Se adjuntan reportes completos del predio.</p>
         """,
         panel_url=panel_url
     )
 
+
 def _body_nelson(panel_url: str = '') -> str:
+    d        = _load_velez_data()
+    sectores = d.get('sectores', {})
+    u        = d.get('usuarios', {}).get('nelson', {})
+    kpis     = u.get('kpis', [])
+    acciones = u.get('acciones', [])
+
+    SECTOR_ORDER = ['canchero', 'solar', 'poli', 'piletas', 'sede', 'estadio']
+    bullets = ''
+    for key in SECTOR_ORDER:
+        s = sectores.get(key, {})
+        if not s:
+            continue
+        nombre  = s.get('nombre', key)
+        score   = s.get('score', '—')
+        sem     = s.get('sem', 'amarillo')
+        detalle = s.get('detalle', '')
+        color   = _SEM_COLOR.get(sem, '#f0b429')
+        bullets += f'<li><b style="color:{color}">{nombre} ({score}/100):</b> {detalle}</li>'
+
+    kpi_html = ''
+    if kpis:
+        cells = ''
+        for k in kpis:
+            col  = _SEM_COLOR.get(k.get('sem', 'amarillo'), '#f0b429')
+            val  = f'{k["value"]}{k.get("unit","")}'
+            cells += f'<td style="text-align:center;padding:10px;border:1px solid #c9a84c22"><span style="font-size:22px;color:{col}"><b>{val}</b></span><br><span style="font-size:12px;color:#9aa0a8">{k["label"]}<br>{k.get("sub","")}</span></td>'
+        kpi_html = f'<table style="width:100%;border-collapse:collapse;margin-bottom:16px"><tr>{cells}</tr></table>'
+
+    acc_html = ''.join(f'<li>{a}</li>' for a in acciones)
+
     return _html_wrap(
         f'Informe Ejecutivo Semanal — Vélez Sarsfield · {datetime.now().strftime("%d/%m/%Y")}',
         f"""
         <p>Nelson, resumen ejecutivo satelital del predio,
         semana del {datetime.now().strftime("%d/%m/%Y")}.</p>
+        {kpi_html}
         <h3 style="color:#c9a84c">Estado General</h3>
-        <ul style="font-size:14px;line-height:1.8">
-          <li><b>Estadio Amalfitani:</b> 4FA crítica — resto en tratamiento preventivo</li>
-          <li><b>Sistema Solar:</b> Eficiencia 82.4% — Zona E requiere revisión esta semana</li>
-          <li><b>Polideportivo Feijóo:</b> 2 sectores con atención (Básquet + Playón Norte)</li>
-          <li><b>Complejo Acuático:</b> Calidad de agua excelente — score 91/100</li>
-          <li><b>Sede Central:</b> Anexo Norte con temperatura de techo elevada (41°C)</li>
-          <li><b>Tribuna Oeste:</b> InSAR 2.80mm — inspección estructural recomendada</li>
-        </ul>
+        <ul style="font-size:14px;line-height:1.8">{bullets}</ul>
         <h3 style="color:#c9a84c">Sustentabilidad</h3>
         <ul style="font-size:14px">
-          <li>Sistema solar produciendo 2,840 kWh/semana</li>
-          <li>Alerta temprana de calidad de agua activa — sin intervención requerida</li>
           <li>Cobertura satelital del 100% del predio operativa</li>
+          <li>Alerta temprana activa en calidad de agua y estructura</li>
         </ul>
+        {"<h3 style='color:#c9a84c'>Acciones</h3><ul style='font-size:14px;line-height:1.8'>" + acc_html + "</ul>" if acciones else ""}
         <p style="font-size:13px;color:#9aa0a8">Se adjuntan reportes completos del predio.</p>
         """,
         panel_url=panel_url
     )
 
+
 def _body_aveleyra(panel_url: str = '') -> str:
+    d        = _load_velez_data()
+    u        = d.get('usuarios', {}).get('aveleyra', {})
+    kpis     = u.get('kpis', [])
+    acciones = u.get('acciones', [])
+
+    rows = ''
+    for k in kpis:
+        col  = _SEM_COLOR.get(k.get('sem', 'amarillo'), '#f0b429')
+        val  = f'{k["value"]}{k.get("unit","")}'
+        rows += f'''<tr>
+          <td style="padding:6px;border:1px solid #c9a84c22">{k["label"]}</td>
+          <td style="padding:6px;text-align:center;color:{col};border:1px solid #c9a84c22"><b>{val}</b></td>
+          <td style="padding:6px;border:1px solid #c9a84c22;font-size:13px">{k.get("sub","")}</td>
+        </tr>'''
+
+    acc_html = ''.join(f'<li>{a}</li>' for a in acciones)
+
     return _html_wrap(
         f'Dashboard Ejecutivo Semanal — Vélez Sarsfield · {datetime.now().strftime("%d/%m/%Y")}',
         f"""
@@ -689,23 +839,12 @@ def _body_aveleyra(panel_url: str = '') -> str:
           <tr style="background:#141c24">
             <th style="padding:8px;border:1px solid #c9a84c44;text-align:left">Indicador</th>
             <th style="padding:8px;border:1px solid #c9a84c44;text-align:center">Valor</th>
-            <th style="padding:8px;border:1px solid #c9a84c44;text-align:left">Acción requerida</th>
+            <th style="padding:8px;border:1px solid #c9a84c44;text-align:left">Detalle</th>
           </tr>
-          <tr><td style="padding:6px;border:1px solid #c9a84c22">Score predio general</td>
-              <td style="padding:6px;text-align:center;color:#f0b429;border:1px solid #c9a84c22"><b>67/100</b></td>
-              <td style="padding:6px;border:1px solid #c9a84c22">Intervención 4FA + inspecciones</td></tr>
-          <tr><td style="padding:6px;border:1px solid #c9a84c22">Score complejo acuático</td>
-              <td style="padding:6px;text-align:center;color:#27ae60;border:1px solid #c9a84c22"><b>91/100</b></td>
-              <td style="padding:6px;border:1px solid #c9a84c22">Sin acción inmediata</td></tr>
-          <tr><td style="padding:6px;border:1px solid #c9a84c22">Eficiencia solar</td>
-              <td style="padding:6px;text-align:center;color:#f0b429;border:1px solid #c9a84c22"><b>82.4%</b></td>
-              <td style="padding:6px;border:1px solid #c9a84c22">Revisión Zona E esta semana</td></tr>
-          <tr><td style="padding:6px;border:1px solid #c9a84c22">Alertas estructurales</td>
-              <td style="padding:6px;text-align:center;color:#e74c3c;border:1px solid #c9a84c22"><b>1</b></td>
-              <td style="padding:6px;border:1px solid #c9a84c22">Tribuna Oeste — inspección recomendada</td></tr>
+          {rows}
         </table>
+        {"<ul style='font-size:14px;line-height:1.8'>" + acc_html + "</ul>" if acciones else ""}
         <p style="font-size:13px;color:#9aa0a8">
-          Detección temprana: 80% de problemas identificados antes de ser críticos.<br>
           Se adjuntan todos los reportes del predio.
         </p>
         """,
@@ -819,6 +958,81 @@ def send_all_reports(tipo: str = 'semanal', config: dict = None):
         save_jobs(jobs)
         log.info('manual_sent = True — PDFs no se adjuntarán en futuros envíos semanales')
 
+# ─── HISTORIAL GITHUB ────────────────────────────────────────────────────────
+
+GITHUB_REPO           = 'protocolfaro/faroprotocol'
+GITHUB_HISTORIAL_DIR  = 'historial'
+_GITHUB_API           = 'https://api.github.com'
+
+
+def commit_snapshot_to_github() -> dict:
+    """Guarda el snapshot semanal en GitHub como historial/YYYY-MM-DD.json.
+    Usa GITHUB_TOKEN de las variables de entorno de Railway.
+    Si el archivo del día ya existe lo actualiza (PUT con SHA); si no, lo crea."""
+    import base64
+
+    token = env('GITHUB_TOKEN')
+    if not token:
+        log.warning('GITHUB_TOKEN no configurado — snapshot no guardado en GitHub')
+        return {'ok': False, 'error': 'GITHUB_TOKEN no configurado'}
+
+    data = _load_velez_data()
+    if not data:
+        log.warning('velez_data.json vacío — snapshot no guardado')
+        return {'ok': False, 'error': 'velez_data.json vacío'}
+
+    date_str  = datetime.now().strftime('%Y-%m-%d')
+    file_path = f'{GITHUB_HISTORIAL_DIR}/{date_str}.json'
+    api_url   = f'{_GITHUB_API}/repos/{GITHUB_REPO}/contents/{file_path}'
+
+    headers = {
+        'Authorization':        f'Bearer {token}',
+        'Accept':               'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+    }
+
+    snapshot = {
+        **data,
+        'historial_meta': {
+            'semana':       date_str,
+            'committed_at': datetime.now().isoformat(),
+            'fuente':       'Faro Protocol · Railway auto-commit',
+        },
+    }
+    content_b64 = base64.b64encode(
+        json.dumps(snapshot, indent=2, ensure_ascii=False).encode('utf-8')
+    ).decode('ascii')
+
+    # GET para obtener SHA si el archivo ya existe (necesario para PUT de actualización)
+    sha = None
+    try:
+        r = requests.get(api_url, headers=headers, timeout=15)
+        if r.status_code == 200:
+            sha = r.json().get('sha')
+    except Exception as e:
+        log.warning(f'GitHub GET {file_path}: {e}')
+
+    payload = {
+        'message': f'historial: snapshot {date_str} · Faro Protocol',
+        'content': content_b64,
+    }
+    if sha:
+        payload['sha'] = sha
+
+    try:
+        r = requests.put(api_url, headers=headers, json=payload, timeout=30)
+        if r.status_code in (200, 201):
+            action  = 'actualizado' if sha else 'creado'
+            commit_sha = r.json().get('commit', {}).get('sha', '')[:7]
+            log.info(f'✅ GitHub {file_path} {action} — commit {commit_sha}')
+            return {'ok': True, 'file': file_path, 'action': action, 'date': date_str, 'commit': commit_sha}
+        log.error(f'GitHub commit falló: HTTP {r.status_code} — {r.text[:300]}')
+        return {'ok': False, 'status': r.status_code, 'error': r.text[:300]}
+    except Exception as e:
+        log.error(f'GitHub commit excepción: {e}')
+        return {'ok': False, 'error': str(e)}
+
+
 # ─── WEEKLY JOB ──────────────────────────────────────────────────────────────
 
 def weekly_report(tipo: str = 'semanal', event_date: Optional[str] = None):
@@ -874,6 +1088,16 @@ def weekly_report(tipo: str = 'semanal', event_date: Optional[str] = None):
         log.info(f'✅ velez_data.json actualizado — {datetime.now().strftime("%Y-%m-%d %H:%M:%S")} → {json_path}')
     except Exception as e:
         log.error(f'velez_data.json: error al actualizar — {e}')
+
+    # Guardar snapshot semanal en GitHub (historial/YYYY-MM-DD.json)
+    try:
+        gh = commit_snapshot_to_github()
+        if gh.get('ok'):
+            log.info(f'✅ Historial GitHub: {gh["file"]} {gh["action"]} (commit {gh["commit"]})')
+        else:
+            log.warning(f'Historial GitHub no guardado: {gh.get("error")}')
+    except Exception as e:
+        log.error(f'Historial GitHub excepción: {e}')
 
     # Enviar resumen semanal por WhatsApp (CallMeBot)
     send_whatsapp_alerts()
@@ -1060,6 +1284,11 @@ def route_reset_manuals():
     log.info('manual_sent reset a False')
     return jsonify({'status': 'ok', 'manual_sent': False})
 
+@app.route('/velez/commit_historial', methods=['POST'])
+def route_commit_historial():
+    result = commit_snapshot_to_github()
+    return jsonify(result), (200 if result.get('ok') else 500)
+
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify({'status': 'ok', 'service': 'faro-velez-scheduler'})
@@ -1138,7 +1367,8 @@ def register_with_app(flask_app, apscheduler=None):
         ('/velez/run_now',       'velez_run_now',       route_run_now,       ['POST']),
         ('/velez/test_email',    'velez_test_email',    route_test_email,    ['POST']),
         ('/velez/test_banchero', 'velez_test_banchero', route_test_banchero, ['POST']),
-        ('/velez/reset_manuals', 'velez_reset_manuals', route_reset_manuals, ['POST']),
+        ('/velez/reset_manuals',    'velez_reset_manuals',    route_reset_manuals,    ['POST']),
+        ('/velez/commit_historial', 'velez_commit_historial', route_commit_historial, ['POST']),
     ]
     for path, name, fn, methods in routes:
         flask_app.add_url_rule(path, name, fn, methods=methods)
