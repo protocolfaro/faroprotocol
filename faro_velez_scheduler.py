@@ -488,6 +488,143 @@ Faro Protocol · Fortín Inteligente · protocolfaro@gmail.com<br>
 Generado automáticamente · {datetime.now().strftime('%d/%m/%Y %H:%M')} UTC-3
 </p></body></html>"""
 
+# ─── SECCIÓN NOVEDADES (solo el lunes 26/05/2026) ────────────────────────────
+
+_NOVEDAD_CUTOFF = datetime(2026, 6, 1)   # desaparece automáticamente después de este día
+
+_NOVEDADES = {
+    'roger': """
+        <h3 style="color:#c9a84c">Novedades de esta semana en tu reporte</h3>
+        <p style="font-size:14px">Esta semana sumamos tres cosas nuevas a tu informe:</p>
+        <ul style="font-size:14px;line-height:1.9">
+          <li><b>Qué cancha atender viene del satélite, no de un texto fijo.</b>
+              Antes siempre decía "4FA urgente". Ahora el reporte lee el estado real de cada
+              cancha y te manda a la que realmente está en rojo esa semana.</li>
+          <li><b>NDVI y score por cancha.</b>
+              Cada cancha muestra su NDVI real (medido por Sentinel-2) y su puntaje /100.
+              Así ves exactamente qué tan mal o bien está cada una, no solo un color.</li>
+          <li><b>Plan de tareas día por día.</b>
+              Ahora tenés Lunes, Martes y Miércoles con las tareas concretas de esa semana,
+              no instrucciones genéricas.</li>
+        </ul>
+    """,
+    'juan': """
+        <h3 style="color:#c9a84c">Novedades de esta semana en tu reporte</h3>
+        <p style="font-size:14px">Esta semana sumamos cuatro bloques nuevos a tu informe:</p>
+        <ul style="font-size:14px;line-height:1.9">
+          <li><b>Datos reales del Poli y del Área Agronómica.</b>
+              Antes aparecían con texto genérico. Ahora ves el score /100, los mm de InSAR
+              del Básquet y el NDVI del campo norte, tal como salieron del satélite.</li>
+          <li><b>Resumen ejecutivo de tres puntos.</b>
+              Un párrafo corto con lo más urgente de la semana, en lenguaje directo.</li>
+          <li><b>Presupuesto urgente desglosado.</b>
+              Total ARS y cada ítem con monto y prioridad — para que puedas autorizar
+              sin tener que preguntar.</li>
+          <li><b>Acciones concretas priorizadas.</b>
+              Tres acciones con sector y urgencia, no solo un listado de problemas.</li>
+        </ul>
+    """,
+    'banchero': """
+        <h3 style="color:#c9a84c">Novedades de esta semana en tu reporte</h3>
+        <p style="font-size:14px">Esta semana la tabla del predio tiene dos columnas nuevas y los datos se actualizan solos:</p>
+        <ul style="font-size:14px;line-height:1.9">
+          <li><b>Columna Score /100 por sector.</b>
+              Antes solo había el estado (CRÍTICO/ATENCIÓN/ÓPTIMO). Ahora ves el número
+              exacto de cada área.</li>
+          <li><b>Columna Detalle satelital.</b>
+              Para cada sector aparece el dato crudo del satélite: NDVI, mm de InSAR,
+              temperatura Landsat o eficiencia real. Nada inventado.</li>
+          <li><b>Solar actualizado.</b>
+              El 82.4% que aparecía antes era un valor fijo. Ahora sale del sistema real:
+              esta semana es 71%, con 13 paneles en falla identificados.</li>
+          <li><b>Acciones recomendadas al pie.</b>
+              Tres acciones priorizadas para esta semana, sacadas del análisis de esta corrida.</li>
+        </ul>
+    """,
+    'pait': """
+        <h3 style="color:#c9a84c">Novedades de esta semana en tu reporte</h3>
+        <p style="font-size:14px">Esta semana la clasificación de canchas pasa a ser dinámica:</p>
+        <ul style="font-size:14px;line-height:1.9">
+          <li><b>Qué cancha es NO APTA lo decide el satélite.</b>
+              Antes siempre ponía "4FA no apta". Ahora la lista viene del estado real de
+              esa semana — esta semana la crítica es 1FA (NDVI 0.18, score 26/100).</li>
+          <li><b>NDVI y score por cancha.</b>
+              Cada superficie muestra su NDVI real y su puntaje /100, no solo un semáforo.</li>
+          <li><b>El Poli se clasifica solo.</b>
+              Si el InSAR supera el umbral va a NO APTO automáticamente.
+              Si no, aparece en Uso condicionado.</li>
+          <li><b>Acciones concretas al pie.</b>
+              Tres acciones específicas para esta semana basadas en los datos reales.</li>
+        </ul>
+    """,
+    'berlanga': """
+        <h3 style="color:#c9a84c">Novedades de esta semana en tu reporte</h3>
+        <p style="font-size:14px">Esta semana sumamos dos secciones nuevas y una columna extra:</p>
+        <ul style="font-size:14px;line-height:1.9">
+          <li><b>Panel de KPIs arriba de la tabla.</b>
+              Cuatro indicadores clave de un vistazo: Score Global del predio, alertas rojas,
+              eficiencia solar y score del Complejo Acuático. Antes no existía.</li>
+          <li><b>Columna Score /100 en la tabla.</b>
+              Cada sector ahora muestra su puntaje exacto además del estado.</li>
+          <li><b>Datos satelitales reales en la columna Detalle.</b>
+              Los valores de solar (71%, no 82.4%), InSAR y NDVI son los que salieron
+              del satélite esta semana.</li>
+          <li><b>Acciones concretas al pie.</b>
+              Tres acciones priorizadas, no solo un listado de problemas.</li>
+        </ul>
+    """,
+    'nelson': """
+        <h3 style="color:#c9a84c">Novedades de esta semana en tu reporte</h3>
+        <p style="font-size:14px">Esta semana el informe tiene dos bloques completamente nuevos:</p>
+        <ul style="font-size:14px;line-height:1.9">
+          <li><b>Panel de KPIs al inicio.</b>
+              Cuatro números de un vistazo: Score Global, Alertas Activas, Sectores con
+              cobertura y pérdida solar en kWp. Antes no existía.</li>
+          <li><b>Cada sector en su color real.</b>
+              El listado de estado general ahora muestra el score /100 y el color correcto
+              (rojo/amarillo/verde) de cada área, directo del satélite de esta semana.</li>
+          <li><b>Solar corregido.</b>
+              Era 82.4% fijo. Esta semana el sistema mide 71%, con pérdida activa
+              de 4.2 kWp identificada.</li>
+          <li><b>Acciones concretas priorizadas.</b>
+              Tres acciones con sector y urgencia, no solo problemas listados.</li>
+        </ul>
+    """,
+    'aveleyra': """
+        <h3 style="color:#c9a84c">Novedades de esta semana en tu reporte</h3>
+        <p style="font-size:14px">Esta semana los KPIs del dashboard pasaron a ser datos reales:</p>
+        <ul style="font-size:14px;line-height:1.9">
+          <li><b>Score predio corregido.</b>
+              Estaba en 67/100 fijo. El valor real del sistema esta semana es 70/100.</li>
+          <li><b>Solar corregido.</b>
+              Estaba en 82.4% fijo. El sistema mide 71% esta semana,
+              con pérdida activa de 4.2 kWp.</li>
+          <li><b>Todos los KPIs vienen del satélite, no de un número guardado.</b>
+              Cada lunes el dashboard va a mostrar los valores reales de esa semana,
+              sin intervención manual.</li>
+          <li><b>Acciones concretas al pie.</b>
+              Tres acciones con contexto operativo y económico, priorizadas por urgencia real.</li>
+        </ul>
+    """,
+}
+
+
+def _novedad_section(slug: str) -> str:
+    """Retorna el bloque HTML de novedades solo para el envío del 26/05/2026.
+    Después de _NOVEDAD_CUTOFF retorna string vacío — sin tocar el código."""
+    if datetime.now() >= _NOVEDAD_CUTOFF:
+        return ''
+    html = _NOVEDADES.get(slug, '')
+    if not html:
+        return ''
+    return f'''<div style="background:#0d1520;border:1px solid #c9a84c55;border-radius:6px;padding:16px;margin-top:20px">
+{html}
+<p style="font-size:12px;color:#9aa0a8;margin-top:10px">Esta sección aparece solo este lunes. — Faro Protocol</p>
+</div>'''
+
+
+# ─── DATOS EN VIVO ────────────────────────────────────────────────────────────
+
 VELEZ_DATA_PATH = BASE_DIR / 'velez' / 'velez_data.json'
 
 _SEM_COLOR = {'verde': '#27ae60', 'amarillo': '#f0b429', 'rojo': '#e74c3c'}
@@ -544,6 +681,7 @@ def _body_roger(panel_url: str = '') -> str:
         <p style="font-size:16px;font-weight:bold">Roger, te mando el mapa de esta semana.</p>
         <p style="font-size:14px">Los círculos de colores en el mapa marcan exactamente donde ir.</p>
         {sections}
+        {_novedad_section('roger')}
         <p style="font-size:13px;color:#9aa0a8">
           Cualquier duda respondeme por este mail o por WhatsApp. — Faro Protocol
         </p>
@@ -601,6 +739,7 @@ def _body_juan(panel_url: str = '') -> str:
         {"<h3 style='color:#c9a84c'>Resumen ejecutivo</h3><ul style='font-size:14px;line-height:1.7'>" + resumen_html + "</ul>" if resumen else ""}
         {presup_html}
         {"<h3 style='color:#c9a84c'>Acciones</h3><ul style='font-size:14px;line-height:1.8'>" + acc_html + "</ul>" if acciones else ""}
+        {_novedad_section('juan')}
         <p style="font-size:13px;color:#9aa0a8">Se adjuntan mapas de canchas, reporte agro y estado polideportivo.</p>
         """,
         panel_url=panel_url
@@ -649,6 +788,7 @@ def _body_banchero(panel_url: str = '') -> str:
           {rows}
         </table>
         {"<h3 style='color:#c9a84c'>Acciones recomendadas</h3><ul style='font-size:14px;line-height:1.8'>" + acc_html + "</ul>" if acciones else ""}
+        {_novedad_section('banchero')}
         <p style="font-size:13px;color:#9aa0a8">Se adjuntan: reporte general, solar, agro, polideportivo, piletas y sede.</p>
         """,
         panel_url=panel_url
@@ -694,6 +834,7 @@ def _body_pait(panel_url: str = '') -> str:
         f"""
         <p>Sebastián, estado de las superficies para esta semana de entrenamiento.</p>
         {sections}
+        {_novedad_section('pait')}
         <p style="font-size:13px;color:#9aa0a8">Se adjuntan mapa de canchas, agro detallado y polideportivo.</p>
         """,
         panel_url=panel_url
@@ -754,6 +895,7 @@ def _body_berlanga(panel_url: str = '') -> str:
           {rows}
         </table>
         {"<ul style='font-size:14px;line-height:1.8'>" + acc_html + "</ul>" if acciones else ""}
+        {_novedad_section('berlanga')}
         <p style="font-size:13px;color:#9aa0a8">Se adjuntan reportes completos del predio.</p>
         """,
         panel_url=panel_url
@@ -805,6 +947,7 @@ def _body_nelson(panel_url: str = '') -> str:
           <li>Alerta temprana activa en calidad de agua y estructura</li>
         </ul>
         {"<h3 style='color:#c9a84c'>Acciones</h3><ul style='font-size:14px;line-height:1.8'>" + acc_html + "</ul>" if acciones else ""}
+        {_novedad_section('nelson')}
         <p style="font-size:13px;color:#9aa0a8">Se adjuntan reportes completos del predio.</p>
         """,
         panel_url=panel_url
@@ -844,6 +987,7 @@ def _body_aveleyra(panel_url: str = '') -> str:
           {rows}
         </table>
         {"<ul style='font-size:14px;line-height:1.8'>" + acc_html + "</ul>" if acciones else ""}
+        {_novedad_section('aveleyra')}
         <p style="font-size:13px;color:#9aa0a8">
           Se adjuntan todos los reportes del predio.
         </p>
