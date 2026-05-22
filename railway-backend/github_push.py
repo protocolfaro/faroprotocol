@@ -237,6 +237,45 @@ def push_config(ipos: dict, semana_label: str, semana_info: dict,
             f"https://github.com/{OWNER}/{REPO}/blob/{BRANCH}/{CFG_PATH}")
 
 
+HISTORIAL_DIR = "historial"
+
+
+def push_historial_snapshot(date_str: str | None = None) -> dict:
+    """Crea historial/YYYY-MM-DD.json en GitHub con el snapshot actual de velez_data.json.
+    Lee el JSON directo desde GitHub (fuente de verdad), no desde Railway filesystem.
+    Idempotente: si el archivo del día ya existe lo actualiza con SHA correcto."""
+    ts       = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    date_str = date_str or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    hist_path = f"{HISTORIAL_DIR}/{date_str}.json"
+
+    # Leer velez_data.json desde GitHub
+    r = requests.get(f"{API}/repos/{OWNER}/{REPO}/contents/{VD_PATH}",
+                     headers=_hdrs(), params={"ref": BRANCH}, timeout=15)
+    if r.status_code != 200:
+        raise RuntimeError(f"velez_data.json fetch failed: HTTP {r.status_code}")
+    vd = json.loads(base64.b64decode(r.json()["content"]).decode())
+
+    snapshot = {
+        **vd,
+        "historial_meta": {
+            "semana":       date_str,
+            "committed_at": ts,
+            "fuente":       "Faro Protocol · Railway auto-commit",
+        },
+    }
+    content_bytes = json.dumps(snapshot, indent=2, ensure_ascii=False).encode()
+    existing_sha  = _sha(hist_path)
+    msg = f"historial: snapshot {date_str} · Faro Protocol [{ts}]"
+    resp = _put(hist_path, content_bytes, msg, existing_sha)
+    action     = "actualizado" if existing_sha else "creado"
+    commit_sha = resp.get("commit", {}).get("sha", "")[:7]
+    html_url   = (resp.get("content", {}).get("html_url") or
+                  f"https://github.com/{OWNER}/{REPO}/blob/{BRANCH}/{hist_path}")
+    log.info("historial/%s.json %s — commit %s", date_str, action, commit_sha)
+    return {"ok": True, "file": hist_path, "action": action,
+            "date": date_str, "commit": commit_sha, "url": html_url}
+
+
 def push_aspersores(cid: str, aspersores: list) -> str:
     """Store sprinkler positions for a cancha in config_velez.json.aspersores_por_cancha."""
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")

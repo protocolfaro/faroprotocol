@@ -203,6 +203,19 @@ def manual_insar_refresh():
     }), 202
 
 
+@app.route("/velez/commit_historial", methods=["POST"])
+def commit_historial():
+    """Guarda snapshot semanal en historial/YYYY-MM-DD.json en GitHub."""
+    try:
+        result = github_push.push_historial_snapshot()
+        return jsonify(result), 200
+    except EnvironmentError as e:
+        return jsonify({"ok": False, "error": str(e)}), 503
+    except Exception as e:
+        log.error(traceback.format_exc())
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
 @app.route("/velez/refresh_status", methods=["GET"])
 def refresh_status():
     return jsonify({
