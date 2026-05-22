@@ -83,6 +83,7 @@ def _n_status(gndvi: float) -> tuple[str, str]:
 def _read_canchas(item) -> dict[str, dict]:
     """Windowed read of B03/B04/B08 COGs for every cancha from one STAC item."""
     import rasterio
+    from rasterio.env import Env as _RioEnv
     from rasterio.warp import transform_bounds
     from rasterio.windows import from_bounds
 
@@ -91,11 +92,12 @@ def _read_canchas(item) -> dict[str, dict]:
     green_url = item.assets["B03"].href
 
     results: dict[str, dict] = {}
-    with (
+    with _RioEnv(GDAL_HTTP_TIMEOUT=30, GDAL_HTTP_CONNECTTIMEOUT=15):
+      with (
         rasterio.open(red_url)   as src_red,
         rasterio.open(nir_url)   as src_nir,
         rasterio.open(green_url) as src_green,
-    ):
+      ):
         crs = src_nir.crs
         for cid, (minx, miny, maxx, maxy) in CANCHA_BBOXES.items():
             try:

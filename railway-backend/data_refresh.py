@@ -90,6 +90,22 @@ def _fetch_soilgrids() -> dict:
     return result
 
 
+# SoilGrids is a static dataset — soil texture never changes.
+# Cache the result for the lifetime of the Railway process (avoids 14s call every day).
+_soil_cache: dict = {}
+
+def _fetch_soilgrids_cached() -> dict:
+    global _soil_cache
+    if _soil_cache:
+        log.info("SoilGrids: using cached data (static dataset)")
+        return _soil_cache
+    result = _fetch_soilgrids()
+    if result:
+        _soil_cache = result
+        log.info("SoilGrids: data cached for process lifetime")
+    return result
+
+
 def _fetch_open_meteo() -> dict:
     url = (
         "https://api.open-meteo.com/v1/forecast"
@@ -372,7 +388,7 @@ async def _arun(fn):
 
 async def _fetch_all_async() -> dict:
     keys = ["nasa","soil","hourly","ecostress","smap"]
-    fns  = [_fetch_nasa_power, _fetch_soilgrids, _fetch_open_meteo, _fetch_ecostress, _fetch_smap]
+    fns  = [_fetch_nasa_power, _fetch_soilgrids_cached, _fetch_open_meteo, _fetch_ecostress, _fetch_smap]
     results = await asyncio.gather(*[_arun(f) for f in fns], return_exceptions=True)
     out = {}
     for key, res in zip(keys, results):

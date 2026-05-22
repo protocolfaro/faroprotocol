@@ -5,12 +5,10 @@ no `schedule` library (uses APScheduler from app.py).
 
 Config is fetched from GitHub raw URL so it works in stateless Railway containers.
 """
-import json, logging, os, smtplib, threading, traceback
-from datetime import datetime, timedelta
+import json, logging, os, smtplib, threading
+from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from pathlib import Path
-from typing import Optional
 from urllib.request import urlopen, Request as UReq
 
 import requests
@@ -26,6 +24,11 @@ _VD_RAW_URL    = "https://raw.githubusercontent.com/protocolfaro/faroprotocol/ma
 GMAIL_USER = os.environ.get("GMAIL_USER", "protocolfaro@gmail.com")
 GMAIL_PASS = os.environ.get("GMAIL_APP_PASS", "")
 
+_SEM_COLOR = {"verde": "#27ae60", "amarillo": "#f0b429", "rojo": "#e74c3c"}
+_SEM_LABEL = {"verde": "ÓPTIMO",  "amarillo": "ATENCIÓN", "rojo": "CRÍTICO"}
+_SEM_EMOJI = {"verde": "✅",       "amarillo": "⚠️",        "rojo": "🚨"}
+_SEM_ORDER = {"verde": 0,          "amarillo": 1,           "rojo": 2}
+
 NDVI_ALERT  = 0.35
 INSAR_ALERT = 3.0
 
@@ -35,7 +38,6 @@ def _env(key: str, default: str = "") -> str:
 
 
 def load_config() -> dict:
-    """Fetch config_velez.json from GitHub. Fallback to empty config on error."""
     try:
         req = UReq(_CFG_RAW_URL, headers={"User-Agent": "FaroProtocol/4.0"})
         with urlopen(req, timeout=10) as r:
@@ -45,15 +47,19 @@ def load_config() -> dict:
         return {"zonas": [], "destinatarios": []}
 
 
-def _get_sectores() -> dict:
-    """Fetch velez_data.json from GitHub and return sectores dict."""
+def _get_velez_data() -> dict:
+    """Fetch full velez_data.json from GitHub raw. Returns {} on network error."""
     try:
         req = UReq(_VD_RAW_URL, headers={"User-Agent": "FaroProtocol/4.0"})
         with urlopen(req, timeout=10) as r:
-            return json.loads(r.read()).get("sectores", {})
+            return json.loads(r.read())
     except Exception as e:
-        log.warning("_get_sectores: %s", e)
+        log.warning("_get_velez_data: %s", e)
         return {}
+
+
+def _get_sectores() -> dict:
+    return _get_velez_data().get("sectores", {})
 
 
 # ── WhatsApp (CallMeBot) ──────────────────────────────────────────────────────
@@ -64,8 +70,6 @@ _WA_ALERT_USERS = [
     {"nombre": "Fernando Banchero", "slug": "banchero", "phone": "541167096384", "env_key": "CALLMEBOT_KEY_BANCHERO", "sectores": ["estadio","agro","solar","canchero","sede","poli","piletas"]},
     {"nombre": "Nelson Pugliese",   "slug": "nelson",   "phone": "541156417353", "env_key": "CALLMEBOT_KEY_NELSON",   "sectores": ["estadio","agro","solar","canchero","sede","poli","piletas"]},
 ]
-_SEM_EMOJI = {"verde": "✅", "amarillo": "⚠️", "rojo": "🚨"}
-_SEM_ORDER = {"verde": 0, "amarillo": 1, "rojo": 2}
 
 
 def send_whatsapp(phone: str, message: str, api_key: str) -> bool:
@@ -86,12 +90,12 @@ def send_whatsapp(phone: str, message: str, api_key: str) -> bool:
 def _build_wa_message(user: dict, sectores: dict, fecha: str) -> str:
     nombre_short = user["nombre"].split()[0]
     user_sects   = [sectores[k] for k in user["sectores"] if k in sectores]
-    scores   = [s["score"] for s in user_sects]
-    avg      = round(sum(scores) / len(scores)) if scores else 0
-    worst    = max(user_sects, key=lambda s: _SEM_ORDER.get(s["sem"], 0), default={})
-    worst_sem = worst.get("sem", "verde") if worst else "verde"
-    criticos  = [s for s in user_sects if s["sem"] == "rojo"]
-    atencion  = [s for s in user_sects if s["sem"] == "amarillo"]
+    scores       = [s["score"] for s in user_sects if isinstance(s.get("score"), (int, float))]
+    avg          = round(sum(scores) / len(scores)) if scores else 0
+    worst        = max(user_sects, key=lambda s: _SEM_ORDER.get(s.get("sem","verde"), 0), default={})
+    worst_sem    = worst.get("sem", "verde") if worst else "verde"
+    criticos     = [s for s in user_sects if s.get("sem") == "rojo"]
+    atencion     = [s for s in user_sects if s.get("sem") == "amarillo"]
 
     lines = [
         "*Faro Protocol — Vélez Sarsfield*",
@@ -102,27 +106,31 @@ def _build_wa_message(user: dict, sectores: dict, fecha: str) -> str:
     if criticos:
         lines.append("🚨 *Acción urgente:*")
         for s in criticos:
-            lines.append(f"  • {s['nombre']} ({s['score']}/100)")
-            lines.append(f"    {s['detalle']}")
+            lines.append(f"  • {s.get('nombre','?')} ({s.get('score','?')}/100)")
+            lines.append(f"    {s.get('detalle','')}")
         lines.append("")
     if atencion and len(user["sectores"]) > 1:
         lines.append("⚠️ *En atención:*")
         for s in atencion[:2]:
-            lines.append(f"  • {s['nombre']} ({s['score']}/100)")
+            lines.append(f"  • {s.get('nombre','?')} ({s.get('score','?')}/100)")
         lines.append("")
     lines.append(f"📱 {PANEL_BASE_URL}#{user['slug']}")
     return "\n".join(lines)
 
 
-def send_whatsapp_alerts() -> dict:
-    """Send weekly WhatsApp summary to all configured users."""
-    sectores  = _get_sectores()
+def send_whatsapp_alerts(vd: dict = None) -> dict:
+    """Send weekly WhatsApp summary. Silently skips users without a configured key."""
+    if vd is None:
+        vd = _get_velez_data()
+    sectores  = vd.get("sectores", {})
     fecha_str = datetime.now().strftime("%d/%m/%Y")
     results   = {}
     for user in _WA_ALERT_USERS:
         api_key = _env(user["env_key"])
         if not api_key:
-            log.warning("⚠️ %s no configurada — WhatsApp omitido para %s", user["env_key"], user["nombre"])
+            # Expected state until keys are loaded in Railway — not an error
+            log.info("WhatsApp: %s sin key configurada — omitido hasta que se cargue %s en Railway",
+                     user["nombre"], user["env_key"])
             results[user["nombre"]] = None
             continue
         msg = _build_wa_message(user, sectores, fecha_str)
@@ -131,7 +139,7 @@ def send_whatsapp_alerts() -> dict:
     sent = sum(1 for v in results.values() if v is True)
     skip = sum(1 for v in results.values() if v is None)
     fail = sum(1 for v in results.values() if v is False)
-    log.info("WhatsApp semanal: %d enviados · %d omitidos (sin key) · %d fallidos", sent, skip, fail)
+    log.info("WhatsApp semanal: %d enviados · %d sin key · %d fallidos", sent, skip, fail)
     return results
 
 
@@ -139,7 +147,7 @@ def send_whatsapp_alerts() -> dict:
 
 def send_email(to: str, subject: str, body_html: str) -> bool:
     if not to or not GMAIL_PASS:
-        log.warning("Email no configurado (to=%s, pass=%s)", bool(to), bool(GMAIL_PASS))
+        log.warning("Email no configurado (to=%s, GMAIL_APP_PASS=%s)", bool(to), bool(GMAIL_PASS))
         return False
     try:
         recipients = [r.strip() for r in to.split(",") if r.strip()]
@@ -175,156 +183,277 @@ Generado automáticamente · {datetime.now().strftime('%d/%m/%Y %H:%M')} UTC-3
 </p></body></html>"""
 
 
-def _body_roger(panel_url: str = "") -> str:
-    return _html_wrap("Tu Mapa de Trabajo Esta Semana — Villa Olímpica", """
-        <p><b>Roger,</b> te mando el estado de las canchas esta semana.</p>
-        <h3 style="color:#e74c3c">HOY — NO PUEDE ESPERAR</h3>
-        <ul style="font-size:15px;line-height:1.8">
-          <li><b>4FA — zona central y lateral sur:</b> fungicida + drenaje + resembrar</li>
-        </ul>
-        <h3 style="color:#f0b429">Esta semana</h3>
-        <ul style="font-size:15px;line-height:1.8">
-          <li><b>1FA y 3FA:</b> fungicida preventivo antes de que avance</li>
-          <li><b>2FA:</b> fertilizar todo el campo</li>
-        </ul>
-        <h3 style="color:#27ae60">Sin apuro</h3>
-        <ul style="font-size:15px;line-height:1.8">
-          <li><b>Amalfitani:</b> aerificar las dos porterías</li>
-        </ul>
-        """, panel_url)
+# ── Email bodies — leen datos reales de velez_data.json ───────────────────────
+
+def _body_roger(vd: dict, panel_url: str = "") -> str:
+    wl  = vd.get("weather_live", {})
+    sec = vd.get("sectores", {}).get("canchero", {})
+
+    score    = sec.get("score", "—")
+    sem      = sec.get("sem", "verde")
+
+    fung     = wl.get("riesgo_fungosis", {})
+    fung_niv = fung.get("nivel", "bajo")
+    fung_c   = _SEM_COLOR.get(fung_niv, "#27ae60")
+    fung_des = fung.get("descripcion", "Sin datos de riesgo fungoso")
+    fung_acc = fung.get("accion_recomendada", "")
+    canch_r  = fung.get("canchas_en_riesgo", [])
+
+    deficit  = float(wl.get("deficit_hidrico_mm") or 0)
+    riego_m  = wl.get("riego_min_sector", 0)
+    hora_r   = wl.get("hora_riego_optima", "06:00")
+    dias_c   = wl.get("dias_proximo_corte", "—")
+
+    ndvi_raw   = wl.get("gndvi_por_cancha") or {}
+    ndvi_canch = ndvi_raw.get("canchas", {}) if isinstance(ndvi_raw, dict) else {}
+    ndvi_fuent = ndvi_raw.get("fuente", "estimado") if isinstance(ndvi_raw, dict) else "estimado"
+
+    _ns_c = {"ok": "#27ae60", "borderline": "#f0b429", "bajo": "#f0b429", "grave": "#e74c3c"}
+    ndvi_html = ""
+    if ndvi_canch:
+        rows = "".join(
+            f'<tr>'
+            f'<td style="padding:4px 8px;border:1px solid #c9a84c22">{cid.upper()}</td>'
+            f'<td style="padding:4px 8px;border:1px solid #c9a84c22">{cd.get("gndvi", cd.get("ndvi","—"))}</td>'
+            f'<td style="padding:4px 8px;color:{_ns_c.get(cd.get("n_status","ok"),"#27ae60")};border:1px solid #c9a84c22">{cd.get("n_status","—")}</td>'
+            f'<td style="padding:4px 8px;border:1px solid #c9a84c22;font-size:12px">{cd.get("n_rec","")}</td>'
+            f'</tr>'
+            for cid, cd in sorted(ndvi_canch.items())
+        )
+        ndvi_html = (
+            f'<h3 style="color:#c9a84c">NDVI por Cancha</h3>'
+            f'<table style="color:#f2ede4;border-collapse:collapse;width:100%;font-size:13px">'
+            f'<tr style="background:#141c24">'
+            f'<th style="padding:4px 8px;border:1px solid #c9a84c44">Cancha</th>'
+            f'<th style="padding:4px 8px;border:1px solid #c9a84c44">GNDVI</th>'
+            f'<th style="padding:4px 8px;border:1px solid #c9a84c44">N</th>'
+            f'<th style="padding:4px 8px;border:1px solid #c9a84c44">Recomendación</th>'
+            f'</tr>{rows}</table>'
+            f'<p style="color:#9aa0a8;font-size:11px">Fuente: {ndvi_fuent}</p>'
+        )
+
+    riesgo_html = f'<p style="color:{fung_c}"><b>Riesgo fungoso: {fung_niv.upper()}</b> — {fung_des}</p>'
+    if fung_acc:
+        riesgo_html += f'<p>→ <b>{fung_acc}</b></p>'
+    if canch_r:
+        riesgo_html += f'<p style="color:#9aa0a8">Canchas en riesgo: {", ".join(c.upper() for c in canch_r)}</p>'
+
+    riego_html = (
+        f'<p><b>Riego:</b> {riego_m} min · hora óptima {hora_r} ART · déficit {deficit:.1f} mm</p>'
+        if riego_m > 0 else
+        '<p><b>Riego:</b> Sin déficit hídrico significativo esta semana</p>'
+    )
+
+    body = (
+        f'<p><b>Roger,</b> estado de las canchas esta semana.</p>'
+        f'<p>Score canchero: <b style="color:{_SEM_COLOR.get(sem,"#27ae60")}">'
+        f'{score}/100 — {_SEM_LABEL.get(sem,"—")}</b></p>'
+        f'{riesgo_html}'
+        f'{riego_html}'
+        f'<p><b>Próximo corte estimado:</b> en {dias_c} días</p>'
+        f'{ndvi_html}'
+    )
+    return _html_wrap("Tu Mapa de Trabajo Esta Semana — Villa Olímpica", body, panel_url)
 
 
-def _body_juan(panel_url: str = "") -> str:
-    return _html_wrap("Estado Villa Olímpica Esta Semana", f"""
-        <p>Juan, estado actualizado de las canchas, campo y Polideportivo.</p>
-        <h3 style="color:#e74c3c">Urgente — 4FA</h3>
-        <ul style="font-size:14px">
-          <li>Focos activos de hongo en zona central — fungicida HOY</li>
-          <li>Drenaje lateral sur roto — agua estancada confirmada</li>
-        </ul>
-        <h3 style="color:#f0b429">Polideportivo Feijóo</h3>
-        <ul style="font-size:14px">
-          <li><b>Básquet (ext):</b> fisuras detectadas — inspección urgente</li>
-        </ul>
-        <h3 style="color:#f0b429">Amalfitani</h3>
-        <ul style="font-size:14px">
-          <li>1FA–3FA: tratamientos agronómicos en curso</li>
-          <li>Campo principal: buen estado general</li>
-        </ul>
-        """, panel_url)
+def _body_juan(vd: dict, panel_url: str = "") -> str:
+    wl  = vd.get("weather_live", {})
+    sec = vd.get("sectores", {})
+
+    rows = ""
+    for k in ("canchero", "agro", "poli"):
+        s   = sec.get(k, {})
+        sem = s.get("sem", "verde")
+        rows += (
+            f'<tr>'
+            f'<td style="padding:6px;border:1px solid #c9a84c22">{s.get("nombre", k.title())}</td>'
+            f'<td style="padding:6px;color:{_SEM_COLOR.get(sem,"#27ae60")};border:1px solid #c9a84c22">'
+            f'<b>{_SEM_LABEL.get(sem,"—")}</b> ({s.get("score","—")}/100)</td>'
+            f'<td style="padding:6px;border:1px solid #c9a84c22;font-size:13px">{s.get("detalle","—")}</td>'
+            f'</tr>'
+        )
+
+    fung     = wl.get("riesgo_fungosis", {})
+    fung_niv = fung.get("nivel", "bajo")
+    fung_c   = _SEM_COLOR.get(fung_niv, "#27ae60")
+    fung_acc = fung.get("accion_recomendada", "")
+    deficit  = float(wl.get("deficit_hidrico_mm") or 0)
+
+    body = (
+        f'<p>Juan, estado actualizado de canchas, campo y Polideportivo.</p>'
+        f'<table style="color:#f2ede4;border-collapse:collapse;width:100%;font-size:14px">'
+        f'<tr style="background:#141c24">'
+        f'<th style="padding:6px;border:1px solid #c9a84c44">Área</th>'
+        f'<th style="padding:6px;border:1px solid #c9a84c44">Estado</th>'
+        f'<th style="padding:6px;border:1px solid #c9a84c44">Detalle</th>'
+        f'</tr>{rows}</table>'
+        f'<p style="margin-top:12px"><b>Riesgo fungoso:</b> '
+        f'<span style="color:{fung_c}">{fung_niv.upper()}</span>'
+        f'{(" — " + fung_acc) if fung_acc else ""}</p>'
+        f'<p><b>Déficit hídrico semanal:</b> {deficit:.1f} mm</p>'
+    )
+    return _html_wrap("Estado Villa Olímpica Esta Semana", body, panel_url)
 
 
-def _body_banchero(panel_url: str = "") -> str:
-    return _html_wrap(f"Estado Operativo del Predio — Vélez Sarsfield · {datetime.now().strftime('%d/%m/%Y')}", f"""
-        <p>Fernando, resumen operativo completo.</p>
-        <table style="color:#f2ede4;border-collapse:collapse;width:100%;font-size:14px">
-          <tr style="background:#141c24">
-            <th style="padding:8px;border:1px solid #c9a84c44">Área</th>
-            <th style="padding:8px;border:1px solid #c9a84c44">Estado</th>
-            <th style="padding:8px;border:1px solid #c9a84c44">Acción</th>
-          </tr>
-          <tr><td style="padding:6px;border:1px solid #c9a84c22">4FA</td>
-              <td style="padding:6px;color:#e74c3c;border:1px solid #c9a84c22"><b>CRÍTICO</b></td>
-              <td style="padding:6px;border:1px solid #c9a84c22">Intervención urgente</td></tr>
-          <tr><td style="padding:6px;border:1px solid #c9a84c22">1FA, 2FA, 3FA</td>
-              <td style="padding:6px;color:#f0b429;border:1px solid #c9a84c22"><b>ATENCIÓN</b></td>
-              <td style="padding:6px;border:1px solid #c9a84c22">Acciones programadas</td></tr>
-          <tr><td style="padding:6px;border:1px solid #c9a84c22">Amalfitani</td>
-              <td style="padding:6px;color:#27ae60;border:1px solid #c9a84c22"><b>ÓPTIMO</b></td>
-              <td style="padding:6px;border:1px solid #c9a84c22">Sin acción inmediata</td></tr>
-          <tr><td style="padding:6px;border:1px solid #c9a84c22">Polideportivo</td>
-              <td style="padding:6px;color:#f0b429;border:1px solid #c9a84c22"><b>ATENCIÓN</b></td>
-              <td style="padding:6px;border:1px solid #c9a84c22">Básquet — inspección</td></tr>
-        </table>
-        """, panel_url)
+def _body_banchero(vd: dict, panel_url: str = "") -> str:
+    sec   = vd.get("sectores", {})
+    wl    = vd.get("weather_live", {})
+    fecha = datetime.now().strftime('%d/%m/%Y')
+
+    rows = ""
+    for k in ("estadio", "agro", "solar", "canchero", "sede", "poli", "piletas"):
+        s   = sec.get(k, {})
+        sem = s.get("sem", "verde")
+        acc = {"verde": "Sin acción inmediata", "amarillo": "Monitorear",
+               "rojo":  "Intervención urgente"}.get(sem, "—")
+        rows += (
+            f'<tr>'
+            f'<td style="padding:6px;border:1px solid #c9a84c22">{s.get("nombre", k.title())}</td>'
+            f'<td style="padding:6px;color:{_SEM_COLOR.get(sem,"#27ae60")};border:1px solid #c9a84c22">'
+            f'<b>{_SEM_LABEL.get(sem,"—")}</b></td>'
+            f'<td style="padding:6px;border:1px solid #c9a84c22">{s.get("score","—")}/100</td>'
+            f'<td style="padding:6px;border:1px solid #c9a84c22;font-size:12px">{s.get("detalle","—")}</td>'
+            f'<td style="padding:6px;border:1px solid #c9a84c22">{acc}</td>'
+            f'</tr>'
+        )
+
+    deficit = float(wl.get("deficit_hidrico_mm") or 0)
+    ts      = (wl.get("timestamp") or "")[:10] or "—"
+
+    body = (
+        f'<p>Fernando, resumen operativo completo del predio.</p>'
+        f'<table style="color:#f2ede4;border-collapse:collapse;width:100%;font-size:13px">'
+        f'<tr style="background:#141c24">'
+        f'<th style="padding:8px;border:1px solid #c9a84c44">Área</th>'
+        f'<th style="padding:8px;border:1px solid #c9a84c44">Estado</th>'
+        f'<th style="padding:8px;border:1px solid #c9a84c44">Score</th>'
+        f'<th style="padding:8px;border:1px solid #c9a84c44">Detalle</th>'
+        f'<th style="padding:8px;border:1px solid #c9a84c44">Acción</th>'
+        f'</tr>{rows}</table>'
+        f'<p style="margin-top:10px;color:#9aa0a8;font-size:12px">'
+        f'Déficit hídrico: {deficit:.1f} mm · Datos al {ts}</p>'
+    )
+    return _html_wrap(f"Estado Operativo del Predio — Vélez Sarsfield · {fecha}", body, panel_url)
 
 
-def _body_pait(panel_url: str = "") -> str:
-    return _html_wrap("Estado Canchas — Visión Deportiva", """
-        <p>Sebastián, estado de superficies para esta semana.</p>
-        <h3 style="color:#e74c3c">NO APTA para entrenamiento</h3>
-        <ul style="font-size:14px"><li><b>4FA:</b> hongo activo + drenaje roto + pasto ralo</li></ul>
-        <h3 style="color:#f0b429">Uso condicionado</h3>
-        <ul style="font-size:14px">
-          <li><b>1FA:</b> apta con fungicida preventivo antes del uso</li>
-          <li><b>3FA:</b> trabajos livianos — tratamiento en curso</li>
-        </ul>
-        <h3 style="color:#27ae60">Óptimas para uso</h3>
-        <ul style="font-size:14px">
-          <li><b>2FA:</b> apta — fertilización esta semana</li>
-          <li><b>Amalfitani:</b> excelente condición</li>
-        </ul>
-        """, panel_url)
+def _body_pait(vd: dict, panel_url: str = "") -> str:
+    wl  = vd.get("weather_live", {})
+    sec = vd.get("sectores", {})
+
+    rows = ""
+    for k in ("canchero", "poli"):
+        s   = sec.get(k, {})
+        sem = s.get("sem", "verde")
+        rows += (
+            f'<tr>'
+            f'<td style="padding:6px;border:1px solid #c9a84c22">{s.get("nombre", k.title())}</td>'
+            f'<td style="padding:6px;color:{_SEM_COLOR.get(sem,"#27ae60")};border:1px solid #c9a84c22">'
+            f'<b>{_SEM_LABEL.get(sem,"—")}</b> ({s.get("score","—")}/100)</td>'
+            f'<td style="padding:6px;border:1px solid #c9a84c22;font-size:13px">{s.get("detalle","—")}</td>'
+            f'</tr>'
+        )
+
+    fung     = wl.get("riesgo_fungosis", {})
+    fung_niv = fung.get("nivel", "bajo")
+    fung_c   = _SEM_COLOR.get(fung_niv, "#27ae60")
+    fung_acc = fung.get("accion_recomendada", "")
+    canch_r  = fung.get("canchas_en_riesgo", [])
+
+    body = (
+        f'<p>Sebastián, estado de superficies para esta semana.</p>'
+        f'<table style="color:#f2ede4;border-collapse:collapse;width:100%;font-size:14px">'
+        f'<tr style="background:#141c24">'
+        f'<th style="padding:6px;border:1px solid #c9a84c44">Área</th>'
+        f'<th style="padding:6px;border:1px solid #c9a84c44">Estado</th>'
+        f'<th style="padding:6px;border:1px solid #c9a84c44">Detalle</th>'
+        f'</tr>{rows}</table>'
+        f'<p style="margin-top:10px"><b>Riesgo fungoso: '
+        f'<span style="color:{fung_c}">{fung_niv.upper()}</span></b>'
+        f'{(" — " + fung_acc) if fung_acc else ""}</p>'
+        + (f'<p style="color:#f0b429">Canchas en riesgo: {", ".join(c.upper() for c in canch_r)}</p>'
+           if canch_r else '')
+    )
+    return _html_wrap("Estado Canchas — Visión Deportiva", body, panel_url)
 
 
-def _body_berlanga(panel_url: str = "") -> str:
-    return _html_wrap(f"Informe Ejecutivo Semanal — {datetime.now().strftime('%d/%m/%Y')}", f"""
-        <p>Fabián, resumen ejecutivo satelital del predio.</p>
-        <ul style="font-size:14px;line-height:1.8">
-          <li><b>4FA:</b> intervención urgente esta semana</li>
-          <li><b>Sistema Solar:</b> eficiencia por debajo de objetivo — revisión técnica</li>
-          <li><b>Piletas:</b> estado óptimo — mantener protocolo</li>
-        </ul>
-        """, panel_url)
+def _body_ejecutivo(vd: dict, nombre: str, panel_url: str = "") -> str:
+    """Generic executive report: full sector table + timestamp."""
+    sec   = vd.get("sectores", {})
+    wl    = vd.get("weather_live", {})
+    fecha = datetime.now().strftime('%d/%m/%Y')
+    ts    = (wl.get("timestamp") or "")[:10] or "—"
+
+    rows = ""
+    for k in ("estadio", "agro", "solar", "canchero", "sede", "poli", "piletas"):
+        s   = sec.get(k, {})
+        sem = s.get("sem", "verde")
+        rows += (
+            f'<tr>'
+            f'<td style="padding:6px;border:1px solid #c9a84c22">{s.get("nombre", k.title())}</td>'
+            f'<td style="padding:6px;color:{_SEM_COLOR.get(sem,"#27ae60")};border:1px solid #c9a84c22">'
+            f'<b>{_SEM_LABEL.get(sem,"—")}</b></td>'
+            f'<td style="padding:6px;border:1px solid #c9a84c22">{s.get("score","—")}/100</td>'
+            f'<td style="padding:6px;border:1px solid #c9a84c22;font-size:12px">{s.get("detalle","—")}</td>'
+            f'</tr>'
+        )
+
+    body = (
+        f'<p>{nombre}, resumen ejecutivo satelital del predio.</p>'
+        f'<table style="color:#f2ede4;border-collapse:collapse;width:100%;font-size:13px">'
+        f'<tr style="background:#141c24">'
+        f'<th style="padding:6px;border:1px solid #c9a84c44">Área</th>'
+        f'<th style="padding:6px;border:1px solid #c9a84c44">Estado</th>'
+        f'<th style="padding:6px;border:1px solid #c9a84c44">Score</th>'
+        f'<th style="padding:6px;border:1px solid #c9a84c44">Detalle</th>'
+        f'</tr>{rows}</table>'
+        f'<p style="color:#9aa0a8;font-size:12px;margin-top:8px">Datos al {ts}</p>'
+    )
+    return _html_wrap(f"Informe Ejecutivo Semanal — {fecha}", body, panel_url)
 
 
-def _body_nelson(panel_url: str = "") -> str:
-    return _html_wrap(f"Informe Ejecutivo Semanal — {datetime.now().strftime('%d/%m/%Y')}", f"""
-        <p>Nelson, resumen ejecutivo satelital del predio.</p>
-        <ul style="font-size:14px;line-height:1.8">
-          <li><b>4FA:</b> crítica — intervención urgente esta semana</li>
-          <li><b>Sistema Solar:</b> Eficiencia por debajo de objetivo — Zona E requiere revisión</li>
-          <li><b>Polideportivo:</b> Básquet y Playón Norte en atención</li>
-          <li><b>Complejo Acuático:</b> calidad agua excelente</li>
-        </ul>
-        """, panel_url)
+def _body_berlanga(vd: dict, panel_url: str = "") -> str:
+    return _body_ejecutivo(vd, "Fabián", panel_url)
 
+def _body_nelson(vd: dict, panel_url: str = "") -> str:
+    return _body_ejecutivo(vd, "Nelson", panel_url)
 
-def _body_aveleyra(panel_url: str = "") -> str:
-    return _html_wrap(f"Dashboard Ejecutivo — {datetime.now().strftime('%d/%m/%Y')}", f"""
-        <p>Alberto, dashboard ejecutivo satelital.</p>
-        <ul style="font-size:14px;line-height:1.8">
-          <li><b>4FA + Polideportivo:</b> intervenciones urgentes — impacto directo en operación</li>
-          <li><b>Solar:</b> revisar paneles en falla — pérdida económica activa</li>
-          <li><b>Detección anticipada:</b> 80% de problemas identificados en etapa temprana</li>
-        </ul>
-        """, panel_url)
+def _body_aveleyra(vd: dict, panel_url: str = "") -> str:
+    return _body_ejecutivo(vd, "Alberto", panel_url)
 
 
 _BODY_FN_MAP = {
-    "Roger Bernal":       _body_roger,
-    "Juan Gonzalez":      _body_juan,
-    "Juan González":      _body_juan,
-    "Fernando Banchero":  _body_banchero,
-    "Sebastian Pait":     _body_pait,
-    "Sebastián Pait":     _body_pait,
-    "Fabian Berlanga":    _body_berlanga,
-    "Fabián Berlanga":    _body_berlanga,
-    "Nelson Pugliese":    _body_nelson,
-    "Alberto Aveleyra":   _body_aveleyra,
+    "Roger Bernal":      _body_roger,
+    "Juan Gonzalez":     _body_juan,
+    "Juan González":     _body_juan,
+    "Fernando Banchero": _body_banchero,
+    "Sebastian Pait":    _body_pait,
+    "Sebastián Pait":    _body_pait,
+    "Fabian Berlanga":   _body_berlanga,
+    "Fabián Berlanga":   _body_berlanga,
+    "Nelson Pugliese":   _body_nelson,
+    "Alberto Aveleyra":  _body_aveleyra,
 }
 
 _SLUG_MAP = {
-    "Roger Bernal":       "roger",
-    "Juan Gonzalez":      "juan",
-    "Juan González":      "juan",
-    "Fernando Banchero":  "banchero",
-    "Sebastian Pait":     "pait",
-    "Sebastián Pait":     "pait",
-    "Fabian Berlanga":    "berlanga",
-    "Fabián Berlanga":    "berlanga",
-    "Nelson Pugliese":    "nelson",
-    "Alberto Aveleyra":   "aveleyra",
+    "Roger Bernal":      "roger",
+    "Juan Gonzalez":     "juan",
+    "Juan González":     "juan",
+    "Fernando Banchero": "banchero",
+    "Sebastian Pait":    "pait",
+    "Sebastián Pait":    "pait",
+    "Fabian Berlanga":   "berlanga",
+    "Fabián Berlanga":   "berlanga",
+    "Nelson Pugliese":   "nelson",
+    "Alberto Aveleyra":  "aveleyra",
 }
 
 
-def send_all_reports(config: dict = None) -> dict:
-    """
-    Send weekly email to each recipient in config.destinatarios.
-    No PDF attachments (not available on Railway) — HTML body only.
-    """
+def send_all_reports(config: dict = None, vd: dict = None) -> dict:
+    """Send weekly HTML email to each destinatario. vd reused to avoid double GitHub fetch."""
     if config is None:
         config = load_config()
+    if vd is None:
+        vd = _get_velez_data()
     date_str = datetime.now().strftime("%d/%m/%Y")
     results  = {}
     for d in config.get("destinatarios", []):
@@ -334,12 +463,24 @@ def send_all_reports(config: dict = None) -> dict:
             continue
         slug      = _SLUG_MAP.get(nombre, nombre.lower().split()[0])
         panel_url = f"{PANEL_BASE_URL}#{slug}"
-        body_fn   = _BODY_FN_MAP.get(nombre, lambda p="": _html_wrap(
-            "Reporte Semanal — Vélez Sarsfield",
-            f"<p>{nombre}, reporte satelital semanal del Club Atlético Vélez Sarsfield.</p>"
-        ))
-        ok = send_email(email, f"Faro · Reporte semanal · Vélez · {date_str}",
-                        body_fn(panel_url=panel_url))
+        body_fn   = _BODY_FN_MAP.get(nombre)
+        if body_fn:
+            try:
+                body_html = body_fn(vd, panel_url=panel_url)
+            except Exception as e:
+                log.warning("body_fn %s: %s — usando fallback", nombre, e)
+                body_html = _html_wrap(
+                    "Reporte Semanal — Vélez Sarsfield",
+                    f"<p>{nombre}, reporte satelital semanal del Club Atlético Vélez Sarsfield.</p>",
+                    panel_url,
+                )
+        else:
+            body_html = _html_wrap(
+                "Reporte Semanal — Vélez Sarsfield",
+                f"<p>{nombre}, reporte satelital semanal del Club Atlético Vélez Sarsfield.</p>",
+                panel_url,
+            )
+        ok = send_email(email, f"Faro · Reporte semanal · Vélez · {date_str}", body_html)
         results[nombre] = ok
         log.info("Email %s → %s", nombre, "OK" if ok else "FAIL")
     return results
@@ -351,37 +492,29 @@ _last_weekly: dict = {}
 
 
 def run_weekly_job() -> dict:
-    """Main weekly job: refresh weather data + send WhatsApp alerts + send emails."""
+    """Weekly notifications: WhatsApp + email.
+    Weather data is refreshed by the daily cron at 09:00 UTC (1h before this job runs).
+    """
     global _last_weekly
     log.info("=== Weekly job starting ===")
     config = load_config()
+    vd     = _get_velez_data()   # fetch once — shared by WhatsApp + email
 
-    # 1. Update weather data (push to GitHub)
-    try:
-        from data_refresh import run_refresh
-        refresh_result = run_refresh()
-        log.info("Weather refresh: %s", "OK" if refresh_result.get("ok") else refresh_result.get("error"))
-    except Exception as e:
-        log.error("Weather refresh failed: %s", e)
-        refresh_result = {"ok": False, "error": str(e)}
+    wa_results    = {}
+    email_results = {}
 
-    # 2. Send WhatsApp alerts
-    wa_results = {}
     try:
-        wa_results = send_whatsapp_alerts()
+        wa_results = send_whatsapp_alerts(vd=vd)
     except Exception as e:
         log.error("WhatsApp alerts failed: %s", e)
 
-    # 3. Send emails
-    email_results = {}
     try:
-        email_results = send_all_reports(config)
+        email_results = send_all_reports(config, vd=vd)
     except Exception as e:
         log.error("Email send failed: %s", e)
 
     _last_weekly = {
         "ran_at":        datetime.utcnow().isoformat(),
-        "weather_ok":    refresh_result.get("ok"),
         "whatsapp_sent": sum(1 for v in wa_results.values() if v is True),
         "whatsapp_skip": sum(1 for v in wa_results.values() if v is None),
         "emails_sent":   sum(1 for v in email_results.values() if v is True),
@@ -397,7 +530,6 @@ def get_last_weekly() -> dict:
 # ── APScheduler integration ───────────────────────────────────────────────────
 
 def register_jobs(scheduler) -> None:
-    """Register the weekly job on the given APScheduler instance."""
     from apscheduler.triggers.cron import CronTrigger
     # Lunes 07:00 ART = Lunes 10:00 UTC
     scheduler.add_job(
@@ -422,8 +554,8 @@ def route_run_now():
 def route_weekly_status():
     from flask import jsonify
     return jsonify({
-        "last_weekly":  _last_weekly,
-        "next_weekly":  "Monday 07:00 ART (10:00 UTC)",
+        "last_weekly": _last_weekly,
+        "next_weekly": "Monday 07:00 ART (10:00 UTC)",
     })
 
 
@@ -441,9 +573,9 @@ def route_test_whatsapp():
 
 def route_test_email():
     from flask import jsonify
-    config   = load_config()
-    now_str  = datetime.now().strftime("%d/%m/%Y %H:%M")
-    results  = {}
+    config  = load_config()
+    now_str = datetime.now().strftime("%d/%m/%Y %H:%M")
+    results = {}
     for d in config.get("destinatarios", []):
         nombre = d.get("nombre", ""); email = d.get("email", "")
         if not nombre or not email:
