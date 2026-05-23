@@ -4,6 +4,7 @@ on:
     branches: [main]
     paths:
       - 'velez/**'
+      - 'pasaporte/**'
   workflow_dispatch:
 jobs:
   sync:
@@ -19,10 +20,12 @@ jobs:
           TOKEN: ${{ secrets.PANELES_DEPLOY_TOKEN }}
         run: |
           git clone "https://x-access-token:${TOKEN}@github.com/protocolfaro/faro-paneles.git" /tmp/faro-paneles
-      - name: Sync velez/
+      - name: Sync velez/ y pasaporte/
         run: |
           mkdir -p /tmp/faro-paneles/velez
           cp -r velez/. /tmp/faro-paneles/velez/
+          mkdir -p /tmp/faro-paneles/pasaporte
+          cp -r pasaporte/. /tmp/faro-paneles/pasaporte/
           touch /tmp/faro-paneles/.nojekyll
       - name: Commit and push
         working-directory: /tmp/faro-paneles
