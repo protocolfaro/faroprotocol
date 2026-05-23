@@ -1,11 +1,9 @@
 {
   "admin": {
     "pin_hash": "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4",
-    "railway_url": "https://velez-ipos-production.up.railway.app"
+    "railway_url": "https://faroprotocol-production-45fd.up.railway.app"
   },
   "football_api": {
-    "key": "4a54465018b24121b44924a85c907e13",
-    "team_id": 462,
     "espn_team_id": 21,
     "espn_competition": "arg.1"
   },
