@@ -15,10 +15,10 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css">
 <style>
 :root{
-  --bg:#060d09;--bg2:#0b1610;--bg3:#0f1e14;
+  --bg:#07110a;--bg2:#0d1f13;--bg3:#122419;
   --gold:#c9a84c;--gd:rgba(201,168,76,.10);--gp:rgba(201,168,76,.28);--gl:#e2c97e;
-  --grn:#2d6a4f;--grnd:rgba(45,106,79,.15);--grnp:rgba(45,106,79,.38);--grnl:#52b788;
-  --g5:rgba(45,106,79,.10);
+  --grn:#2d6a4f;--grnd:rgba(45,106,79,.22);--grnp:rgba(45,106,79,.55);--grnl:#52b788;
+  --g5:rgba(45,106,79,.18);
   --w:#f2ede4;--w3:rgba(242,237,228,.60);--w4:rgba(242,237,228,.22);--w5:rgba(242,237,228,.07);
   --r:10px;
 }
@@ -27,7 +27,7 @@ html{scroll-behavior:smooth}
 body{background:var(--bg);color:var(--w);font-family:'Epilogue',sans-serif;font-weight:300;line-height:1.6;overflow-x:hidden}
 
 /* ── NAV ── */
-nav{position:fixed;top:0;left:0;right:0;z-index:1000;display:flex;align-items:center;justify-content:space-between;padding:18px 24px;background:rgba(6,13,9,.88);backdrop-filter:blur(12px);border-bottom:1px solid rgba(45,106,79,.28)}
+nav{position:fixed;top:0;left:0;right:0;z-index:1000;display:flex;align-items:center;justify-content:space-between;padding:18px 24px;background:rgba(7,17,10,.90);backdrop-filter:blur(12px);border-bottom:1px solid rgba(45,106,79,.42)}
 .nav-logo{font-family:'Cormorant Garamond',serif;font-size:1.1rem;font-weight:400;color:var(--gold);letter-spacing:.08em;text-decoration:none}
 .nav-cta{font-size:.75rem;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);border:1px solid var(--gp);padding:7px 18px;border-radius:3px;text-decoration:none;transition:background .2s}
 .nav-cta:hover{background:var(--gd)}
@@ -41,6 +41,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:1000;display:flex;align-items:ce
 .hero-divider{width:48px;height:1px;background:var(--gold);margin:28px auto}
 .hero-sub{font-size:clamp(.95rem,2vw,1.1rem);color:var(--w3);max-width:600px;margin:0 auto 40px;line-height:1.75}
 .hero-sub strong{color:var(--w);font-weight:500}
+.hero-tagline{font-size:clamp(.9rem,1.8vw,1.05rem);font-style:italic;color:var(--gold);opacity:.88;margin-bottom:32px;letter-spacing:.02em}
 .hero-price-note{font-size:.8rem;color:var(--w4);letter-spacing:.06em}
 .hero-scroll{position:absolute;bottom:28px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:6px;color:var(--w4);font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;animation:bob 2.4s ease-in-out infinite}
 @keyframes bob{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(6px)}}
@@ -190,6 +191,7 @@ footer{background:var(--bg);border-top:1px solid var(--g5);padding:36px 24px;tex
     <strong>5 años de NDVI</strong> + <strong>balance hídrico ERA5</strong> + <strong>topografía</strong>.<br>
     Hash SHA-256 inmutable. PDF en tu mail en 3 minutos.
   </p>
+  <p class="hero-tagline">No es un forecast. Es historia física verificable.</p>
   <a href="#solicitar" class="btn btn-gold">Obtener mi Pasaporte</a>
   <div class="hero-price-note" style="margin-top:14px">Desde USD 99 · Pago único · Sin suscripción</div>
   <div class="hero-scroll">
@@ -413,7 +415,7 @@ footer{background:var(--bg);border-top:1px solid var(--g5);padding:36px 24px;tex
         Son cosas distintas. Una es monitoreo.
         La otra es <span class="diff-highlight">evidencia forense inmutable.</span>
       </blockquote>
-      <div class="diff-caption">No es un forecast. Es historia física verificable.</div>
+      <div class="diff-caption">Datos públicos. Metodología abierta. Verificable por cualquiera.</div>
       <div class="diff-pills" style="margin-top:40px">
         <div class="pill"><b>✓</b> Datos públicos auditables</div>
         <div class="pill"><b>✓</b> Sin modelos propietarios</div>
@@ -478,6 +480,23 @@ var drawControl = new L.Control.Draw({
     polyline: false, rectangle: false, circle: false, marker: false, circlemarker: false,
   },
 });
+L.drawLocal.draw.toolbar.buttons.polygon   = 'Dibujar polígono';
+L.drawLocal.draw.toolbar.actions.title     = 'Cancelar dibujo';
+L.drawLocal.draw.toolbar.actions.text      = 'Cancelar';
+L.drawLocal.draw.toolbar.finish.title      = 'Terminar polígono';
+L.drawLocal.draw.toolbar.finish.text       = 'Terminar';
+L.drawLocal.draw.toolbar.undo.title        = 'Borrar último punto';
+L.drawLocal.draw.toolbar.undo.text         = 'Deshacer';
+L.drawLocal.draw.handlers.polygon.tooltip.start  = 'Hacé clic para empezar a dibujar.';
+L.drawLocal.draw.handlers.polygon.tooltip.cont   = 'Hacé clic para continuar el polígono.';
+L.drawLocal.draw.handlers.polygon.tooltip.end    = 'Hacé clic en el primer punto para cerrar.';
+L.drawLocal.edit.toolbar.buttons.edit      = 'Editar';
+L.drawLocal.edit.toolbar.buttons.editDisabled = 'Nada para editar';
+L.drawLocal.edit.toolbar.actions.save.title = 'Guardar cambios';
+L.drawLocal.edit.toolbar.actions.save.text  = 'Guardar';
+L.drawLocal.edit.toolbar.actions.cancel.title = 'Cancelar, descartar cambios';
+L.drawLocal.edit.toolbar.actions.cancel.text  = 'Cancelar';
+L.drawLocal.edit.handlers.edit.tooltip.text   = 'Arrastrá los vértices para editar.';
 map.addControl(drawControl);
 
 var currentPolygon = null;
