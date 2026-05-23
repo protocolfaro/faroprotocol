@@ -17,6 +17,7 @@
 :root{
   --bg:#06080b;--bg2:#0d1117;--bg3:#141c24;
   --gold:#c9a84c;--gd:rgba(201,168,76,.10);--gp:rgba(201,168,76,.28);--gl:#e2c97e;
+  --grn:#2d6a4f;--grnd:rgba(45,106,79,.12);--grnp:rgba(45,106,79,.35);--grnl:#52b788;
   --w:#f2ede4;--w3:rgba(242,237,228,.60);--w4:rgba(242,237,228,.22);--w5:rgba(242,237,228,.07);
   --r:10px;
 }
@@ -51,6 +52,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:1000;display:flex;align-items:ce
 .btn-gold:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}
 .btn-outline{background:transparent;color:var(--gold);border:1px solid var(--gp);padding:12px 24px;border-radius:3px}
 .btn-outline:hover{background:var(--gd)}
+.btn-green{background:transparent;color:var(--grnl);border:1px solid var(--grnp);padding:12px 24px;border-radius:3px}
+.btn-green:hover{background:var(--grnd)}
 .btn-sm{font-size:.75rem;padding:9px 20px}
 
 /* ── SECTIONS ── */
@@ -104,7 +107,7 @@ section{padding:80px 24px}
 .price-amount sup{font-size:1rem;vertical-align:top;margin-top:6px;color:var(--w3)}
 .price-includes{list-style:none;margin:18px 0 24px;flex:1}
 .price-includes li{font-size:.8rem;color:var(--w3);padding:5px 0;border-bottom:1px solid var(--w5);display:flex;align-items:flex-start;gap:8px;line-height:1.5}
-.price-includes li::before{content:'·';color:var(--gold);flex-shrink:0;font-size:1.1rem;line-height:1.3}
+.price-includes li::before{content:'✓';color:var(--grnl);flex-shrink:0;font-size:.8rem;line-height:1.6;font-weight:600}
 .price-card .btn-gold{width:100%;justify-content:center;margin-top:auto}
 .price-card .btn-outline{width:100%;justify-content:center;margin-top:auto}
 
@@ -117,7 +120,7 @@ section{padding:80px 24px}
 .include-icon{font-size:1.6rem;margin-bottom:12px}
 .include-title{font-family:'Cormorant Garamond',serif;font-size:1.15rem;font-weight:400;color:var(--w);margin-bottom:6px}
 .include-desc{font-size:.82rem;color:var(--w3);line-height:1.65}
-.include-tag{display:inline-block;margin-top:10px;font-size:.68rem;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);background:var(--gd);border:1px solid rgba(201,168,76,.2);padding:3px 9px;border-radius:20px}
+.include-tag{display:inline-block;margin-top:10px;font-size:.68rem;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--grnl);background:var(--grnd);border:1px solid var(--grnp);padding:3px 9px;border-radius:20px}
 
 /* ── DIFFERENTIATOR ── */
 .diff-section{border-top:1px solid var(--w5)}
@@ -128,7 +131,7 @@ section{padding:80px 24px}
 .diff-caption{font-size:.85rem;color:var(--w4);letter-spacing:.06em}
 .diff-pills{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:36px}
 .pill{background:var(--bg2);border:1px solid var(--w5);border-radius:20px;padding:8px 18px;font-size:.78rem;color:var(--w3);display:flex;align-items:center;gap:6px}
-.pill b{color:var(--gold)}
+.pill b{color:var(--grnl)}
 
 /* ── BOTTOM CTA ── */
 .cta-section{background:linear-gradient(180deg,var(--bg) 0%,var(--bg2) 100%);border-top:1px solid var(--w5);text-align:center}
@@ -144,10 +147,10 @@ footer{background:var(--bg);border-top:1px solid var(--w5);padding:36px 24px;tex
 .footer-sub a:hover{color:var(--gold)}
 
 /* ── CONFIRMATION ── */
-.confirm-box{background:var(--bg3);border:1px solid var(--gp);border-radius:var(--r);padding:32px;text-align:center;display:none}
+.confirm-box{background:var(--bg3);border:1px solid var(--grnp);border-radius:var(--r);padding:32px;text-align:center;display:none}
 .confirm-box.visible{display:block}
 .confirm-icon{font-size:2.5rem;margin-bottom:16px}
-.confirm-title{font-family:'Cormorant Garamond',serif;font-size:1.6rem;color:var(--gold);margin-bottom:8px}
+.confirm-title{font-family:'Cormorant Garamond',serif;font-size:1.6rem;color:var(--grnl);margin-bottom:8px}
 .confirm-text{font-size:.88rem;color:var(--w3);line-height:1.7;margin-bottom:20px}
 .confirm-coords{background:var(--bg);border:1px solid var(--w5);border-radius:5px;padding:10px;font-size:.72rem;font-family:monospace;color:var(--w4);word-break:break-all;text-align:left;max-height:90px;overflow-y:auto;margin-bottom:16px}
 
@@ -259,7 +262,7 @@ footer{background:var(--bg);border-top:1px solid var(--w5);padding:36px 24px;tex
             Para asegurarnos de analizar el lote correcto, envianos las coordenadas a <a href="mailto:protocolfaro@gmail.com" style="color:var(--gold)">protocolfaro@gmail.com</a> respondiendo el mail de confirmación.
           </p>
           <div class="confirm-coords" id="confirm-coords"></div>
-          <button class="btn btn-outline btn-sm" id="btn-copy-coords">Copiar coordenadas</button>
+          <button class="btn btn-green btn-sm" id="btn-copy-coords">Copiar coordenadas</button>
         </div>
       </div>
     </div>
@@ -454,8 +457,9 @@ var map = L.map('map', {
   zoomControl: true,
 });
 
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  attribution: '© <a href="https://carto.com">CARTO</a> © <a href="https://www.openstreetmap.org/copyright">OSM</a>',
+  subdomains: 'abcd',
   maxZoom: 19,
 }).addTo(map);
 
