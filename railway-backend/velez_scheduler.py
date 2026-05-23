@@ -17,9 +17,9 @@ log = logging.getLogger(__name__)
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-PANEL_BASE_URL = "https://protocolfaro.github.io/faroprotocol/velez/"
-_CFG_RAW_URL   = "https://raw.githubusercontent.com/protocolfaro/faroprotocol/main/velez/config_velez.json"
-_VD_RAW_URL    = "https://raw.githubusercontent.com/protocolfaro/faroprotocol/main/velez/velez_data.json"
+PANEL_BASE_URL = "https://protocolfaro.github.io/faro-paneles/velez/"
+_CFG_RAW_URL   = "https://raw.githubusercontent.com/protocolfaro/faro-paneles/main/velez/config_velez.json"
+_VD_RAW_URL    = "https://raw.githubusercontent.com/protocolfaro/faro-paneles/main/velez/velez_data.json"
 
 GMAIL_USER = os.environ.get("GMAIL_USER", "protocolfaro@gmail.com")
 GMAIL_PASS = os.environ.get("GMAIL_APP_PASS", "")

@@ -24,7 +24,7 @@ except ImportError:
     HAS_QR = False
 
 W_PX, H_PX, DPI = 800, 520, 100
-QR_URL = "https://protocolfaro.github.io/faroprotocol/velez/verify"
+QR_URL = "https://protocolfaro.github.io/faro-paneles/velez/verify"
 BG = "#0d1117"
 WHITE = "#ffffff"
 SEM_COL = {"verde":"#27ae60","amarillo":"#f0b429","rojo":"#e74c3c"}

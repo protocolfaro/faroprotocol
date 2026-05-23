@@ -470,7 +470,7 @@ def check_and_send_alerts(data: dict, config: dict = None):
 
 # ─── EMAIL BODIES ─────────────────────────────────────────────────────────────
 
-PANEL_BASE_URL = 'https://protocolfaro.github.io/faroprotocol/velez/'
+PANEL_BASE_URL = 'https://protocolfaro.github.io/faro-paneles/velez/'
 
 def _html_wrap(title: str, body: str, panel_url: str = '') -> str:
     panel_line = (

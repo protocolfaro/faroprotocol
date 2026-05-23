@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Faro Protocol — Pitch Agro</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
+
+:root {
+  --gold: #c9a84c;
+  --bg: #050505;
+  --red: #cc3300;
+  --green: #00cc66;
+  --white: #f0ede8;
+  --dim: #555;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--white);
+  font-family: 'Inter', sans-serif;
+  width: 1280px;
+  height: 720px;
+  overflow: hidden;
+  position: relative;
+  cursor: pointer;
+}
+
+body::after {
+  content:'';
+  position:fixed; inset:0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.05) 3px, rgba(0,0,0,0.05) 4px);
+  pointer-events:none; z-index:9999;
+}
+
+.slide {
+  position:absolute; inset:0;
+  display:flex; flex-direction:column;
+  justify-content:center; align-items:center;
+  opacity:0; pointer-events:none;
+  padding: 70px 80px;
+}
+.slide.active { opacity:1; pointer-events:all; }
+
+#progress-wrap {
+  position:fixed; bottom:0; left:0; right:0;
+  height:3px; background:#111; z-index:1000;
+}
+#progress-fill { height:100%; background:var(--gold); width:0%; transition:none; }
+
+#subtitle {
+  position:fixed; bottom:12px; left:0; right:0;
+  text-align:center; z-index:1000; padding: 0 120px;
+}
+#subtitle-text {
+  display:inline-block;
+  background: rgba(0,0,0,0.88);
+  border: 1px solid #1a1a1a;
+  padding: 10px 28px;
+  font-size: 15px; color: var(--white);
+  letter-spacing: 0.3px; line-height: 1.5;
+  font-weight: 300; max-width: 900px;
+  transition: opacity 0.3s;
+}
+#subtitle-text strong { color: var(--gold); font-weight: 600; }
+
+.logo {
+  position:fixed; top:22px; left:32px;
+  font-family:'Bebas Neue',sans-serif;
+  font-size:18px; letter-spacing:6px; color:var(--gold); z-index:100;
+}
+.logo span { color:var(--dim); font-size:10px; letter-spacing:3px; display:block; margin-top:-4px; }
+
+#counter {
+  position:fixed; top:22px; right:24px;
+  font-family:'JetBrains Mono',monospace;
+  font-size:11px; color:var(--dim); letter-spacing:3px; z-index:100;
+}
+
+#volume-btn {
+  position:fixed; top:22px; right:100px;
+  background:transparent; border:1px solid #222;
+  color:var(--dim); padding:5px 12px;
+  font-family:'JetBrains Mono',monospace;
+  font-size:10px; letter-spacing:2px;
+  cursor:pointer; z-index:100;
+  transition: all 0.2s;
+}
+#volume-btn:hover { border-color:var(--gold); color:var(--gold); }
+
+#play-overlay {
+  position:fixed; inset:0;
+  background: rgba(0,0,0,0.93);
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  z-index:2000; cursor:pointer;
+}
+#play-overlay h2 {
+  font-family:'Bebas Neue',sans-serif;
+  font-size:52px; letter-spacing:6px; color:var(--white); margin-bottom:8px;
+}
+#play-overlay p { font-size:14px; color:var(--dim); letter-spacing:3px; margin-bottom:48px; }
+#play-btn {
+  width:80px; height:80px; border-radius:50%;
+  border:2px solid var(--gold);
+  background:rgba(201,168,76,0.1);
+  display:flex; align-items:center; justify-content:center;
+  font-size:28px; color:var(--gold);
+  transition: all 0.3s;
+}
+#play-btn:hover { background:var(--gold); color:#000; }
+#play-note { margin-top:24px; font-size:11px; color:#2a2a2a; letter-spacing:2px; }
+
+/* SLIDE STYLES */
+#s1 { background: radial-gradient(ellipse at 30% 50%, #0f0800 0%, var(--bg) 70%); }
+#s1 .tag { font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:4px; color:var(--red); margin-bottom:20px; }
+#s1 h1 { font-family:'Bebas Neue',sans-serif; font-size:96px; line-height:0.88; text-align:center; }
+#s1 h1 em { color:var(--gold); font-style:normal; }
+#s1 .sub { margin-top:24px; font-size:17px; color:#888; text-align:center; max-width:640px; line-height:1.65; }
+#s1 .sub strong { color:var(--white); }
+
+#s2 .slide-title { font-family:'Bebas Neue',sans-serif; font-size:44px; letter-spacing:4px; color:var(--gold); margin-bottom:32px; align-self:flex-start; }
+#s2 .pains { display:flex; flex-direction:column; gap:18px; width:100%; max-width:860px; }
+.pain-item { display:flex; align-items:center; gap:22px; padding:20px 26px; border-left:3px solid var(--red); background:rgba(204,51,0,0.06); }
+.pain-icon { font-size:30px; }
+.pain-text h3 { font-size:17px; font-weight:700; margin-bottom:5px; }
+.pain-text p { font-size:13px; color:#777; line-height:1.5; }
+
+#s3 { background: radial-gradient(ellipse at 70% 50%, #001a0a 0%, var(--bg) 70%); }
+#s3 .tag { font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:4px; color:var(--green); margin-bottom:18px; }
+#s3 h2 { font-family:'Bebas Neue',sans-serif; font-size:78px; text-align:center; line-height:0.92; }
+#s3 h2 em { color:var(--gold); font-style:normal; }
+#s3 .pillars { display:flex; gap:22px; margin-top:36px; }
+.pillar { flex:1; padding:26px 22px; border:1px solid #1a1a1a; background:rgba(255,255,255,0.02); text-align:center; }
+.pillar .p-icon { font-size:34px; margin-bottom:14px; }
+.pillar h4 { font-size:11px; letter-spacing:3px; color:var(--gold); text-transform:uppercase; margin-bottom:10px; }
+.pillar p { font-size:13px; color:#777; line-height:1.55; }
+
+#s4 .slide-title { font-family:'Bebas Neue',sans-serif; font-size:44px; letter-spacing:4px; color:var(--gold); margin-bottom:40px; }
+#s4 .steps { display:flex; align-items:flex-start; gap:0; width:100%; max-width:1060px; }
+.step { flex:1; text-align:center; padding:0 20px; position:relative; }
+.step:not(:last-child)::after { content:'→'; position:absolute; right:-8px; top:26px; color:var(--gold); font-size:22px; }
+.step-num { width:58px; height:58px; border:2px solid var(--gold); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 16px; font-family:'Bebas Neue',sans-serif; font-size:26px; color:var(--gold); }
+.step h4 { font-size:15px; font-weight:700; margin-bottom:10px; }
+.step p { font-size:12px; color:#777; line-height:1.55; }
+
+#s5 { flex-direction:row; gap:60px; align-items:center; }
+#s5 .data-left { flex:1; }
+#s5 .data-left h2 { font-family:'Bebas Neue',sans-serif; font-size:54px; line-height:1; margin-bottom:18px; }
+#s5 .data-left h2 em { color:var(--gold); font-style:normal; }
+#s5 .data-left p { font-size:14px; color:#888; line-height:1.7; margin-bottom:14px; }
+#s5 .data-right { flex:1; background:#090909; border:1px solid #1a1a1a; padding:24px; }
+.metric-row { display:flex; justify-content:space-between; align-items:center; padding:13px 0; border-bottom:1px solid #111; }
+.metric-row:last-child { border-bottom:none; }
+.metric-label { font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:2px; color:var(--dim); text-transform:uppercase; }
+.metric-val { font-family:'JetBrains Mono',monospace; font-size:19px; font-weight:700; }
+.metric-val.green { color:var(--green); }
+.metric-val.gold { color:var(--gold); }
+.metric-val.blue { color:#6699cc; }
+.sha-box { margin-top:14px; padding:12px; background:#050505; border:1px solid #1e1e1e; }
+.sha-label { font-size:9px; letter-spacing:3px; color:var(--dim); text-transform:uppercase; margin-bottom:6px; }
+.sha-val { font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--gold); word-break:break-all; }
+
+#s6 { background: radial-gradient(ellipse at 50% 40%, #0a0700 0%, var(--bg) 65%); }
+#s6 .roi-tag { font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:4px; color:var(--dim); text-transform:uppercase; margin-bottom:16px; }
+#s6 .roi-statement { font-family:'Bebas Neue',sans-serif; font-size:58px; line-height:1; text-align:center; max-width:900px; margin-bottom:20px; }
+#s6 .roi-statement em { color:var(--gold); font-style:normal; }
+#s6 .roi-statement span { color:var(--green); }
+#s6 .roi-sub { font-size:16px; color:#777; text-align:center; max-width:700px; line-height:1.6; }
+#s6 .roi-sub strong { color:var(--white); }
+#s6 .roi-compare { display:flex; gap:48px; margin-top:36px; justify-content:center; }
+.roi-col { text-align:center; }
+.roi-col .amount { font-family:'Bebas Neue',sans-serif; font-size:38px; }
+.roi-col .amount.red { color:var(--red); }
+.roi-col .amount.green { color:var(--green); }
+.roi-col .amount.gold { color:var(--gold); }
+.roi-col .label { font-size:10px; color:var(--dim); letter-spacing:2px; text-transform:uppercase; margin-top:4px; }
+.roi-divider { width:1px; background:#1a1a1a; }
+
+#s7 { background:var(--bg); }
+#s7 .cta-tag { font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:4px; color:var(--gold); margin-bottom:18px; }
+#s7 h2 { font-family:'Bebas Neue',sans-serif; font-size:88px; line-height:0.88; margin-bottom:22px; text-align:center; }
+#s7 h2 em { color:var(--gold); font-style:normal; }
+#s7 .cta-sub { font-size:16px; color:#777; margin-bottom:36px; max-width:500px; text-align:center; line-height:1.6; }
+#s7 .cta-btn { display:inline-block; padding:18px 52px; background:var(--gold); color:#000; font-weight:700; font-size:13px; letter-spacing:4px; text-transform:uppercase; text-decoration:none; margin-bottom:20px; }
+#s7 .cta-url { font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--dim); margin-bottom:16px; }
+#s7 .cta-url span { color:var(--gold); }
+#s7 .price-badge { display:inline-block; border:1px solid var(--gold); padding:9px 22px; font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--gold); letter-spacing:2px; }
+
+.anim { opacity:0; transform:translateY(18px); transition: opacity 0.55s ease, transform 0.55s ease; }
+.anim.in { opacity:1; transform:translateY(0); }
+.anim-left { opacity:0; transform:translateX(-24px); transition: opacity 0.55s ease, transform 0.55s ease; }
+.anim-left.in { opacity:1; transform:translateX(0); }
+</style>
+</head>
+<body>
+
+<audio id="bgmusic" loop>
+  <source src="https://cdn.pixabay.com/audio/2022/10/16/audio_a4e85b4a0b.mp3" type="audio/mpeg">
+</audio>
+
+<div id="play-overlay" onclick="startPresentation()">
+  <h2>FARO PROTOCOL</h2>
+  <p>PITCH · SECTOR AGROPECUARIO · 2026</p>
+  <div id="play-btn">▶</div>
+  <div id="play-note">HACÉ CLICK PARA COMENZAR</div>
+</div>
+
+<div class="logo">FARO <span>PROTOCOL</span></div>
+<div id="counter">01 / 07</div>
+<button id="volume-btn" onclick="toggleMute()">🔊 SONIDO</button>
+<div id="progress-wrap"><div id="progress-fill"></div></div>
+<div id="subtitle"><div id="subtitle-text"></div></div>
+
+<!-- SLIDE 1 -->
+<div class="slide active" id="s1">
+  <div class="tag anim">⚠ EL PROBLEMA QUE NADIE RESOLVIÓ</div>
+  <h1 class="anim" style="transition-delay:0.15s">Su campo<br>vale más de<br>lo que el banco <em>cree.</em></h1>
+  <p class="sub anim" style="transition-delay:0.35s">Cada año, productores agropecuarios pierden créditos, cobros de seguros y ventas porque <strong>no tienen evidencia técnica real</strong> de lo que ocurre en su lote.</p>
+</div>
+
+<!-- SLIDE 2 -->
+<div class="slide" id="s2">
+  <div class="slide-title anim">¿Le suena familiar?</div>
+  <div class="pains">
+    <div class="pain-item anim-left" style="transition-delay:0.1s">
+      <div class="pain-icon">🏦</div>
+      <div class="pain-text"><h3>El banco no le cree</h3><p>Pide garantías extras porque no puede verificar el estado real de su campo. Usted sabe la verdad — pero no puede demostrarlo.</p></div>
+    </div>
+    <div class="pain-item anim-left" style="transition-delay:0.25s">
+      <div class="pain-icon">📋</div>
+      <div class="pain-text"><h3>El seguro le paga menos</h3><p>Ante un siniestro, sin evidencia técnica el ajustador decide a su favor. Sin pruebas objetivas, usted pierde.</p></div>
+    </div>
+    <div class="pain-item anim-left" style="transition-delay:0.4s">
+      <div class="pain-icon">🚗</div>
+      <div class="pain-text"><h3>Gasta gasoil para ver lo que ya pasó</h3><p>Recorre kilómetros para constatar daños cuando ya es tarde. Tiempo y dinero que no vuelven.</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 3 -->
+<div class="slide" id="s3">
+  <div class="tag anim">✓ LA SOLUCIÓN EXISTE</div>
+  <h2 class="anim" style="transition-delay:0.15s">Evidencia física<br>desde el <em>espacio.</em><br>Sellada en blockchain.</h2>
+  <div class="pillars">
+    <div class="pillar anim" style="transition-delay:0.3s"><div class="p-icon">🛰️</div><h4>SAR · Todo clima</h4><p>Radar que atraviesa nubes, polvo y noche. Su campo monitoreado 24/7, sin excusas climáticas.</p></div>
+    <div class="pillar anim" style="transition-delay:0.45s"><div class="p-icon">🔐</div><h4>SHA-256 · Inmutable</h4><p>Cada dato sellado criptográficamente. Ningún banco, seguro o abogado puede disputarlo.</p></div>
+    <div class="pillar anim" style="transition-delay:0.6s"><div class="p-icon">⚡</div><h4>24 horas · Listo</h4><p>Sin instalaciones, sin sensores, sin técnicos en campo. El satélite hace el trabajo.</p></div>
+  </div>
+</div>
+
+<!-- SLIDE 4 -->
+<div class="slide" id="s4">
+  <div class="slide-title anim">Así de simple</div>
+  <div class="steps">
+    <div class="step anim" style="transition-delay:0.1s"><div class="step-num">1</div><h4>Nos da su zona</h4><p>Coordenadas o nombre del partido. Nada más.</p></div>
+    <div class="step anim" style="transition-delay:0.25s"><div class="step-num">2</div><h4>El satélite escanea</h4><p>Sentinel-1 SAR + óptico. Datos reales en 24 horas.</p></div>
+    <div class="step anim" style="transition-delay:0.4s"><div class="step-num">3</div><h4>Se genera el reporte</h4><p>NDVI, SAR, índice de fusión. Todo en un documento técnico.</p></div>
+    <div class="step anim" style="transition-delay:0.55s"><div class="step-num">4</div><h4>Recibe su certificado</h4><p>PDF con sello SHA-256. Válido ante banco, seguro o comprador.</p></div>
+  </div>
+</div>
+
+<!-- SLIDE 5 -->
+<div class="slide" id="s5">
+  <div class="data-left anim">
+    <h2>Datos reales.<br>Zona <em>Balcarce,</em><br>Buenos Aires.</h2>
+    <p>Esto no es una simulación. Son los datos reales generados con Sentinel-2 + SAR Sentinel-1 sobre la zona agropecuaria de Balcarce.</p>
+    <p style="font-size:13px; color:#444; margin-top:8px;">Índice FARO: <strong style="color:var(--green); font-size:15px">69.5 — ÓPTIMO</strong></p>
+  </div>
+  <div class="data-right anim" style="transition-delay:0.2s">
+    <div class="metric-row"><span class="metric-label">NDVI</span><span class="metric-val green">0.533</span></div>
+    <div class="metric-row"><span class="metric-label">SAR Backscatter</span><span class="metric-val blue">+15.48 dB</span></div>
+    <div class="metric-row"><span class="metric-label">Fusión</span><span class="metric-val gold">0.76</span></div>
+    <div class="metric-row"><span class="metric-label">Rinde estimado</span><span class="metric-val green">2.8 tn/ha</span></div>
+    <div class="metric-row"><span class="metric-label">Área monitoreada</span><span class="metric-val" style="color:var(--white)">12.400 ha</span></div>
+    <div class="sha-box">
+      <div class="sha-label">SHA-256 Verificado</div>
+      <div class="sha-val">5233ec2388153993a...2026-04-08 · Sentinel-2 · GRD</div>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 6 — ROI CORREGIDO -->
+<div class="slide" id="s6">
+  <div class="roi-tag anim">¿Cuánto cuesta no tenerlo?</div>
+  <div class="roi-statement anim" style="transition-delay:0.2s">
+    Un solo siniestro mal liquidado le cuesta entre<br>
+    <span>USD 5.000</span> y <span>USD 50.000.</span><br>
+    El certificado Faro cuesta <em>USD 650.</em>
+  </div>
+  <div class="roi-sub anim" style="transition-delay:0.4s">
+    <strong>Una vez que lo usó, se paga solo.</strong><br>
+    Sin hardware. Sin técnicos. Sin esperas de semanas.
+  </div>
+  <div class="roi-compare anim" style="transition-delay:0.6s">
+    <div class="roi-col"><div class="amount red">USD 5K–50K</div><div class="label">Costo de un siniestro mal liquidado</div></div>
+    <div class="roi-divider"></div>
+    <div class="roi-col"><div class="amount green">USD 650</div><div class="label">Certificado Faro · One-Shot</div></div>
+    <div class="roi-divider"></div>
+    <div class="roi-col"><div class="amount gold">24 hs</div><div class="label">Tiempo de entrega</div></div>
+  </div>
+</div>
+
+<!-- SLIDE 7 -->
+<div class="slide" id="s7">
+  <div class="cta-tag anim">· FARO PROTOCOL · 2026 ·</div>
+  <h2 class="anim" style="transition-delay:0.15s">La verdad de<br>su campo,<br><em>certificada.</em></h2>
+  <p class="cta-sub anim" style="transition-delay:0.3s">Probá la terminal operativa en vivo. Datos reales. Sin registro.</p>
+  <a class="cta-btn anim" style="transition-delay:0.45s" href="https://faro-protocol.netlify.app/faro-demo.html" target="_blank">Ver terminal en vivo →</a>
+  <div class="cta-url anim" style="transition-delay:0.6s">faro-protocol.netlify.app/<span>faro-demo.html</span></div>
+  <div class="price-badge anim" style="transition-delay:0.75s">ONE-SHOT · USD 650 · ENTREGA 24 HS</div>
+</div>
+
+<script>
+const SLIDES = document.querySelectorAll('.slide');
+const TOTAL = SLIDES.length;
+let current = 0;
+let timer = null;
+let running = false;
+let muted = false;
+
+const SUBS = [
+  "Su campo vale más de lo que el banco cree. Cada año, productores pierden créditos y cobros de seguros porque <strong>no tienen evidencia técnica real</strong> de su lote.",
+  "¿Le suena familiar? El banco pide garantías extras. El seguro paga menos ante un siniestro. Y usted gasta gasoil recorriendo el campo para ver <strong>lo que ya pasó</strong>.",
+  "La solución existe. <strong>Faro Protocol</strong> entrega evidencia física desde el espacio, sellada en blockchain. Radar SAR que atraviesa nubes. SHA-256 que nadie puede disputar.",
+  "Así de simple: nos da su zona → el satélite escanea en 24 horas → generamos el reporte técnico → usted recibe su <strong>certificado SHA-256</strong> listo para presentar.",
+  "Esto no es una simulación. <strong>Datos reales de Balcarce</strong>, Buenos Aires. Índice FARO 69.5 — Óptimo. NDVI, SAR backscatter, rinde estimado 2.8 tn/ha. Todo certificado.",
+  "Un solo siniestro mal liquidado le cuesta entre <strong>USD 5.000 y USD 50.000</strong>. El certificado Faro cuesta <strong>USD 650</strong>. Una vez que lo usó, se paga solo.",
+  "La verdad de su campo, certificada. Probá la terminal operativa en vivo. <strong>One-Shot a USD 650 · Entrega en 24 horas.</strong> Sin instalaciones, sin técnicos, sin esperas."
+];
+
+const DURATIONS = [7000, 8000, 7500, 8000, 7500, 7500, 9000];
+
+function showSlide(n) {
+  SLIDES[current].classList.remove('active');
+  SLIDES[current].querySelectorAll('.anim,.anim-left').forEach(el => el.classList.remove('in'));
+
+  current = n;
+  const slide = SLIDES[current];
+  slide.classList.add('active');
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      slide.querySelectorAll('.anim,.anim-left').forEach(el => el.classList.add('in'));
+    });
+  });
+
+  document.getElementById('counter').textContent =
+    String(current+1).padStart(2,'0') + ' / ' + String(TOTAL).padStart(2,'0');
+  document.getElementById('subtitle-text').innerHTML = SUBS[current];
+
+  const fill = document.getElementById('progress-fill');
+  fill.style.transition = 'none';
+  fill.style.width = (current / TOTAL * 100) + '%';
+  requestAnimationFrame(() => {
+    fill.style.transition = `width ${DURATIONS[current]}ms linear`;
+    fill.style.width = ((current+1) / TOTAL * 100) + '%';
+  });
+}
+
+function nextSlide() {
+  clearTimeout(timer);
+  showSlide(current < TOTAL - 1 ? current + 1 : 0);
+  scheduleNext();
+}
+
+function scheduleNext() {
+  timer = setTimeout(nextSlide, DURATIONS[current]);
+}
+
+function startPresentation() {
+  document.getElementById('play-overlay').style.display = 'none';
+  running = true;
+  
+  const music = document.getElementById('bgmusic');
+  music.volume = 0.22;
+  music.play().catch(() => {});
+
+  showSlide(0);
+  scheduleNext();
+}
+
+function toggleMute() {
+  const music = document.getElementById('bgmusic');
+  muted = !muted;
+  music.muted = muted;
+  document.getElementById('volume-btn').textContent = muted ? '🔇 MUTE' : '🔊 SONIDO';
+}
+
+document.body.addEventListener('click', (e) => {
+  if (!running) return;
+  if (e.target.closest('#play-overlay') || e.target.closest('#volume-btn')) return;
+  nextSlide();
+});
+
+document.addEventListener('keydown', (e) => {
+  if (!running) return;
+  if (e.key === 'ArrowRight' || e.key === ' ') nextSlide();
+  if (e.key === 'ArrowLeft') {
+    clearTimeout(timer);
+    if (current > 0) { showSlide(current - 1); scheduleNext(); }
+  }
+  if (e.key === 'm' || e.key === 'M') toggleMute();
+});
+</script>
+</body>
+</html>
