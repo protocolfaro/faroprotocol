@@ -299,5 +299,163 @@ app.add_url_rule("/velez/test_email",     "velez_test_email",     velez_schedule
 app.add_url_rule("/velez/smtp_diag",      "velez_smtp_diag",      velez_scheduler.route_smtp_diag,      methods=["GET"])
 
 
+# ── Grass recovery projection ─────────────────────────────────────────────────
+
+@app.route("/velez/recovery", methods=["POST"])
+def velez_recovery():
+    """
+    Simulate Richards grass recovery from current NDVI state.
+    Body: { "cancha": "1fa", "n0": 0.31, "days": 30 }
+    Returns three scenarios: basico / intermedio / intensivo.
+    """
+    body   = request.get_json(silent=True) or {}
+    cancha = body.get("cancha", "")
+    n0_raw = body.get("n0")
+    days   = min(int(body.get("days", 30)), 90)
+
+    # If n0 not provided, read from velez_data.json
+    if n0_raw is None and cancha:
+        try:
+            from urllib.request import urlopen, Request as UReq
+            import json as _json
+            req = UReq(
+                "https://raw.githubusercontent.com/protocolfaro/faro-paneles/main/velez/velez_data.json",
+                headers={"User-Agent": "FaroProtocol/4.0"},
+            )
+            with urlopen(req, timeout=10) as r:
+                vd = _json.loads(r.read())
+            canchas = vd.get("sectores", {}).get("canchero", {}).get("canchas", [])
+            for c in canchas:
+                if c.get("id", "").lower() == cancha.lower():
+                    n0_raw = c.get("ndvi", 0.4)
+                    break
+        except Exception as _e:
+            log.warning("recovery: could not read ndvi for %s: %s", cancha, _e)
+
+    n0 = float(n0_raw) if n0_raw is not None else 0.4
+    n0 = max(0.01, min(0.99, n0))
+
+    try:
+        import faro_recovery as _fr
+        results = _fr.simulate_all_scenarios(n0, t_days=days)
+        # Identify when each scenario reaches 75% of K
+        target = 0.75
+        for sc in results.values():
+            t_arr = sc["t"]
+            N_arr = sc["N"]
+            days_to = next((t_arr[i] for i, n in enumerate(N_arr) if n >= target), None)
+            sc["days_to_75pct"] = round(days_to, 1) if days_to else None
+        return jsonify({
+            "status": "ok",
+            "cancha": cancha,
+            "n0": n0,
+            "scenarios": results,
+        })
+    except ImportError:
+        return jsonify({"status": "error", "error": "faro_recovery not available (scipy missing)"}), 503
+    except Exception as e:
+        log.error(traceback.format_exc())
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
+# ── Pasaporte Climático ───────────────────────────────────────────────────────
+
+@app.route("/pasaporte/request", methods=["POST"])
+def pasaporte_request():
+    """
+    Receive a Pasaporte Climático order after PayPal payment.
+    Body: { "email": str, "lote_name": str, "tier": str, "coords_geojson": [...] }
+    Stores the request in GitHub and sends confirmation emails.
+    """
+    body = request.get_json(silent=True) or {}
+    email      = body.get("email", "").strip()
+    lote_name  = body.get("lote_name", "").strip() or "Sin nombre"
+    tier       = body.get("tier", "").strip()
+    coords     = body.get("coords_geojson")
+
+    if not email or "@" not in email:
+        return jsonify({"status": "error", "error": "email requerido"}), 400
+
+    from datetime import datetime, timezone
+    ts      = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    order_id = f"PP-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
+
+    # 1. Store request in GitHub
+    try:
+        import base64, json as _json, requests as _req
+        token = os.environ.get("GITHUB_TOKEN", "")
+        if token:
+            record = {
+                "order_id": order_id,
+                "email": email,
+                "lote_name": lote_name,
+                "tier": tier,
+                "coords_geojson": coords,
+                "submitted_at": ts,
+                "status": "pending",
+            }
+            path    = f"pasaporte/requests/{order_id}.json"
+            content = base64.b64encode(
+                _json.dumps(record, ensure_ascii=False, indent=2).encode()
+            ).decode()
+            _req.put(
+                f"https://api.github.com/repos/protocolfaro/faroprotocol/contents/{path}",
+                headers={"Authorization": f"Bearer {token}",
+                         "Accept": "application/vnd.github+json",
+                         "X-GitHub-Api-Version": "2022-11-28"},
+                json={"message": f"pasaporte request {order_id}", "content": content,
+                      "branch": "main"},
+                timeout=20,
+            )
+            log.info("Pasaporte request stored: %s", order_id)
+    except Exception as _ge:
+        log.warning("pasaporte: github store failed (non-fatal): %s", _ge)
+
+    # 2. Send confirmation email to buyer
+    try:
+        html_buyer = f"""
+<html><body style="font-family:Arial,sans-serif;background:#07110a;color:#f2ede4;padding:24px">
+<h2 style="color:#c9a84c">Pasaporte Climático Faro — Solicitud recibida</h2>
+<p>Hola, recibimos tu solicitud para el lote <b>{lote_name}</b>.</p>
+<p><b>ID de pedido:</b> {order_id}</p>
+<p><b>Tier:</b> {tier}</p>
+<p>Procesaremos el pago y generaremos tu reporte satelital. Recibirás el PDF en este mail
+en aproximadamente <b>3 minutos</b> después de la confirmación del pago.</p>
+<p style="color:#9aa0a8;font-size:12px">Si tenés dudas escribinos a
+<a href="mailto:protocolfaro@gmail.com" style="color:#c9a84c">protocolfaro@gmail.com</a></p>
+<hr style="border-color:#c9a84c44">
+<p style="color:#9aa0a8;font-size:11px">Faro Protocol · Satellite Intelligence · {ts}</p>
+</body></html>"""
+        velez_scheduler.send_email(email, f"Pasaporte Climático — Pedido {order_id}", html_buyer)
+    except Exception as _me:
+        log.warning("pasaporte: buyer email failed: %s", _me)
+
+    # 3. Notify admin
+    try:
+        import json as _json
+        coords_str = _json.dumps(coords, ensure_ascii=False)[:500] if coords else "No especificado"
+        html_admin = f"""
+<html><body style="font-family:Arial,sans-serif;background:#07110a;color:#f2ede4;padding:24px">
+<h2 style="color:#c9a84c">Nuevo Pedido Pasaporte Climático</h2>
+<p><b>Order ID:</b> {order_id}</p>
+<p><b>Email comprador:</b> {email}</p>
+<p><b>Lote:</b> {lote_name}</p>
+<p><b>Tier:</b> {tier}</p>
+<p><b>Coords (extracto):</b><br><code style="font-size:11px;color:#9aa0a8">{coords_str}</code></p>
+<p style="color:#9aa0a8;font-size:11px">{ts}</p>
+</body></html>"""
+        admin_email = os.environ.get("GMAIL_USER", "protocolfaro@gmail.com")
+        velez_scheduler.send_email(admin_email,
+                                   f"[Pasaporte] Nuevo pedido {order_id} — {email}", html_admin)
+    except Exception as _ae:
+        log.warning("pasaporte: admin email failed: %s", _ae)
+
+    return jsonify({
+        "status":   "ok",
+        "order_id": order_id,
+        "message":  "Solicitud recibida. Revisá tu mail en los próximos minutos.",
+    })
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
