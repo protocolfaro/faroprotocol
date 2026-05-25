@@ -43,12 +43,20 @@ def _env(key: str, default: str = "") -> str:
 
 
 def load_config() -> dict:
+    # Local config_velez.json (root of repo) has zonas + reportes per person
+    local = Path(__file__).parent.parent / "config_velez.json"
+    if local.exists():
+        try:
+            return json.loads(local.read_text(encoding="utf-8"))
+        except Exception as e:
+            log.warning("load_config local: %s", e)
+    # Fall back to GitHub (may not have zonas)
     try:
         req = UReq(_CFG_RAW_URL, headers={"User-Agent": "FaroProtocol/4.0"})
         with urlopen(req, timeout=10) as r:
             return json.loads(r.read())
     except Exception as e:
-        log.warning("load_config: %s", e)
+        log.warning("load_config remote: %s", e)
         return {"zonas": [], "destinatarios": []}
 
 
@@ -162,29 +170,20 @@ def _fetch_png(url: str):
         return None
 
 
-def _fetch_sector_attachments(sector_keys: list) -> list:
-    """Fetch PNG heatmaps for given sector keys.
-    Priority: local reportes_velez/ dir (supports _FINAL/_v2 suffixes) → GitHub raw.
-    Returns list of (filename, bytes) — silently skips any that fail."""
-    _local_dir = Path(__file__).parent.parent / "reportes_velez"
-    result = []
-    for key in sector_keys:
-        # 1. Exact local match
-        exact = _local_dir / f"faro_reporte_velez_{key}.png"
-        if exact.exists():
-            result.append((exact.name, exact.read_bytes()))
-            continue
-        # 2. Glob for local variants (_FINAL, _v2, etc.)
-        matches = sorted(_local_dir.glob(f"faro_reporte_velez_{key}*.png"))
-        if matches:
-            p = matches[0]
-            result.append((p.name, p.read_bytes()))
-            continue
-        # 3. GitHub raw (Railway — only works if file is committed to repo)
-        att = _fetch_png(f"{_PNG_BASE_URL}/faro_reporte_velez_{key}.png")
-        if att:
-            result.append(att)
-    return result
+def _output_to_key(output_filename: str) -> str:
+    """'faro_reporte_velez_agro_FINAL.png' → 'agro_FINAL', 'faro_reporte_velez.png' → 'velez'"""
+    stem   = Path(output_filename).stem
+    prefix = "faro_reporte_velez"
+    return "velez" if stem == prefix else stem[len(prefix) + 1:]
+
+
+def _get_report_paths(config: dict) -> dict:
+    """Build {key → Path} from config.zonas, pointing to reportes_velez/ in repo root."""
+    base = Path(__file__).parent.parent / "reportes_velez"
+    return {
+        _output_to_key(z["output"]): base / z["output"]
+        for z in config.get("zonas", [])
+    }
 
 
 def _send_via_brevo(to: str, subject: str, body_html: str,
@@ -810,26 +809,15 @@ _SLUG_MAP = {
     "Alberto Aveleyra":  "aveleyra",
 }
 
-# PNG sectors to try attaching per recipient slug
-_SLUG_SECTORS = {
-    "roger":    ["canchero"],
-    "juan":     ["canchero", "agro", "poli"],
-    "banchero": ["canchero", "poli", "sede", "estadio", "agro", "solar", "piletas"],
-    "pait":     ["canchero", "poli"],
-    "berlanga": ["estadio", "solar", "poli", "piletas", "sede", "canchero"],
-    "nelson":   ["canchero", "solar", "poli", "piletas", "sede", "estadio"],
-    "aveleyra": ["estadio", "solar", "poli", "piletas", "sede", "canchero"],
-}
-
-
 def send_all_reports(config: dict = None, vd: dict = None) -> dict:
     """Send weekly HTML email to each destinatario. vd reused to avoid double GitHub fetch."""
     if config is None:
         config = load_config()
     if vd is None:
         vd = _get_velez_data()
-    date_str = datetime.now().strftime("%d/%m/%Y")
-    results  = {}
+    date_str     = datetime.now().strftime("%d/%m/%Y")
+    report_paths = _get_report_paths(config)   # {key → Path} from config.zonas
+    results      = {}
     for d in config.get("destinatarios", []):
         nombre = d.get("nombre", "")
         email  = d.get("email", "")
@@ -855,9 +843,14 @@ def send_all_reports(config: dict = None, vd: dict = None) -> dict:
                 panel_url,
             )
 
-        # Try to attach sector PNGs (silently skip if not available in GitHub)
-        sector_keys = _SLUG_SECTORS.get(slug, [])
-        attachments = _fetch_sector_attachments(sector_keys) if sector_keys else []
+        # Attach PNGs from config.destinatarios[].reportes — exact same logic as faro_velez_scheduler.py
+        attachments = []
+        for rep_key in d.get("reportes", []):
+            p = report_paths.get(rep_key)
+            if p and p.exists():
+                attachments.append((p.name, p.read_bytes()))
+            else:
+                log.warning("PNG '%s' no encontrado para %s", rep_key, nombre)
         if attachments:
             log.info("Adjuntos para %s: %d PNG(s)", nombre, len(attachments))
 
