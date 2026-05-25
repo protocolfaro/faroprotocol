@@ -156,7 +156,7 @@ def send_email(to: str, subject: str, body_html: str) -> bool:
         msg["To"]      = ", ".join(recipients)
         msg["Subject"] = subject
         msg.attach(MIMEText(body_html, "html"))
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30) as server:
             server.login(GMAIL_USER, GMAIL_PASS)
             server.sendmail(GMAIL_USER, recipients, msg.as_string())
         log.info("Email enviado a %s: %s", recipients, subject)
@@ -572,15 +572,31 @@ def route_test_whatsapp():
 
 
 def route_test_email():
-    from flask import jsonify
+    from flask import request, jsonify
+    data    = request.get_json(silent=True, force=True) or {}
     config  = load_config()
     now_str = datetime.now().strftime("%d/%m/%Y %H:%M")
     results = {}
-    for d in config.get("destinatarios", []):
+    # Filter to a single recipient if provided, otherwise all destinatarios
+    target_email = data.get("email")
+    target_nombre = data.get("nombre")
+    dest = config.get("destinatarios", [])
+    if target_email or target_nombre:
+        dest = [d for d in dest if
+                (target_email and d.get("email") == target_email) or
+                (target_nombre and d.get("nombre") == target_nombre)]
+    for d in dest:
         nombre = d.get("nombre", ""); email = d.get("email", "")
         if not nombre or not email:
             continue
         ok = send_email(email, f"TEST · Faro Protocol · {now_str}",
                         _html_wrap("TEST", f"<p>{nombre} — email de prueba desde Railway.</p>"))
         results[nombre] = ok
-    return jsonify({"status": "ok" if all(results.values()) else "partial", "results": results})
+    smtp_configured = bool(GMAIL_PASS)
+    return jsonify({
+        "status":           "ok" if results and all(results.values()) else ("partial" if any(results.values()) else "fail"),
+        "smtp_configured":  smtp_configured,
+        "gmail_user":       GMAIL_USER,
+        "destinatarios_n":  len(config.get("destinatarios", [])),
+        "results":          results,
+    })
