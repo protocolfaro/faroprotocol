@@ -87,6 +87,12 @@ def _read_canchas(item) -> dict[str, dict]:
     from rasterio.warp import transform_bounds
     from rasterio.windows import from_bounds
 
+    try:
+        import faro_ndvi_clean as _fnc
+        _USE_CLEAN = True
+    except ImportError:
+        _USE_CLEAN = False
+
     red_url   = item.assets["B04"].href
     nir_url   = item.assets["B08"].href
     green_url = item.assets["B03"].href
@@ -108,26 +114,41 @@ def _read_canchas(item) -> dict[str, dict]:
                 red_px   = src_red.read(1, window=win).astype("float32")
                 green_px = src_green.read(1, window=win).astype("float32")
 
-                # Sentinel-2 L2A: reflectance = DN / 10000
-                nir, red, green = nir_px / 10_000, red_px / 10_000, green_px / 10_000
+                if _USE_CLEAN:
+                    # Sub-pixel cleaning: removes saturated + cloud pixels, optional unmixing
+                    import numpy as np
+                    cleaned = _fnc.clean_ndvi(nir_px.astype(np.int32), red_px.astype(np.int32),
+                                              do_unmix=False)
+                    if cleaned["coverage_pct"] < 20.0:
+                        log.warning("ndvi_real: %s — coverage %.0f%% after cleaning, skipping",
+                                    cid, cleaned["coverage_pct"])
+                        continue
+                    ndvi = round(max(-1.0, min(1.0, cleaned["mean_ndvi"])), 3)
+                    coverage = round(cleaned["coverage_pct"], 1)
+                else:
+                    nir, red = nir_px / 10_000, red_px / 10_000
+                    valid = (nir + red) > 0.02
+                    if valid.sum() < 2:
+                        log.warning("ndvi_real: %s — fewer than 2 valid pixels", cid)
+                        continue
+                    ndvi = round(max(-1.0, min(1.0, float(((nir - red) / (nir + red))[valid].mean()))), 3)
+                    coverage = None
 
-                valid = (nir + red) > 0.02
-                if valid.sum() < 2:
-                    log.warning("ndvi_real: %s — fewer than 2 valid pixels", cid)
-                    continue
-
-                ndvi  = float(((nir - red)   / (nir + red)  )[valid].mean())
-                gndvi = float(((nir - green) / (nir + green))[valid].mean())
-                ndvi  = round(max(-1.0, min(1.0, ndvi)),  3)
-                gndvi = round(max(-1.0, min(1.0, gndvi)), 3)
+                # GNDVI uses green band (not in faro_ndvi_clean — computed separately)
+                nir_r   = nir_px / 10_000
+                green_r = green_px / 10_000
+                valid_g = (nir_r + green_r) > 0.02
+                if valid_g.sum() < 2:
+                    gndvi = ndvi * 0.93  # fallback estimate
+                else:
+                    gndvi = round(max(-1.0, min(1.0,
+                        float(((nir_r - green_r) / (nir_r + green_r))[valid_g].mean()))), 3)
 
                 nst, nrec = _n_status(gndvi)
-                results[cid] = {
-                    "ndvi":     ndvi,
-                    "gndvi":    gndvi,
-                    "n_status": nst,
-                    "n_rec":    nrec,
-                }
+                entry = {"ndvi": ndvi, "gndvi": gndvi, "n_status": nst, "n_rec": nrec}
+                if coverage is not None:
+                    entry["coverage_pct"] = coverage
+                results[cid] = entry
             except Exception as exc:
                 log.warning("ndvi_real: %s: %s", cid, exc)
 
