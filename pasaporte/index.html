@@ -612,6 +612,8 @@ emailInput.addEventListener('input', function() {
   btnSubmit.disabled = !emailInput.validity.valid || !emailInput.value.trim();
 });
 
+var RAILWAY_URL = 'https://faroprotocol-production-45fd.up.railway.app';
+
 document.getElementById('pasaporte-form').addEventListener('submit', function(e) {
   e.preventDefault();
   if (!emailInput.validity.valid) return;
@@ -619,22 +621,22 @@ document.getElementById('pasaporte-form').addEventListener('submit', function(e)
   var email  = emailInput.value.trim();
   var nombre = document.getElementById('nombre-lote').value.trim();
   var tier   = document.getElementById('tier-label').textContent || 'No definido';
-  var coords = document.getElementById('coords-box').textContent || 'No dibujado';
+  var coordsRaw = document.getElementById('coords-box').textContent || '';
+  var coords = null;
+  try { coords = JSON.parse(coordsRaw); } catch(_) { coords = coordsRaw || null; }
 
-  // Compose mailto for coordination
-  var subject = encodeURIComponent('Pasaporte Climático — ' + (nombre || 'Solicitud'));
-  var body    = encodeURIComponent(
-    'Email: ' + email + '\n' +
-    'Lote: '  + (nombre || 'No especificado') + '\n' +
-    'Tier: '  + tier + '\n' +
-    'Coordenadas: ' + coords
-  );
-  window.open('mailto:protocolfaro@gmail.com?subject=' + subject + '&body=' + body, '_blank');
+  btnSubmit.disabled = true;
+  btnSubmit.textContent = 'Procesando…';
 
-  // Open PayPal
-  setTimeout(function() {
-    window.open('https://www.paypal.com/ncp/payment/38JP97MUCJ8YA', '_blank');
-  }, 400);
+  // POST to Railway backend (fire-and-forget — don't block PayPal on this)
+  fetch(RAILWAY_URL + '/pasaporte/request', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: email, lote_name: nombre, tier: tier, coords_geojson: coords }),
+  }).catch(function() { /* non-blocking — PayPal opens regardless */ });
+
+  // Open PayPal immediately
+  window.open('https://www.paypal.com/ncp/payment/38JP97MUCJ8YA', '_blank');
 
   // Show confirmation
   document.getElementById('form-panel').style.display = 'none';
