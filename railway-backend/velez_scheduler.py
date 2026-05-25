@@ -145,6 +145,23 @@ def send_whatsapp_alerts(vd: dict = None) -> dict:
 
 # ── Email ─────────────────────────────────────────────────────────────────────
 
+def _smtp_send_ipv4(host: str, port: int, user: str, password: str,
+                    recipients: list, msg_str: str, timeout: int = 30) -> None:
+    """Connect to SMTP forcing IPv4 (avoids ENETUNREACH on IPv6-less containers)."""
+    import ssl, socket as _sock
+    _orig = _sock.getaddrinfo
+    def _ipv4_only(h, p, family=0, type=0, proto=0, flags=0):  # noqa: A002
+        return _orig(h, p, _sock.AF_INET, type, proto, flags)
+    _sock.getaddrinfo = _ipv4_only
+    try:
+        ctx = ssl.create_default_context()
+        with smtplib.SMTP_SSL(host, port, timeout=timeout, context=ctx) as server:
+            server.login(user, password)
+            server.sendmail(user, recipients, msg_str)
+    finally:
+        _sock.getaddrinfo = _orig
+
+
 def send_email(to: str, subject: str, body_html: str) -> bool:
     if not to or not GMAIL_PASS:
         log.warning("Email no configurado (to=%s, GMAIL_APP_PASS=%s)", bool(to), bool(GMAIL_PASS))
@@ -156,9 +173,8 @@ def send_email(to: str, subject: str, body_html: str) -> bool:
         msg["To"]      = ", ".join(recipients)
         msg["Subject"] = subject
         msg.attach(MIMEText(body_html, "html"))
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30) as server:
-            server.login(GMAIL_USER, GMAIL_PASS)
-            server.sendmail(GMAIL_USER, recipients, msg.as_string())
+        _smtp_send_ipv4("smtp.gmail.com", 465, GMAIL_USER, GMAIL_PASS,
+                        recipients, msg.as_string())
         log.info("Email enviado a %s: %s", recipients, subject)
         return True
     except Exception as e:
@@ -584,34 +600,49 @@ def route_smtp_diag():
         "login_ok":         None,
         "error":            None,
     }
-    # Try SSL 465
+    import ssl, socket as _sock
+    # Helper: force IPv4 only resolution
+    def _with_ipv4(fn):
+        _orig = _sock.getaddrinfo
+        def _gai(h, p, family=0, type=0, proto=0, flags=0):  # noqa: A002
+            return _orig(h, p, _sock.AF_INET, type, proto, flags)
+        _sock.getaddrinfo = _gai
+        try:
+            return fn()
+        finally:
+            _sock.getaddrinfo = _orig
+    # Try SSL 465 with IPv4
     try:
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=15) as s:
-            result["ssl_465"] = True
-            try:
+        def _try465():
+            ctx = ssl.create_default_context()
+            with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=15, context=ctx) as s:
+                result["ssl_465"] = True
                 s.login(GMAIL_USER, GMAIL_PASS)
                 result["login_ok"] = True
-            except smtplib.SMTPAuthenticationError as e:
-                result["login_ok"] = False
-                result["error"] = f"Auth failed (465): {e}"
+        _with_ipv4(_try465)
+    except smtplib.SMTPAuthenticationError as e:
+        result["ssl_465"] = True
+        result["login_ok"] = False
+        result["error"] = f"Auth failed (465 IPv4): {e}"
     except Exception as e:
         result["ssl_465"] = False
-        result["error"] = f"SSL 465 failed: {e}"
-    # If SSL 465 failed, try STARTTLS 587
-    if not result["ssl_465"]:
+        result["error"] = f"SSL 465 IPv4 failed: {e}"
+        # Try STARTTLS 587 with IPv4
         try:
-            with smtplib.SMTP("smtp.gmail.com", 587, timeout=15) as s:
-                s.starttls()
-                result["starttls_587"] = True
-                try:
+            def _try587():
+                with smtplib.SMTP("smtp.gmail.com", 587, timeout=15) as s:
+                    s.starttls()
+                    result["starttls_587"] = True
                     s.login(GMAIL_USER, GMAIL_PASS)
                     result["login_ok"] = True
-                except smtplib.SMTPAuthenticationError as e:
-                    result["login_ok"] = False
-                    result["error"] = f"Auth failed (587): {e}"
-        except Exception as e:
+            _with_ipv4(_try587)
+        except smtplib.SMTPAuthenticationError as e2:
+            result["starttls_587"] = True
+            result["login_ok"] = False
+            result["error"] = f"Auth failed (587 IPv4): {e2}"
+        except Exception as e2:
             result["starttls_587"] = False
-            result["error"] = f"587 also failed: {e}"
+            result["error"] = f"Both 465+587 IPv4 failed: {e} | {e2}"
     return jsonify(result)
 
 
