@@ -708,3 +708,17 @@ def route_test_email():
         "destinatarios_n":  len(config.get("destinatarios", [])),
         "results":          results,
     })
+
+
+if __name__ == "__main__":
+    import sys
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        handlers=[logging.StreamHandler(sys.stdout)],
+    )
+    results = send_all_reports()
+    sent   = sum(1 for v in results.values() if v is True)
+    failed = sum(1 for v in results.values() if v is False)
+    log.info("=== Resultado: %d enviados · %d fallidos ===", sent, failed)
+    sys.exit(0 if failed == 0 else 1)

@@ -17,8 +17,11 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Instalar dependencias
+        run: pip install requests
+
       - name: Enviar reportes semanales
         env:
           GMAIL_USER:     protocolfaro@gmail.com
           GMAIL_APP_PASS: ${{ secrets.GMAIL_APP_PASS }}
-        run: python send_emails_weekly.py
+        run: python railway-backend/velez_scheduler.py
