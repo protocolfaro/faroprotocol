@@ -21,8 +21,12 @@ PANEL_BASE_URL = "https://protocolfaro.github.io/faro-paneles/velez/"
 _CFG_RAW_URL   = "https://raw.githubusercontent.com/protocolfaro/faro-paneles/main/velez/config_velez.json"
 _VD_RAW_URL    = "https://raw.githubusercontent.com/protocolfaro/faro-paneles/main/velez/velez_data.json"
 
-GMAIL_USER = os.environ.get("GMAIL_USER", "protocolfaro@gmail.com")
-GMAIL_PASS = os.environ.get("GMAIL_APP_PASS", "")
+GMAIL_USER   = os.environ.get("GMAIL_USER", "protocolfaro@gmail.com")
+GMAIL_PASS   = os.environ.get("GMAIL_APP_PASS", "")
+RESEND_KEY   = os.environ.get("RESEND_API_KEY", "")
+# Sender identity used for Resend API — must match a verified domain in Resend dashboard
+# Use "onboarding@resend.dev" for sandbox testing (limited to single recipient)
+RESEND_FROM  = os.environ.get("RESEND_FROM", "Faro Protocol <onboarding@resend.dev>")
 
 _SEM_COLOR = {"verde": "#27ae60", "amarillo": "#f0b429", "rojo": "#e74c3c"}
 _SEM_LABEL = {"verde": "ÓPTIMO",  "amarillo": "ATENCIÓN", "rojo": "CRÍTICO"}
@@ -145,9 +149,30 @@ def send_whatsapp_alerts(vd: dict = None) -> dict:
 
 # ── Email ─────────────────────────────────────────────────────────────────────
 
+def _send_via_resend(to: str, subject: str, body_html: str) -> bool:
+    """Send via Resend HTTP API (port 443 — not blocked by Railway)."""
+    if not RESEND_KEY:
+        return False
+    try:
+        resp = requests.post(
+            "https://api.resend.com/emails",
+            headers={"Authorization": f"Bearer {RESEND_KEY}", "Content-Type": "application/json"},
+            json={"from": RESEND_FROM, "to": [to], "subject": subject, "html": body_html},
+            timeout=30,
+        )
+        if resp.status_code in (200, 201):
+            log.info("Resend OK → %s: %s", to, subject)
+            return True
+        log.error("Resend HTTP %s → %s: %s", resp.status_code, to, resp.text[:200])
+        return False
+    except Exception as e:
+        log.error("Resend exception → %s: %s", to, e)
+        return False
+
+
 def _smtp_send_ipv4(host: str, port: int, user: str, password: str,
                     recipients: list, msg_str: str, timeout: int = 30) -> None:
-    """Connect to SMTP forcing IPv4 (avoids ENETUNREACH on IPv6-less containers)."""
+    """Connect to SMTP forcing IPv4 (fallback when Resend not configured)."""
     import ssl, socket as _sock
     _orig = _sock.getaddrinfo
     def _ipv4_only(h, p, family=0, type=0, proto=0, flags=0):  # noqa: A002
@@ -163,8 +188,12 @@ def _smtp_send_ipv4(host: str, port: int, user: str, password: str,
 
 
 def send_email(to: str, subject: str, body_html: str) -> bool:
-    if not to or not GMAIL_PASS:
-        log.warning("Email no configurado (to=%s, GMAIL_APP_PASS=%s)", bool(to), bool(GMAIL_PASS))
+    # Primary: Resend HTTP API (works on Railway — port 443)
+    if RESEND_KEY:
+        return _send_via_resend(to, subject, body_html)
+    # Fallback: direct Gmail SMTP (may be blocked by cloud providers)
+    if not GMAIL_PASS:
+        log.warning("Email sin configurar: RESEND_API_KEY y GMAIL_APP_PASS ambos vacíos")
         return False
     try:
         recipients = [r.strip() for r in to.split(",") if r.strip()]
@@ -175,10 +204,10 @@ def send_email(to: str, subject: str, body_html: str) -> bool:
         msg.attach(MIMEText(body_html, "html"))
         _smtp_send_ipv4("smtp.gmail.com", 465, GMAIL_USER, GMAIL_PASS,
                         recipients, msg.as_string())
-        log.info("Email enviado a %s: %s", recipients, subject)
+        log.info("SMTP enviado a %s: %s", recipients, subject)
         return True
     except Exception as e:
-        log.error("Email falló a %s: %s", to, e)
+        log.error("SMTP falló a %s: %s", to, e)
         return False
 
 
