@@ -531,7 +531,7 @@ def send_all_reports(config: dict = None, vd: dict = None) -> dict:
             )
         ok = send_email(email, f"Faro · Reporte semanal · Vélez · {date_str}", body_html)
         results[nombre] = ok
-        log.info("Email %s → %s", nombre, "OK" if ok else "FAIL")
+        log.info("Email %s -> %s", nombre, "OK" if ok else "FAIL")
     return results
 
 
