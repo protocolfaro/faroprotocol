@@ -7,6 +7,7 @@ Config is fetched from GitHub raw URL so it works in stateless Railway container
 """
 import base64, json, logging, os, smtplib, threading
 from datetime import datetime
+from pathlib import Path
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
@@ -162,10 +163,24 @@ def _fetch_png(url: str):
 
 
 def _fetch_sector_attachments(sector_keys: list) -> list:
-    """Try to fetch PNG heatmaps for given sector keys from GitHub raw.
+    """Fetch PNG heatmaps for given sector keys.
+    Priority: local reportes_velez/ dir (supports _FINAL/_v2 suffixes) → GitHub raw.
     Returns list of (filename, bytes) — silently skips any that fail."""
+    _local_dir = Path(__file__).parent.parent / "reportes_velez"
     result = []
     for key in sector_keys:
+        # 1. Exact local match
+        exact = _local_dir / f"faro_reporte_velez_{key}.png"
+        if exact.exists():
+            result.append((exact.name, exact.read_bytes()))
+            continue
+        # 2. Glob for local variants (_FINAL, _v2, etc.)
+        matches = sorted(_local_dir.glob(f"faro_reporte_velez_{key}*.png"))
+        if matches:
+            p = matches[0]
+            result.append((p.name, p.read_bytes()))
+            continue
+        # 3. GitHub raw (Railway — only works if file is committed to repo)
         att = _fetch_png(f"{_PNG_BASE_URL}/faro_reporte_velez_{key}.png")
         if att:
             result.append(att)
@@ -261,16 +276,19 @@ def _html_wrap(title: str, body: str, panel_url: str = "") -> str:
         f'<p style="color:#c9a84c;font-size:12px">📱 Panel móvil disponible en: '
         f'<a href="{panel_url}" style="color:#c9a84c">{panel_url}</a></p>'
     ) if panel_url else ""
+    # Styles on <div>, not <body> — Gmail strips <body> inline styles
     return f"""
-<html><body style="font-family:Arial,sans-serif;background:#06080b;color:#f2ede4;padding:20px">
-<h2 style="color:#c9a84c">{title}</h2>
+<html><body style="margin:0;padding:0;background:#06080b">
+<div style="font-family:Arial,sans-serif;background:#06080b;color:#f2ede4;padding:20px;max-width:680px;margin:0 auto">
+<h2 style="color:#c9a84c;margin-top:0">{title}</h2>
 {body}
 {panel_line}
-<hr style="border-color:#c9a84c44">
+<hr style="border-color:#c9a84c44;margin-top:20px">
 <p style="color:#9aa0a8;font-size:12px">
 Faro Protocol · Fortín Inteligente · protocolfaro@gmail.com<br>
 Generado automáticamente · {datetime.now().strftime('%d/%m/%Y %H:%M')} UTC-3
-</p></body></html>"""
+</p>
+</div></body></html>"""
 
 
 # ── Sección Novedades (solo hasta el 01/06/2026) ─────────────────────────────
