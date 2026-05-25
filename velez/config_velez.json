@@ -231,6 +231,15 @@
       "fecha_generacion": "2026-05-20T16:10:23Z"
     }
   },
+  "destinatarios": [
+    {"nombre": "Roger Bernal",      "email": "correocancha@gmail.com"},
+    {"nombre": "Juan González",     "email": "jgonzalez@velez.com.ar"},
+    {"nombre": "Fernando Banchero", "email": "fbanchero@velez.com.ar"},
+    {"nombre": "Sebastián Pait",    "email": "spait@velez.com.ar"},
+    {"nombre": "Fabián Berlanga",   "email": "fberlanga@velez.com.ar"},
+    {"nombre": "Nelson Pugliese",   "email": "npugliese@velez.com.ar"},
+    {"nombre": "Alberto Aveleyra",  "email": "aaveleyra@velez.com.ar"}
+  ],
   "ipos_historial": [
     {
       "label": "D",
