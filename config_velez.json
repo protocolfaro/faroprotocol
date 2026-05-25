@@ -55,13 +55,13 @@
       "nombre": "Roger Bernal",
       "email": "correocancha@gmail.com",
       "whatsapp": "541124642616",
-      "reportes": ["canchero"]
+      "reportes": ["canchero", "velez", "solar_v2", "agro_FINAL"]
     },
     {
       "nombre": "Juan Gonzalez",
       "email": "jgonzalez@velez.com.ar",
       "whatsapp": "541151073109",
-      "reportes": ["canchero", "agro_FINAL", "poli"]
+      "reportes": ["agro_FINAL"]
     },
     {
       "nombre": "Fernando Banchero",
@@ -72,23 +72,23 @@
     {
       "nombre": "Sebastian Pait",
       "email": "spait@velez.com.ar",
-      "reportes": ["canchero", "agro_FINAL", "poli"]
+      "reportes": ["velez", "agro_FINAL"]
     },
     {
       "nombre": "Fabian Berlanga",
       "email": "fberlanga@velez.com.ar",
-      "reportes": ["velez", "agro_FINAL", "solar_v2", "sede", "poli", "piletas"]
+      "reportes": ["velez"]
     },
     {
       "nombre": "Nelson Pugliese",
       "email": "npugliese@velez.com.ar",
       "whatsapp": "541156417353",
-      "reportes": ["velez", "agro_FINAL", "solar_v2", "sede", "poli", "piletas"]
+      "reportes": ["velez"]
     },
     {
       "nombre": "Alberto Aveleyra",
       "email": "aaveleyra@velez.com.ar",
-      "reportes": ["velez", "agro_FINAL", "solar_v2", "sede", "poli", "piletas"]
+      "reportes": ["velez"]
     }
   ]
 }

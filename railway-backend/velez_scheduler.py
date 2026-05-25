@@ -61,13 +61,19 @@ def load_config() -> dict:
 
 
 def _get_velez_data() -> dict:
-    """Fetch full velez_data.json from GitHub raw. Returns {} on network error."""
+    """Load velez_data.json — local file first (CI checkout / dev), then GitHub raw."""
+    local = Path(__file__).parent.parent / "velez" / "velez_data.json"
+    if local.exists():
+        try:
+            return json.loads(local.read_text(encoding="utf-8"))
+        except Exception as e:
+            log.warning("_get_velez_data local: %s", e)
     try:
         req = UReq(_VD_RAW_URL, headers={"User-Agent": "FaroProtocol/4.0"})
         with urlopen(req, timeout=10) as r:
             return json.loads(r.read())
     except Exception as e:
-        log.warning("_get_velez_data: %s", e)
+        log.warning("_get_velez_data remote: %s", e)
         return {}
 
 
