@@ -571,6 +571,50 @@ def route_test_whatsapp():
     return jsonify({"status": "ok", "results": results})
 
 
+def route_smtp_diag():
+    """Quick SMTP connectivity + auth diagnostic — returns exact error."""
+    import socket
+    from flask import jsonify
+    result: dict = {
+        "gmail_user":       GMAIL_USER,
+        "pass_set":         bool(GMAIL_PASS),
+        "pass_len":         len(GMAIL_PASS),
+        "ssl_465":          None,
+        "starttls_587":     None,
+        "login_ok":         None,
+        "error":            None,
+    }
+    # Try SSL 465
+    try:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=15) as s:
+            result["ssl_465"] = True
+            try:
+                s.login(GMAIL_USER, GMAIL_PASS)
+                result["login_ok"] = True
+            except smtplib.SMTPAuthenticationError as e:
+                result["login_ok"] = False
+                result["error"] = f"Auth failed (465): {e}"
+    except Exception as e:
+        result["ssl_465"] = False
+        result["error"] = f"SSL 465 failed: {e}"
+    # If SSL 465 failed, try STARTTLS 587
+    if not result["ssl_465"]:
+        try:
+            with smtplib.SMTP("smtp.gmail.com", 587, timeout=15) as s:
+                s.starttls()
+                result["starttls_587"] = True
+                try:
+                    s.login(GMAIL_USER, GMAIL_PASS)
+                    result["login_ok"] = True
+                except smtplib.SMTPAuthenticationError as e:
+                    result["login_ok"] = False
+                    result["error"] = f"Auth failed (587): {e}"
+        except Exception as e:
+            result["starttls_587"] = False
+            result["error"] = f"587 also failed: {e}"
+    return jsonify(result)
+
+
 def route_test_email():
     from flask import request, jsonify
     data    = request.get_json(silent=True, force=True) or {}
