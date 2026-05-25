@@ -1,0 +1,24 @@
+name: Emails semanales — Vélez Sarsfield
+
+on:
+  schedule:
+    - cron: '0 10 * * 1'   # Lunes 10:00 UTC = 07:00 ART
+  workflow_dispatch:        # Botón manual en GitHub para disparar cuando quieras
+
+jobs:
+  send-emails:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Enviar reportes semanales
+        env:
+          GMAIL_USER:     protocolfaro@gmail.com
+          GMAIL_APP_PASS: ${{ secrets.GMAIL_APP_PASS }}
+        run: python send_emails_weekly.py
