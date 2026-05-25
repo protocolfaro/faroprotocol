@@ -353,7 +353,7 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
 /* Aspersores */
 .asp-map-container{position:relative;width:100%;border-radius:10px;overflow:hidden;background:rgba(30,45,30,.5);border:1px solid rgba(76,173,114,.2);margin:10px 0;user-select:none}
 .asp-map-svg{width:100%;display:block;cursor:crosshair}
-.asp-map-svg.view-only{cursor:default}
+.asp-map-svg.view-only{cursor:pointer}
 .asp-controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}
 .mc-btn{padding:8px 16px;border-radius:8px;border:1px solid;font-size:11px;font-family:inherit;cursor:pointer;letter-spacing:.04em;display:inline-flex;align-items:center;gap:5px}
 .mc-btn-primary{background:rgba(201,168,76,.15);border-color:rgba(201,168,76,.35);color:var(--gold)}
@@ -1474,8 +1474,6 @@ function buildHeatmapSection(u, cfg, shadowMaps){
   function renderSolar(){
     var LOCS=[
       {id:'amalfitani', png:'heatmaps/heatmap_amalfitani_shadow.png'},
-      {id:'1fp',        png:'heatmaps/heatmap_1fp_shadow.png'},
-      {id:'2fp',        png:'heatmaps/heatmap_2fp_shadow.png'},
     ];
     if(!shadowMaps){
       document.getElementById('hm-img-wrap').innerHTML='<div style="padding:16px;font-size:11px;color:var(--wdim)">Análisis de sombras no disponible — ejecutá shadow_analysis.py</div>';
@@ -1521,9 +1519,22 @@ function buildHeatmapSection(u, cfg, shadowMaps){
       ?'<img class="hm-img" src="'+hm.archivo+'" alt="Heatmap '+curSub+'" loading="lazy">'
       :'<span class="hm-img-placeholder">Heatmap no disponible — ejecutá generate_heatmaps_v2.py</span>';
     document.getElementById('hm-img-wrap').innerHTML=imgHtml;
+    var shadowInlineHtml='';
+    if(curSec==='vo'&&shadowMaps&&shadowMaps[curSub]){
+      var smI=shadowMaps[curSub];
+      var plenaI=Math.max(0,100-smI.sombra_permanente_pct-smI.sombra_parcial_pct).toFixed(0);
+      var dotI=function(c){return '<span style="width:6px;height:6px;border-radius:50%;background:'+c+';display:inline-block;flex-shrink:0"></span>';};
+      shadowInlineHtml='<div style="margin-top:6px;display:flex;gap:5px;flex-wrap:wrap;align-items:center">'
+        +'<span style="font-size:8px;color:var(--wdim);letter-spacing:.08em;text-transform:uppercase;margin-right:2px">Sombras:</span>'
+        +'<span style="font-size:9px;background:var(--bg3);padding:2px 7px;border-radius:4px;display:flex;align-items:center;gap:3px">'+dotI('#4cad72')+'Plena: '+plenaI+'%</span>'
+        +'<span style="font-size:9px;background:var(--bg3);padding:2px 7px;border-radius:4px;display:flex;align-items:center;gap:3px">'+dotI('#e0b84c')+'Parcial: '+smI.sombra_parcial_pct+'%</span>'
+        +'<span style="font-size:9px;background:var(--bg3);padding:2px 7px;border-radius:4px;display:flex;align-items:center;gap:3px">'+dotI('#e05252')+'Permanente: '+smI.sombra_permanente_pct+'%</span>'
+        +'</div>';
+    }
     document.getElementById('hm-meta').innerHTML=
       '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'+iposHtml+ndviHtml+detHtml+'</div>'
-      +((hmMeta.fuente||hmData.fuente)?'<span class="hm-src">'+(hmMeta.fuente||hmData.fuente)+'</span>':'');
+      +((hmMeta.fuente||hmData.fuente)?'<span class="hm-src">'+(hmMeta.fuente||hmData.fuente)+'</span>':'')
+      +shadowInlineHtml;
   }
 
   function tabsHtml(){
@@ -1899,13 +1910,13 @@ function buildAspersores(){
     +'<button class="mc-btn mc-btn-danger" id="asp-cancel-btn" onclick="aspCancel()" style="display:none">✕ Cancelar</button>'
     +'</div>'
     +'<div class="asp-legend">'
-    +'<span><span class="asp-leg-dot" style="background:#4cad72"></span>Cubierto</span>'
-    +'<span><span class="asp-leg-dot" style="background:#e0b84c"></span>Solapado</span>'
-    +'<span><span class="asp-leg-dot" style="background:#e05252"></span>Sin cobertura</span>'
-    +'<span><span class="asp-leg-dot" style="background:#5f8fe8"></span>Aspersor</span>'
+    +'<span><span class="asp-leg-dot" style="background:rgba(76,173,114,.35)"></span>Zona cubierta</span>'
+    +'<span><span class="asp-leg-dot" style="background:rgba(224,184,76,.45)"></span>Zona solapada</span>'
+    +'<span><span class="asp-leg-dot" style="background:rgba(224,82,82,.3)"></span>Sin cobertura</span>'
+    +'<span style="opacity:.65">💧 clic = estado del aspersor</span>'
     +'</div>'
     +'<div class="asp-map-container" id="asp-map-container"><svg id="asp-svg" class="asp-map-svg view-only" viewBox="0 0 '+FIELD_W+' '+FIELD_H+'" preserveAspectRatio="xMidYMid meet"></svg></div>'
-    +'<div id="asp-hint" class="asp-hint">Presioná "Editar" y tocá el campo para colocar o quitar aspersores</div>'
+    +'<div id="asp-hint" class="asp-hint">Tocá un 💧 para cambiar su estado · "Editar" para agregar o quitar aspersores</div>'
     +'<div id="asp-coverage" style="font-size:11px;color:var(--wdim);margin-top:4px;text-align:center"></div>'
     +'<div class="mc-disclaimer">'+MC_DISCLAIMER+'</div>';
   aspRender(_mcCurrentCancha);
@@ -1916,6 +1927,10 @@ function mcSelectCancha(cid){
   _mcCurrentCancha=cid;
   document.querySelectorAll('.asp-cancha-btn').forEach(function(b){b.classList.toggle('active',b.textContent.toLowerCase()===cid);});
   aspRender(cid);
+  buildSombrasModule(_mcData&&_mcData.shadow_maps, cid);
+  var selEl=document.getElementById('med-cancha');
+  if(selEl) selEl.value=cid;
+  medRenderHistory(cid);
 }
 
 function aspToggleEdit(){
@@ -1925,7 +1940,7 @@ function aspToggleEdit(){
   document.getElementById('asp-save-btn').style.display=_aspEditMode?'':'none';
   document.getElementById('asp-cancel-btn').style.display=_aspEditMode?'':'none';
   document.getElementById('asp-hint').textContent=_aspEditMode
-    ?'Toca el campo para colocar · toca un 💧 para quitar':'Presioná "Editar" y tocá el campo para colocar o quitar aspersores';
+    ?'Tocá el campo para agregar · tocá un 💧 para quitar':'Tocá un 💧 para cambiar su estado · "Editar" para agregar o quitar aspersores';
   if(svg){svg.classList.toggle('view-only',!_aspEditMode);}
   var container=document.getElementById('asp-map-container');
   if(container) container.style.borderColor=_aspEditMode?'rgba(201,168,76,.6)':'rgba(76,173,114,.2)';
@@ -1937,7 +1952,7 @@ function aspSave(){
   aspRender(_mcCurrentCancha);
   var h=document.getElementById('asp-hint');
   if(h){h.textContent='✅ Guardado correctamente';}
-  setTimeout(function(){var h2=document.getElementById('asp-hint');if(h2)h2.textContent='Presioná "Editar" y tocá el campo para colocar o quitar aspersores';},2500);
+  setTimeout(function(){var h2=document.getElementById('asp-hint');if(h2)h2.textContent='Tocá un 💧 para cambiar su estado · "Editar" para agregar o quitar aspersores';},2500);
   // Sync to Railway so data_refresh.py can use real coverage for riego_min_sector
   var RAILWAY=typeof RAILWAY_URL!=='undefined'?RAILWAY_URL:null;
   var PIN=typeof _pinValue!=='undefined'?_pinValue:null;
@@ -1949,7 +1964,7 @@ function aspSave(){
       .then(function(d){
         var h3=document.getElementById('asp-hint');
         if(h3&&d.status==='ok') h3.textContent='✅ '+asp.length+' aspersores sincronizados con Railway';
-        setTimeout(function(){var h4=document.getElementById('asp-hint');if(h4)h4.textContent='Presioná "Editar" y tocá el campo para colocar o quitar aspersores';},3000);
+        setTimeout(function(){var h4=document.getElementById('asp-hint');if(h4)h4.textContent='Tocá un 💧 para cambiar su estado · "Editar" para agregar o quitar aspersores';},3000);
       }).catch(function(){});
   }
 }
@@ -1969,15 +1984,22 @@ function aspSetupEvents(){
     return {x:Math.round(((cx-rect.left)/rect.width)*FIELD_W*10)/10,
             y:Math.round(((cy-rect.top)/rect.height)*FIELD_H*10)/10};
   }
+  var ASP_STATES=['cubierto','solapado','sin_cobertura'];
   function onTap(e){
-    if(!_aspEditMode) return;
     e.preventDefault();
     var pt=svgPt(e);
     if(pt.x<0||pt.x>FIELD_W||pt.y<0||pt.y>FIELD_H) return;
     var asps=_aspState[_mcCurrentCancha]||[];
     var SNAP=ASP_R*0.7;
     var idx=asps.findIndex(function(a){return Math.sqrt(Math.pow(a.x-pt.x,2)+Math.pow(a.y-pt.y,2))<SNAP;});
-    if(idx>=0){asps.splice(idx,1);}else{asps.push({x:pt.x,y:pt.y,r:ASP_R});}
+    if(_aspEditMode){
+      if(idx>=0){asps.splice(idx,1);}else{asps.push({x:pt.x,y:pt.y,r:ASP_R,estado:'cubierto'});}
+    } else {
+      if(idx<0) return;
+      var cur=asps[idx].estado||'cubierto';
+      asps[idx].estado=ASP_STATES[(ASP_STATES.indexOf(cur)+1)%ASP_STATES.length];
+      localStorage.setItem('mc_aspersores',JSON.stringify(_aspState));
+    }
     _aspState[_mcCurrentCancha]=asps;
     aspRender(_mcCurrentCancha);
   }
@@ -1995,7 +2017,7 @@ function aspRender(cid){
   var gridHtml=[];
   for(var gy=0;gy<GY;gy++){for(var gx=0;gx<GX;gx++){
     var px=(gx+0.5)*cW, py=(gy+0.5)*cH;
-    var cnt=asps.reduce(function(n,a){return n+(Math.sqrt(Math.pow(a.x-px,2)+Math.pow(a.y-py,2))<=a.r?1:0);},0);
+    var cnt=asps.reduce(function(n,a){return (a.estado==='sin_cobertura')?n:n+(Math.sqrt(Math.pow(a.x-px,2)+Math.pow(a.y-py,2))<=a.r?1:0);},0);
     if(cnt===1){covered++;gridHtml.push('<rect x="'+(gx*cW).toFixed(1)+'" y="'+(gy*cH).toFixed(1)+'" width="'+cW.toFixed(1)+'" height="'+cH.toFixed(1)+'" fill="rgba(76,173,114,.22)"/>');}
     else if(cnt>1){overlapped++;gridHtml.push('<rect x="'+(gx*cW).toFixed(1)+'" y="'+(gy*cH).toFixed(1)+'" width="'+cW.toFixed(1)+'" height="'+cH.toFixed(1)+'" fill="rgba(224,184,76,.3)"/>');}
   }}
@@ -2012,9 +2034,13 @@ function aspRender(cid){
     +'<rect x="0" y="'+(H/2-5.5)+'" width="5.5" height="11" fill="none" stroke="rgba(255,255,255,.08)" stroke-width=".4"/>'
     +'<rect x="'+(W-5.5)+'" y="'+(H/2-5.5)+'" width="5.5" height="11" fill="none" stroke="rgba(255,255,255,.08)" stroke-width=".4"/>';
   // Aspersores: radio + icono
+  var ASP_DOT={cubierto:'#4cad72',solapado:'#e0b84c',sin_cobertura:'#e05252'};
+  var ASP_RING_F={cubierto:'rgba(76,173,114,.12)',solapado:'rgba(224,184,76,.12)',sin_cobertura:'rgba(224,82,82,.12)'};
+  var ASP_RING_S={cubierto:'rgba(76,173,114,.45)',solapado:'rgba(224,184,76,.5)',sin_cobertura:'rgba(224,82,82,.55)'};
   var aspHtml=asps.map(function(a){
-    return '<circle cx="'+a.x+'" cy="'+a.y+'" r="'+a.r+'" fill="rgba(95,143,232,.1)" stroke="rgba(95,143,232,.45)" stroke-width=".4" stroke-dasharray="2 1.5"/>'
-      +'<circle cx="'+a.x+'" cy="'+a.y+'" r="1.4" fill="#5f8fe8" opacity=".9"/>'
+    var st=a.estado||'cubierto';
+    return '<circle cx="'+a.x+'" cy="'+a.y+'" r="'+a.r+'" fill="'+(ASP_RING_F[st]||ASP_RING_F.cubierto)+'" stroke="'+(ASP_RING_S[st]||ASP_RING_S.cubierto)+'" stroke-width=".4" stroke-dasharray="2 1.5"/>'
+      +'<circle cx="'+a.x+'" cy="'+a.y+'" r="1.4" fill="'+(ASP_DOT[st]||ASP_DOT.cubierto)+'" opacity=".9"/>'
       +'<text x="'+a.x+'" y="'+(a.y+1.2)+'" font-size="3" text-anchor="middle" dominant-baseline="middle">💧</text>';
   }).join('');
   svg.innerHTML=field+gridHtml.join('')+aspHtml;
@@ -2023,24 +2049,34 @@ function aspRender(cid){
   if(covEl){
     if(!asps.length){covEl.innerHTML='';}
     else{
+      var sc_n=asps.filter(function(a){return a.estado==='sin_cobertura';}).length;
+      var sl_n=asps.filter(function(a){return a.estado==='solapado';}).length;
+      var estHtml=(sc_n?' &nbsp;<span style="color:#e05252">'+sc_n+' roto'+(sc_n>1?'s':'')+'</span>':'')
+        +(sl_n?' &nbsp;<span style="color:#e0b84c">'+sl_n+' solapado'+(sl_n>1?'s':'')+'</span>':'');
       covEl.innerHTML='<span style="color:#4cad72">🟢 '+Math.round(covered/total*100)+'%</span> &nbsp;'
         +'<span style="color:#e0b84c">🟡 '+Math.round(overlapped/total*100)+'%</span> &nbsp;'
-        +'<span style="color:#e05252">🔴 '+Math.round(none/total*100)+'%</span> &nbsp;·&nbsp; '+asps.length+' aspersores';
+        +'<span style="color:#e05252">🔴 '+Math.round(none/total*100)+'%</span> &nbsp;·&nbsp; '+asps.length+' aspersores'+estHtml;
     }
   }
 }
 
 /* ── MÓDULO 2: CALIBRACIÓN DE SOMBRAS ── */
-function buildSombrasModule(shadowMaps){
+function buildSombrasModule(shadowMaps, cancha){
   var el=document.getElementById('mc-sombras'); if(!el) return;
   var saved={};
   try{saved=JSON.parse(localStorage.getItem('mc_sombras_cal')||'{}');}catch(e){}
-  if(!shadowMaps||!Object.keys(shadowMaps).length){
+  var displayMaps=shadowMaps;
+  if(cancha&&shadowMaps){
+    if(shadowMaps[cancha]){displayMaps={};displayMaps[cancha]=shadowMaps[cancha];}
+    else{el.innerHTML='<div style="color:var(--wdim);font-size:12px;padding:8px 0">Sin análisis de sombras para '+cancha.toUpperCase()+'.</div><div class="mc-disclaimer">'+MC_DISCLAIMER+'</div>';return;}
+  }
+  if(!displayMaps||!Object.keys(displayMaps).length){
     el.innerHTML='<div style="color:var(--wdim);font-size:12px;padding:8px 0">Sin datos de análisis de sombras disponibles.</div>';
     return;
   }
-  var rows=Object.keys(shadowMaps).map(function(sid){
-    var sm=shadowMaps[sid];
+  var imgHtml=cancha?'<img style="width:100%;display:block;border-radius:6px;margin-bottom:10px;border:1px solid rgba(255,255,255,.06)" src="heatmaps/heatmap_'+cancha+'_shadow.png" loading="lazy" onerror="this.style.display=\'none\'">':'';
+  var rows=Object.keys(displayMaps).map(function(sid){
+    var sm=displayMaps[sid];
     var isCorrect=sid in saved?saved[sid]:true; // default: trust satellite
     var calNote=!isCorrect?'<div class="mc-shadow-cal">⚠️ Marcado como error del satélite — excluido del análisis de sombras</div>':'';
     return '<div class="mc-shadow-row">'
@@ -2055,7 +2091,8 @@ function buildSombrasModule(shadowMaps){
       +'</div>';
   }).join('');
   el.innerHTML=
-    '<div style="font-size:11px;color:var(--wdim);line-height:1.55;margin-bottom:12px">'
+    imgHtml
+    +'<div style="font-size:11px;color:var(--wdim);line-height:1.55;margin-bottom:12px">'
     +'Desactivá el toggle si el satélite detecta sombra donde <em>no hay sombra real</em>. '
     +'Faro excluirá ese sector en las próximas corridas.</div>'
     +rows
@@ -2215,7 +2252,7 @@ function csvParseAndLoad(file){
         resEl.innerHTML=sumHtml+rowHtml
           +'<div class="csv-sha">SHA-256: '+sha+'</div>';
       }
-      medRenderHistory();
+      medRenderHistory(_mcCurrentCancha||undefined);
       if(mapDots.length&&document.getElementById('mc-asp').style.display!=='none'){
         // already on aspersores tab, overlay visible
       }
@@ -2292,7 +2329,7 @@ function medGuardar(ev){
   if(interpEl) interpEl.innerHTML='<div class="mc-med-interp '+interp.cls+'">'+interp.text+'</div>';
   document.getElementById('med-valor').value='';
   document.getElementById('med-nota').value='';
-  medRenderHistory();
+  medRenderHistory(_mcCurrentCancha||undefined);
   // Optional Railway sync (when backend is deployed)
   var RAILWAY=typeof RAILWAY_URL!=='undefined'?RAILWAY_URL:null;
   var PIN=typeof _pinValue!=='undefined'?_pinValue:null;
@@ -2351,15 +2388,18 @@ function medInterpretar(tipo,valor,data){
   return{cls:'ok',text:'Medición registrada correctamente.'};
 }
 
-function medRenderHistory(){
+function medRenderHistory(canchaFilter){
   var el=document.getElementById('med-history'); if(!el) return;
   var hist=[];
   try{hist=JSON.parse(localStorage.getItem('mc_mediciones')||'[]');}catch(e){}
+  if(canchaFilter) hist=hist.filter(function(r){return r.cancha===canchaFilter;});
   if(!hist.length){
-    el.innerHTML='<div style="font-size:11px;color:var(--wdim);margin-top:12px;text-align:center">Sin mediciones registradas aún.</div>';
+    el.innerHTML='<div style="font-size:11px;color:var(--wdim);margin-top:12px;text-align:center">'
+      +(canchaFilter?'Sin mediciones para '+canchaFilter.toUpperCase()+'.':'Sin mediciones registradas aún.')+'</div>';
     return;
   }
-  var html='<div class="mc-history-title">Historial reciente ('+hist.length+')</div>';
+  var html='<div class="mc-history-title">Historial'+(canchaFilter?' · '+canchaFilter.toUpperCase():'')
+    +' ('+hist.length+')</div>';
   html+=hist.slice(0,12).map(function(r){
     var t=MC_TIPOS.find(function(x){return x.id===r.tipo;});
     return '<div class="mc-med-row">'
@@ -2477,6 +2517,15 @@ function init(){
     }).catch(function(){});
   }).catch(function(){show('error-msg');});
 }
+window.mcSwitchTab     = mcSwitchTab;
+window.mcSelectCancha  = mcSelectCancha;
+window.aspToggleEdit   = aspToggleEdit;
+window.aspSave         = aspSave;
+window.aspCancel       = aspCancel;
+window.medGuardar      = medGuardar;
+window.medTipoChange   = medTipoChange;
+window.mcSaveSombra    = mcSaveSombra;
+window.csvParseAndLoad = csvParseAndLoad;
 window.addEventListener('hashchange',function(){ init(); });
 init();
 })();
