@@ -210,6 +210,16 @@ def cronograma_parse():
                  "noche":"femenino","femenino":"femenino"}
     SKIP      = {"","libre","-","—","libre"}
 
+    def _norm_cancha(c: str) -> str:
+        c = c.strip().lower()
+        if c in SKIP or c == "campus":
+            return c
+        if c.endswith("fa") or c.endswith("fp"):
+            return c
+        if c.isdigit():
+            return c + "fa"
+        return c
+
     sessions, seen_canchas = [], set()
     for cat in categorias:
         nombre = (cat.get("nombre") or "").strip()
@@ -223,7 +233,7 @@ def cronograma_parse():
             val = (raw_val or "").strip().lower()
             if val in SKIP:
                 continue
-            canchas = [c.strip().lower() for c in val.replace("/", " ").split() if c.strip()]
+            canchas = [_norm_cancha(c) for c in val.replace("/", " ").split() if c.strip()]
             canchas = [c for c in canchas if c not in SKIP]
             if not canchas:
                 continue
