@@ -3,7 +3,8 @@ app.py — Flask backend: Vélez IPOS + heatmap pipeline + daily weather refresh
 Faro Protocol · Railway-ready · v2026-05-20
 """
 from __future__ import annotations
-import base64, hashlib, logging, os, threading, traceback
+import base64, hashlib, json, logging, os, threading, traceback
+import requests as _requests
 from datetime import datetime, timezone
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -129,6 +130,123 @@ def cronograma():
     except Exception as e:
         log.error(traceback.format_exc())
         return jsonify({"status": "error", "error": str(e)}), 500
+
+
+@app.route("/velez/cronograma/parse", methods=["POST"])
+def cronograma_parse():
+    body = request.get_json(silent=True) or {}
+    if not _ok_pin(body.get("pin")):
+        return jsonify({"status": "error", "error": "PIN inválido"}), 401
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        return jsonify({"status": "error", "error": "ANTHROPIC_API_KEY no configurada"}), 500
+
+    # 1. Download image from GitHub raw
+    raw_url = (f"https://raw.githubusercontent.com/{github_push.OWNER}/"
+               f"{github_push.REPO}/main/{github_push.CRON_PATH}")
+    try:
+        img_r = _requests.get(raw_url, timeout=20)
+        img_r.raise_for_status()
+        img_b64 = base64.b64encode(img_r.content).decode()
+    except Exception as e:
+        return jsonify({"status": "error", "error": f"Descarga imagen: {e}"}), 502
+
+    # 2. Send to Claude Vision
+    prompt = (
+        "Esta es una tabla de uso de canchas de fútbol. "
+        "Extraé los datos y devolvé SOLO un JSON con esta estructura: "
+        "{\"categorias\": [{\"nombre\": string, \"dias\": {\"lunes\": string, \"martes\": string, "
+        "\"miercoles\": string, \"jueves\": string, \"viernes\": string, \"sabado\": string}, "
+        "\"horario\": string}]}. "
+        "Los valores de días son el número de cancha o 'LIBRE' o 'CAMPUS' o vacío."
+    )
+    try:
+        claude_r = _requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "x-api-key":         api_key,
+                "anthropic-version": "2023-06-01",
+                "content-type":      "application/json",
+            },
+            json={
+                "model":      "claude-sonnet-4-20250514",
+                "max_tokens": 2048,
+                "messages": [{
+                    "role": "user",
+                    "content": [
+                        {"type": "image", "source": {
+                            "type":       "base64",
+                            "media_type": "image/jpeg",
+                            "data":       img_b64,
+                        }},
+                        {"type": "text", "text": prompt},
+                    ],
+                }],
+            },
+            timeout=60,
+        )
+        claude_r.raise_for_status()
+        text = claude_r.json()["content"][0]["text"]
+    except Exception as e:
+        log.error(traceback.format_exc())
+        return jsonify({"status": "error", "error": f"Claude API: {e}"}), 502
+
+    # 3. Parse JSON — strip markdown fences if present
+    try:
+        clean = text.strip()
+        if clean.startswith("```"):
+            parts = clean.split("```")
+            clean = parts[1].lstrip("json").strip() if len(parts) > 1 else clean
+        categorias = json.loads(clean)["categorias"]
+    except Exception as e:
+        return jsonify({"status": "error", "error": f"JSON parse: {e}", "raw": text[:500]}), 422
+
+    # 4. Convert categorias → sessions
+    DIA_MAP   = {"lunes":"lun","martes":"mar","miercoles":"mie",
+                 "jueves":"jue","viernes":"vie","sabado":"sab"}
+    TURNO_MAP = {"mañana":"manana","manana":"manana","morning":"manana",
+                 "tarde":"infantiles","infantiles":"infantiles",
+                 "noche":"femenino","femenino":"femenino"}
+    SKIP      = {"","libre","-","—","libre"}
+
+    sessions, seen_canchas = [], set()
+    for cat in categorias:
+        nombre = (cat.get("nombre") or "").strip()
+        if not nombre:
+            continue
+        turno = TURNO_MAP.get((cat.get("horario") or "").lower().strip(), "manana")
+        for dia_es, raw_val in (cat.get("dias") or {}).items():
+            dia_id = DIA_MAP.get(dia_es.lower().strip())
+            if not dia_id:
+                continue
+            val = (raw_val or "").strip().lower()
+            if val in SKIP:
+                continue
+            canchas = [c.strip().lower() for c in val.replace("/", " ").split() if c.strip()]
+            canchas = [c for c in canchas if c not in SKIP]
+            if not canchas:
+                continue
+            sessions.append({"categoria": nombre, "dia": dia_id,
+                              "canchas": canchas, "turno": turno, "factor": 1.0})
+            seen_canchas.update(c for c in canchas if c != "campus")
+
+    if not sessions:
+        return jsonify({"status": "error", "error": "No se detectaron sesiones en la imagen"}), 422
+
+    # 5. Update horarios_vo_semana.sessions in config_velez.json
+    try:
+        commit_url = github_push.push_horarios_from_parse(sessions)
+    except Exception as e:
+        log.error(traceback.format_exc())
+        return jsonify({"status": "error", "error": f"GitHub push: {e}"}), 500
+
+    return jsonify({
+        "status":             "ok",
+        "canchas_detectadas": len(seen_canchas),
+        "sessions_generadas": len(sessions),
+        "commit":             commit_url,
+    })
 
 
 @app.route("/velez/mediciones", methods=["POST", "DELETE"])

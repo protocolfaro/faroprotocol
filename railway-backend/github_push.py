@@ -367,3 +367,26 @@ def push_cronograma(image_bytes: bytes) -> str:
     resp = _put(CRON_PATH, image_bytes, f"cronograma semanal [{ts}]", existing)
     return (resp.get("content", {}).get("html_url") or
             f"https://github.com/{OWNER}/{REPO}/blob/{BRANCH}/{CRON_PATH}")
+
+
+def push_horarios_from_parse(sessions: list) -> str:
+    """Update only horarios_vo_semana.sessions in config_velez.json."""
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    r = requests.get(f"{API}/repos/{OWNER}/{REPO}/contents/{CFG_PATH}",
+                     headers=_hdrs(), params={"ref": BRANCH}, timeout=15)
+    existing_sha = None
+    cfg = {}
+    if r.status_code == 200:
+        d = r.json()
+        existing_sha = d.get("sha")
+        try:
+            cfg = json.loads(base64.b64decode(d["content"]).decode())
+        except Exception as e:
+            log.warning("push_horarios_from_parse parse error: %s", e)
+    elif r.status_code != 404:
+        r.raise_for_status()
+    cfg.setdefault("horarios_vo_semana", {})["sessions"] = sessions
+    data = json.dumps(cfg, ensure_ascii=False, indent=2).encode()
+    resp = _put(CFG_PATH, data, f"horarios via cronograma-parse [{ts}]", existing_sha)
+    return (resp.get("commit", {}).get("html_url") or
+            f"https://github.com/{OWNER}/{REPO}/blob/{BRANCH}/{CFG_PATH}")
