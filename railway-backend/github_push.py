@@ -336,6 +336,35 @@ def delete_medicion(rec_id: str) -> str:
             f"https://github.com/{OWNER}/{REPO}/blob/{BRANCH}/{VD_PATH}")
 
 
+def push_cronograma(cronograma: dict) -> str:
+    """Write Vision-OCR parsed cronograma into config_velez.json.horarios_vo_semana."""
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    r = requests.get(f"{API}/repos/{OWNER}/{REPO}/contents/{CFG_PATH}",
+                     headers=_hdrs(), params={"ref": BRANCH}, timeout=15)
+    existing_sha = None
+    cfg = {}
+    if r.status_code == 200:
+        d = r.json()
+        existing_sha = d.get("sha")
+        try:
+            cfg = json.loads(base64.b64decode(d["content"]).decode())
+        except Exception as e:
+            log.warning("push_cronograma parse error: %s", e)
+    elif r.status_code != 404:
+        r.raise_for_status()
+    cfg.setdefault("horarios_vo_semana", {})
+    cfg["horarios_vo_semana"]["sessions"]     = cronograma.get("sessions", [])
+    cfg["horarios_vo_semana"]["dias"]         = cronograma.get("dias", [])
+    cfg["horarios_vo_semana"]["semana_label"] = cronograma.get("semana_label", "")
+    cfg["horarios_vo_semana"]["fuente"]       = "vision_ocr"
+    cfg["horarios_vo_semana"]["updated_at"]   = ts
+    data = json.dumps(cfg, ensure_ascii=False, indent=2).encode()
+    msg  = f"cronograma OCR sem={cronograma.get('semana_label','?')} [{ts}]"
+    resp = _put(CFG_PATH, data, msg, existing_sha)
+    return (resp.get("commit", {}).get("html_url") or
+            f"https://github.com/{OWNER}/{REPO}/blob/{BRANCH}/{CFG_PATH}")
+
+
 def delete_aspersores(cid: str) -> str:
     """Clear all sprinkler positions for a cancha in config_velez.json."""
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
