@@ -114,7 +114,11 @@ def _fetch_open_meteo() -> dict:
         ",soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,temperature_2m,relative_humidity_2m"
         "&timezone=America%2FArgentina%2FBuenos_Aires&past_days=2&forecast_days=7"
     )
-    return _fetch_json(url)
+    result = _fetch_json(url, timeout=20)
+    if not result.get("hourly"):
+        log.warning("open-meteo retry (no hourly in first attempt)")
+        result = _fetch_json(url, timeout=25)
+    return result
 
 
 def _fetch_ecostress() -> dict:
