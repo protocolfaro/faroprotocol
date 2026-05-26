@@ -3,12 +3,12 @@ name: Emails semanales — Vélez Sarsfield
 on:
   schedule:
     - cron: '0 10 * * 1'   # Lunes 10:00 UTC = 07:00 ART
-  workflow_dispatch:        # Botón manual en GitHub para disparar cuando quieras
+  workflow_dispatch:        # Botón manual en GitHub
 
 jobs:
   send-emails:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4
@@ -17,11 +17,63 @@ jobs:
         with:
           python-version: '3.11'
 
+      # ── FASE A: Instalar dependencias de ingesta y analítica ──────────────
       - name: Instalar dependencias
-        run: pip install requests
+        run: |
+          pip install requests matplotlib pillow numpy scipy
 
+      # ── FASE A: Actualizar velez_data.json con datos en caliente ─────────
+      - name: Ingesta de datos — data_refresh
+        env:
+          RAILWAY_URL:    ${{ secrets.RAILWAY_URL }}
+          RAILWAY_TOKEN:  ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          if [ -f "railway-backend/data_refresh.py" ]; then
+            python railway-backend/data_refresh.py || echo "data_refresh falló — usando datos existentes"
+          else
+            echo "data_refresh.py no encontrado — usando velez_data.json existente"
+          fi
+
+      # ── FASE B: Regenerar PNGs frescos ───────────────────────────────────
+      - name: Regenerar reportes PNG
+        env:
+          MPLBACKEND: Agg
+        run: |
+          cd reportes_velez 2>/dev/null || true
+          for script in \
+            gen_velez_main.py \
+            gen_velez_canchero.py \
+            gen_velez_agro_FINAL.py \
+            gen_velez_solar_v2.py \
+            gen_velez_poli.py \
+            gen_velez_piletas.py \
+            gen_velez_sede.py; do
+            if [ -f "$script" ]; then
+              echo "Ejecutando $script..."
+              python "$script" || echo "$script falló — PNG anterior mantenido"
+            fi
+          done
+          cd ..
+          # También intentar en raíz del repo
+          for script in \
+            gen_velez_main.py \
+            gen_velez_canchero.py \
+            gen_velez_agro_FINAL.py \
+            gen_velez_solar_v2.py \
+            gen_velez_poli.py \
+            gen_velez_piletas.py \
+            gen_velez_sede.py; do
+            if [ -f "$script" ]; then
+              echo "Ejecutando $script (raíz)..."
+              MPLBACKEND=Agg python "$script" || echo "$script falló — PNG anterior mantenido"
+            fi
+          done
+
+      # ── FASE C: Despacho — enviar 7 correos con adjuntos PNG ─────────────
       - name: Enviar reportes semanales
         env:
           GMAIL_USER:     protocolfaro@gmail.com
           GMAIL_APP_PASS: ${{ secrets.GMAIL_APP_PASS }}
+          RAILWAY_URL:    ${{ secrets.RAILWAY_URL }}
+          BREVO_API_KEY:  ${{ secrets.BREVO_API_KEY }}
         run: python railway-backend/velez_scheduler.py

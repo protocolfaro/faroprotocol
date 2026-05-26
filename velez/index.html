@@ -582,9 +582,9 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
   <div id="micampo-section" style="display:none">
     <div class="section-title">Mi Campo <span style="font-size:9px;font-weight:400;color:var(--wdim);text-transform:none;margin-left:6px;letter-spacing:0">herramientas del responsable</span></div>
     <div class="mc-tabs" id="mc-tabs">
-      <button class="mc-tab active" data-mod="asp" onclick="mcSwitchTab('asp')">💧 Aspersores</button>
-      <button class="mc-tab" data-mod="sombras" onclick="mcSwitchTab('sombras')">🌑 Sombras</button>
-      <button class="mc-tab" data-mod="med" onclick="mcSwitchTab('med')">📐 Mediciones</button>
+      <button class="mc-tab active" data-mod="asp" style="cursor:default;opacity:.7">💧 Aspersores</button>
+      <button class="mc-tab" data-mod="sombras" onclick="mcToggleLayer('sombras')" title="Activar/desactivar capa de sombras">🌑 Sombras</button>
+      <button class="mc-tab" data-mod="med" onclick="mcToggleLayer('med')" title="Activar/desactivar mediciones">📐 Mediciones</button>
     </div>
     <div id="mc-asp" class="mc-module"></div>
     <div id="mc-sombras" class="mc-module" style="display:none"></div>
@@ -1891,8 +1891,18 @@ var MC_TIPOS=[
 var MC_ZONAS=['Centro','Lateral N','Lateral S','Área chica N','Área chica S','Portería N','Portería S'];
 
 function mcSwitchTab(mod){
-  document.querySelectorAll('.mc-tab').forEach(function(t){t.classList.toggle('active',t.dataset.mod===mod);});
-  ['asp','sombras','med'].forEach(function(m){document.getElementById('mc-'+m).style.display=m===mod?'':'none';});
+  // Legacy: still works if called directly for 'asp'
+  if(mod==='asp') return;
+  mcToggleLayer(mod);
+}
+function mcToggleLayer(mod){
+  // Aspersores is always visible. Sombras and Mediciones are independent toggles.
+  var el=document.getElementById('mc-'+mod);
+  var btn=document.querySelector('.mc-tab[data-mod="'+mod+'"]');
+  if(!el) return;
+  var showing=el.style.display!=='none';
+  el.style.display=showing?'none':'';
+  if(btn) btn.classList.toggle('active',!showing);
 }
 
 /* ── MÓDULO 1: ASPERSORES ── */
@@ -2518,6 +2528,7 @@ function init(){
   }).catch(function(){show('error-msg');});
 }
 window.mcSwitchTab     = mcSwitchTab;
+window.mcToggleLayer   = mcToggleLayer;
 window.mcSelectCancha  = mcSelectCancha;
 window.aspToggleEdit   = aspToggleEdit;
 window.aspSave         = aspSave;

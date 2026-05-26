@@ -5,8 +5,8 @@ no `schedule` library (uses APScheduler from app.py).
 
 Config is fetched from GitHub raw URL so it works in stateless Railway containers.
 """
-import base64, json, logging, os, smtplib, threading
-from datetime import datetime
+import base64, json, logging, math, os, smtplib, threading
+from datetime import datetime, date
 from pathlib import Path
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -433,6 +433,71 @@ def _novedad_section(slug: str) -> str:
     )
 
 
+# ── Senter lighting helper (stdlib only, no pvlib) ───────────────────────────
+
+def _senter_lighting(today_date=None):
+    """
+    Returns (sunset_art, needs_lighting, rec_html) for Buenos Aires.
+    Uses Spencer's formula: lat=-34.63, lon=-58.52, UTC-3.
+    """
+    d = today_date or date.today()
+    doy = d.timetuple().tm_yday
+    lat_r = math.radians(-34.63)
+    B = 2 * math.pi * (doy - 81) / 364
+    decl = math.radians(23.45 * math.sin(B))
+    eot  = 9.87 * math.sin(2 * B) - 7.53 * math.cos(B) - 1.5 * math.sin(B)
+    solar_noon_utc = 12 + (58.52 / 15) - eot / 60
+    val = max(-1.0, min(1.0, -math.tan(lat_r) * math.tan(decl)))
+    H   = math.degrees(math.acos(val))
+    sunset_utc = solar_noon_utc + H / 15
+    sunset_art = sunset_utc - 3                     # ART = UTC-3
+    sh = int(sunset_art); sm = int((sunset_art - sh) * 60)
+    sunset_str = f"{sh:02d}:{sm:02d}"
+    needs = sunset_art < 18.5                        # light needed when sunset before 18:30
+    if needs:
+        # Recommend lighting for the last session window before sunset + 30 min overlap
+        light_start_h = max(sh - 1, 15); light_start = f"{light_start_h:02d}:00"
+        rec_html = (
+            f'<li><b>Carros Senter — encendido {light_start} ART</b> '
+            f'(ocaso: {sunset_str}; luz natural insuficiente desde ~{light_start_h:02d}:30)</li>'
+            f'<li>Apagado: 30 min después de fin de sesión (reducir estrés nocturno del césped)</li>'
+            f'<li>Verificar orientación de carros: paralela al eje longitudinal de cada cancha</li>'
+        )
+    else:
+        rec_html = f'<li>Luz natural suficiente hasta las {sunset_str} — carros Senter no requeridos esta semana</li>'
+    return sunset_str, needs, rec_html
+
+
+def _fetch_aspersores_summary(railway_url: str, pin: str = "") -> str:
+    """Try to get sprinkler coverage summary from Railway. Returns HTML fragment."""
+    try:
+        if not railway_url:
+            raise ValueError("no url")
+        r = requests.get(f"{railway_url}/velez/aspersores", timeout=5)
+        if not r.ok:
+            raise ValueError(r.status_code)
+        data = r.json()
+        # data expected: { cancha: [{x,y,r,estado}, ...], ... }
+        lines = []
+        for cid, asps in sorted(data.items()):
+            if not isinstance(asps, list):
+                continue
+            total = len(asps)
+            sin_cob = sum(1 for a in asps if a.get("estado") == "sin_cobertura")
+            solap   = sum(1 for a in asps if a.get("estado") == "solapado")
+            ok      = total - sin_cob - solap
+            color = "#e74c3c" if sin_cob else ("#f0b429" if solap else "#27ae60")
+            lines.append(
+                f'<li><b style="color:{color}">{cid.upper()}:</b> '
+                f'{total} aspersores · {ok} cubiertos · {solap} solapados · {sin_cob} sin cobertura</li>'
+            )
+        if lines:
+            return "<ul style='font-size:14px;line-height:1.8'>" + "".join(lines) + "</ul>"
+    except Exception:
+        pass
+    return '<p style="font-size:13px;color:#9aa0a8">Sin datos de aspersores sincronizados — actualizá desde el panel web.</p>'
+
+
 # ── Email bodies — leen datos reales de velez_data.json ───────────────────────
 
 def _body_roger(vd: dict, panel_url: str = "") -> str:
@@ -469,16 +534,60 @@ def _body_roger(vd: dict, panel_url: str = "") -> str:
             items += f'<li><b>{t.get("dia_nombre","?")}: </b>{tasks}</li>'
         sections += f'<h3 style="color:#c9a84c">Próximos días</h3><ul style="font-size:14px;line-height:1.7">{items}</ul>'
 
+    # Senter lights
+    railway_url = os.environ.get("RAILWAY_URL", "")
+    sunset_str, needs_light, senter_rec = _senter_lighting()
+    senter_color = "#f0b429" if needs_light else "#27ae60"
+    senter_html = (
+        f'<h3 style="color:{senter_color}">Carros de Luces Senter — Semana {datetime.now().strftime("%d/%m")}</h3>'
+        f'<ul style="font-size:14px;line-height:1.8">{senter_rec}</ul>'
+    )
+
+    # Aspersores coverage
+    asp_html = (
+        '<h3 style="color:#c9a84c">Red de Aspersores — Cobertura Actual</h3>'
+        + _fetch_aspersores_summary(railway_url)
+    )
+
+    # Clegg Hammer compactación (datos en vd si disponibles)
+    clegg_raw  = u.get("mediciones", {}).get("clegg", [])
+    clegg_html = ""
+    if clegg_raw:
+        alerta = [m for m in clegg_raw if m.get("valor_cg", 0) > 50]
+        normal = [m for m in clegg_raw if m.get("valor_cg", 0) <= 50]
+        rows_a = "".join(
+            f'<li style="color:#e74c3c"><b>{m.get("zona","?")}:</b> {m.get("valor_cg")} CG — compactación ALTA · descompactar</li>'
+            for m in alerta
+        )
+        rows_n = "".join(
+            f'<li><b>{m.get("zona","?")}:</b> {m.get("valor_cg")} CG — OK</li>'
+            for m in normal
+        )
+        clegg_html = (
+            '<h3 style="color:#e74c3c">Compactación Clegg Hammer — Alertas por Cuadrante</h3>'
+            + (f'<ul style="font-size:14px;line-height:1.8">{rows_a}</ul>' if alerta else "")
+            + (f'<h3 style="color:#27ae60">Cuadrantes OK</h3><ul style="font-size:14px">{rows_n}</ul>' if normal else "")
+        )
+    else:
+        clegg_html = (
+            '<h3 style="color:#c9a84c">Compactación Clegg Hammer</h3>'
+            '<p style="font-size:13px;color:#9aa0a8">Sin mediciones cargadas esta semana — '
+            'ingresalas desde Mediciones en el panel web.</p>'
+        )
+
     body = f"""
         <p style="font-size:16px;font-weight:bold">Roger, te mando el mapa de esta semana.</p>
         <p style="font-size:14px">Los círculos de colores en el mapa marcan exactamente donde ir.</p>
         {sections}
+        {senter_html}
+        {asp_html}
+        {clegg_html}
         {_novedad_section("roger")}
         <p style="font-size:13px;color:#9aa0a8">
           Cualquier duda respondeme por este mail o por WhatsApp. — Faro Protocol
         </p>
     """
-    return _html_wrap("Tu Mapa de Trabajo Esta Semana — Campo Amalfitani", body, panel_url)
+    return _html_wrap("Tu Mapa de Trabajo Esta Semana — Estadio + Villa Olímpica", body, panel_url)
 
 
 def _body_juan(vd: dict, panel_url: str = "") -> str:
@@ -590,47 +699,91 @@ def _body_banchero(vd: dict, panel_url: str = "") -> str:
 
 def _body_pait(vd: dict, panel_url: str = "") -> str:
     sectores = vd.get("sectores", {})
-    u        = vd.get("usuarios", {}).get("pait", {})
     canchas  = sectores.get("canchero", {}).get("canchas", [])
     poli     = sectores.get("poli", {})
-    acciones = u.get("acciones", [])
+    fecha    = datetime.now().strftime("%d/%m/%Y")
 
-    def _c_li(c):
-        return (
-            f'<li><b>{c.get("nombre","?")}:</b> NDVI {c.get("ndvi","—")} · '
-            f'Score {c.get("score","—")}/100 — {c.get("detalle","")}</li>'
+    # Traction risk per surface based on NDVI + field score (FIFA/NFL thresholds)
+    # NDVI < 0.30 → bare/stressed → HIGH rotational traction → injury risk HIGH
+    # NDVI 0.30-0.45 → degraded → MODERATE
+    # NDVI > 0.45 → healthy → NORMAL
+    def _traction_risk(ndvi, score):
+        if ndvi is None:
+            return "—", "#9aa0a8", "Sin datos NDVI"
+        if ndvi < 0.30 or score < 40:
+            return "ALTO", "#e74c3c", "Césped comprometido — riesgo esguinces y roturas por tracción excesiva (FIFA Cat.D)"
+        if ndvi < 0.45 or score < 65:
+            return "MODERADO", "#f0b429", "Superficie irregular — precaución en arranques y frenadas (FIFA Cat.C)"
+        return "BAJO", "#27ae60", "Superficie homogénea — tracción dentro de normativa FIFA/NFL"
+
+    risk_rows = ""
+    for c in canchas:
+        ndvi  = c.get("ndvi")
+        score = c.get("score", 0)
+        risk, col, note = _traction_risk(ndvi, score)
+        risk_rows += (
+            f"<tr>"
+            f'<td style="padding:6px;border:1px solid #c9a84c22;font-weight:700">{c.get("nombre","?")}</td>'
+            f'<td style="padding:6px;border:1px solid #c9a84c22;text-align:center">{ndvi if ndvi is not None else "—"}</td>'
+            f'<td style="padding:6px;border:1px solid #c9a84c22;text-align:center">{score}/100</td>'
+            f'<td style="padding:6px;border:1px solid #c9a84c22;color:{col};font-weight:700">{risk}</td>'
+            f'<td style="padding:6px;border:1px solid #c9a84c22;font-size:12px;color:#ccc">{note}</td>'
+            f"</tr>"
         )
 
-    no_apto_li      = "".join(_c_li(c) for c in canchas if c.get("sem") == "rojo")
-    condicionado_li = "".join(_c_li(c) for c in canchas if c.get("sem") == "amarillo")
-    optimas_li      = "".join(_c_li(c) for c in canchas if c.get("sem") == "verde")
+    # Polideportivo row
+    poli_ndvi  = None
+    poli_score = poli.get("score", 0)
+    p_risk, p_col, p_note = _traction_risk(poli_ndvi, poli_score)
+    risk_rows += (
+        f"<tr>"
+        f'<td style="padding:6px;border:1px solid #c9a84c22;font-weight:700">Polideportivo Feijóo</td>'
+        f'<td style="padding:6px;border:1px solid #c9a84c22;text-align:center">—</td>'
+        f'<td style="padding:6px;border:1px solid #c9a84c22;text-align:center">{poli_score}/100</td>'
+        f'<td style="padding:6px;border:1px solid #c9a84c22;color:{p_col};font-weight:700">{p_risk}</td>'
+        f'<td style="padding:6px;border:1px solid #c9a84c22;font-size:12px;color:#ccc">{p_note}</td>'
+        f"</tr>"
+    )
 
-    poli_score = poli.get("score", "—")
-    poli_det   = poli.get("detalle", "")
-    if poli.get("sem") == "rojo":
-        no_apto_li += f"<li><b>Polideportivo Feijóo:</b> Score {poli_score}/100 · {poli_det} — evaluar antes de uso intensivo</li>"
-    else:
-        condicionado_li += f"<li><b>Polideportivo Feijóo:</b> Score {poli_score}/100 · {poli_det}</li>"
-
-    acc_html = "".join(f"<li>{a}</li>" for a in acciones)
-
-    sections = ""
-    if no_apto_li:
-        sections += f'<h3 style="color:#e74c3c">NO APTO para entrenamiento</h3><ul style="font-size:14px">{no_apto_li}</ul>'
-    if condicionado_li:
-        sections += f'<h3 style="color:#f0b429">Uso condicionado</h3><ul style="font-size:14px">{condicionado_li}</ul>'
-    if optimas_li:
-        sections += f'<h3 style="color:#27ae60">Óptimas para uso</h3><ul style="font-size:14px">{optimas_li}</ul>'
-    if acciones:
-        sections += f'<h3 style="color:#c9a84c">Acciones recomendadas</h3><ul style="font-size:14px;line-height:1.8">{acc_html}</ul>'
+    high_risk = [c for c in canchas if c.get("ndvi", 1) < 0.30 or c.get("score", 100) < 40]
+    alert_html = ""
+    if high_risk or poli_score < 40:
+        names = [c.get("nombre", "?") for c in high_risk]
+        if poli_score < 40:
+            names.append("Polideportivo Feijóo")
+        alert_html = (
+            f'<div style="background:rgba(231,76,60,.12);border-left:3px solid #e74c3c;'
+            f'padding:10px 14px;margin-bottom:12px;border-radius:0 6px 6px 0">'
+            f'<b style="color:#e74c3c">ALERTA FIFA — Riesgo alto de lesión:</b> '
+            + ", ".join(names) +
+            f'<br><span style="font-size:12px;color:#ccc">Evitar entrenamiento de alta intensidad (sprints, cambios de dirección) hasta recuperación del césped.</span>'
+            f'</div>'
+        )
 
     body = f"""
-        <p>Sebastián, estado de las superficies para esta semana de entrenamiento.</p>
-        {sections}
+        <p>Sebastián, análisis de riesgo de lesión por tracción rotacional — semana {fecha}.</p>
+        {alert_html}
+        <h3 style="color:#c9a84c">Riesgo por Superficie — Normativa FIFA / NFL</h3>
+        <table style="color:#f2ede4;border-collapse:collapse;width:100%;font-size:13px">
+          <tr style="background:#141c24">
+            <th style="padding:8px;border:1px solid #c9a84c44;text-align:left">Cancha</th>
+            <th style="padding:8px;border:1px solid #c9a84c44;text-align:center">NDVI</th>
+            <th style="padding:8px;border:1px solid #c9a84c44;text-align:center">Score</th>
+            <th style="padding:8px;border:1px solid #c9a84c44;text-align:center">Riesgo</th>
+            <th style="padding:8px;border:1px solid #c9a84c44;text-align:left">Observación</th>
+          </tr>
+          {risk_rows}
+        </table>
+        <h3 style="color:#c9a84c">Criterios de Clasificación</h3>
+        <ul style="font-size:13px;line-height:1.8;color:#ccc">
+          <li><b style="color:#27ae60">BAJO:</b> NDVI &gt; 0.45 · Score &gt; 65 — habilitado para uso pleno</li>
+          <li><b style="color:#f0b429">MODERADO:</b> NDVI 0.30–0.45 — uso con monitoreo; evitar sesiones >90 min</li>
+          <li><b style="color:#e74c3c">ALTO:</b> NDVI &lt; 0.30 o Score &lt; 40 — restringir sesiones de alta intensidad</li>
+        </ul>
         {_novedad_section("pait")}
-        <p style="font-size:13px;color:#9aa0a8">Se adjuntan mapa de canchas, agro detallado y polideportivo.</p>
+        <p style="font-size:13px;color:#9aa0a8">Se adjuntan reporte general Vélez y estado Polideportivo.</p>
     """
-    return _html_wrap("Estado Canchas y Campo — Visión Deportiva", body, panel_url)
+    return _html_wrap(f"Riesgo de Lesión por Tracción — Semana {fecha}", body, panel_url)
 
 
 def _body_berlanga(vd: dict, panel_url: str = "") -> str:

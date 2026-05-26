@@ -67,12 +67,12 @@
       "nombre": "Fernando Banchero",
       "email": "fbanchero@velez.com.ar",
       "whatsapp": "541167096384",
-      "reportes": ["velez", "solar_v2", "agro_FINAL", "poli", "piletas", "sede"]
+      "reportes": ["velez", "canchero", "solar_v2", "agro_FINAL", "poli", "piletas", "sede"]
     },
     {
       "nombre": "Sebastian Pait",
       "email": "spait@velez.com.ar",
-      "reportes": ["velez", "agro_FINAL"]
+      "reportes": ["velez", "poli"]
     },
     {
       "nombre": "Fabian Berlanga",
