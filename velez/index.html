@@ -2159,7 +2159,7 @@ function aspRender(cid){
 }
 
 /* ── MÓDULO 2: SOMBRAS ── */
-var _sombraMarkers={};
+var _sombraMarkers={}, _sombraCid='amalfitani';
 
 function _sombraWeekKey(cid){
   var d=new Date();
@@ -2173,20 +2173,27 @@ function _esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;
 
 function buildSombrasModule(shadowMaps, cancha){
   var el=document.getElementById('mc-sombras'); if(!el) return;
-  var cid=((cancha||_mcCurrentCancha||'')).toLowerCase();
+  // External calls (mcSelectCancha) pass a cancha; internal selector uses _sombraCid
+  var cid=((cancha||_sombraCid||'amalfitani')).toLowerCase();
   var sm=shadowMaps&&cid?shadowMaps[cid]:null;
 
+  var selHtml='<div class="asp-cancha-sel" style="margin-bottom:12px">'
+    +[{id:'amalfitani',label:'Amalfitani'},{id:'1fp',label:'1FP'},{id:'2fp',label:'2FP'}].map(function(c){
+      return '<button class="asp-cancha-btn'+(c.id===_sombraCid?' active':'')+'" onclick="sombraSelectCancha(\''+c.id+'\')">'+c.label+'</button>';
+    }).join('')+'</div>';
+
   if(!sm){
-    el.innerHTML=
-      '<div style="text-align:center;padding:28px 0 20px">'
+    el.innerHTML=selHtml
+      +'<div style="text-align:center;padding:20px 0 16px">'
       +'<div style="font-size:30px;margin-bottom:8px">☀️</div>'
-      +'<div style="color:var(--whi);font-size:13px;font-weight:600;margin-bottom:5px">Sin datos de sombras para '+cid.toUpperCase()+'</div>'
+      +'<div style="color:var(--whi);font-size:13px;font-weight:600;margin-bottom:5px">Sin datos de sombras para '+_esc(cid.toUpperCase())+'</div>'
       +'<div style="color:var(--wdim);font-size:10px;line-height:1.55;max-width:260px;margin:0 auto">'
-      +'Disponible para: Amalfitani · 1FP · 2FP</div>'
+      +'Seleccioná una cancha con datos arriba.</div>'
       +'</div>';
     return;
   }
 
+  _sombraCid=cid;
   if(!_sombraMarkers[cid]){
     try{_sombraMarkers[cid]=JSON.parse(localStorage.getItem(_sombraWeekKey(cid))||'[]');}
     catch(e){_sombraMarkers[cid]=[];}
@@ -2195,8 +2202,8 @@ function buildSombrasModule(shadowMaps, cancha){
   var solUtil=Math.round(100-(sm.sombra_permanente_pct||0));
   var solCol=solUtil>=70?'var(--grn)':solUtil>=50?'var(--yel)':'var(--red)';
 
-  el.innerHTML=
-    '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'
+  el.innerHTML=selHtml
+    +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'
     +'<div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--wdim)">Sol Útil</div>'
     +'<div style="font-size:18px;font-weight:700;color:'+solCol+'">'+solUtil+'%</div>'
     +'<div style="font-size:9px;color:var(--wdim);margin-left:2px">'+sm.sombra_permanente_pct+'% perm · '+sm.sombra_parcial_pct+'% parcial · '+(sm.imagenes_analizadas||'—')+' imgs Sentinel-2</div>'
@@ -2279,9 +2286,13 @@ function sombraGuardar(){
 }
 
 function sombraLimpiar(){
-  var cid=_mcCurrentCancha;
-  _sombraMarkers[cid]=[];
-  _renderSombraMarkers(cid);
+  _sombraMarkers[_sombraCid]=[];
+  _renderSombraMarkers(_sombraCid);
+}
+
+function sombraSelectCancha(cid){
+  _sombraCid=cid;
+  buildSombrasModule(_mcData&&_mcData.shadow_maps);
 }
 
 function _renderSombraHist(){
@@ -2744,6 +2755,7 @@ window.aspCancel       = aspCancel;
 window.aspBorrarCancha = aspBorrarCancha;
 window.medGuardar      = medGuardar;
 window.medTipoChange   = medTipoChange;
+window.sombraSelectCancha = sombraSelectCancha;
 window.sombraClickHeatmap = sombraClickHeatmap;
 window.sombraSetNota   = sombraSetNota;
 window.sombraDelMarker = sombraDelMarker;
