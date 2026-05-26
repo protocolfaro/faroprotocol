@@ -1,6 +1,7 @@
 *SAFE*
 *.zip
 *.csv
+!historico_velez_protocol.csv
 *.tiff
 *.tif
 *.pdf

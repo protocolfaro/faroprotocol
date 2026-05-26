@@ -6,74 +6,87 @@ on:
   workflow_dispatch:        # Botón manual en GitHub
 
 jobs:
-  send-emails:
+  pipeline:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
     steps:
+      # ── Checkout + Python ─────────────────────────────────────────────────
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      # ── FASE A: Instalar dependencias de ingesta y analítica ──────────────
+      # ── FASE A: Dependencias + Ingesta satelital ──────────────────────────
       - name: Instalar dependencias
         run: |
           pip install requests matplotlib pillow numpy scipy
 
-      # ── FASE A: Actualizar velez_data.json con datos en caliente ─────────
-      - name: Ingesta de datos — data_refresh
+      - name: Fase A — Ingesta de datos en caliente
         env:
-          RAILWAY_URL:    ${{ secrets.RAILWAY_URL }}
-          RAILWAY_TOKEN:  ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_URL:   ${{ secrets.RAILWAY_URL }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
-          if [ -f "railway-backend/data_refresh.py" ]; then
-            python railway-backend/data_refresh.py || echo "data_refresh falló — usando datos existentes"
-          else
-            echo "data_refresh.py no encontrado — usando velez_data.json existente"
-          fi
+          cd railway-backend
+          python data_refresh.py || echo "[WARN] data_refresh falló — usando velez_data.json existente"
+          cd ..
 
-      # ── FASE B: Regenerar PNGs frescos ───────────────────────────────────
-      - name: Regenerar reportes PNG
+      # ── FASE B: Histórico + Regeneración de PNGs ─────────────────────────
+      - name: Fase B — Registro histórico semanal
+        run: |
+          cd railway-backend
+          python -c "
+          import sys, json
+          from pathlib import Path
+          sys.path.insert(0, '.')
+          vd = json.loads((Path('..') / 'velez' / 'velez_data.json').read_text(encoding='utf-8'))
+          import historico
+          p = historico.write_weekly_snapshot(vd)
+          print('Historico OK:', p)
+          " || echo "[WARN] historico falló"
+          cd ..
+
+      - name: Fase B — Regenerar PNGs frescos (headless)
         env:
           MPLBACKEND: Agg
         run: |
-          cd reportes_velez 2>/dev/null || true
-          for script in \
-            gen_velez_main.py \
-            gen_velez_canchero.py \
-            gen_velez_agro_FINAL.py \
-            gen_velez_solar_v2.py \
-            gen_velez_poli.py \
-            gen_velez_piletas.py \
-            gen_velez_sede.py; do
-            if [ -f "$script" ]; then
-              echo "Ejecutando $script..."
-              python "$script" || echo "$script falló — PNG anterior mantenido"
-            fi
-          done
+          cd railway-backend
+          python render_reports.py || echo "[WARN] render_reports falló — PNGs existentes mantenidos"
           cd ..
-          # También intentar en raíz del repo
-          for script in \
-            gen_velez_main.py \
-            gen_velez_canchero.py \
-            gen_velez_agro_FINAL.py \
-            gen_velez_solar_v2.py \
-            gen_velez_poli.py \
-            gen_velez_piletas.py \
-            gen_velez_sede.py; do
-            if [ -f "$script" ]; then
-              echo "Ejecutando $script (raíz)..."
-              MPLBACKEND=Agg python "$script" || echo "$script falló — PNG anterior mantenido"
-            fi
-          done
 
-      # ── FASE C: Despacho — enviar 7 correos con adjuntos PNG ─────────────
-      - name: Enviar reportes semanales
+      # ── Commit histórico y PNGs actualizados al repo ──────────────────────
+      - name: Commit PNG + CSV histórico
+        run: |
+          git config user.name  "Faro Protocol Bot"
+          git config user.email "protocolfaro@gmail.com"
+          git add reportes_velez/*.png historico_velez_protocol.csv 2>/dev/null || true
+          git diff --cached --quiet || git commit -m "chore(auto): reportes PNG + historico semana $(date +%Y-W%V)"
+
+      - name: Push cambios
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: main
+        continue-on-error: true
+
+      # ── FASE C: Despacho de correos ───────────────────────────────────────
+      - name: Fase C — Enviar reportes semanales
         env:
-          GMAIL_USER:     protocolfaro@gmail.com
+          GMAIL_USER:    protocolfaro@gmail.com
           GMAIL_APP_PASS: ${{ secrets.GMAIL_APP_PASS }}
-          RAILWAY_URL:    ${{ secrets.RAILWAY_URL }}
-          BREVO_API_KEY:  ${{ secrets.BREVO_API_KEY }}
+          RAILWAY_URL:   ${{ secrets.RAILWAY_URL }}
+          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
         run: python railway-backend/velez_scheduler.py
+
+      # ── Resumen ───────────────────────────────────────────────────────────
+      - name: Resumen del pipeline
+        if: always()
+        run: |
+          echo "=== Pipeline Faro Protocol completado ==="
+          ls -lh reportes_velez/*.png 2>/dev/null || echo "Sin PNGs en reportes_velez/"
+          [ -f historico_velez_protocol.csv ] && \
+            echo "historico: $(wc -l < historico_velez_protocol.csv) filas" || \
+            echo "historico: archivo no encontrado"

@@ -969,11 +969,32 @@ _SLUG_MAP = {
 }
 
 def send_all_reports(config: dict = None, vd: dict = None) -> dict:
-    """Send weekly HTML email to each destinatario. vd reused to avoid double GitHub fetch."""
+    """
+    Full pipeline: historico snapshot → render PNGs → send emails.
+    vd reused to avoid double GitHub fetch.
+    """
     if config is None:
         config = load_config()
     if vd is None:
         vd = _get_velez_data()
+
+    # ── FASE B-1: Registro histórico semanal ─────────────────────────────────
+    try:
+        import historico as _hist
+        hist_path = _hist.write_weekly_snapshot(vd)
+        log.info("historico: guardado en %s", hist_path)
+    except Exception as e:
+        log.warning("historico: %s", e)
+
+    # ── FASE B-2: Regenerar PNGs frescos ─────────────────────────────────────
+    out_dir = Path(__file__).parent.parent / "reportes_velez"
+    try:
+        import render_reports as _rr
+        generated = _rr.render_all(vd, out_dir)
+        log.info("render_reports: %d PNGs generados", len(generated))
+    except Exception as e:
+        log.warning("render_reports: %s — usando PNGs existentes", e)
+
     date_str     = datetime.now().strftime("%d/%m/%Y")
     report_paths = _get_report_paths(config)   # {key → Path} from config.zonas
     results      = {}
