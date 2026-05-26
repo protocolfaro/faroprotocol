@@ -588,9 +588,9 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
   <div id="micampo-section" style="display:none">
     <div class="section-title">Mi Campo <span style="font-size:9px;font-weight:400;color:var(--wdim);text-transform:none;margin-left:6px;letter-spacing:0">herramientas del responsable</span></div>
     <div class="mc-tabs" id="mc-tabs">
-      <button class="mc-tab active" data-mod="asp" style="cursor:default;opacity:.7">💧 Aspersores</button>
-      <button class="mc-tab" data-mod="sombras" onclick="mcToggleLayer('sombras')" title="Activar/desactivar capa de sombras">🌑 Sombras</button>
-      <button class="mc-tab" data-mod="med" onclick="mcToggleLayer('med')" title="Activar/desactivar mediciones">📐 Mediciones</button>
+      <button class="mc-tab active" data-mod="asp" onclick="mcSwitchTab('asp')">💧 Aspersores</button>
+      <button class="mc-tab" data-mod="sombras" onclick="mcSwitchTab('sombras')">🌑 Sombras</button>
+      <button class="mc-tab" data-mod="med" onclick="mcSwitchTab('med')">📐 Mediciones</button>
     </div>
     <div id="mc-asp" class="mc-module"></div>
     <div id="mc-sombras" class="mc-module" style="display:none"></div>
@@ -1212,7 +1212,7 @@ function renderLogHistory(){
     return '<div class="log-entry'+(hasNdvi?' log-entry-ext':'')+'"><div class="log-row-main">'
       +'<div class="log-emoji">'+e.emoji+'</div>'
       +'<div style="flex:1"><div class="log-action">'+e.label+'</div><div class="log-date">'+e.fecha+'</div></div>'
-      +'<button class="log-del-btn" onclick="deleteLog('+e.ts+')">🗑</button>'
+      +'<button class="log-del-btn" data-ts="'+e.ts+'" onclick="deleteLog(+this.dataset.ts)">🗑</button>'
       +'</div>'
       +ndviHtml
       +'</div>';
@@ -1941,19 +1941,20 @@ var MC_TIPOS=[
 var MC_ZONAS=['Centro','Lateral N','Lateral S','Área chica N','Área chica S','Portería N','Portería S'];
 
 function mcSwitchTab(mod){
-  // Legacy: still works if called directly for 'asp'
-  if(mod==='asp') return;
-  mcToggleLayer(mod);
+  ['asp','sombras','med'].forEach(function(m){
+    var el=document.getElementById('mc-'+m);
+    var btn=document.querySelector('.mc-tab[data-mod="'+m+'"]');
+    if(el) el.style.display=(m===mod)?'':'none';
+    if(btn) btn.classList.toggle('active',m===mod);
+  });
+  if(mod==='sombras'){
+    buildSombrasModule(_mcData&&_mcData.shadow_maps,_mcCurrentCancha||undefined);
+  }
+  if(mod==='med'){
+    medRenderHistory(_mcCurrentCancha||undefined);
+  }
 }
-function mcToggleLayer(mod){
-  // Aspersores is always visible. Sombras and Mediciones are independent toggles.
-  var el=document.getElementById('mc-'+mod);
-  var btn=document.querySelector('.mc-tab[data-mod="'+mod+'"]');
-  if(!el) return;
-  var showing=el.style.display!=='none';
-  el.style.display=showing?'none':'';
-  if(btn) btn.classList.toggle('active',!showing);
-}
+function mcToggleLayer(mod){ mcSwitchTab(mod); }
 
 /* ── MÓDULO 1: ASPERSORES ── */
 function buildAspersores(){
@@ -2480,7 +2481,7 @@ function medRenderHistory(canchaFilter){
     +' ('+hist.length+')</div>';
   html+=hist.slice(0,12).map(function(r){
     var t=MC_TIPOS.find(function(x){return x.id===r.tipo;});
-    var rid=JSON.stringify(r.id||r.timestamp||'');
+    var rid=(r.id||r.timestamp||'').replace(/"/g,'&quot;');
     return '<div class="mc-med-row">'
       +'<div class="mc-med-icon">'+(r.icon||'📐')+'</div>'
       +'<div class="mc-med-body">'
@@ -2488,7 +2489,7 @@ function medRenderHistory(canchaFilter){
       +'<div class="mc-med-sub">'+r.zona+' · '+r.fecha+(r.nota?' · '+r.nota:'')+'</div>'
       +(r.interp?'<div class="mc-med-interp '+(r.interp_cls||'ok')+'">'+r.interp+'</div>':'')
       +'</div>'
-      +'<button class="mc-del-btn" onclick="deleteMedicion('+rid+')">🗑</button>'
+      +'<button class="mc-del-btn" data-rid="'+rid+'" onclick="deleteMedicion(this.dataset.rid)">🗑</button>'
       +'</div>';
   }).join('');
   el.innerHTML=html;
