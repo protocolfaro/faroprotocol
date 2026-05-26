@@ -6,6 +6,7 @@
 *.tif
 *.pdf
 !reportes_velez/*.pdf
+!aldosivi/*.pdf
 sar_downloads/
 node_modules/
 .vercel/
