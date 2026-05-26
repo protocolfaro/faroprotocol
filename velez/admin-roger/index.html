@@ -14,19 +14,8 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
 .logo-text{font-size:11px;font-weight:700;letter-spacing:.12em;color:var(--gold);text-transform:uppercase}
 .header-sub{margin-top:4px;font-size:13px;font-weight:600;color:var(--whi)}
 
-/* PIN screen */
-#pin-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:80vh;gap:20px;padding:24px}
-.pin-lock{font-size:40px;opacity:.4}
-.pin-title{font-size:16px;font-weight:600}
-.pin-sub{font-size:12px;color:var(--wdim);text-align:center;max-width:260px;line-height:1.7}
-.pin-input{width:160px;height:52px;background:var(--bg2);border:2px solid rgba(201,168,76,.3);border-radius:var(--radius);color:var(--whi);font-size:28px;font-weight:700;letter-spacing:.3em;text-align:center;outline:none}
-.pin-input:focus{border-color:var(--gold)}
-.pin-btn{width:160px;height:48px;background:var(--gold);color:#0d1117;border:none;border-radius:var(--radius);font-size:14px;font-weight:700;letter-spacing:.05em;cursor:pointer}
-.pin-btn:active{opacity:.8}
-.pin-error{font-size:12px;color:var(--red);display:none}
-
 /* Main panel */
-#main-panel{display:none;padding:0 0 80px}
+#main-panel{display:block;padding:0 0 80px}
 .section{padding:16px 16px 4px;font-size:10px;font-weight:700;letter-spacing:.14em;color:var(--gold);text-transform:uppercase;border-bottom:1px solid rgba(201,168,76,.15)}
 
 /* Semana card */
@@ -97,16 +86,6 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
   <div class="header-sub">Carga Semanal · Villa Olímpica</div>
 </div>
 
-<!-- PIN screen -->
-<div id="pin-screen">
-  <div class="pin-lock">🔒</div>
-  <div class="pin-title">Acceso restringido</div>
-  <div class="pin-sub">Ingresá tu PIN de 4 dígitos para cargar el diagrama de la semana.</div>
-  <input id="pin-input" class="pin-input" type="password" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="off">
-  <button class="pin-btn" onclick="verifyPin()">ENTRAR</button>
-  <div class="pin-error" id="pin-error">PIN incorrecto</div>
-</div>
-
 <!-- Main panel -->
 <div id="main-panel">
   <div class="section">Semana</div>
@@ -139,7 +118,7 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
     <div id="solar-grid"></div>
   </div>
 
-  <div id="cron-section" style="display:none">
+  <div id="cron-section">
     <div class="section" style="margin-top:8px">Cronograma Semanal del Club</div>
     <div style="margin:10px 16px">
       <div id="cron-container" style="background:var(--bg2);border-radius:var(--radius);border:1px solid rgba(255,255,255,.06);overflow:hidden;min-height:90px"></div>
@@ -150,7 +129,7 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
   <div style="height:70px"></div>
 </div>
 
-<div class="bottom-bar" id="bottom-bar" style="display:none">
+<div class="bottom-bar" id="bottom-bar">
   <button class="save-btn" id="save-btn" onclick="guardarSemana()">
     <span>💾</span><span>GUARDAR SEMANA</span>
   </button>
@@ -162,7 +141,6 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
 
 var CONFIG_URL = '../config_velez.json';
 var RAILWAY_URL = '';  // loaded from config
-var PIN_HASH   = '';   // sha256 of PIN, loaded from config
 
 // Categories with fixed turno and factor
 var CATS = [
@@ -188,19 +166,12 @@ var DIAS = [
   {id:'sab',label:'Sáb'},
 ];
 
-// ── SHA-256 via WebCrypto ──
-async function sha256(text){
-  var buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
-  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
-}
-
 // ── Load config ──
 async function loadConfig(){
   try{
     var r = await fetch(CONFIG_URL);
     if(!r.ok) return;
     var cfg = await r.json();
-    PIN_HASH   = (cfg.admin && cfg.admin.pin_hash) || '';
     RAILWAY_URL= (cfg.admin && cfg.admin.railway_url) || '';
     // Pre-fill semana if config has it
     var s = cfg.horarios_vo_semana;
@@ -303,29 +274,6 @@ function updateAllDels(){
   });
 }
 
-// ── Verify PIN ──
-window.verifyPin = async function(){
-  var pin=document.getElementById('pin-input').value.trim();
-  if(pin.length!==4){
-    document.getElementById('pin-error').style.display='block';
-    document.getElementById('pin-error').textContent='El PIN tiene 4 dígitos';
-    return;
-  }
-  var h = await sha256(pin);
-  if(PIN_HASH && h!==PIN_HASH){
-    document.getElementById('pin-error').style.display='block';
-    document.getElementById('pin-error').textContent='PIN incorrecto';
-    return;
-  }
-  document.getElementById('pin-screen').style.display='none';
-  document.getElementById('main-panel').style.display='block';
-  document.getElementById('bottom-bar').style.display='block';
-  // Store pin for POST
-  window._userPin = pin;
-  document.getElementById('cron-section').style.display='block';
-  renderCronograma();
-};
-
 // ── Save week ──
 window.guardarSemana = async function(){
   var btn=document.getElementById('save-btn');
@@ -345,7 +293,6 @@ window.guardarSemana = async function(){
   }
 
   var payload={
-    pin:      window._userPin,
     semana:{
       label:       document.getElementById('sem-label').value.trim(),
       fecha_inicio:document.getElementById('sem-ini').value,
@@ -532,16 +479,12 @@ window.cronBorrar=function(){
   localStorage.removeItem(cronKey()); renderCronograma();
 };
 
-// ── ENTER key on PIN ──
 document.addEventListener('DOMContentLoaded', function(){
   buildTable();
   loadConfig();
   loadShadowMaps();
   cleanOldCronograma();
-  var pi=document.getElementById('pin-input');
-  pi.addEventListener('keydown',function(e){
-    if(e.key==='Enter') window.verifyPin();
-  });
+  renderCronograma();
 });
 })();
 </script>
