@@ -385,6 +385,20 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
 .mc-toggle input:checked+.mc-toggle-slider{background:rgba(76,173,114,.55)}
 .mc-toggle input:checked+.mc-toggle-slider:before{transform:translateX(18px)}
 .mc-toggle input:not(:checked)+.mc-toggle-slider{background:rgba(224,82,82,.45)}
+/* Sombras — correcciones interactivas */
+.sombra-hm-wrap{position:relative;cursor:crosshair;border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,.06);user-select:none}
+.sombra-img{width:100%;display:block}
+.sombra-overlay{position:absolute;inset:0;pointer-events:none}
+.sombra-marker{position:absolute;transform:translate(-50%,-50%);pointer-events:auto;cursor:default}
+.sombra-dot{display:flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:var(--gold);color:#0d1117;font-size:11px;font-weight:700;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.6)}
+.sombra-nota-input{width:100%;padding:7px 10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:6px;color:var(--text);font-size:12px;font-family:inherit;box-sizing:border-box;margin-top:5px;-webkit-appearance:none}
+.sombra-nota-input:focus{outline:none;border-color:rgba(201,168,76,.4)}
+.sombra-del-btn{background:none;border:none;color:var(--wdim);font-size:14px;cursor:pointer;padding:4px 6px;line-height:1;flex-shrink:0;margin-left:6px}
+.sombra-del-btn:active{color:var(--red)}
+.sombra-btns{display:flex;gap:8px;margin-top:12px}
+.sombra-btn{flex:1;padding:10px 0;border-radius:8px;border:1px solid rgba(201,168,76,.3);background:rgba(201,168,76,.1);color:var(--gold);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
+.sombra-btn:active{opacity:.7}
+.sombra-btn-sec{border-color:rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:var(--wdim)}
 /* Mediciones */
 .mc-form-row{margin-bottom:11px}
 .mc-label{font-size:9px;color:var(--wdim);letter-spacing:.08em;text-transform:uppercase;margin-bottom:5px}
@@ -1932,7 +1946,7 @@ function buildMantenimientoSection(){
 /* ══════════════════════════════════════════════════════
    MI CAMPO — Aspersores · Sombras · Mediciones
    ══════════════════════════════════════════════════════ */
-var _mcData=null, _aspState={}, _aspEditMode=false, _mcCurrentCancha='1fa';
+var _mcData=null, _aspState={}, _aspEditMode=false, _mcCurrentCancha='amalfitani';
 var MC_DISCLAIMER='Datos cargados por el responsable de campo. Faro Protocol los integra como capa de validación sobre los datos satelitales.';
 var MC_CANCHAS=['1fa','2fa','3fa','4fa','5fa','6fa','7fa','8fa','9fa','10fa','1fp','2fp'];
 var FIELD_W=105, FIELD_H=68, ASP_R=8; // FIFA field (m), default sprinkler radius
@@ -2145,6 +2159,18 @@ function aspRender(cid){
 }
 
 /* ── MÓDULO 2: SOMBRAS ── */
+var _sombraMarkers={};
+
+function _sombraWeekKey(cid){
+  var d=new Date();
+  var t=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));
+  t.setUTCDate(t.getUTCDate()+4-(t.getUTCDay()||7));
+  var w=Math.ceil(((t-new Date(Date.UTC(t.getUTCFullYear(),0,1)))/864e5+1)/7);
+  return 'sombras_'+cid+'_'+t.getUTCFullYear()+'-'+String(w).padStart(2,'0');
+}
+
+function _esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
+
 function buildSombrasModule(shadowMaps, cancha){
   var el=document.getElementById('mc-sombras'); if(!el) return;
   var cid=((cancha||_mcCurrentCancha||'')).toLowerCase();
@@ -2154,69 +2180,138 @@ function buildSombrasModule(shadowMaps, cancha){
     el.innerHTML=
       '<div style="text-align:center;padding:28px 0 20px">'
       +'<div style="font-size:30px;margin-bottom:8px">☀️</div>'
-      +'<div style="color:var(--whi);font-size:13px;font-weight:600;margin-bottom:5px">Calculando proyección solar estacional...</div>'
+      +'<div style="color:var(--whi);font-size:13px;font-weight:600;margin-bottom:5px">Sin datos de sombras para '+cid.toUpperCase()+'</div>'
       +'<div style="color:var(--wdim);font-size:10px;line-height:1.55;max-width:260px;margin:0 auto">'
-      +'Faro analiza imágenes Sentinel-2 para mapear sombras permanentes y parciales'+(cid?' en '+cid.toUpperCase()+'.':' en cada sector del campo.')+'</div>'
+      +'Disponible para: Amalfitani · 1FP · 2FP</div>'
       +'</div>';
     return;
   }
 
-  var saved={};
-  try{saved=JSON.parse(localStorage.getItem('mc_sombras_cal')||'{}');}catch(e){}
-  var isCorrect=cid in saved?saved[cid]:true;
+  if(!_sombraMarkers[cid]){
+    try{_sombraMarkers[cid]=JSON.parse(localStorage.getItem(_sombraWeekKey(cid))||'[]');}
+    catch(e){_sombraMarkers[cid]=[];}
+  }
 
   var solUtil=Math.round(100-(sm.sombra_permanente_pct||0));
   var solCol=solUtil>=70?'var(--grn)':solUtil>=50?'var(--yel)':'var(--red)';
-  var solBg=solUtil>=70?'var(--grnd)':solUtil>=50?'var(--yeld)':'var(--redd)';
-
-  var rec;
-  if(solUtil>=85)      rec='Excelente exposición solar. Sin limitaciones para el crecimiento del tapiz.';
-  else if(solUtil>=70) rec='Buena exposición. Zona de sombra controlada — monitorear densidad del tapiz en sectores críticos.';
-  else if(solUtil>=50) rec='Exposición reducida. Considerar semillas tolerantes a sombra o iluminación suplementaria.';
-  else                 rec='Sombra excesiva. Compromete el crecimiento del césped — evaluar poda de obstáculos o variedades de alta tolerancia.';
-
-  var calNote=!isCorrect
-    ?'<div style="font-size:10px;color:var(--yel);margin-top:8px;background:rgba(224,184,76,.1);border-radius:6px;padding:6px 8px">⚠️ Marcado como error de satélite — excluido del análisis de sombras</div>'
-    :'';
 
   el.innerHTML=
-    '<img style="width:100%;display:block;border-radius:8px;margin-bottom:12px;border:1px solid rgba(255,255,255,.06)" src="heatmaps/heatmap_'+cid+'_shadow.png" loading="lazy" onerror="this.style.display=\'none\'">'
-    +'<div style="background:var(--bg2);border-radius:10px;padding:14px;border:1px solid rgba(255,255,255,.06);margin-bottom:10px">'
-    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
-    +'<div>'
-    +'<div style="font-size:9px;font-weight:700;letter-spacing:.12em;color:var(--wdim);text-transform:uppercase;margin-bottom:4px">Sol Útil en Superficie</div>'
-    +'<div style="font-size:30px;font-weight:700;color:'+solCol+'">'+solUtil+'%</div>'
+    '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'
+    +'<div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--wdim)">Sol Útil</div>'
+    +'<div style="font-size:18px;font-weight:700;color:'+solCol+'">'+solUtil+'%</div>'
+    +'<div style="font-size:9px;color:var(--wdim);margin-left:2px">'+sm.sombra_permanente_pct+'% perm · '+sm.sombra_parcial_pct+'% parcial · '+(sm.imagenes_analizadas||'—')+' imgs Sentinel-2</div>'
     +'</div>'
-    +'<div style="background:'+solBg+';border-radius:8px;padding:10px 14px;text-align:right">'
-    +'<div style="font-size:11px;font-weight:700;color:'+solCol+'">'+sm.sombra_permanente_pct+'%</div>'
-    +'<div style="font-size:9px;color:var(--wdim)">sombra perm.</div>'
-    +'<div style="font-size:11px;font-weight:700;color:var(--whi);margin-top:5px">'+sm.sombra_parcial_pct+'%</div>'
-    +'<div style="font-size:9px;color:var(--wdim)">sombra parcial</div>'
+    +'<div id="sombra-wrap" class="sombra-hm-wrap" onclick="sombraClickHeatmap(event,this)">'
+    +'<img id="sombra-img" class="sombra-img" src="heatmaps/heatmap_'+cid+'_shadow.png" alt="Sombras '+_esc(cid.toUpperCase())+'" onerror="this.style.opacity=\'0.15\'">'
+    +'<div id="sombra-overlay" class="sombra-overlay"></div>'
     +'</div>'
+    +'<div style="font-size:9px;color:var(--wdim);text-align:center;margin:6px 0 12px">Tocá el heatmap para marcar zonas incorrectas</div>'
+    +'<div id="sombra-markers-list"></div>'
+    +'<div class="sombra-btns">'
+    +'<button id="sombra-guardar-btn" class="sombra-btn" onclick="sombraGuardar()">Guardar correcciones</button>'
+    +'<button class="sombra-btn sombra-btn-sec" onclick="sombraLimpiar()">Limpiar marcadores</button>'
     +'</div>'
-    +'<div style="font-size:11px;color:var(--whi);line-height:1.6;margin-bottom:6px">'+rec+'</div>'
-    +'<div style="font-size:9px;color:var(--wdim)">'+(sm.imagenes_analizadas||'—')+' imágenes Sentinel-2 · '+(sm.label||cid.toUpperCase())+'</div>'
-    +calNote
-    +'</div>'
-    +'<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--bg3);border-radius:8px;border:1px solid rgba(255,255,255,.05)">'
-    +'<div>'
-    +'<div style="font-size:11px;color:var(--whi);font-weight:600;margin-bottom:2px">¿El satélite es correcto?</div>'
-    +'<div style="font-size:9px;color:var(--wdim)">Desactivá si detecta sombra donde no la hay en campo real</div>'
-    +'</div>'
-    +'<label class="mc-toggle" title="ON = satélite correcto · OFF = no hay sombra real aquí">'
-    +'<input type="checkbox" '+(isCorrect?'checked':'')+' onchange="mcSaveSombra(\''+cid+'\',this.checked)">'
-    +'<span class="mc-toggle-slider"></span>'
-    +'</label>'
-    +'</div>'
-    +'<div class="mc-disclaimer" style="color:var(--wdim)">'+MC_DISCLAIMER+'</div>';
+    +'<div id="sombra-hist" style="margin-top:16px"></div>';
+
+  _renderSombraMarkers(cid);
+  _renderSombraHist();
 }
 
-function mcSaveSombra(sid, val){
-  var saved={};
-  try{saved=JSON.parse(localStorage.getItem('mc_sombras_cal')||'{}');}catch(e){}
-  saved[sid]=val;
-  localStorage.setItem('mc_sombras_cal',JSON.stringify(saved));
-  buildSombrasModule(_mcData&&_mcData.shadow_maps, sid);
+function sombraClickHeatmap(e,wrap){
+  if(e.target.closest&&e.target.closest('.sombra-marker')) return;
+  var img=document.getElementById('sombra-img');
+  if(!img) return;
+  var rect=img.getBoundingClientRect();
+  var x=parseFloat(((e.clientX-rect.left)/rect.width*100).toFixed(1));
+  var y=parseFloat(((e.clientY-rect.top)/rect.height*100).toFixed(1));
+  if(x<0||x>100||y<0||y>100) return;
+  var cid=_mcCurrentCancha;
+  if(!_sombraMarkers[cid]) _sombraMarkers[cid]=[];
+  _sombraMarkers[cid].push({x:x,y:y,nota:'',fecha:new Date().toISOString()});
+  _renderSombraMarkers(cid);
+}
+
+function _renderSombraMarkers(cid){
+  var overlay=document.getElementById('sombra-overlay');
+  var list=document.getElementById('sombra-markers-list');
+  var markers=_sombraMarkers[cid]||[];
+
+  if(overlay){
+    overlay.innerHTML=markers.map(function(m,i){
+      return '<div class="sombra-marker" style="left:'+m.x+'%;top:'+m.y+'%" onclick="event.stopPropagation()">'
+        +'<span class="sombra-dot">'+(i+1)+'</span>'
+        +'</div>';
+    }).join('');
+  }
+
+  if(list){
+    if(!markers.length){list.innerHTML='';return;}
+    list.innerHTML='<div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--wdim);margin-bottom:6px">Zonas marcadas</div>'
+      +markers.map(function(m,i){
+        return '<div class="mc-shadow-row">'
+          +'<div class="mc-shadow-info">'
+          +'<div class="mc-shadow-label">Marcador '+(i+1)+'</div>'
+          +'<input class="sombra-nota-input" type="text" placeholder="¿Por qué es incorrecto?" value="'+_esc(m.nota)+'" oninput="sombraSetNota('+i+',this.value)">'
+          +'</div>'
+          +'<button class="sombra-del-btn" onclick="sombraDelMarker('+i+')" title="Eliminar">✕</button>'
+          +'</div>';
+      }).join('');
+  }
+}
+
+function sombraSetNota(idx,val){
+  var cid=_mcCurrentCancha;
+  if(_sombraMarkers[cid]&&_sombraMarkers[cid][idx]!=null) _sombraMarkers[cid][idx].nota=val;
+}
+
+function sombraDelMarker(idx){
+  var cid=_mcCurrentCancha;
+  if(_sombraMarkers[cid]){_sombraMarkers[cid].splice(idx,1);_renderSombraMarkers(cid);}
+}
+
+function sombraGuardar(){
+  var cid=_mcCurrentCancha;
+  var key=_sombraWeekKey(cid);
+  try{localStorage.setItem(key,JSON.stringify(_sombraMarkers[cid]||[]));}catch(e){}
+  var btn=document.getElementById('sombra-guardar-btn');
+  if(btn){btn.textContent='✅ Guardado';setTimeout(function(){if(btn)btn.textContent='Guardar correcciones';},2000);}
+  _renderSombraHist();
+}
+
+function sombraLimpiar(){
+  var cid=_mcCurrentCancha;
+  _sombraMarkers[cid]=[];
+  _renderSombraMarkers(cid);
+}
+
+function _renderSombraHist(){
+  var el=document.getElementById('sombra-hist'); if(!el) return;
+  var entries=[];
+  try{
+    for(var i=0;i<localStorage.length;i++){
+      var k=localStorage.key(i);
+      if(!k||k.indexOf('sombras_')!==0) continue;
+      var data=JSON.parse(localStorage.getItem(k)||'[]');
+      var last=k.lastIndexOf('_');
+      var week=k.slice(last+1);
+      var cidH=k.slice('sombras_'.length,last);
+      if(data.length) entries.push({cid:cidH,week:week,count:data.length});
+    }
+  }catch(e){}
+  if(!entries.length){
+    el.innerHTML='<div style="font-size:10px;color:var(--wdim);padding:4px 0">Sin historial guardado</div>';
+    return;
+  }
+  entries.sort(function(a,b){return b.week.localeCompare(a.week)||a.cid.localeCompare(b.cid);});
+  el.innerHTML='<div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--wdim);margin-bottom:8px">Historial de correcciones</div>'
+    +entries.map(function(e){
+      return '<div class="mc-shadow-row">'
+        +'<div class="mc-shadow-info">'
+        +'<div class="mc-shadow-label">'+_esc(e.cid.toUpperCase())+'</div>'
+        +'<div class="mc-shadow-sub">Semana '+_esc(e.week)+' · '+e.count+' marcador'+(e.count!==1?'es':'')+'</div>'
+        +'</div>'
+        +'</div>';
+    }).join('');
 }
 
 /* ── CSV UPLOAD ── */
@@ -2649,7 +2744,11 @@ window.aspCancel       = aspCancel;
 window.aspBorrarCancha = aspBorrarCancha;
 window.medGuardar      = medGuardar;
 window.medTipoChange   = medTipoChange;
-window.mcSaveSombra    = mcSaveSombra;
+window.sombraClickHeatmap = sombraClickHeatmap;
+window.sombraSetNota   = sombraSetNota;
+window.sombraDelMarker = sombraDelMarker;
+window.sombraGuardar   = sombraGuardar;
+window.sombraLimpiar   = sombraLimpiar;
 window.csvParseAndLoad = csvParseAndLoad;
 window.deleteLog       = deleteLog;
 window.deleteMedicion  = deleteMedicion;
