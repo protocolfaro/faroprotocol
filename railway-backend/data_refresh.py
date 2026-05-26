@@ -428,6 +428,19 @@ def _gh_get_sha_and_content(path: str):
     return None, {}
 
 
+_DIA_NOMBRES = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
+
+
+def _update_tareas_dates(cfg: dict) -> None:
+    """Shift tareas_semana fecha_iso to the current ISO week (Mon–Sun)."""
+    today = date.today()
+    monday = today - timedelta(days=today.weekday())
+    tareas = cfg.get("usuarios", {}).get("roger", {}).get("tareas_semana", [])
+    for t in tareas:
+        offset = t.get("dia_offset", 0)
+        t["fecha_iso"] = (monday + timedelta(days=offset)).isoformat()
+
+
 def push_weather_update(weather_live: dict) -> str:
     ts = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
     sha, cfg = _gh_get_sha_and_content(_VD_PATH)
@@ -436,6 +449,7 @@ def push_weather_update(weather_live: dict) -> str:
     cfg.setdefault("meta", {})["fecha"]   = today_d.isoformat()
     cfg["meta"]["semana"] = (today_d - timedelta(days=today_d.weekday())).isoformat()
     cfg["updated_at"] = ts
+    _update_tareas_dates(cfg)
 
     payload = {
         "message": f"data refresh: weather_live [{ts}]",
