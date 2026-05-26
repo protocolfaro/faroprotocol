@@ -109,13 +109,27 @@ def horarios():
     })
 
 
-@app.route("/velez/mediciones", methods=["POST"])
+@app.route("/velez/mediciones", methods=["POST", "DELETE"])
 def mediciones():
     body = request.get_json(silent=True)
     if not body:
         return jsonify({"status": "error", "error": "JSON body required"}), 400
     if not _ok_pin(body.get("pin")):
         return jsonify({"status": "error", "error": "PIN inválido"}), 401
+
+    if request.method == "DELETE":
+        rec_id = body.get("id", "")
+        if not rec_id:
+            return jsonify({"status": "error", "error": "id requerido"}), 400
+        try:
+            result = github_push.delete_medicion(rec_id)
+            return jsonify({"status": "ok", "result": result})
+        except EnvironmentError as e:
+            return jsonify({"status": "error", "error": str(e)}), 503
+        except Exception as e:
+            log.error(traceback.format_exc())
+            return jsonify({"status": "error", "error": str(e)}), 500
+
     med = body.get("medicion")
     if not med or not med.get("tipo") or not med.get("cancha"):
         return jsonify({"status": "error", "error": "medicion.tipo y medicion.cancha requeridos"}), 400
@@ -129,8 +143,18 @@ def mediciones():
         return jsonify({"status": "error", "error": str(e)}), 500
 
 
-@app.route("/velez/aspersores", methods=["POST"])
+@app.route("/velez/aspersores", methods=["GET", "POST"])
 def aspersores():
+    if request.method == "GET":
+        try:
+            data = github_push.get_aspersores()
+            return jsonify({"status": "ok", "aspersores_por_cancha": data})
+        except EnvironmentError as e:
+            return jsonify({"status": "error", "error": str(e)}), 503
+        except Exception as e:
+            log.error(traceback.format_exc())
+            return jsonify({"status": "error", "error": str(e)}), 500
+
     body = request.get_json(silent=True)
     if not body:
         return jsonify({"status": "error", "error": "JSON body required"}), 400
@@ -144,6 +168,24 @@ def aspersores():
         commit_url = github_push.push_aspersores(cid, asp)
         log.info("Aspersores %s guardados: %d puntos → %s", cid.upper(), len(asp), commit_url)
         return jsonify({"status": "ok", "cancha": cid, "n": len(asp), "commit": commit_url})
+    except EnvironmentError as e:
+        return jsonify({"status": "error", "error": str(e)}), 503
+    except Exception as e:
+        log.error(traceback.format_exc())
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
+@app.route("/velez/aspersores/<cancha>", methods=["DELETE"])
+def delete_aspersores_route(cancha):
+    body = request.get_json(silent=True)
+    if not body:
+        return jsonify({"status": "error", "error": "JSON body required"}), 400
+    if not _ok_pin(body.get("pin")):
+        return jsonify({"status": "error", "error": "PIN inválido"}), 401
+    try:
+        result = github_push.delete_aspersores(cancha)
+        log.info("Aspersores %s borrados — %s", cancha.upper(), result)
+        return jsonify({"status": "ok", "cancha": cancha, "commit": result})
     except EnvironmentError as e:
         return jsonify({"status": "error", "error": str(e)}), 503
     except Exception as e:

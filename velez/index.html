@@ -251,6 +251,12 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
 .log-emoji{font-size:15px}
 .log-action{font-size:12px;font-weight:600}
 .log-date{font-size:10px;color:var(--wdim)}
+.log-del-btn{background:none;border:none;color:var(--wdim);font-size:16px;cursor:pointer;padding:4px 2px;line-height:1;flex-shrink:0;opacity:.55;-webkit-tap-highlight-color:transparent}
+.log-del-btn:active{color:var(--red);opacity:1}
+.mc-del-btn{background:none;border:none;color:var(--wdim);font-size:14px;cursor:pointer;padding:2px 0 2px 6px;line-height:1;flex-shrink:0;margin-top:2px;opacity:.5;-webkit-tap-highlight-color:transparent}
+.mc-del-btn:active{color:var(--red);opacity:1}
+.asp-reset-btn{display:block;width:100%;margin-top:10px;padding:8px 0;background:rgba(224,82,82,.1);border:1px solid rgba(224,82,82,.3);border-radius:8px;color:var(--red);font-size:12px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.asp-reset-btn:active{opacity:.7}
 #log-fab{position:fixed;bottom:24px;right:20px;z-index:200;background:var(--gold);color:#0d1117;border:none;border-radius:50px;padding:12px 18px;font-size:13px;font-weight:700;letter-spacing:.04em;cursor:pointer;box-shadow:0 4px 20px rgba(201,168,76,.45);display:none}
 
 /* ── LOG MODAL ── */
@@ -1206,10 +1212,17 @@ function renderLogHistory(){
     return '<div class="log-entry'+(hasNdvi?' log-entry-ext':'')+'"><div class="log-row-main">'
       +'<div class="log-emoji">'+e.emoji+'</div>'
       +'<div style="flex:1"><div class="log-action">'+e.label+'</div><div class="log-date">'+e.fecha+'</div></div>'
+      +'<button class="log-del-btn" onclick="deleteLog('+e.ts+')">🗑</button>'
       +'</div>'
       +ndviHtml
       +'</div>';
   }).join('')+'</div>';
+}
+
+function deleteLog(ts){
+  if(!confirm('¿Eliminar esta intervención?')) return;
+  saveLog(loadLog().filter(function(e){return e.ts!==ts;}));
+  renderLogHistory();
 }
 
 function buildModalGrid(){
@@ -1965,6 +1978,7 @@ function buildAspersores(){
     +'<div class="asp-map-container" id="asp-map-container"><svg id="asp-svg" class="asp-map-svg view-only" viewBox="0 0 '+FIELD_W+' '+FIELD_H+'" preserveAspectRatio="xMidYMid meet"></svg></div>'
     +'<div id="asp-hint" class="asp-hint">Tocá un 💧 para cambiar su estado · "Editar" para agregar o quitar aspersores</div>'
     +'<div id="asp-coverage" style="font-size:11px;color:var(--wdim);margin-top:4px;text-align:center"></div>'
+    +'<button class="asp-reset-btn" onclick="aspBorrarCancha()">🗑 Borrar todos los aspersores de esta cancha</button>'
     +'<div class="mc-disclaimer">'+MC_DISCLAIMER+'</div>';
   aspRender(_mcCurrentCancha);
   aspSetupEvents();
@@ -2020,6 +2034,22 @@ function aspCancel(){
   try{_aspState=JSON.parse(localStorage.getItem('mc_aspersores')||'{}');}catch(e){_aspState={};}
   aspToggleEdit();
   aspRender(_mcCurrentCancha);
+}
+
+function aspBorrarCancha(){
+  var cid=_mcCurrentCancha||'';
+  if(!confirm('¿Borrar todos los aspersores de '+(cid||'esta cancha').toUpperCase()+'?')) return;
+  delete _aspState[cid];
+  localStorage.setItem('mc_aspersores',JSON.stringify(_aspState));
+  aspRender(cid);
+  var h=document.getElementById('asp-hint');
+  if(h) h.textContent='Aspersores borrados.';
+  var RAILWAY=typeof RAILWAY_URL!=='undefined'?RAILWAY_URL:null;
+  var PIN=typeof _pinValue!=='undefined'?_pinValue:null;
+  if(RAILWAY&&PIN&&cid){
+    fetch(RAILWAY+'/velez/aspersores/'+cid,{method:'DELETE',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({pin:PIN})}).catch(function(){});
+  }
 }
 
 function aspSetupEvents(){
@@ -2363,7 +2393,8 @@ function medGuardar(ev){
   }
   var t=MC_TIPOS.find(function(x){return x.id===tipo;});
   var interp=medInterpretar(tipo,valor,_mcData);
-  var rec={cancha:cancha,tipo:tipo,valor:valor,zona:zona,nota:nota,
+  var rec={id:Date.now().toString(36)+Math.random().toString(36).slice(2,7),
+    cancha:cancha,tipo:tipo,valor:valor,zona:zona,nota:nota,
     fecha:new Date().toISOString().slice(0,10),
     timestamp:new Date().toISOString(),
     icon:t?t.icon:'📐', unit:t?t.unit:'',
@@ -2449,15 +2480,33 @@ function medRenderHistory(canchaFilter){
     +' ('+hist.length+')</div>';
   html+=hist.slice(0,12).map(function(r){
     var t=MC_TIPOS.find(function(x){return x.id===r.tipo;});
+    var rid=JSON.stringify(r.id||r.timestamp||'');
     return '<div class="mc-med-row">'
       +'<div class="mc-med-icon">'+(r.icon||'📐')+'</div>'
       +'<div class="mc-med-body">'
       +'<div class="mc-med-title">'+r.cancha.toUpperCase()+' · '+(t?t.label:r.tipo)+' · <b>'+r.valor+'</b> '+(r.unit||'')+'</div>'
       +'<div class="mc-med-sub">'+r.zona+' · '+r.fecha+(r.nota?' · '+r.nota:'')+'</div>'
       +(r.interp?'<div class="mc-med-interp '+(r.interp_cls||'ok')+'">'+r.interp+'</div>':'')
-      +'</div></div>';
+      +'</div>'
+      +'<button class="mc-del-btn" onclick="deleteMedicion('+rid+')">🗑</button>'
+      +'</div>';
   }).join('');
   el.innerHTML=html;
+}
+
+function deleteMedicion(rid){
+  if(!confirm('¿Eliminar esta medición?')) return;
+  var hist=[];
+  try{hist=JSON.parse(localStorage.getItem('mc_mediciones')||'[]');}catch(err){}
+  hist=hist.filter(function(r){return (r.id||r.timestamp||'')!==rid;});
+  localStorage.setItem('mc_mediciones',JSON.stringify(hist));
+  var RAILWAY=typeof RAILWAY_URL!=='undefined'?RAILWAY_URL:null;
+  var PIN=typeof _pinValue!=='undefined'?_pinValue:null;
+  if(RAILWAY&&PIN&&rid){
+    fetch(RAILWAY+'/velez/mediciones',{method:'DELETE',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({pin:PIN,id:rid})}).catch(function(){});
+  }
+  medRenderHistory(_mcCurrentCancha||undefined);
 }
 
 function buildMiCampo(u,data,cfg){
@@ -2570,10 +2619,13 @@ window.mcSelectCancha  = mcSelectCancha;
 window.aspToggleEdit   = aspToggleEdit;
 window.aspSave         = aspSave;
 window.aspCancel       = aspCancel;
+window.aspBorrarCancha = aspBorrarCancha;
 window.medGuardar      = medGuardar;
 window.medTipoChange   = medTipoChange;
 window.mcSaveSombra    = mcSaveSombra;
 window.csvParseAndLoad = csvParseAndLoad;
+window.deleteLog       = deleteLog;
+window.deleteMedicion  = deleteMedicion;
 window.addEventListener('hashchange',function(){ init(); });
 init();
 })();

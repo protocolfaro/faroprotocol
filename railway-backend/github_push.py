@@ -276,6 +276,20 @@ def push_historial_snapshot(date_str: str | None = None) -> dict:
             "date": date_str, "commit": commit_sha, "url": html_url}
 
 
+def get_aspersores() -> dict:
+    """Return aspersores_por_cancha dict from config_velez.json, or {} if missing/error."""
+    r = requests.get(f"{API}/repos/{OWNER}/{REPO}/contents/{CFG_PATH}",
+                     headers=_hdrs(), params={"ref": BRANCH}, timeout=15)
+    if r.status_code != 200:
+        return {}
+    try:
+        cfg = json.loads(base64.b64decode(r.json()["content"]).decode())
+        return cfg.get("aspersores_por_cancha") or {}
+    except Exception as e:
+        log.warning("get_aspersores parse error: %s", e)
+        return {}
+
+
 def push_aspersores(cid: str, aspersores: list) -> str:
     """Store sprinkler positions for a cancha in config_velez.json.aspersores_por_cancha."""
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -295,6 +309,52 @@ def push_aspersores(cid: str, aspersores: list) -> str:
     cfg.setdefault("aspersores_por_cancha", {})[cid] = aspersores
     data = json.dumps(cfg, ensure_ascii=False, indent=2).encode()
     msg  = f"aspersores {cid.upper()} n={len(aspersores)} [{ts}]"
+    resp = _put(CFG_PATH, data, msg, existing_sha)
+    return (resp.get("commit", {}).get("html_url") or
+            f"https://github.com/{OWNER}/{REPO}/blob/{BRANCH}/{CFG_PATH}")
+
+
+def delete_medicion(rec_id: str) -> str:
+    """Remove a medicion from velez_data.json.mediciones_campo by its client-generated id."""
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    r = requests.get(f"{API}/repos/{OWNER}/{REPO}/contents/{VD_PATH}",
+                     headers=_hdrs(), params={"ref": BRANCH}, timeout=15)
+    if r.status_code != 200:
+        raise RuntimeError(f"velez_data.json fetch failed: {r.status_code}")
+    d = r.json()
+    existing_sha = d["sha"]
+    vd = json.loads(base64.b64decode(d["content"]).decode())
+    mediciones = vd.get("mediciones_campo", [])
+    before = len(mediciones)
+    vd["mediciones_campo"] = [m for m in mediciones if m.get("id") != rec_id]
+    if len(vd["mediciones_campo"]) == before:
+        return "not_found"
+    data = json.dumps(vd, ensure_ascii=False, indent=2).encode()
+    msg  = f"delete medicion id={rec_id[:12]} [{ts}]"
+    resp = _put(VD_PATH, data, msg, existing_sha)
+    return (resp.get("commit", {}).get("html_url") or
+            f"https://github.com/{OWNER}/{REPO}/blob/{BRANCH}/{VD_PATH}")
+
+
+def delete_aspersores(cid: str) -> str:
+    """Clear all sprinkler positions for a cancha in config_velez.json."""
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    r = requests.get(f"{API}/repos/{OWNER}/{REPO}/contents/{CFG_PATH}",
+                     headers=_hdrs(), params={"ref": BRANCH}, timeout=15)
+    existing_sha = None
+    cfg = {}
+    if r.status_code == 200:
+        d = r.json()
+        existing_sha = d.get("sha")
+        try:
+            cfg = json.loads(base64.b64decode(d["content"]).decode())
+        except Exception as e:
+            log.warning("delete_aspersores parse error: %s", e)
+    elif r.status_code != 404:
+        r.raise_for_status()
+    cfg.setdefault("aspersores_por_cancha", {})[cid] = []
+    data = json.dumps(cfg, ensure_ascii=False, indent=2).encode()
+    msg  = f"clear aspersores {cid.upper()} [{ts}]"
     resp = _put(CFG_PATH, data, msg, existing_sha)
     return (resp.get("commit", {}).get("html_url") or
             f"https://github.com/{OWNER}/{REPO}/blob/{BRANCH}/{CFG_PATH}")

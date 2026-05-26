@@ -556,12 +556,15 @@ def run_refresh() -> dict:
         except Exception as _ve:
             log.warning("shadow_maps read (non-fatal): %s", _ve)
         try:
-            _, cfg_vz = _gh_get_sha_and_content(_CFG_PATH)
-            aspersores_cfg = cfg_vz.get("aspersores_por_cancha") or None
-            if aspersores_cfg:
-                log.info("aspersores_cfg: %d canchas", len(aspersores_cfg))
+            railway_url = os.environ.get("RAILWAY_URL", "").rstrip("/")
+            if railway_url:
+                r = _req.get(f"{railway_url}/velez/aspersores", timeout=8)
+                if r.status_code == 200:
+                    aspersores_cfg = r.json().get("aspersores_por_cancha") or None
+                    if aspersores_cfg:
+                        log.info("aspersores_cfg: %d canchas desde Railway", len(aspersores_cfg))
         except Exception as _ae:
-            log.warning("aspersores_cfg read (non-fatal): %s", _ae)
+            log.warning("aspersores Railway (non-fatal): %s — usando estimado", _ae)
 
         weather = compute_weather_live(
             raw["nasa"], raw["soil"], raw["hourly"], raw["ecostress"], raw["smap"],
