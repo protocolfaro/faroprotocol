@@ -45,77 +45,603 @@
     ],
     "sessions": [
       {
-        "categoria": "Reserva",
+        "categoria": "RESERVA",
         "dia": "lun",
         "canchas": [
-          "1fa"
+          "5"
         ],
-        "turno": "manana"
+        "turno": "manana",
+        "factor": 1.0
       },
       {
-        "categoria": "Cuarta",
-        "dia": "lun",
-        "canchas": [
-          "8fa",
-          "9fa"
-        ],
-        "turno": "manana"
-      },
-      {
-        "categoria": "Quinta",
-        "dia": "lun",
-        "canchas": [
-          "5fa"
-        ],
-        "turno": "infantiles"
-      },
-      {
-        "categoria": "Sexta",
+        "categoria": "RESERVA",
         "dia": "mar",
         "canchas": [
-          "1fa"
+          "3"
         ],
-        "turno": "manana"
+        "turno": "manana",
+        "factor": 1.0
       },
       {
-        "categoria": "Séptima",
-        "dia": "mar",
-        "canchas": [
-          "3fa"
-        ],
-        "turno": "manana"
-      },
-      {
-        "categoria": "Femenino",
-        "dia": "mie",
-        "canchas": [
-          "1fa"
-        ],
-        "turno": "femenino"
-      },
-      {
-        "categoria": "Infantiles",
-        "dia": "mie",
-        "canchas": [
-          "8fa"
-        ],
-        "turno": "infantiles"
-      },
-      {
-        "categoria": "Reserva",
-        "dia": "jue",
-        "canchas": [
-          "1fa"
-        ],
-        "turno": "manana"
-      },
-      {
-        "categoria": "Primera",
+        "categoria": "RESERVA",
         "dia": "vie",
         "canchas": [
-          "1fp"
+          "5"
         ],
-        "turno": "manana"
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "RESERVA",
+        "dia": "sab",
+        "canchas": [
+          "3"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "CUARTA",
+        "dia": "lun",
+        "canchas": [
+          "8"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "CUARTA",
+        "dia": "mar",
+        "canchas": [
+          "1"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "CUARTA",
+        "dia": "mie",
+        "canchas": [
+          "9"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "CUARTA",
+        "dia": "jue",
+        "canchas": [
+          "5"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "CUARTA",
+        "dia": "vie",
+        "canchas": [
+          "1"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "CUARTA",
+        "dia": "sab",
+        "canchas": [
+          "1"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "QUINTA",
+        "dia": "lun",
+        "canchas": [
+          "1"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "QUINTA",
+        "dia": "mar",
+        "canchas": [
+          "9"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "QUINTA",
+        "dia": "mie",
+        "canchas": [
+          "1"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "QUINTA",
+        "dia": "jue",
+        "canchas": [
+          "8"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "QUINTA",
+        "dia": "vie",
+        "canchas": [
+          "1"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "QUINTA",
+        "dia": "sab",
+        "canchas": [
+          "1"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "SEXTA",
+        "dia": "lun",
+        "canchas": [
+          "8"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "SEXTA",
+        "dia": "mar",
+        "canchas": [
+          "1"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "SEXTA",
+        "dia": "mie",
+        "canchas": [
+          "5"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "SEXTA",
+        "dia": "jue",
+        "canchas": [
+          "1"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "SEXTA",
+        "dia": "vie",
+        "canchas": [
+          "1"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "SEXTA",
+        "dia": "sab",
+        "canchas": [
+          "1"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "SEPTIMA",
+        "dia": "lun",
+        "canchas": [
+          "1"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "SEPTIMA",
+        "dia": "mar",
+        "canchas": [
+          "9"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "SEPTIMA",
+        "dia": "mie",
+        "canchas": [
+          "8"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "SEPTIMA",
+        "dia": "jue",
+        "canchas": [
+          "9"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "SEPTIMA",
+        "dia": "vie",
+        "canchas": [
+          "8"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "OCTAVA",
+        "dia": "lun",
+        "canchas": [
+          "campus"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "OCTAVA",
+        "dia": "mar",
+        "canchas": [
+          "campus"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "OCTAVA",
+        "dia": "mie",
+        "canchas": [
+          "campus"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "OCTAVA",
+        "dia": "jue",
+        "canchas": [
+          "campus"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "OCTAVA",
+        "dia": "vie",
+        "canchas": [
+          "8"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "NOVENA",
+        "dia": "lun",
+        "canchas": [
+          "campus"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "NOVENA",
+        "dia": "mar",
+        "canchas": [
+          "campus"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "NOVENA",
+        "dia": "mie",
+        "canchas": [
+          "campus"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "NOVENA",
+        "dia": "jue",
+        "canchas": [
+          "campus"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "NOVENA",
+        "dia": "vie",
+        "canchas": [
+          "9"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "LIGA",
+        "dia": "vie",
+        "canchas": [
+          "9"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "LIGA",
+        "dia": "sab",
+        "canchas": [
+          "8-9"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "FEMENINO",
+        "dia": "lun",
+        "canchas": [
+          "1"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "FEMENINO",
+        "dia": "mar",
+        "canchas": [
+          "1"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "FEMENINO",
+        "dia": "mie",
+        "canchas": [
+          "1"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "FEMENINO",
+        "dia": "jue",
+        "canchas": [
+          "1"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "FEMENINO",
+        "dia": "vie",
+        "canchas": [
+          "1"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "INFANTILES",
+        "dia": "lun",
+        "canchas": [
+          "1-5-9"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "INFANTILES",
+        "dia": "mar",
+        "canchas": [
+          "1-5-8-9"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "INFANTILES",
+        "dia": "mie",
+        "canchas": [
+          "1-5-8-9"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "INFANTILES",
+        "dia": "jue",
+        "canchas": [
+          "1-5-8-9"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "GYM",
+        "dia": "lun",
+        "canchas": [
+          "5ta",
+          "7ma"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "GYM",
+        "dia": "mar",
+        "canchas": [
+          "4ta",
+          "6ta"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "GYM",
+        "dia": "mie",
+        "canchas": [
+          "5ta",
+          "7ma"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "GYM",
+        "dia": "jue",
+        "canchas": [
+          "4ta",
+          "6ta"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "GYM",
+        "dia": "vie",
+        "canchas": [
+          "4ta",
+          "5ta",
+          "6ta"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "GYM",
+        "dia": "sab",
+        "canchas": [
+          "segun",
+          "demanda"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "CEPETFU",
+        "dia": "lun",
+        "canchas": [
+          "4ta",
+          "6ta"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "CEPETFU",
+        "dia": "mar",
+        "canchas": [
+          "5ta",
+          "7ma"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "CEPETFU",
+        "dia": "mie",
+        "canchas": [
+          "4ta",
+          "6ta"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "CEPETFU",
+        "dia": "jue",
+        "canchas": [
+          "5ta",
+          "7ma"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "CEPETFU",
+        "dia": "vie",
+        "canchas": [
+          "7ma",
+          "8va",
+          "9na"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "CEPETFU",
+        "dia": "sab",
+        "canchas": [
+          "segun",
+          "demanda"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "LIBRE",
+        "dia": "lun",
+        "canchas": [
+          "2-3-4-6-7-9"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "LIBRE",
+        "dia": "mar",
+        "canchas": [
+          "2-4-6-7-8"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "LIBRE",
+        "dia": "mie",
+        "canchas": [
+          "2-3-4-6-7"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "LIBRE",
+        "dia": "jue",
+        "canchas": [
+          "2-3-4-6-7"
+        ],
+        "turno": "manana",
+        "factor": 1.0
+      },
+      {
+        "categoria": "LIBRE",
+        "dia": "vie",
+        "canchas": [
+          "2-3-6"
+        ],
+        "turno": "manana",
+        "factor": 1.0
       }
     ]
   },
@@ -232,13 +758,34 @@
     }
   },
   "destinatarios": [
-    {"nombre": "Roger Bernal",      "email": "correocancha@gmail.com"},
-    {"nombre": "Juan González",     "email": "jgonzalez@velez.com.ar"},
-    {"nombre": "Fernando Banchero", "email": "fbanchero@velez.com.ar"},
-    {"nombre": "Sebastián Pait",    "email": "spait@velez.com.ar"},
-    {"nombre": "Fabián Berlanga",   "email": "fberlanga@velez.com.ar"},
-    {"nombre": "Nelson Pugliese",   "email": "npugliese@velez.com.ar"},
-    {"nombre": "Alberto Aveleyra",  "email": "aaveleyra@velez.com.ar"}
+    {
+      "nombre": "Roger Bernal",
+      "email": "correocancha@gmail.com"
+    },
+    {
+      "nombre": "Juan González",
+      "email": "jgonzalez@velez.com.ar"
+    },
+    {
+      "nombre": "Fernando Banchero",
+      "email": "fbanchero@velez.com.ar"
+    },
+    {
+      "nombre": "Sebastián Pait",
+      "email": "spait@velez.com.ar"
+    },
+    {
+      "nombre": "Fabián Berlanga",
+      "email": "fberlanga@velez.com.ar"
+    },
+    {
+      "nombre": "Nelson Pugliese",
+      "email": "npugliese@velez.com.ar"
+    },
+    {
+      "nombre": "Alberto Aveleyra",
+      "email": "aaveleyra@velez.com.ar"
+    }
   ],
   "ipos_historial": [
     {
