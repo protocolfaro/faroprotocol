@@ -45,6 +45,9 @@ def horarios():
     body = request.get_json(silent=True)
     if not body:
         return jsonify({"status": "error", "error": "JSON body required"}), 400
+    if not _ok_pin(body.get("pin")):
+        return jsonify({"status": "error", "error": "PIN inválido"}), 401
+
     semana    = body.get("semana", {})
     sessions  = body.get("sessions", [])
     sem_label = str(semana.get("label", "?"))
