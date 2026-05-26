@@ -432,7 +432,9 @@ def push_weather_update(weather_live: dict) -> str:
     ts = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
     sha, cfg = _gh_get_sha_and_content(_VD_PATH)
     cfg["weather_live"] = weather_live
-    cfg.setdefault("meta", {})["fecha"] = date.today().isoformat()
+    today_d = date.today()
+    cfg.setdefault("meta", {})["fecha"]   = today_d.isoformat()
+    cfg["meta"]["semana"] = (today_d - timedelta(days=today_d.weekday())).isoformat()
     cfg["updated_at"] = ts
 
     payload = {

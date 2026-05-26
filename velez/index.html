@@ -1475,9 +1475,9 @@ function buildHeatmapSection(u, cfg, shadowMaps){
     });
   }
   var _subsBySecId={
-    amalf: _sortByIpos(AMALF_SUBS),
+    amalf: AMALF_SUBS,
     vo:    VO_SUBS,
-    form:  _sortByIpos(FORM_SUBS),
+    form:  FORM_SUBS,
   };
 
   var sectors=[
@@ -1603,9 +1603,15 @@ function buildHeatmapSection(u, cfg, shadowMaps){
       +'<div style="padding:4px 16px 8px">'+rows+'</div>';
   }
 
+  var _semLabel=(function(){
+    var d=new Date(),day=d.getDay();
+    var mon=new Date(d);
+    mon.setDate(d.getDate()-(day===0?6:day-1));
+    return mon.toISOString().slice(0,10);
+  })();
   el.innerHTML=
     '<div class="section-title">Estado Real del Campo'
-    +((hmMeta.semana||hmData.semana)?'<span style="font-size:9px;font-weight:400;color:var(--wdim);margin-left:8px;text-transform:none">semana del '+(hmMeta.semana||hmData.semana)+'</span>':'')+'</div>'
+    +'<span style="font-size:9px;font-weight:400;color:var(--wdim);margin-left:8px;text-transform:none">semana del '+_semLabel+'</span>'+'</div>'
     +tabsHtml()
     +subTabsHtml()
     +'<div class="hm-img-wrap" id="hm-img-wrap"></div>'
