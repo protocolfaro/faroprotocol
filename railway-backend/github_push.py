@@ -12,9 +12,10 @@ API      = "https://api.github.com"
 OWNER    = "protocolfaro"
 REPO     = "faroprotocol"
 BRANCH   = "main"
-CFG_PATH = "velez/config_velez.json"
-VD_PATH  = "velez/velez_data.json"
-HM_DIR   = "velez/heatmaps"
+CFG_PATH  = "velez/config_velez.json"
+VD_PATH   = "velez/velez_data.json"
+HM_DIR    = "velez/heatmaps"
+CRON_PATH = "velez/cronograma_semana.jpg"
 
 def _token():
     t = os.environ.get("GITHUB_TOKEN","")
@@ -358,3 +359,11 @@ def delete_aspersores(cid: str) -> str:
     resp = _put(CFG_PATH, data, msg, existing_sha)
     return (resp.get("commit", {}).get("html_url") or
             f"https://github.com/{OWNER}/{REPO}/blob/{BRANCH}/{CFG_PATH}")
+
+
+def push_cronograma(image_bytes: bytes) -> str:
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    existing = _sha(CRON_PATH)
+    resp = _put(CRON_PATH, image_bytes, f"cronograma semanal [{ts}]", existing)
+    return (resp.get("content", {}).get("html_url") or
+            f"https://github.com/{OWNER}/{REPO}/blob/{BRANCH}/{CRON_PATH}")

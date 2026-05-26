@@ -476,6 +476,13 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
 .maint-done-btn{display:block;margin-top:6px;padding:4px 8px;background:rgba(76,173,114,.1);border:1px solid rgba(76,173,114,.3);border-radius:5px;color:var(--grn);font-size:9px;font-weight:700;font-family:inherit;cursor:pointer;letter-spacing:.05em;width:100%;text-align:center}
 .maint-done-btn:active{opacity:.7}
 .maint-hist{font-size:9px;color:var(--wdim);margin-top:4px;line-height:1.55}
+
+/* ── CRONOGRAMA SECTION ── */
+.cron-wrap{margin:10px 16px}
+.cron-box{background:var(--bg2);border-radius:var(--radius);border:1px solid rgba(255,255,255,.06);overflow:hidden;min-height:80px}
+.cron-upload-lbl{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 16px;cursor:pointer;text-align:center;-webkit-tap-highlight-color:transparent}
+.cron-footer{padding:8px 12px;display:flex;align-items:center;justify-content:space-between;background:var(--bg3);border-top:1px solid rgba(255,255,255,.06)}
+.cron-note{font-size:9px;color:var(--wdim);margin-top:6px;line-height:1.5}
 </style>
 </head>
 <body>
@@ -557,6 +564,9 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
 
   <!-- Horario VO — Roger -->
   <div id="horario-section" style="display:none"></div>
+
+  <!-- Cronograma semanal — Roger -->
+  <div id="cronograma-section" style="display:none"></div>
 
   <!-- Weather — canchero + intendente -->
   <div id="weather-section" style="display:none">
@@ -1340,6 +1350,100 @@ function buildActions(actions){
   document.getElementById('actions-list').innerHTML=(actions||[]).slice(0,3).map(function(a,i){
     return '<div class="action-pill"><span class="action-badge '+BMAP[i]+'">'+BLBL[i]+'</span><span class="action-text">'+a+'</span></div>';
   }).join('');
+}
+
+/* ── CRONOGRAMA SEMANAL ── */
+function _isoWeekTag(){
+  var d=new Date();
+  var t=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));
+  t.setUTCDate(t.getUTCDate()+4-(t.getUTCDay()||7));
+  var w=Math.ceil(((t-new Date(Date.UTC(t.getUTCFullYear(),0,1)))/864e5+1)/7);
+  return t.getUTCFullYear()+'-W'+String(w).padStart(2,'0');
+}
+
+window.cronMostrarUpload=function(){
+  var box=document.getElementById('cron-box'); if(!box) return;
+  box.innerHTML=
+    '<div class="cron-upload-lbl" onclick="document.getElementById(\'cron-file-inp-main\').click()">'
+    +'<div style="font-size:28px;margin-bottom:8px">📸</div>'
+    +'<div style="font-size:13px;font-weight:600;color:var(--whi);margin-bottom:4px">Cargar cronograma del club</div>'
+    +'<div style="font-size:10px;color:var(--wdim)">Tocá para abrir la cámara o galería</div>'
+    +'</div>';
+};
+
+window.cronogramaCargar=function(inp){
+  var file=inp&&inp.files&&inp.files[0]; if(!file) return;
+  var box=document.getElementById('cron-box');
+  if(box) box.innerHTML='<div style="padding:24px;text-align:center;color:var(--wdim);font-size:12px">Comprimiendo imagen…</div>';
+  var img=new Image(), url=URL.createObjectURL(file);
+  img.onload=function(){
+    var canvas=document.createElement('canvas');
+    var scale=Math.min(1,1200/img.width);
+    canvas.width=Math.round(img.width*scale);
+    canvas.height=Math.round(img.height*scale);
+    canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+    URL.revokeObjectURL(url);
+    var dataUrl=canvas.toDataURL('image/jpeg',0.82);
+    var b64=dataUrl.split(',')[1];
+    if(box) box.innerHTML='<div style="padding:24px;text-align:center;color:var(--wdim);font-size:12px">Subiendo a GitHub…</div>';
+    fetch(RAILWAY_URL+'/velez/cronograma',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({pin:_pinValue,image_b64:b64})
+    })
+    .then(function(r){return r.json();})
+    .then(function(data){
+      if(data.status==='ok'){
+        var wt=_isoWeekTag();
+        if(box) box.innerHTML=
+          '<img src="'+dataUrl+'" style="width:100%;display:block" alt="Cronograma semanal">'
+          +'<div class="cron-footer">'
+          +'<div style="font-size:10px;color:var(--grn)">✓ Guardado · '+wt+'</div>'
+          +'<button onclick="document.getElementById(\'cron-file-inp-main\').click()" '
+          +'style="background:rgba(201,168,76,.1);border:1px solid rgba(201,168,76,.3);border-radius:6px;color:var(--gold);font-size:11px;font-weight:600;padding:5px 12px;cursor:pointer;font-family:inherit">↑ Cambiar</button>'
+          +'</div>';
+      } else {
+        alert('Error: '+(data.error||'respuesta inesperada'));
+        cronMostrarUpload();
+      }
+    })
+    .catch(function(e){alert('Error de conexión: '+e.message); cronMostrarUpload();});
+  };
+  img.onerror=function(){ URL.revokeObjectURL(url); alert('No se pudo leer la imagen.'); cronMostrarUpload(); };
+  img.src=url;
+};
+
+function buildCronogramaSection(){
+  var el=document.getElementById('cronograma-section'); if(!el) return;
+  el.style.display='block';
+  var weekTag=_isoWeekTag();
+  var rawUrl='https://raw.githubusercontent.com/protocolfaro/faroprotocol/main/velez/cronograma_semana.jpg?t='+weekTag;
+  el.innerHTML=
+    '<div class="section-title">Cronograma Semanal del Club</div>'
+    +'<div class="cron-wrap">'
+    +'<div class="cron-box" id="cron-box">'
+    +'<div style="padding:24px;text-align:center;color:var(--wdim);font-size:12px">Cargando…</div>'
+    +'</div>'
+    +'<div class="cron-note">Imagen compartida para el equipo · se actualiza en ~60 seg tras subir</div>'
+    +'</div>';
+  var inp=document.createElement('input');
+  inp.type='file'; inp.id='cron-file-inp-main'; inp.accept='image/*'; inp.capture='environment';
+  inp.style.display='none';
+  inp.addEventListener('change',function(){cronogramaCargar(this);});
+  el.appendChild(inp);
+  var probe=new Image();
+  probe.onload=function(){
+    var box=document.getElementById('cron-box'); if(!box) return;
+    box.innerHTML=
+      '<img src="'+rawUrl+'" style="width:100%;display:block" alt="Cronograma semanal">'
+      +'<div class="cron-footer">'
+      +'<div style="font-size:10px;color:var(--wdim)">'+weekTag+'</div>'
+      +'<button onclick="document.getElementById(\'cron-file-inp-main\').click()" '
+      +'style="background:rgba(201,168,76,.1);border:1px solid rgba(201,168,76,.3);border-radius:6px;color:var(--gold);font-size:11px;font-weight:600;padding:5px 12px;cursor:pointer;font-family:inherit">↑ Actualizar</button>'
+      +'</div>';
+  };
+  probe.onerror=function(){ cronMostrarUpload(); };
+  probe.src=rawUrl;
 }
 
 /* ── HORARIO GRID ── */
@@ -2688,6 +2792,7 @@ function render(data, cfg){
     buildCanchasGrid(allS['canchero']);
     buildHeatmapSection(u,cfg,data.shadow_maps);
     if(cfg) buildHorarioGrid(cfg);
+    buildCronogramaSection();
     buildEtCard(wl);
     buildDisclaimer('disclaimer-recs');
     buildTaskCalendar(u.tareas_semana);

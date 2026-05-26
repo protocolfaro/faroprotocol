@@ -3,7 +3,7 @@ app.py — Flask backend: Vélez IPOS + heatmap pipeline + daily weather refresh
 Faro Protocol · Railway-ready · v2026-05-20
 """
 from __future__ import annotations
-import hashlib, logging, os, threading, traceback
+import base64, hashlib, logging, os, threading, traceback
 from datetime import datetime, timezone
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -107,6 +107,28 @@ def horarios():
         "velez_data_commit": vd_url,
         "generado_en": ts,
     })
+
+
+@app.route("/velez/cronograma", methods=["POST"])
+def cronograma():
+    body = request.get_json(silent=True)
+    if not body:
+        return jsonify({"status": "error", "error": "JSON body required"}), 400
+    if not _ok_pin(body.get("pin")):
+        return jsonify({"status": "error", "error": "PIN inválido"}), 401
+    image_b64 = body.get("image_b64", "")
+    if not image_b64:
+        return jsonify({"status": "error", "error": "image_b64 requerido"}), 400
+    try:
+        image_bytes = base64.b64decode(image_b64)
+    except Exception:
+        return jsonify({"status": "error", "error": "image_b64 inválido"}), 400
+    try:
+        url = github_push.push_cronograma(image_bytes)
+        return jsonify({"status": "ok", "url": url})
+    except Exception as e:
+        log.error(traceback.format_exc())
+        return jsonify({"status": "error", "error": str(e)}), 500
 
 
 @app.route("/velez/mediciones", methods=["POST", "DELETE"])
