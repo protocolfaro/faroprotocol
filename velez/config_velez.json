@@ -48,7 +48,7 @@
         "categoria": "RESERVA",
         "dia": "lun",
         "canchas": [
-          "5"
+          "5fa"
         ],
         "turno": "manana",
         "factor": 1.0
@@ -57,7 +57,7 @@
         "categoria": "RESERVA",
         "dia": "mar",
         "canchas": [
-          "3"
+          "3fa"
         ],
         "turno": "manana",
         "factor": 1.0
@@ -66,7 +66,7 @@
         "categoria": "RESERVA",
         "dia": "vie",
         "canchas": [
-          "5"
+          "5fa"
         ],
         "turno": "manana",
         "factor": 1.0
@@ -75,7 +75,7 @@
         "categoria": "RESERVA",
         "dia": "sab",
         "canchas": [
-          "3"
+          "3fa"
         ],
         "turno": "manana",
         "factor": 1.0
@@ -84,7 +84,7 @@
         "categoria": "CUARTA",
         "dia": "lun",
         "canchas": [
-          "8"
+          "8fa"
         ],
         "turno": "manana",
         "factor": 1.0
@@ -93,7 +93,7 @@
         "categoria": "CUARTA",
         "dia": "mar",
         "canchas": [
-          "1"
+          "1fa"
         ],
         "turno": "manana",
         "factor": 1.0
@@ -102,7 +102,7 @@
         "categoria": "CUARTA",
         "dia": "mie",
         "canchas": [
-          "9"
+          "9fa"
         ],
         "turno": "manana",
         "factor": 1.0
@@ -111,7 +111,7 @@
         "categoria": "CUARTA",
         "dia": "jue",
         "canchas": [
-          "5"
+          "5fa"
         ],
         "turno": "manana",
         "factor": 1.0
@@ -120,7 +120,7 @@
         "categoria": "CUARTA",
         "dia": "vie",
         "canchas": [
-          "1"
+          "1fa"
         ],
         "turno": "manana",
         "factor": 1.0
@@ -129,7 +129,7 @@
         "categoria": "CUARTA",
         "dia": "sab",
         "canchas": [
-          "1"
+          "1fa"
         ],
         "turno": "manana",
         "factor": 1.0
@@ -138,7 +138,7 @@
         "categoria": "QUINTA",
         "dia": "lun",
         "canchas": [
-          "1"
+          "1fa"
         ],
         "turno": "manana",
         "factor": 1.0
@@ -147,7 +147,7 @@
         "categoria": "QUINTA",
         "dia": "mar",
         "canchas": [
-          "9"
+          "9fa"
         ],
         "turno": "manana",
         "factor": 1.0
@@ -156,7 +156,7 @@
         "categoria": "QUINTA",
         "dia": "mie",
         "canchas": [
-          "1"
+          "1fa"
         ],
         "turno": "manana",
         "factor": 1.0
@@ -165,7 +165,7 @@
         "categoria": "QUINTA",
         "dia": "jue",
         "canchas": [
-          "8"
+          "8fa"
         ],
         "turno": "manana",
         "factor": 1.0
@@ -174,7 +174,7 @@
         "categoria": "QUINTA",
         "dia": "vie",
         "canchas": [
-          "1"
+          "1fa"
         ],
         "turno": "manana",
         "factor": 1.0
@@ -183,7 +183,7 @@
         "categoria": "QUINTA",
         "dia": "sab",
         "canchas": [
-          "1"
+          "1fa"
         ],
         "turno": "manana",
         "factor": 1.0
@@ -192,7 +192,7 @@
         "categoria": "SEXTA",
         "dia": "lun",
         "canchas": [
-          "8"
+          "8fa"
         ],
         "turno": "manana",
         "factor": 1.0
@@ -201,7 +201,7 @@
         "categoria": "SEXTA",
         "dia": "mar",
         "canchas": [
-          "1"
+          "1fa"
         ],
         "turno": "manana",
         "factor": 1.0
@@ -210,7 +210,7 @@
         "categoria": "SEXTA",
         "dia": "mie",
         "canchas": [
-          "5"
+          "5fa"
         ],
         "turno": "manana",
         "factor": 1.0
@@ -219,7 +219,7 @@
         "categoria": "SEXTA",
         "dia": "jue",
         "canchas": [
-          "1"
+          "1fa"
         ],
         "turno": "manana",
         "factor": 1.0
@@ -228,7 +228,7 @@
         "categoria": "SEXTA",
         "dia": "vie",
         "canchas": [
-          "1"
+          "1fa"
         ],
         "turno": "manana",
         "factor": 1.0
@@ -237,7 +237,7 @@
         "categoria": "SEXTA",
         "dia": "sab",
         "canchas": [
-          "1"
+          "1fa"
         ],
         "turno": "manana",
         "factor": 1.0
@@ -246,7 +246,7 @@
         "categoria": "SEPTIMA",
         "dia": "lun",
         "canchas": [
-          "1"
+          "1fa"
         ],
         "turno": "manana",
         "factor": 1.0
@@ -255,7 +255,7 @@
         "categoria": "SEPTIMA",
         "dia": "mar",
         "canchas": [
-          "9"
+          "9fa"
         ],
         "turno": "manana",
         "factor": 1.0
@@ -264,7 +264,7 @@
         "categoria": "SEPTIMA",
         "dia": "mie",
         "canchas": [
-          "8"
+          "8fa"
         ],
         "turno": "manana",
         "factor": 1.0
@@ -273,7 +273,7 @@
         "categoria": "SEPTIMA",
         "dia": "jue",
         "canchas": [
-          "9"
+          "9fa"
         ],
         "turno": "manana",
         "factor": 1.0
@@ -282,7 +282,7 @@
         "categoria": "SEPTIMA",
         "dia": "vie",
         "canchas": [
-          "8"
+          "8fa"
         ],
         "turno": "manana",
         "factor": 1.0
@@ -327,7 +327,7 @@
         "categoria": "OCTAVA",
         "dia": "vie",
         "canchas": [
-          "8"
+          "8fa"
         ],
         "turno": "manana",
         "factor": 1.0
@@ -372,7 +372,7 @@
         "categoria": "NOVENA",
         "dia": "vie",
         "canchas": [
-          "9"
+          "9fa"
         ],
         "turno": "manana",
         "factor": 1.0
@@ -381,7 +381,7 @@
         "categoria": "LIGA",
         "dia": "vie",
         "canchas": [
-          "9"
+          "9fa"
         ],
         "turno": "manana",
         "factor": 1.0
@@ -399,7 +399,7 @@
         "categoria": "FEMENINO",
         "dia": "lun",
         "canchas": [
-          "1"
+          "1fa"
         ],
         "turno": "manana",
         "factor": 1.0
@@ -408,7 +408,7 @@
         "categoria": "FEMENINO",
         "dia": "mar",
         "canchas": [
-          "1"
+          "1fa"
         ],
         "turno": "manana",
         "factor": 1.0
@@ -417,7 +417,7 @@
         "categoria": "FEMENINO",
         "dia": "mie",
         "canchas": [
-          "1"
+          "1fa"
         ],
         "turno": "manana",
         "factor": 1.0
@@ -426,7 +426,7 @@
         "categoria": "FEMENINO",
         "dia": "jue",
         "canchas": [
-          "1"
+          "1fa"
         ],
         "turno": "manana",
         "factor": 1.0
@@ -435,7 +435,7 @@
         "categoria": "FEMENINO",
         "dia": "vie",
         "canchas": [
-          "1"
+          "1fa"
         ],
         "turno": "manana",
         "factor": 1.0
