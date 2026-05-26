@@ -591,12 +591,10 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
       <button class="mc-tab active" data-mod="asp" onclick="mcSwitchTab('asp')">💧 Aspersores</button>
       <button class="mc-tab" data-mod="sombras" onclick="mcSwitchTab('sombras')">🌑 Sombras</button>
       <button class="mc-tab" data-mod="med" onclick="mcSwitchTab('med')">📐 Mediciones</button>
-      <button class="mc-tab" data-mod="cron" onclick="mcSwitchTab('cron')">📸 Cronograma</button>
     </div>
     <div id="mc-asp" class="mc-module"></div>
     <div id="mc-sombras" class="mc-module" style="display:none"></div>
     <div id="mc-med" class="mc-module" style="display:none"></div>
-    <div id="mc-cron" class="mc-module" style="display:none"></div>
   </div>
 
   <!-- Mantenimiento programado — intendente + ejecutivo -->
@@ -1949,7 +1947,7 @@ var MC_TIPOS=[
 var MC_ZONAS=['Centro','Lateral N','Lateral S','Área chica N','Área chica S','Portería N','Portería S'];
 
 function mcSwitchTab(mod){
-  ['asp','sombras','med','cron'].forEach(function(m){
+  ['asp','sombras','med'].forEach(function(m){
     var el=document.getElementById('mc-'+m);
     var btn=document.querySelector('.mc-tab[data-mod="'+m+'"]');
     if(el) el.style.display=(m===mod)?'':'none';
@@ -1961,62 +1959,8 @@ function mcSwitchTab(mod){
   if(mod==='med'){
     medRenderHistory(_mcCurrentCancha||undefined);
   }
-  if(mod==='cron'){
-    buildCronogramaModule();
-  }
 }
 function mcToggleLayer(mod){ mcSwitchTab(mod); }
-
-/* ── MÓDULO 4: CRONOGRAMA OCR ── */
-function buildCronogramaModule(){
-  var el=document.getElementById('mc-cron');
-  if(!el) return;
-  el.innerHTML=
-    '<div style="font-size:11px;color:var(--wdim);line-height:1.6;margin-bottom:12px">'
-    +'El Director Deportivo te manda el cronograma en foto. Subí la imagen y lo procesamos con IA.'
-    +'</div>'
-    +'<input type="file" id="cron-file-input" accept="image/*" capture="environment" style="display:none">'
-    +'<label for="cron-file-input" style="display:block;width:100%;padding:10px 0;text-align:center;'
-    +'background:rgba(201,168,76,.1);border:1px solid rgba(201,168,76,.3);border-radius:8px;'
-    +'color:var(--gold);font-size:12px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent">'
-    +'📸 Subir Foto de Cronograma Semanal</label>'
-    +'<div id="cron-status" style="margin-top:12px;font-size:11px;color:var(--wdim);min-height:20px"></div>';
-  var inp=document.getElementById('cron-file-input');
-  if(inp) inp.addEventListener('change',function(){ _cronFileSelected(this); });
-}
-function _cronFileSelected(input){
-  var file=input&&input.files&&input.files[0];
-  if(!file) return;
-  var status=document.getElementById('cron-status');
-  var sp='<span class="spinner" style="width:14px;height:14px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:6px"></span>';
-  if(status) status.innerHTML=sp+'Analizando imagen con IA...';
-  var RAILWAY=typeof RAILWAY_URL!=='undefined'?RAILWAY_URL:null;
-  var PIN=typeof _pinValue!=='undefined'?_pinValue:null;
-  if(!RAILWAY){
-    if(status) status.innerHTML='<span style="color:var(--red)">✗ Servicio no disponible.</span>';
-    return;
-  }
-  var fd=new FormData();
-  fd.append('file',file);
-  fd.append('pin',PIN||'');
-  fetch(RAILWAY+'/velez/cronograma/upload',{method:'POST',body:fd})
-    .then(function(r){return r.json();})
-    .then(function(d){
-      if(d.status==='ok'){
-        if(status) status.innerHTML=
-          '<span style="color:var(--grn)">✓ Cronograma cargado — '+d.sessions+' sesiones · semana '+d.semana+'</span>'
-          +'<div style="margin-top:6px;font-size:10px;color:var(--wdim)">Recargá la página para ver el horario de uso actualizado.</div>';
-      } else if(d.status==='procesando'){
-        if(status) status.innerHTML=
-          '<span style="color:var(--yel)">⏳ '+(d.message||'La IA sigue procesando. Esperá 30 segundos e intentalo de nuevo.')+'</span>';
-      } else {
-        if(status) status.innerHTML='<span style="color:var(--red)">✗ '+(d.error||'Error desconocido')+'</span>';
-      }
-    })
-    .catch(function(e){
-      if(status) status.innerHTML='<span style="color:var(--red)">✗ Error de red: '+(e.message||'desconocido')+'</span>';
-    });
-}
 
 /* ── MÓDULO 1: ASPERSORES ── */
 function buildAspersores(){

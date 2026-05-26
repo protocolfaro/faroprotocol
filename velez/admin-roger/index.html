@@ -86,6 +86,8 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
 .solar-dot.permanente{background:#e05252}
 .solar-img{width:100%;display:block;background:#000;border-top:1px solid rgba(255,255,255,.06)}
 .solar-note{font-size:9px;color:var(--wdim);padding:6px 12px 10px;line-height:1.5}
+/* Cronograma local */
+.cron-upload-lbl{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 16px;cursor:pointer;text-align:center;-webkit-tap-highlight-color:transparent}
 </style>
 </head>
 <body>
@@ -135,6 +137,14 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
   <div id="solar-section" style="display:none">
     <div class="section" style="margin-top:8px">Exposición Solar — Análisis Histórico</div>
     <div id="solar-grid"></div>
+  </div>
+
+  <div id="cron-section" style="display:none">
+    <div class="section" style="margin-top:8px">Cronograma Semanal del Club</div>
+    <div style="margin:10px 16px">
+      <div id="cron-container" style="background:var(--bg2);border-radius:var(--radius);border:1px solid rgba(255,255,255,.06);overflow:hidden;min-height:90px"></div>
+      <div style="font-size:9px;color:var(--wdim);margin-top:6px;line-height:1.5">Guardado solo en este dispositivo. Se limpia automáticamente al inicio de cada semana.</div>
+    </div>
   </div>
 
   <div style="height:70px"></div>
@@ -312,6 +322,8 @@ window.verifyPin = async function(){
   document.getElementById('bottom-bar').style.display='block';
   // Store pin for POST
   window._userPin = pin;
+  document.getElementById('cron-section').style.display='block';
+  renderCronograma();
 };
 
 // ── Save week ──
@@ -467,11 +479,65 @@ async function loadShadowMaps(){
   } catch(e){ console.warn('Shadow maps:', e); }
 }
 
+// ── Cronograma local (sin servidor, localStorage) ──
+function isoWeekKey(){
+  var d=new Date();
+  var dt=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));
+  dt.setUTCDate(dt.getUTCDate()+4-(dt.getUTCDay()||7));
+  var year=dt.getUTCFullYear();
+  var jan1=new Date(Date.UTC(year,0,1));
+  var week=Math.ceil(((dt-jan1)/86400000+1)/7);
+  return year+'-W'+String(week).padStart(2,'0');
+}
+function cronKey(){ return 'roger_cronograma_'+isoWeekKey(); }
+function cleanOldCronograma(){
+  var cur=cronKey(), del=[];
+  for(var i=0;i<localStorage.length;i++){
+    var k=localStorage.key(i);
+    if(k&&k.startsWith('roger_cronograma_')&&k!==cur) del.push(k);
+  }
+  del.forEach(function(k){ localStorage.removeItem(k); });
+}
+function renderCronograma(){
+  var box=document.getElementById('cron-container'); if(!box) return;
+  var data=localStorage.getItem(cronKey());
+  if(data){
+    box.innerHTML=
+      '<img src="'+data+'" style="width:100%;display:block" alt="Cronograma semanal">'
+      +'<div style="padding:8px 12px;display:flex;align-items:center;justify-content:space-between;background:var(--bg3);border-top:1px solid rgba(255,255,255,.06)">'
+      +'<div style="font-size:10px;color:var(--wdim)">'+isoWeekKey()+'</div>'
+      +'<button onclick="cronBorrar()" style="background:rgba(224,82,82,.1);border:1px solid rgba(224,82,82,.3);border-radius:6px;color:var(--red);font-size:11px;font-weight:600;padding:5px 12px;cursor:pointer">🗑 Borrar</button>'
+      +'</div>';
+  } else {
+    box.innerHTML=
+      '<label for="cron-file-inp" class="cron-upload-lbl">'
+      +'<div style="font-size:30px;margin-bottom:8px">📸</div>'
+      +'<div style="font-size:13px;font-weight:600;color:var(--whi);margin-bottom:4px">Foto del Cronograma</div>'
+      +'<div style="font-size:10px;color:var(--wdim)">Tocá para abrir la cámara o galería</div>'
+      +'</label>'
+      +'<input type="file" id="cron-file-inp" accept="image/*" capture="environment" style="display:none" onchange="cronCargar(this)">';
+  }
+}
+window.cronCargar=function(inp){
+  var file=inp&&inp.files&&inp.files[0]; if(!file) return;
+  var r=new FileReader();
+  r.onload=function(ev){
+    try{ localStorage.setItem(cronKey(),ev.target.result); renderCronograma(); }
+    catch(e){ alert('Imagen demasiado grande para el almacenamiento local. Intentá con una foto comprimida.'); }
+  };
+  r.readAsDataURL(file);
+};
+window.cronBorrar=function(){
+  if(!confirm('¿Eliminar el cronograma de esta semana?')) return;
+  localStorage.removeItem(cronKey()); renderCronograma();
+};
+
 // ── ENTER key on PIN ──
 document.addEventListener('DOMContentLoaded', function(){
   buildTable();
   loadConfig();
   loadShadowMaps();
+  cleanOldCronograma();
   var pi=document.getElementById('pin-input');
   pi.addEventListener('keydown',function(e){
     if(e.key==='Enter') window.verifyPin();

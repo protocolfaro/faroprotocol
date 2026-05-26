@@ -17,16 +17,7 @@ import data_refresh
 import velez_scheduler
 
 app = Flask(__name__)
-app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024  # 10 MB — native mobile camera photos
-CORS(app, resources={
-    r"/velez/cronograma/*": {
-        "origins": ["https://protocolfaro.github.io"],
-        "methods": ["POST", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Accept"],
-        "max_age": 600,
-    },
-    r"/*": {"origins": "*"},
-})
+CORS(app)
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger(__name__)
@@ -40,11 +31,6 @@ def _ok_pin(pin):
     if not pin:
         return False
     return hashlib.sha256(str(pin).encode()).hexdigest() == _PIN_HASH
-
-
-@app.errorhandler(413)
-def _too_large(e):
-    return jsonify({"status": "error", "error": "Imagen demasiado grande (máx 10 MB)"}), 413
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -205,63 +191,6 @@ def delete_aspersores_route(cancha):
     except Exception as e:
         log.error(traceback.format_exc())
         return jsonify({"status": "error", "error": str(e)}), 500
-
-
-@app.route("/velez/cronograma/upload", methods=["POST"])
-def cronograma_upload():
-    """Parse a weekly schedule image via Claude Vision API and push to GitHub."""
-    pin = request.form.get("pin") or (request.get_json(force=True, silent=True) or {}).get("pin")
-    if not _ok_pin(pin):
-        return jsonify({"status": "error", "error": "PIN inválido"}), 401
-
-    if "file" not in request.files:
-        return jsonify({"status": "error", "error": "No se recibió archivo (campo 'file')"}), 400
-
-    f = request.files["file"]
-    mime = (f.content_type or "image/jpeg").split(";")[0].strip()
-    ALLOWED = {"image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"}
-    if mime not in ALLOWED:
-        return jsonify({"status": "error",
-                        "error": f"Tipo no soportado: {mime}. Usar JPEG, PNG o WebP"}), 415
-
-    image_bytes = f.read()
-    if len(image_bytes) > 10 * 1024 * 1024:
-        return jsonify({"status": "error", "error": "Imagen demasiado grande (máx 10 MB)"}), 413
-    if not image_bytes:
-        return jsonify({"status": "error", "error": "Archivo vacío"}), 400
-
-    try:
-        import vision_cronograma
-        parsed = vision_cronograma.parse_cronograma(image_bytes, mime)
-    except EnvironmentError as e:
-        return jsonify({"status": "error", "error": str(e)}), 503
-    except TimeoutError:
-        return jsonify({
-            "status":  "procesando",
-            "message": "La IA tardó más de lo esperado analizando la imagen. "
-                       "Esperá 30 segundos y volvé a intentarlo.",
-        }), 202
-    except Exception as e:
-        log.error(traceback.format_exc())
-        return jsonify({"status": "error", "error": f"Vision API: {e}"}), 500
-
-    try:
-        commit_url = github_push.push_cronograma(parsed)
-        log.info("Cronograma OCR pushed: %d sessions → %s",
-                 len(parsed.get("sessions", [])), commit_url)
-    except EnvironmentError as e:
-        return jsonify({"status": "error", "error": str(e)}), 503
-    except Exception as e:
-        log.error(traceback.format_exc())
-        return jsonify({"status": "error", "error": f"GitHub push: {e}"}), 500
-
-    return jsonify({
-        "status":   "ok",
-        "semana":   parsed.get("semana_label"),
-        "sessions": len(parsed.get("sessions", [])),
-        "dias":     len(parsed.get("dias", [])),
-        "commit":   commit_url,
-    })
 
 
 @app.route("/velez/refresh", methods=["POST"])
