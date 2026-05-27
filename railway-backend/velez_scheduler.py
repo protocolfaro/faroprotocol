@@ -1032,13 +1032,45 @@ def send_all_reports(config: dict = None, vd: dict = None) -> dict:
         log.warning("historico: %s", e)
 
     # ── FASE B-2: Regenerar PNGs frescos ─────────────────────────────────────
+    import subprocess, tempfile, sys as _sys
     out_dir = Path(__file__).parent.parent / "reportes_velez"
+    out_dir.mkdir(exist_ok=True)
+    _script_dir = Path(__file__).parent
+    _gen_scripts = [
+        ("gen_velez_canchero.py", "faro_reporte_velez_canchero.png"),
+        ("gen_velez_final.py",    "faro_reporte_velez_agro_FINAL.png"),
+        ("gen_velez_solar_v2.py", "faro_reporte_velez_solar_v2.png"),
+        ("gen_velez_main.py",     "faro_reporte_velez.png"),
+    ]
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False,
+                                     encoding='utf-8') as _tf:
+        json.dump(vd, _tf)
+        _vd_tmp = _tf.name
     try:
-        import render_reports as _rr
-        generated = _rr.render_all(vd, out_dir)
-        log.info("render_reports: %d PNGs generados", len(generated))
-    except Exception as e:
-        log.warning("render_reports: %s — usando PNGs existentes", e)
+        for _script_name, _out_name in _gen_scripts:
+            _script_path = _script_dir / _script_name
+            _out_path    = out_dir / _out_name
+            _env = os.environ.copy()
+            _env["FARO_VD_PATH"] = _vd_tmp
+            _env["FARO_OUT_PATH"] = str(_out_path)
+            try:
+                _r = subprocess.run(
+                    [_sys.executable, str(_script_path)],
+                    env=_env, timeout=120, capture_output=True,
+                    text=True, encoding='utf-8', errors='replace'
+                )
+                if _r.returncode == 0:
+                    log.info("%s: OK → %s", _script_name, _out_name)
+                else:
+                    log.warning("%s: exit %d — %s", _script_name, _r.returncode,
+                                (_r.stderr or _r.stdout)[:300])
+            except Exception as _e:
+                log.warning("%s: %s", _script_name, _e)
+    finally:
+        try:
+            os.unlink(_vd_tmp)
+        except Exception:
+            pass
 
     date_str     = datetime.now().strftime("%d/%m/%Y")
     report_paths = _get_report_paths(config)   # {key → Path} from config.zonas
