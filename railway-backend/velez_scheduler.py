@@ -515,11 +515,15 @@ def _body_roger(vd: dict, panel_url: str = "") -> str:
     sectores   = vd.get("sectores", {})
     u          = vd.get("usuarios", {}).get("roger", {})
     canchas    = sectores.get("canchero", {}).get("canchas", [])
+    poli       = sectores.get("poli", {})
+    agro       = sectores.get("agro", {})
     acciones   = u.get("acciones", [])
     tareas_sem = u.get("tareas_semana", [])
+    fecha      = datetime.now().strftime("%d/%m/%Y")
 
     criticas = [c for c in canchas if c.get("sem") == "rojo"]
     atencion = [c for c in canchas if c.get("sem") == "amarillo"]
+    optimas  = [c for c in canchas if c.get("sem") == "verde"]
 
     def _cancha_li(c):
         return (
@@ -528,22 +532,49 @@ def _body_roger(vd: dict, panel_url: str = "") -> str:
             f'<span style="font-size:13px;color:#ccc">{c.get("detalle","")}</span></li>'
         )
 
+    # Canchas por prioridad agronómica
     sections = ""
     if criticas:
         rows = "".join(_cancha_li(c) for c in criticas)
-        sections += f'<h3 style="color:#e74c3c">HOY — NO PUEDE ESPERAR</h3><ul style="font-size:15px;line-height:1.8">{rows}</ul>'
+        sections += f'<h3 style="color:#e74c3c">Intervención Urgente</h3><ul style="font-size:15px;line-height:1.8">{rows}</ul>'
     if atencion:
         rows = "".join(_cancha_li(c) for c in atencion)
-        sections += f'<h3 style="color:#f0b429">Esta semana</h3><ul style="font-size:15px;line-height:1.8">{rows}</ul>'
+        sections += f'<h3 style="color:#f0b429">Tratamiento Esta Semana</h3><ul style="font-size:15px;line-height:1.8">{rows}</ul>'
+    if optimas:
+        rows = "".join(_cancha_li(c) for c in optimas)
+        sections += f'<h3 style="color:#27ae60">Estado Óptimo</h3><ul style="font-size:14px;line-height:1.8">{rows}</ul>'
+
+    # Área Agronómica
+    agro_col = _SEM_COLOR.get(agro.get("sem", "amarillo"), "#f0b429")
+    agro_html = (
+        f'<h3 style="color:{agro_col}">Área Agronómica</h3>'
+        f'<ul style="font-size:14px;line-height:1.8">'
+        f'<li>Score: <b>{agro.get("score","—")}/100</b> · {agro.get("detalle","")}</li>'
+        f'</ul>'
+    ) if agro else ""
+
+    # Polideportivo
+    poli_col = _SEM_COLOR.get(poli.get("sem", "amarillo"), "#f0b429")
+    poli_html = (
+        f'<h3 style="color:{poli_col}">Polideportivo Feijóo</h3>'
+        f'<ul style="font-size:14px;line-height:1.8">'
+        f'<li>Score: <b>{poli.get("score","—")}/100</b> · {poli.get("detalle","")}</li>'
+        f'</ul>'
+    ) if poli else ""
+
+    # Prescripciones y acciones
     if acciones:
         items = "".join(f"<li>{a}</li>" for a in acciones)
-        sections += f'<h3 style="color:#c9a84c">Acciones recomendadas</h3><ul style="font-size:14px;line-height:1.8">{items}</ul>'
+        sections += f'<h3 style="color:#c9a84c">Prescripciones Agronómicas</h3><ul style="font-size:14px;line-height:1.8">{items}</ul>'
+
+    # Plan semanal
+    plan_html = ""
     if tareas_sem:
         items = ""
         for t in tareas_sem[:3]:
             tasks = " · ".join(t.get("tareas", []))
             items += f'<li><b>{t.get("dia_nombre","?")}: </b>{tasks}</li>'
-        sections += f'<h3 style="color:#c9a84c">Próximos días</h3><ul style="font-size:14px;line-height:1.7">{items}</ul>'
+        plan_html = f'<h3 style="color:#c9a84c">Plan de Trabajo Semanal</h3><ul style="font-size:14px;line-height:1.7">{items}</ul>'
 
     # Senter lights
     railway_url = os.environ.get("RAILWAY_URL", "")
@@ -587,18 +618,21 @@ def _body_roger(vd: dict, panel_url: str = "") -> str:
         )
 
     body = f"""
-        <p style="font-size:16px;font-weight:bold">Roger, te mando el mapa de esta semana.</p>
-        <p style="font-size:14px">Los círculos de colores en el mapa marcan exactamente donde ir.</p>
+        <p style="font-size:16px;font-weight:bold">Roger, informe agronómico de la semana del {fecha}.</p>
+        <p style="font-size:14px">Análisis satelital Sentinel-2 + prescripciones por superficie.</p>
         {sections}
+        {agro_html}
+        {poli_html}
+        {plan_html}
         {senter_html}
         {asp_html}
         {clegg_html}
         {_novedad_section("roger")}
         <p style="font-size:13px;color:#9aa0a8">
-          Cualquier duda respondeme por este mail o por WhatsApp. — Faro Protocol
+          Cualquier consulta respondeme por este mail o por WhatsApp. — Faro Protocol
         </p>
     """
-    return _html_wrap("Tu Mapa de Trabajo Esta Semana — Estadio + Villa Olímpica", body, panel_url)
+    return _html_wrap(f"Informe Agronómico Semanal — Vélez Sarsfield · {fecha}", body, panel_url)
 
 
 def _body_juan(vd: dict, panel_url: str = "") -> str:

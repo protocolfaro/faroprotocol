@@ -62,7 +62,8 @@
       "nombre": "Roger Bernal",
       "email": "correocancha@gmail.com",
       "whatsapp": "541124642616",
-      "reportes": ["canchero"]
+      "rol": "ingeniero_agronomo",
+      "reportes": ["canchero", "agro_FINAL", "poli"]
     },
     {
       "nombre": "Juan Gonzalez",
