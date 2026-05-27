@@ -198,15 +198,36 @@ ax_sec.set_title("Análisis por Sector — Vision + NDVI Baseline",
 for sp in ax_sec.spines.values():
     sp.set_edgecolor(BORDER); sp.set_linewidth(0.8)
 
-# Encabezados columnas
-cols_x = [0.02, 0.19, 0.33, 0.62, 0.86]
+def _wrap(text, max_chars):
+    """Parte texto en líneas de max_chars caracteres respetando palabras."""
+    words = text.split()
+    lines, cur, n = [], [], 0
+    for w in words:
+        if n + len(w) + (1 if cur else 0) > max_chars and cur:
+            lines.append(" ".join(cur))
+            cur, n = [], 0
+        cur.append(w)
+        n += len(w) + (1 if len(cur) > 1 else 0)
+    if cur:
+        lines.append(" ".join(cur))
+    return lines
+
+# Anchos de columna calibrados para evitar overflow:
+#   SECTOR 0.02–0.15 | ESTADO 0.16–0.30 | NDVI 0.31–0.43
+#   ANÁLISIS VISUAL 0.44–0.68 | RIESGO POST 0.70–0.99
+cols_x   = [0.02, 0.16, 0.31, 0.44, 0.70]
 col_hdrs = ["SECTOR", "ESTADO", "NDVI BASE", "ANÁLISIS VISUAL · VISION", "RIESGO POST"]
 for x, h in zip(cols_x, col_hdrs):
     ax_sec.text(x, 0.96, h, color=GOLD, fontsize=6.5, fontfamily="monospace",
                 fontweight="bold", va="top")
 ax_sec.plot([0.01, 0.99], [0.925, 0.925], color=GOLD + "55", lw=0.7)
 
+# Línea divisoria vertical entre ANÁLISIS VISUAL y RIESGO POST
+ax_sec.plot([0.685, 0.685], [0.01, 0.92], color=BORDER, lw=0.6, linestyle=":")
+
 row_h = 0.155
+LINE_V = 0.033   # espaciado vertical entre líneas de texto
+
 for i, s in enumerate(SECTORES):
     y = 0.89 - i * row_h
     sc = s["sem"]
@@ -249,53 +270,22 @@ for i, s in enumerate(SECTORES):
                     color=WDIM + "88", fontsize=5.5, fontfamily="monospace", va="top",
                     style="italic")
 
-    # Análisis visual — wrap manual
-    vision_txt = s["vision"]
-    # Partir en dos líneas ~55 chars
-    words = vision_txt.split()
-    line1, line2, line3 = [], [], []
-    cur = line1
-    chars = 0
-    for w in words:
-        if chars > 52 and cur is line1:
-            cur = line2; chars = 0
-        elif chars > 52 and cur is line2:
-            cur = line3; chars = 0
-        cur.append(w)
-        chars += len(w) + 1
-    ax_sec.text(cols_x[3], y - 0.005, " ".join(line1),
-                color=WHITE, fontsize=6.2, va="top")
-    if line2:
-        ax_sec.text(cols_x[3], y - 0.038, " ".join(line2),
-                    color=WHITE, fontsize=6.2, va="top")
-    if line3:
-        ax_sec.text(cols_x[3], y - 0.070, " ".join(line3),
-                    color=WDIM, fontsize=6.0, va="top", style="italic")
+    # Análisis visual — wrap a 32 chars, cabe en columna 0.44–0.68
+    for li, ln in enumerate(_wrap(s["vision"], 32)[:3]):
+        clr = WHITE if li < 2 else WDIM
+        ax_sec.text(cols_x[3], y - 0.008 - li * LINE_V, ln,
+                    color=clr, fontsize=6.2, va="top")
 
-    # Match Vision/NDVI
+    # RIESGO POST — match symbol + texto wrapeado a 28 chars
     match_sym = {"positivo": "▲ coherente", "neutro": "◆ neutro", "negativo": "▼ alerta"}
     match_col = {"positivo": GREEN, "neutro": AMBER, "negativo": RED}
     vm = s.get("vision_match", "neutro")
-    ax_sec.text(cols_x[4], y - 0.01, match_sym[vm],
-                color=match_col[vm], fontsize=6.5, fontfamily="monospace",
+    ax_sec.text(cols_x[4], y - 0.008, match_sym[vm],
+                color=match_col[vm], fontsize=6.3, fontfamily="monospace",
                 fontweight="bold", va="top")
-
-    # Riesgo post abreviado
-    rp = s["riesgo_post"]
-    rp_words = rp.split()
-    rp1, rp2 = [], []
-    cc = 0
-    for w in rp_words:
-        if cc > 28 and not rp2:
-            rp1 = list(rp1)
-            cc = 0
-        (rp2 if rp1 else rp1).append(w)
-        cc += len(w) + 1
-    # simpler: just first 32 chars + ...
-    rp_short = rp[:60] + ("…" if len(rp) > 60 else "")
-    ax_sec.text(cols_x[4], y - 0.048, rp_short,
-                color=WDIM, fontsize=5.5, va="top",
-                wrap=True)
+    for li, ln in enumerate(_wrap(s["riesgo_post"], 28)[:3]):
+        ax_sec.text(cols_x[4], y - 0.008 - (li + 1) * LINE_V, ln,
+                    color=WDIM, fontsize=5.8, va="top")
 
     # Separador
     if i < len(SECTORES) - 1:
