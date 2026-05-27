@@ -79,7 +79,7 @@ def panel_ax(ax, title=''):
                      loc='left', pad=5, fontfamily='monospace')
 
 # ─── FIGURA ───────────────────────────────────────────────────────────────────
-fig = plt.figure(figsize=(13.5, 28), facecolor=BG)
+fig = plt.figure(figsize=(14, 28), facecolor=BG)
 gs = gridspec.GridSpec(7, 1, figure=fig, hspace=0.0,
     height_ratios=[1.1, 1.5, 4.2, 3.8, 3.8, 3.5, 0.7])
 
@@ -211,11 +211,6 @@ for i, (bx, s) in enumerate(zip(bar_x, SECTORES)):
     bar_h = min(s['insar'] / 1.5, 1.0)
     ax_sar.add_patch(FancyBboxPatch((bx-bw/2, 0.04), bw, bar_h,
         boxstyle="round,pad=0.01", facecolor=col+'55', edgecolor=col, linewidth=1.5))
-    ax_sar.text(bx, bar_h+0.08, f'{s["insar"]:.2f}mm',
-               color=col, fontsize=10, fontweight='bold', ha='center', transform=ax_sar.transAxes,
-               clip_on=False)
-    ax_sar.text(bx, -0.12, s['name'].replace('\n',' '),
-               color=WDIM, fontsize=8, ha='center', va='top')
 
 ax_sar.axhline(1.0/1.5*1.2, color=YELL+'aa', linewidth=1.2, linestyle='--', zorder=5)
 ax_sar.text(9.5, 1.0/1.5*1.2+0.02, 'UMBRAL\n1.0mm', color=YELL, fontsize=7, ha='right')
@@ -325,6 +320,6 @@ plt.subplots_adjust(left=0.03, right=0.97, top=0.995, bottom=0.008, hspace=0.0)
 _REPORT_DIR = pathlib.Path(__file__).parent.parent / 'reportes_velez'
 _REPORT_DIR.mkdir(exist_ok=True)
 out = str(_out_path or (_REPORT_DIR / 'faro_reporte_velez_sede.png'))
-plt.savefig(out, dpi=DPI, facecolor=BG, bbox_inches='tight', pad_inches=0.08)
+plt.savefig(out, dpi=DPI, facecolor=BG, bbox_inches='tight', pad_inches=0.1)
 plt.close()
 print(f'Saved: {out}')

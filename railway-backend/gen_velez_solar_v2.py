@@ -477,8 +477,6 @@ ax7.plot(hours, insol_max,    color=GRNL,linewidth=1.2,linestyle='--',alpha=0.6,
 ax7.fill_between(hours, 0, insol_actual, color=YELL,alpha=0.35)
 ax7.plot(hours, insol_actual, color=YELL,linewidth=2.2,
     label=f'Produccion actual {actual_kwp:.1f} kWp pico')
-ax7.fill_between(hours, insol_actual, insol_max, color=REDL,alpha=0.18,
-    label=f'Perdida {loss_kwp:.1f} kWp pico')
 
 ax7.axhline(INSTALLED_KWP*0.8, color=YELL,linewidth=1.0,linestyle=':',alpha=0.7)
 ax7.text(18.8,INSTALLED_KWP*0.82,'80%',color=YELL,fontsize=9,fontfamily='monospace',va='bottom')

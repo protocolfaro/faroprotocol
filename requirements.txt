@@ -12,4 +12,6 @@ tweepy
 APScheduler
 schedule
 matplotlib
+numpy
+Pillow
 reportlab
