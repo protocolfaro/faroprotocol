@@ -519,7 +519,7 @@ ax_ftr.text(0.015, 0.45,
     f"Fuentes: Planetary Computer (ESA/Microsoft)  ·  {s2_source}  ·  {s1_source}",
     color=WDIM, fontsize=6, fontfamily="monospace", va="center")
 ax_ftr.text(0.015, 0.15,
-    f"Coord.: Lat -34.6394  Lon -58.5297  ·  WGS-84  ·  Generado: {FECHA}",
+    f"Coord.: Lat -34.6379  Lon -58.5288  ·  WGS-84 (campo, scan S2C 17/05/2026)  ·  Generado: {FECHA}",
     color=WDIM, fontsize=6, fontfamily="monospace", va="center")
 ax_ftr.text(0.985, 0.45,
     f"© Faro Protocol {NOW.year}",
@@ -656,7 +656,7 @@ ax_hm_ftr.set_facecolor(BG3); ax_hm_ftr.axis("off")
 ax_hm_ftr.set_xlim(0,1); ax_hm_ftr.set_ylim(0,1)
 ax_hm_ftr.plot([0,1],[0.90,0.90], color=BORDER, lw=0.5)
 ax_hm_ftr.text(0.015, 0.45,
-    f"Sentinel-2 L2A S2B · 22/05/2026 13:46 UTC · Tile T21HUB · 10m/px · Coord. -34.6394, -58.5297",
+    f"Sentinel-2 L2A S2C · 17/05/2026 · Tile T21HUB · 10m/px · Coord. campo -34.6379, -58.5288",
     color=WDIM, fontsize=6, fontfamily="monospace", va="center")
 ax_hm_ftr.text(0.985, 0.45, f"© Faro Protocol {NOW.year}",
     color=WDIM, fontsize=6, fontfamily="monospace", ha="right", va="center")

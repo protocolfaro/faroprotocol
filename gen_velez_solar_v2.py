@@ -215,7 +215,7 @@ ax0.text(0.5,0.70,'VÉLEZ SARSFIELD · MONITOREO SOLAR — TECHO SUR AMALFITANI'
     ha='center',va='top',fontfamily='sans-serif')
 ax0.text(0.5,0.51,f'Escaneo satelital: {SCAN_DATE}',
     transform=ax0.transAxes,color=WDIM,fontsize=9,ha='center',va='top',fontfamily='monospace')
-ax0.text(0.5,0.35,'Lat -34.6394  ·  Lon -58.5297  ·  210 paneles bifaciales 120 kWp · Abril 2026',
+ax0.text(0.5,0.35,'Lat -34.6379  ·  Lon -58.5288  ·  210 paneles bifaciales 120 kWp · Abril 2026',
     transform=ax0.transAxes,color=WDIM,fontsize=8.5,ha='center',va='top',fontfamily='monospace')
 ax0.add_patch(FancyBboxPatch((0.29,0.02),0.42,0.22,
     boxstyle='round,pad=0.01',transform=ax0.transAxes,

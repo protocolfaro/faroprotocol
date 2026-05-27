@@ -183,7 +183,7 @@ ax_hdr.text(0.5, 0.52, f'Escaneo satelital: {SCAN_DATE}',
     transform=ax_hdr.transAxes, color=WDIM,
     fontsize=9, ha='center', va='top', fontfamily='monospace')
 
-ax_hdr.text(0.5, 0.36, 'Lat −34.6394  ·  Lon −58.5297  ·  WGS-84',
+ax_hdr.text(0.5, 0.36, 'Lat −34.6379  ·  Lon −58.5288  ·  WGS-84',
     transform=ax_hdr.transAxes, color=WDIM,
     fontsize=8.5, ha='center', va='top', fontfamily='monospace')
 

@@ -2,8 +2,8 @@
   "zonas": [
     {
       "nombre": "Estadio Amalfitani",
-      "lat": -34.6394,
-      "lon": -58.5297,
+      "lat": -34.6379,
+      "lon": -58.5288,
       "script": "gen_velez_main.py",
       "output": "faro_reporte_velez.png"
     },
@@ -16,15 +16,15 @@
     },
     {
       "nombre": "Solar Amalfitani",
-      "lat": -34.6394,
-      "lon": -58.5297,
+      "lat": -34.6379,
+      "lon": -58.5288,
       "script": "gen_velez_solar_v2.py",
       "output": "faro_reporte_velez_solar_v2.png"
     },
     {
       "nombre": "Canchero",
-      "lat": -34.6394,
-      "lon": -58.5297,
+      "lat": -34.6379,
+      "lon": -58.5288,
       "script": "gen_velez_canchero.py",
       "output": "faro_reporte_velez_canchero.png"
     },
