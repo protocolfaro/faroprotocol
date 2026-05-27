@@ -532,9 +532,10 @@ def render_all(vd: dict, out_dir: Path) -> list[Path]:
             log.error("render %s failed: %s", fname, e)
 
     for key, fname, title, icon in [
-        ("poli",    "faro_reporte_velez_poli.png",    "Polideportivo Feijoo", ""),
-        ("piletas", "faro_reporte_velez_piletas.png",  "Complejo Acuatico",   ""),
-        ("sede",    "faro_reporte_velez_sede.png",     "Sede Central",        ""),
+        ("poli",      "faro_reporte_velez_poli.png",      "Polideportivo Feijoo",             ""),
+        ("piletas",   "faro_reporte_velez_piletas.png",   "Complejo Acuatico",                ""),
+        ("sede",      "faro_reporte_velez_sede.png",      "Sede Central",                     ""),
+        ("instituto", "faro_reporte_velez_instituto.png", "Instituto Velez - Infanto Juvenil", ""),
     ]:
         p = out_dir / fname
         try:
@@ -543,7 +544,7 @@ def render_all(vd: dict, out_dir: Path) -> list[Path]:
         except Exception as e:
             log.error("render %s failed: %s", fname, e)
 
-    log.info("render_all: %d/%d PNG generados en %s", len(outputs), 7, out_dir)
+    log.info("render_all: %d/%d PNG generados en %s", len(outputs), 8, out_dir)
     return outputs
 
 

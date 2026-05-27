@@ -48,6 +48,13 @@
       "lon": -58.5224,
       "script": "gen_velez_piletas.py",
       "output": "faro_reporte_velez_piletas.png"
+    },
+    {
+      "nombre": "Instituto Velez",
+      "lat": -34.6380,
+      "lon": -58.5230,
+      "script": "gen_velez_instituto.py",
+      "output": "faro_reporte_velez_instituto.png"
     }
   ],
   "destinatarios": [
@@ -55,40 +62,40 @@
       "nombre": "Roger Bernal",
       "email": "correocancha@gmail.com",
       "whatsapp": "541124642616",
-      "reportes": ["canchero", "velez", "solar_v2", "agro_FINAL"]
+      "reportes": ["canchero"]
     },
     {
       "nombre": "Juan Gonzalez",
       "email": "jgonzalez@velez.com.ar",
       "whatsapp": "541151073109",
-      "reportes": ["agro_FINAL"]
+      "reportes": ["canchero", "agro_FINAL"]
     },
     {
       "nombre": "Fernando Banchero",
       "email": "fbanchero@velez.com.ar",
       "whatsapp": "541167096384",
-      "reportes": ["velez", "canchero", "solar_v2", "agro_FINAL", "poli", "piletas", "sede"]
+      "reportes": ["velez", "solar_v2", "agro_FINAL", "poli", "sede", "instituto"]
     },
     {
       "nombre": "Sebastian Pait",
       "email": "spait@velez.com.ar",
-      "reportes": ["velez", "poli"]
+      "reportes": ["canchero", "agro_FINAL"]
     },
     {
       "nombre": "Fabian Berlanga",
       "email": "fberlanga@velez.com.ar",
-      "reportes": ["velez"]
+      "reportes": ["velez", "agro_FINAL", "solar_v2", "poli", "sede", "instituto"]
     },
     {
       "nombre": "Nelson Pugliese",
       "email": "npugliese@velez.com.ar",
       "whatsapp": "541156417353",
-      "reportes": ["velez"]
+      "reportes": ["velez", "agro_FINAL", "solar_v2", "poli", "sede", "instituto"]
     },
     {
       "nombre": "Alberto Aveleyra",
       "email": "aaveleyra@velez.com.ar",
-      "reportes": ["velez"]
+      "reportes": ["velez", "agro_FINAL", "solar_v2", "poli", "sede", "instituto"]
     }
   ]
 }

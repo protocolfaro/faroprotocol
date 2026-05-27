@@ -29,6 +29,17 @@ GMAIL_USER   = os.environ.get("GMAIL_USER", "protocolfaro@gmail.com")
 GMAIL_PASS   = os.environ.get("GMAIL_APP_PASS", "")
 BREVO_KEY    = os.environ.get("BREVO_API_KEY", "")
 
+_MANUAL_DIR  = Path(__file__).parent.parent / "reportes_velez"
+MANUAL_PATHS: dict = {
+    "roger":    _MANUAL_DIR / "manual_velez_roger.pdf",
+    "juan":     _MANUAL_DIR / "manual_velez_juan.pdf",
+    "banchero": _MANUAL_DIR / "manual_velez_banchero.pdf",
+    "pait":     _MANUAL_DIR / "manual_velez_pait.pdf",
+    "berlanga": _MANUAL_DIR / "manual_velez_berlanga.pdf",
+    "nelson":   _MANUAL_DIR / "manual_velez_nelson.pdf",
+    "aveleyra": _MANUAL_DIR / "manual_velez_aveleyra.pdf",
+}
+
 _SEM_COLOR = {"verde": "#27ae60", "amarillo": "#f0b429", "rojo": "#e74c3c"}
 _SEM_LABEL = {"verde": "ÓPTIMO",  "amarillo": "ATENCIÓN", "rojo": "CRÍTICO"}
 _SEM_EMOJI = {"verde": "✅",       "amarillo": "⚠️",        "rojo": "🚨"}
@@ -1033,6 +1044,14 @@ def send_all_reports(config: dict = None, vd: dict = None) -> dict:
                 log.warning("PNG '%s' no encontrado para %s", rep_key, nombre)
         if attachments:
             log.info("Adjuntos para %s: %d PNG(s)", nombre, len(attachments))
+
+        # Attach personal PDF manual (always included)
+        manual_p = MANUAL_PATHS.get(slug)
+        if manual_p and manual_p.exists():
+            attachments.append((manual_p.name, manual_p.read_bytes()))
+            log.info("Manual PDF adjunto para %s: %s", nombre, manual_p.name)
+        elif manual_p:
+            log.warning("Manual PDF no encontrado para %s: %s", nombre, manual_p)
 
         ok = send_email(email, f"Faro · Reporte semanal · Vélez · {date_str}",
                         body_html, attachments or None)
