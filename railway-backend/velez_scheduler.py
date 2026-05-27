@@ -1037,10 +1037,14 @@ def send_all_reports(config: dict = None, vd: dict = None) -> dict:
     out_dir.mkdir(exist_ok=True)
     _script_dir = Path(__file__).parent
     _gen_scripts = [
-        ("gen_velez_canchero.py", "faro_reporte_velez_canchero.png"),
-        ("gen_velez_final.py",    "faro_reporte_velez_agro_FINAL.png"),
-        ("gen_velez_solar_v2.py", "faro_reporte_velez_solar_v2.png"),
-        ("gen_velez_main.py",     "faro_reporte_velez.png"),
+        ("gen_velez_main.py",      "faro_reporte_velez.png"),
+        ("gen_velez_canchero.py",  "faro_reporte_velez_canchero.png"),
+        ("gen_velez_final.py",     "faro_reporte_velez_agro_FINAL.png"),
+        ("gen_velez_solar_v2.py",  "faro_reporte_velez_solar_v2.png"),
+        ("gen_velez_poli.py",      "faro_reporte_velez_poli.png"),
+        ("gen_velez_sede.py",      "faro_reporte_velez_sede.png"),
+        ("gen_velez_piletas.py",   "faro_reporte_velez_piletas.png"),
+        ("gen_velez_instituto.py", "faro_reporte_velez_instituto.png"),
     ]
     with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False,
                                      encoding='utf-8') as _tf:
