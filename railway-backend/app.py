@@ -295,7 +295,10 @@ def mediciones():
     if not med or not med.get("tipo") or not med.get("cancha"):
         return jsonify({"status": "error", "error": "medicion.tipo y medicion.cancha requeridos"}), 400
     try:
-        commit_url = github_push.push_medicion(med)
+        if med.get("tipo", "").lower() == "clegg":
+            commit_url = github_push.push_clegg_medicion(med)
+        else:
+            commit_url = github_push.push_medicion(med)
         return jsonify({"status": "ok", "commit": commit_url})
     except EnvironmentError as e:
         return jsonify({"status": "error", "error": str(e)}), 503
@@ -521,6 +524,12 @@ def _daily_refresh():
 
 def _weekly_insar_refresh():
     global _last_insar
+    if not os.environ.get("NASA_EARTHDATA_USER") or not os.environ.get("NASA_EARTHDATA_PASS"):
+        msg = ("InSAR skipped — set NASA_EARTHDATA_USER + NASA_EARTHDATA_PASS "
+               "in Railway env vars to activate Sentinel-1 displacement monitoring")
+        log.warning("=== Cron: %s ===", msg)
+        _last_insar = {"ok": False, "error": msg, "ran_at": datetime.now(timezone.utc).isoformat()}
+        return
     log.info("=== Cron: weekly InSAR refresh starting ===")
     result = data_refresh.run_insar_refresh()
     _last_insar = {**result, "ran_at": datetime.now(timezone.utc).isoformat()}

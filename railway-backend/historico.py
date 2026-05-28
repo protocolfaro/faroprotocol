@@ -31,6 +31,8 @@ FIELDS = [
     "gndvi_1fa", "gndvi_2fa", "gndvi_3fa", "gndvi_4fa",
     "gndvi_5fa", "gndvi_6fa", "gndvi_7fa", "gndvi_8fa", "gndvi_9fa", "gndvi_10fa",
     "gndvi_1fp", "gndvi_2fp",
+    # GNDVI — Amalfitani + Polideportivo (from heatmaps pipeline)
+    "gndvi_amalfitani", "gndvi_poli_f11", "gndvi_poli_f8a", "gndvi_poli_f8b", "gndvi_poli_hockey",
     # SAR Sentinel-1 (VV/VH backscatter dB)
     "sar_vv_db", "sar_vh_db", "sar_ratio_vv_vh", "sar_fecha",
     # Clegg Hammer compaction (CG units) from Roger's field measurements
@@ -89,8 +91,10 @@ def _build_row(vd: dict) -> dict:
         **{f"ndvi_{cid}":  vo_canchas.get(cid, {}).get("ndvi",  "") for cid in _VO_CIDS},
         # NDVI nuevas canchas (de heatmaps, escritas por satellite_pipeline)
         **{f"ndvi_{cid}":  (hm_data.get(cid) or {}).get("ndvi", "") for cid in _NEW_CIDS},
-        # GNDVI VO
+        # GNDVI VO (from weather_live.gndvi_por_cancha)
         **{f"gndvi_{cid}": vo_canchas.get(cid, {}).get("gndvi", "") for cid in _VO_CIDS},
+        # GNDVI nuevas canchas (from heatmaps, written by satellite_pipeline)
+        **{f"gndvi_{cid}": (hm_data.get(cid) or {}).get("gndvi", "") for cid in _NEW_CIDS},
         # SAR
         "sar_vv_db":               sar.get("vv_db", ""),
         "sar_vh_db":               sar.get("vh_db", ""),

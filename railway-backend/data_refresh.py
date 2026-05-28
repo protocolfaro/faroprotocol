@@ -21,8 +21,23 @@ log = logging.getLogger(__name__)
 LAT, LON, ELEV_M = -34.6375, -58.5215, 25
 API_TIMEOUT = 12
 
-_CANCHA_NDVI = {"1fa": 0.48, "2fa": 0.52, "3fa": 0.38, "4fa": 0.31}
-_GNDVI_K     = {"1fa": 0.91, "2fa": 0.93, "3fa": 0.88, "4fa": 0.84}
+# Fallback estimates used when Sentinel-2 fetch fails; overridden by ndvi_real on success
+_CANCHA_NDVI = {
+    "1fa": 0.48, "2fa": 0.52, "3fa": 0.38, "4fa": 0.31,
+    "5fa": 0.40, "6fa": 0.35, "7fa": 0.38, "8fa": 0.36, "9fa": 0.33, "10fa": 0.45,
+    "1fp": 0.55, "2fp": 0.52,
+    "amalfitani": 0.60, "poli_f11": 0.45, "poli_f8a": 0.42,
+    "poli_f8b": 0.42, "poli_hockey": 0.38,
+}
+_GNDVI_K = {
+    "1fa": 0.91, "2fa": 0.93, "3fa": 0.88, "4fa": 0.84,
+    "5fa": 0.89, "6fa": 0.87, "7fa": 0.88, "8fa": 0.87, "9fa": 0.86, "10fa": 0.90,
+    "1fp": 0.92, "2fp": 0.91,
+    "amalfitani": 0.92, "poli_f11": 0.90, "poli_f8a": 0.89,
+    "poli_f8b": 0.89, "poli_hockey": 0.88,
+}
+# All cancha IDs — used for dynamic fungal risk lists
+_ALL_CANCHA_IDS = list(_CANCHA_NDVI.keys())
 
 
 # ── Fetch helpers ─────────────────────────────────────────────────────────────
@@ -218,14 +233,14 @@ def _fungal_risk(h: dict, shadow_pct_by_cancha: dict = None) -> dict:
     h_brown  = sum(1 for t,r in zip(temps[:48],rh[:48]) if t and r and t>20 and r>85)
 
     if h_brown >= 10 or h_dollar >= 16:
-        base_canchas = ["1fa","3fa","2fa"]
+        base_canchas = _ALL_CANCHA_IDS
         canchas_riesgo = list(dict.fromkeys(base_canchas + shadowed))
         return {"nivel":"alto","horas_favorables_48h":h_dollar,"horas_brown_patch_48h":h_brown,
                 "descripcion":f"ALTO: {h_dollar}h Dollar Spot · {h_brown}h Brown Patch (48h)",
                 "accion_recomendada":"Aplicar fungicida preventivo HOY",
                 "canchas_en_riesgo":canchas_riesgo,"enfermedad":"Dollar Spot + Brown Patch"}
     if h_dollar >= 6 or h_brown >= 4:
-        base_canchas = ["1fa","3fa"]
+        base_canchas = [c for c in _ALL_CANCHA_IDS if c in ("1fa","2fa","3fa","amalfitani","poli_f11")]
         canchas_riesgo = list(dict.fromkeys(base_canchas + shadowed))
         return {"nivel":"medio","horas_favorables_48h":h_dollar,"horas_brown_patch_48h":h_brown,
                 "descripcion":f"MEDIO: {h_dollar}h favorables Dollar Spot en últimas 48h",

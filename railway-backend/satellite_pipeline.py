@@ -108,13 +108,21 @@ def _push_heatmap_ndvi_update(ndvi_data: dict) -> str:
         ndvi = cdata.get("ndvi")
         if ndvi is None:
             continue
-        # Mapear cid de ndvi_real → clave en heatmaps
-        hm_key = "amalfitani" if cid == "amalfitani" else cid
+        hm_key = cid  # no remapping needed
         if hm_key in hm:
             hm[hm_key]["ndvi"] = ndvi
+            if cdata.get("gndvi") is not None:
+                hm[hm_key]["gndvi"]     = cdata["gndvi"]
+                hm[hm_key]["n_status"]  = cdata.get("n_status", "")
+                hm[hm_key]["n_rec"]     = cdata.get("n_rec", "")
         else:
-            hm[hm_key] = {"archivo": f"heatmaps/heatmap_{hm_key}.png",
-                          "ndvi": ndvi, "detalle": ""}
+            entry = {"archivo": f"heatmaps/heatmap_{hm_key}.png",
+                     "ndvi": ndvi, "detalle": ""}
+            if cdata.get("gndvi") is not None:
+                entry["gndvi"]    = cdata["gndvi"]
+                entry["n_status"] = cdata.get("n_status", "")
+                entry["n_rec"]    = cdata.get("n_rec", "")
+            hm[hm_key] = entry
 
     roger.setdefault("heatmaps_meta", {}).update({
         "semana":     img_date,
