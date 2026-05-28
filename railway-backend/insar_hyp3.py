@@ -82,9 +82,18 @@ def _find_pair(granules: list[dict]) -> tuple[dict, dict] | None:
 
     by_orbit: dict[int, list] = defaultdict(list)
     for g in granules:
-        orbit = g.get("pathNumber") or g.get("relativeOrbit")
+        orbit = (g.get("pathNumber") or g.get("relativeOrbit")
+                 or g.get("track") or g.get("orbitNumber"))
         if orbit is not None:
-            by_orbit[int(orbit)].append(g)
+            try:
+                by_orbit[int(orbit)].append(g)
+            except (ValueError, TypeError):
+                pass
+        else:
+            # ASF API sometimes omits pathNumber — group by start-hour as proxy for relative orbit
+            start = g.get("startTime", "")
+            hour_key = int(start[11:13]) if len(start) >= 13 else 0
+            by_orbit[hour_key].append(g)
 
     best_pair = None
     best_date = None

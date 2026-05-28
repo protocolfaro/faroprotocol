@@ -529,6 +529,51 @@ def shadow_maps():
         return jsonify({"status": "error", "error": str(e)}), 500
 
 
+@app.route("/velez/insar_debug", methods=["GET"])
+def insar_debug():
+    """Diagnose InSAR pipeline: imports, ASF search, pair finding — no HyP3 job submitted."""
+    report = {}
+    # 1. Import check
+    try:
+        import hyp3_sdk; report["hyp3_sdk"] = hyp3_sdk.__version__
+    except ImportError as e:
+        report["hyp3_sdk"] = f"ImportError: {e}"
+    try:
+        import rasterio; report["rasterio"] = rasterio.__version__
+    except ImportError as e:
+        report["rasterio"] = f"ImportError: {e}"
+    # 2. ASF granule search
+    try:
+        import insar_hyp3
+        granules = insar_hyp3._search_slc_granules(days_back=30)
+        report["granules_found"] = len(granules)
+        report["granules"] = [
+            {"name": g.get("granuleName", g.get("sceneName", "?")),
+             "start": g.get("startTime", "?"),
+             "relativeOrbit": g.get("relativeOrbit"),
+             "pathNumber": g.get("pathNumber"),
+             "track": g.get("track")}
+            for g in granules[:10]
+        ]
+        # 3. Pair finding
+        pair = insar_hyp3._find_pair(granules) if granules else None
+        if pair:
+            report["pair_found"] = True
+            report["pair"] = {
+                "ref":  (pair[0].get("startTime") or "")[:10],
+                "sec":  (pair[1].get("startTime") or "")[:10],
+                "delta_days": ((lambda d1, d2: (d2 - d1).days)(
+                    __import__("datetime").datetime.fromisoformat(pair[0]["startTime"][:10]),
+                    __import__("datetime").datetime.fromisoformat(pair[1]["startTime"][:10])
+                )),
+            }
+        else:
+            report["pair_found"] = False
+    except Exception as e:
+        report["error"] = str(e)
+    return jsonify(report)
+
+
 @app.route("/velez/refresh_insar", methods=["POST"])
 def manual_insar_refresh():
     """
