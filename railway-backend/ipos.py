@@ -20,7 +20,8 @@ TURNO_H: dict[str, float] = {
 }
 
 CANCHAS = {
-    "1fa","2fa","3fa","4fa","5fa","6fa","7fa","8fa","9fa","10fa","1fp","2fp","campus"
+    "1fa","2fa","3fa","4fa","5fa","6fa","7fa","8fa","9fa","10fa","1fp","2fp","campus",
+    "amalfitani","poli_f11","poli_f8a","poli_f8b","poli_hockey",
 }
 
 def _factor(cat: str) -> float:

@@ -983,10 +983,14 @@ function buildEtCard(wl){
       +'<div class="et-value ok">sin falta esta semana</div></div>';
   }
 
+  var etFuente = wl.et0_fuente||'';
+  var etBadge  = etFuente==='estimado'
+    ? '<span style="font-size:9px;color:#e0b84c;font-weight:700;margin-left:4px">ESTIMADO</span>'
+    : '<span style="font-size:9px;color:#4cad72;margin-left:4px">'+etFuente+'</span>';
   var html='<div class="et-card">'
     +'<div class="et-card-title">Agua perdida por día & Balance de Riego</div>'
     +'<div class="et-row"><div class="et-label">Agua perdida hoy por el pasto</div>'
-    +'<div class="et-value '+etCls+'">'+et+' mm/día — '+etLabel+'</div></div>'
+    +'<div class="et-value '+etCls+'">'+et+' mm/día — '+etLabel+etBadge+'</div></div>'
     +'<div class="et-row"><div class="et-label">Agua perdida esta semana</div>'
     +'<div class="et-value normal">'+wl.et0_semana_mm+' mm</div></div>'
     +'<div class="et-row"><div class="et-label">Lluvia estimada semana</div>'

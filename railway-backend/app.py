@@ -64,16 +64,16 @@ def horarios():
         log.error(traceback.format_exc())
         return jsonify({"status": "error", "error": f"IPOS: {e}"}), 500
 
-    # Polideportivo fields: no session-based IPOS, always generate with neutral values
-    _POLI_STATIC = {
+    # Neutral defaults for canchas with no sessions this week; compute_ipos overrides if sessions present
+    _EXTRA_DEFAULTS = {
         "amalfitani":  {"score":0,"semaforo":"verde","icono":"🟢","texto":"Sin actividad registrada","personas":0,"horas":0,"detalle":"Campo Principal — Amalfitani"},
         "poli_f11":    {"score":0,"semaforo":"verde","icono":"🟢","texto":"Sin actividad registrada","personas":0,"horas":0,"detalle":"Fútbol 11 — Polideportivo Feijóo"},
         "poli_f8a":    {"score":0,"semaforo":"verde","icono":"🟢","texto":"Sin actividad registrada","personas":0,"horas":0,"detalle":"Fútbol 8A — Polideportivo Feijóo"},
         "poli_f8b":    {"score":0,"semaforo":"verde","icono":"🟢","texto":"Sin actividad registrada","personas":0,"horas":0,"detalle":"Fútbol 8B — Polideportivo Feijóo"},
         "poli_hockey": {"score":0,"semaforo":"verde","icono":"🟢","texto":"Sin actividad registrada","personas":0,"horas":0,"detalle":"Hockey — Polideportivo Feijóo"},
     }
-    for k, v in _POLI_STATIC.items():
-        ipos_results.setdefault(k, v)
+    for k, v in _EXTRA_DEFAULTS.items():
+        ipos_results.setdefault(k, v)  # compute_ipos result takes precedence if sessions were submitted
 
     try:
         png_bytes, verify_hashes = heatmap_gen.generate_all(ipos_results, sem_label)

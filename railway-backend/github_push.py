@@ -163,6 +163,15 @@ def push_velez_data(ipos: dict, ts: str) -> str:
             cancha["ndvi"]       = ndvi
             cancha["detalle"]    = f"NDVI {ndvi:.2f} · Sin uso esta semana — descansada" + shadow_note
 
+    # Aggregate sector-level score from cancha scores (single source of truth)
+    cancha_scores = [c.get("score") for c in canchas if isinstance(c.get("score"), (int, float))]
+    if cancha_scores:
+        sector_score = round(sum(cancha_scores) / len(cancha_scores))
+        sector_sem   = "verde" if sector_score >= 70 else "amarillo" if sector_score >= 50 else "rojo"
+        canchero = vd.setdefault("sectores", {}).setdefault("canchero", {})
+        canchero["score"] = sector_score
+        canchero["sem"]   = sector_sem
+
     roger.setdefault("heatmaps_meta", {})["updated_at"] = ts
     vd["updated_at"] = ts
 
