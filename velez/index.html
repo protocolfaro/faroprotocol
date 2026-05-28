@@ -1701,7 +1701,7 @@ function buildHeatmapSection(u, cfg, shadowMaps){
   function getHm(sec, sub){
     if(!hmData) return {};
     if(sec==='amalf') return hmData.amalfitani||{};
-    if(sec==='poli')  return sub==='basket'?(hmData.poli||{}):{};
+    if(sec==='poli')  return sub==='basket'?(hmData.poli||{}):(hmData['poli_'+sub]||{});
     if(sec==='solar') return {};
     return hmData[sub]||{};
   }
