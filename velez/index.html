@@ -1598,11 +1598,11 @@ function buildHeatmapSection(u, cfg, shadowMaps){
   var el=document.getElementById('heatmap-section');
   el.style.display='block';
 
-  // Cancha groups by predio — geographic separation
-  var AMALF_SUBS=['1fa','2fa','3fa','4fa'];   // Estadio Amalfitani training fields
-  var VO_SUBS   =['1fp','2fp'];               // Villa Olímpica primer equipo
-  var FORM_SUBS =['5fa','6fa','7fa','8fa','9fa','10fa']; // Formativas
-  var FA_ALL=AMALF_SUBS.concat(VO_SUBS).concat(FORM_SUBS);
+  // Cancha groups by predio
+  // Amalfitani: campo principal único (sin sub-canchas) → hmData.amalfitani
+  // Villa Olímpica: amateur 1FA-10FA + primer equipo 1FP/2FP
+  var VO_SUBS=['1fa','2fa','3fa','4fa','5fa','6fa','7fa','8fa','9fa','10fa','1fp','2fp'];
+  var FA_ALL=VO_SUBS.slice();
   var iposC=(cfg&&cfg.ipos_semana&&cfg.ipos_semana.canchas)||{};
 
   // Sort each group by IPOS criticality (rojos first)
@@ -1612,25 +1612,23 @@ function buildHeatmapSection(u, cfg, shadowMaps){
     });
   }
   var _subsBySecId={
-    amalf: AMALF_SUBS,
-    vo:    VO_SUBS,
-    form:  FORM_SUBS,
+    vo: VO_SUBS,
   };
 
   var sectors=[
-    {id:'amalf', label:'Amalfitani',       hasSubs:true},
+    {id:'amalf', label:'Amalfitani',       hasSubs:false},
     {id:'vo',    label:'Villa Olímpica',   hasSubs:true},
-    {id:'form',  label:'Formativas',       hasSubs:true},
     {id:'poli',  label:'Polideportivo',    hasSubs:false},
     {id:'solar', label:'Exposición Solar', hasSubs:false},
   ];
 
-  var curSec='amalf', curSub=_subsBySecId['amalf'][0]||'1fa';
+  var curSec='amalf', curSub=_subsBySecId['vo'][0]||'1fa';
 
   function _subsForSec(sec){ return _subsBySecId[sec]||[]; }
 
   function getHm(sec, sub){
     if(!hmData) return {};
+    if(sec==='amalf') return hmData.amalfitani||{};
     if(sec==='poli')  return hmData.poli||{};
     if(sec==='solar') return {};
     return hmData[sub]||{};
