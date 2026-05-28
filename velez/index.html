@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Faro Protocol · Vélez Sarsfield</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 :root {
   --bg:    #0d1117;
@@ -1598,6 +1600,50 @@ function buildHeatmapSection(u, cfg, shadowMaps){
   var el=document.getElementById('heatmap-section');
   el.style.display='block';
 
+  // Leaflet map state — persists across renderInner calls
+  var _hmMap=null, _hmMarker=null;
+
+  // Real coords per sector (Vélez — Liniers, Buenos Aires)
+  var _COORDS={
+    amalf:{lat:-34.6370,lng:-58.5219,zoom:17,label:'Estadio J. Amalfitani — Campo Principal'},
+    poli: {lat:-34.6376,lng:-58.5218,zoom:17,label:'Polideportivo Feijóo'},
+    vo:   {lat:-34.6385,lng:-58.5205,zoom:16}
+  };
+  var _CANCHA_LABEL={
+    '1fa':'1FA','2fa':'2FA','3fa':'3FA','4fa':'4FA',
+    '5fa':'5FA','6fa':'6FA','7fa':'7FA','8fa':'8FA','9fa':'9FA','10fa':'10FA',
+    '1fp':'1FP — Primer Equipo','2fp':'2FP — Primer Equipo'
+  };
+
+  function renderMap(sec, sub){
+    var mapEl=document.getElementById('hm-map');
+    if(!mapEl||typeof L==='undefined') return;
+    var c=_COORDS[sec];
+    if(!c){mapEl.style.display='none';return;}
+    mapEl.style.display='block';
+    var lbl=sec==='vo'
+      ?(_CANCHA_LABEL[sub]||sub.toUpperCase())+' — Villa Olímpica'
+      :c.label;
+    if(!_hmMap){
+      _hmMap=L.map(mapEl,{zoomControl:false,attributionControl:false,
+        dragging:false,scrollWheelZoom:false,doubleClickZoom:false,touchZoom:false});
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(_hmMap);
+      // North arrow
+      var northCtrl=L.control({position:'topright'});
+      northCtrl.onAdd=function(){
+        var d=L.DomUtil.create('div');
+        d.style.cssText='background:rgba(0,0,0,.55);color:#e8e6e0;padding:3px 7px;border-radius:4px;font-size:10px;font-weight:700;letter-spacing:.05em;pointer-events:none';
+        d.innerHTML='N&nbsp;&#8593;';
+        return d;
+      };
+      northCtrl.addTo(_hmMap);
+    }
+    _hmMap.setView([c.lat,c.lng],c.zoom);
+    if(_hmMarker) _hmMarker.remove();
+    _hmMarker=L.marker([c.lat,c.lng]).addTo(_hmMap).bindTooltip(lbl,{permanent:true,direction:'bottom',offset:[0,6]});
+    setTimeout(function(){_hmMap.invalidateSize();},80);
+  }
+
   // Cancha groups by predio
   // Amalfitani: campo principal único (sin sub-canchas) → hmData.amalfitani
   // Villa Olímpica: amateur 1FA-10FA + primer equipo 1FP/2FP
@@ -1659,6 +1705,7 @@ function buildHeatmapSection(u, cfg, shadowMaps){
     }).join('');
     document.getElementById('hm-img-wrap').innerHTML=html||'<div style="padding:16px;font-size:11px;color:var(--wdim)">Sin datos de sombras</div>';
     document.getElementById('hm-meta').innerHTML='';
+    var mapEl=document.getElementById('hm-map'); if(mapEl) mapEl.style.display='none';
   }
 
   function renderInner(){
@@ -1698,6 +1745,7 @@ function buildHeatmapSection(u, cfg, shadowMaps){
       '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'+iposHtml+ndviHtml+detHtml+'</div>'
       +((hmMeta.fuente||hmData.fuente)?'<span class="hm-src">'+(hmMeta.fuente||hmData.fuente)+'</span>':'')
       +shadowInlineHtml;
+    renderMap(curSec, curSub);
   }
 
   function tabsHtml(){
@@ -1751,6 +1799,7 @@ function buildHeatmapSection(u, cfg, shadowMaps){
     +subTabsHtml()
     +'<div class="hm-img-wrap" id="hm-img-wrap"></div>'
     +'<div class="hm-meta" id="hm-meta"></div>'
+    +'<div id="hm-map" style="margin:8px 16px 0;border-radius:var(--radius);overflow:hidden;border:1px solid rgba(255,255,255,.07);height:180px;display:none;position:relative"></div>'
     +(Object.keys(iposC).length?iposSummaryHtml():'');
 
   renderInner();
