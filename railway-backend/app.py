@@ -28,7 +28,7 @@ _DEV = os.environ.get("FLASK_ENV", "production") == "development"
 
 def _ok_pin(pin):
     if not _PIN_HASH:
-        return bool(_DEV)
+        return True  # No PIN configured — open access
     if not pin:
         return False
     return hashlib.sha256(str(pin).encode()).hexdigest() == _PIN_HASH
