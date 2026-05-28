@@ -1604,26 +1604,32 @@ function buildHeatmapSection(u, cfg, shadowMaps){
   var _hmMap=null, _hmMarker=null;
 
   // Real coords per sector (Vélez — Liniers/Ituzaingó, Buenos Aires)
-  // VO per-cancha coords: predio corre NW→SE siguiendo Camino del Buen Ayre
-  // Bounding box OSM: N:-34.6169 S:-34.6276 W:-58.7214 E:-58.7171
-  // Ref: plano NUMERACION DE CANCHAS 2024 + Nominatim
+  // VO: polígono OSM relation 2567701 cruzado con plano NUMERACION DE CANCHAS 2024
+  // Predio tiene forma de "L invertida":
+  //   Cuerpo principal (N-S): lat -34.619→-34.628, lng ~-58.721
+  //   Brazo NE (6FA-10FA):    lat -34.617→-34.622, lng -58.717→-58.720
+  //   Muesca Dardo Cabo:      lat -34.622→-34.623, lng -58.718 (separa los dos sectores)
+  // 1FA/2FA: cuerpo N (NW, acceso General de la Guitarra)
+  // 1FP/2FP: cuerpo S (junto al Camino del Buen Ayre)
+  // 3FA/4FA: zona central, campos rotados, borde oeste de la muesca
+  // 5FA:     debajo de 3FA/4FA
+  // 6FA-10FA: brazo NE (al norte/este de la muesca Dardo Cabo)
   var _COORDS={
     amalf:{lat:-34.6370,lng:-58.5219,zoom:17,label:'Estadio J. Amalfitani — Campo Principal'},
     poli: {lat:-34.6376,lng:-58.5218,zoom:17,label:'Polideportivo Feijóo'},
-    // Villa Olímpica — posición por cancha (fallback al centro si no se reconoce la clave)
     vo_center:{lat:-34.6221,lng:-58.7200,zoom:15},
-    '1fa': {lat:-34.6182,lng:-58.7212,zoom:17,label:'1FA — Villa Olímpica'},
-    '2fa': {lat:-34.6195,lng:-58.7210,zoom:17,label:'2FA — Villa Olímpica'},
-    '3fa': {lat:-34.6215,lng:-58.7194,zoom:17,label:'3FA — Villa Olímpica'},
-    '4fa': {lat:-34.6210,lng:-58.7196,zoom:17,label:'4FA — Villa Olímpica'},
-    '5fa': {lat:-34.6222,lng:-58.7191,zoom:17,label:'5FA — Villa Olímpica'},
-    '6fa': {lat:-34.6225,lng:-58.7187,zoom:17,label:'6FA — Villa Olímpica'},
-    '7fa': {lat:-34.6235,lng:-58.7184,zoom:17,label:'7FA — Villa Olímpica'},
-    '8fa': {lat:-34.6243,lng:-58.7180,zoom:17,label:'8FA — Villa Olímpica'},
-    '9fa': {lat:-34.6240,lng:-58.7182,zoom:17,label:'9FA — Villa Olímpica'},
-    '10fa':{lat:-34.6253,lng:-58.7177,zoom:17,label:'10FA — Villa Olímpica'},
-    '1fp': {lat:-34.6198,lng:-58.7203,zoom:17,label:'1FP — Primer Equipo'},
-    '2fp': {lat:-34.6205,lng:-58.7200,zoom:17,label:'2FP — Primer Equipo'},
+    '1fa': {lat:-34.6195,lng:-58.7208,zoom:17,label:'1FA — Villa Olímpica'},
+    '2fa': {lat:-34.6205,lng:-58.7205,zoom:17,label:'2FA — Villa Olímpica'},
+    '3fa': {lat:-34.6232,lng:-58.7196,zoom:17,label:'3FA — Villa Olímpica'},
+    '4fa': {lat:-34.6225,lng:-58.7196,zoom:17,label:'4FA — Villa Olímpica'},
+    '5fa': {lat:-34.6242,lng:-58.7193,zoom:17,label:'5FA — Villa Olímpica'},
+    '6fa': {lat:-34.6216,lng:-58.7192,zoom:17,label:'6FA — Villa Olímpica'},
+    '7fa': {lat:-34.6208,lng:-58.7188,zoom:17,label:'7FA — Villa Olímpica'},
+    '8fa': {lat:-34.6195,lng:-58.7183,zoom:17,label:'8FA — Villa Olímpica'},
+    '9fa': {lat:-34.6210,lng:-58.7186,zoom:17,label:'9FA — Villa Olímpica'},
+    '10fa':{lat:-34.6187,lng:-58.7178,zoom:17,label:'10FA — Villa Olímpica'},
+    '1fp': {lat:-34.6255,lng:-58.7208,zoom:17,label:'1FP — Primer Equipo'},
+    '2fp': {lat:-34.6255,lng:-58.7200,zoom:17,label:'2FP — Primer Equipo'},
   };
 
   function renderMap(sec, sub){
