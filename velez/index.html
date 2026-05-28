@@ -1595,6 +1595,7 @@ function buildHorarioGrid(cfg){
 function buildHeatmapSection(u, cfg, shadowMaps){
   var hmData=u.heatmaps||{};
   var hmMeta=u.heatmaps_meta||{};
+  var _imgV=(hmMeta.semana||'').replace(/-/g,'');
   // Show section when we have heatmap data OR shadow maps — solar tab is always available
   if(!Object.keys(hmData).length && !shadowMaps) return;
   var el=document.getElementById('heatmap-section');
@@ -1724,7 +1725,7 @@ function buildHeatmapSection(u, cfg, shadowMaps){
         +'<div style="display:flex;gap:5px;padding:0 12px 8px;flex-wrap:wrap">'
         +pill('#4cad72','Plena',plena)+pill('#e0b84c','Parcial',d.sombra_parcial_pct)+pill('#e05252','Permanente',d.sombra_permanente_pct)
         +'</div>'
-        +'<img style="width:100%;display:block;background:#000;border-top:1px solid rgba(255,255,255,.06)" src="'+l.png+'" alt="Sombras '+d.label+'" loading="lazy">'
+        +'<img style="width:100%;display:block;background:#000;border-top:1px solid rgba(255,255,255,.06)" src="'+l.png+(_imgV?'?v='+_imgV:'')+'" alt="Sombras '+d.label+'" loading="lazy">'
         +'<div style="font-size:9px;color:var(--wdim);padding:5px 12px 9px">'+d.imagenes_analizadas+' imágenes Sentinel-2 · '+d.periodo_analisis+' · '+d.resolucion_m+'m/px</div>'
         +'</div>';
     }).join('');
@@ -1751,7 +1752,7 @@ function buildHeatmapSection(u, cfg, shadowMaps){
     }
     var detHtml=hm.detalle?'<span class="hm-src">'+hm.detalle+'</span>':'';
     var imgHtml=hm.archivo
-      ?'<img class="hm-img" src="'+hm.archivo+'" alt="Heatmap '+curSub+'" loading="lazy">'
+      ?'<img class="hm-img" src="'+hm.archivo+(_imgV?'?v='+_imgV:'')+'" alt="Heatmap '+curSub+'" loading="lazy">'
       :'<span class="hm-img-placeholder">Heatmap no disponible — ejecutá generate_heatmaps_v2.py</span>';
     document.getElementById('hm-img-wrap').innerHTML=imgHtml;
     var shadowInlineHtml='';
