@@ -40,10 +40,13 @@ DIMS = {
     "poli_hockey":(91,  55),
 }
 
+# Calibrated for real grass NDVI range: 0.10 (dormant/critical) to 0.65 (optimal)
 _CMAP = LinearSegmentedColormap.from_list("ipos_ndvi", [
-    (0.00,"#b71c1c"),(0.22,"#e05252"),(0.40,"#e0b84c"),
-    (0.60,"#8bc34a"),(0.80,"#4cad72"),(1.00,"#1b5e20"),
+    (0.00,"#b71c1c"),(0.20,"#e05252"),(0.40,"#e0b84c"),
+    (0.65,"#8bc34a"),(0.85,"#4cad72"),(1.00,"#1b5e20"),
 ])
+_NDVI_VMIN = 0.10   # dormant / bare soil threshold
+_NDVI_VMAX = 0.65   # optimal dense grass for temperate climate
 
 def _ndvi_grid(rows, cols, base, seed=42):
     rng = np.random.default_rng(seed)
@@ -193,7 +196,7 @@ def generate_all(ipos_results: dict, semana_label: str, ndvi_map: dict = None) -
         scale_c = W_PX * 0.92 / cols
         ndvi_up = _zoom(ndvi_g.astype(np.float64), (scale_r, scale_c), order=3)
         ndvi_up = gaussian_filter(ndvi_up, sigma=1.5)
-        ax.imshow(ndvi_up, cmap=_CMAP, vmin=0, vmax=1, origin="upper",
+        ax.imshow(ndvi_up, cmap=_CMAP, vmin=_NDVI_VMIN, vmax=_NDVI_VMAX, origin="upper",
                   aspect="auto", extent=[0,W_m,H_m,0])
         ax.set_xlim(0,W_m); ax.set_ylim(H_m,0)
 
@@ -254,7 +257,7 @@ def generate_all(ipos_results: dict, semana_label: str, ndvi_map: dict = None) -
         cbar = fig.add_axes([0.926, 0.07, 0.028, 0.93])
         cbar.set_facecolor(BG)
         cb = np.linspace(1,0,200).reshape(200,1)
-        cbar.imshow(cb, cmap=_CMAP, aspect="auto", vmin=0, vmax=1)
+        cbar.imshow(cb, cmap=_CMAP, aspect="auto", vmin=_NDVI_VMIN, vmax=_NDVI_VMAX)
         cbar.set_xticks([])
         cbar.set_yticks([0,66,133,199])
         cbar.set_yticklabels(["Óptimo","Bueno","Estrés","Crítico"],
