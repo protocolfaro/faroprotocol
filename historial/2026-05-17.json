@@ -41,7 +41,7 @@
     ],
     "semana": "2026-05-25"
   },
-  "updated_at": "2026-05-28T19:38:39Z",
+  "updated_at": "2026-05-28T20:23:05Z",
   "weather_live": {
     "timestamp": "2026-05-28T09:00:14",
     "fuentes": [
@@ -225,7 +225,7 @@
           "id": "1fa",
           "nombre": "1FA",
           "score": 28,
-          "score_prev": 26,
+          "score_prev": 28,
           "sem": "rojo",
           "ndvi": 0.199,
           "ndvi_prev": 0.52,
@@ -235,7 +235,7 @@
           "id": "2fa",
           "nombre": "2FA",
           "score": 82,
-          "score_prev": 98,
+          "score_prev": 82,
           "sem": "verde",
           "ndvi": 0.524,
           "ndvi_prev": 0.48,
@@ -245,7 +245,7 @@
           "id": "3fa",
           "nombre": "3FA",
           "score": 46,
-          "score_prev": 67,
+          "score_prev": 46,
           "sem": "rojo",
           "ndvi": 0.174,
           "ndvi_prev": 0.44,
@@ -255,7 +255,7 @@
           "id": "4fa",
           "nombre": "4FA",
           "score": 53,
-          "score_prev": 98,
+          "score_prev": 53,
           "sem": "amarillo",
           "ndvi": 0.158,
           "ndvi_prev": 0.38,
@@ -265,7 +265,7 @@
           "id": "5fa",
           "nombre": "5FA",
           "score": 45,
-          "score_prev": 35,
+          "score_prev": 45,
           "sem": "rojo",
           "ndvi": 0.189,
           "ndvi_prev": 0.38,
@@ -275,7 +275,7 @@
           "id": "6fa",
           "nombre": "6FA",
           "score": 53,
-          "score_prev": 92,
+          "score_prev": 53,
           "sem": "amarillo",
           "ndvi": 0.161,
           "ndvi_prev": 0.7,
@@ -285,7 +285,7 @@
           "id": "7fa",
           "nombre": "7FA",
           "score": 53,
-          "score_prev": 91,
+          "score_prev": 53,
           "sem": "amarillo",
           "ndvi": 0.166,
           "ndvi_prev": 0.68,
@@ -295,7 +295,7 @@
           "id": "8fa",
           "nombre": "8FA",
           "score": 42,
-          "score_prev": 18,
+          "score_prev": 42,
           "sem": "rojo",
           "ndvi": 0.16,
           "ndvi_prev": 0.42,
@@ -305,7 +305,7 @@
           "id": "9fa",
           "nombre": "9FA",
           "score": 47,
-          "score_prev": 22,
+          "score_prev": 47,
           "sem": "rojo",
           "ndvi": 0.136,
           "ndvi_prev": 0.3,
@@ -315,7 +315,7 @@
           "id": "10fa",
           "nombre": "10FA",
           "score": 57,
-          "score_prev": 90,
+          "score_prev": 57,
           "sem": "amarillo",
           "ndvi": 0.208,
           "ndvi_prev": 0.65,
@@ -325,7 +325,7 @@
           "id": "1fp",
           "nombre": "1FP",
           "score": 38,
-          "score_prev": 85,
+          "score_prev": 38,
           "sem": "rojo",
           "ndvi": 0.075,
           "ndvi_prev": 0.61,
@@ -335,7 +335,7 @@
           "id": "2fp",
           "nombre": "2FP",
           "score": 48,
-          "score_prev": 83,
+          "score_prev": 48,
           "sem": "rojo",
           "ndvi": 0.101,
           "ndvi_prev": 0.59,
@@ -617,7 +617,7 @@
       "heatmaps_meta": {
         "fuente": "sentinel-2-l2a · Planetary Computer · 2026-05-17 · nubosidad 5%",
         "semana": "2026-05-17",
-        "updated_at": "2026-05-28T19:38:39Z"
+        "updated_at": "2026-05-28T20:23:05Z"
       }
     },
     "juan": {
@@ -1173,7 +1173,7 @@
   },
   "historial_meta": {
     "semana": "2026-05-17",
-    "committed_at": "2026-05-28T19:38:40Z",
+    "committed_at": "2026-05-28T20:23:07Z",
     "fuente": "Faro Protocol · Railway auto-commit"
   }
 }
