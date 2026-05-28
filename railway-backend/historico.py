@@ -1,24 +1,33 @@
 """
 historico.py — Weekly data registry for Vélez Sarsfield.
-Appends one row per Monday run to historico_velez_protocol.csv.
-Call write_weekly_snapshot(vd) from velez_scheduler before send_all_reports().
+Appends one row per satellite cycle to historico_velez_protocol.csv.
+Primary store: GitHub historial/csv/historico_velez_protocol.csv (persistent across Railway deploys).
+Secondary store: local filesystem (dev only).
 """
 from __future__ import annotations
-import csv, logging
+import csv, io, logging, os
 from datetime import date, datetime
 from pathlib import Path
 
 log = logging.getLogger(__name__)
 
-HIST_PATH = Path(__file__).parent.parent / "historico_velez_protocol.csv"
+HIST_PATH    = Path(__file__).parent.parent / "historico_velez_protocol.csv"
+GITHUB_CSV_PATH = "historial/csv/historico_velez_protocol.csv"
+
+# VO canchas
+_VO_CIDS = ["1fa","2fa","3fa","4fa","5fa","6fa","7fa","8fa","9fa","10fa","1fp","2fp"]
+# Canchas nuevas con cobertura satelital
+_NEW_CIDS = ["amalfitani","poli_f11","poli_f8a","poli_f8b","poli_hockey"]
 
 FIELDS = [
     "timestamp_utc", "semana_iso", "semana_epi", "fecha_local",
-    # NDVI per cancha (Sentinel-2 sub-pixel cleaned)
+    # NDVI per cancha (Sentinel-2 sub-pixel cleaned) — VO
     "ndvi_1fa", "ndvi_2fa", "ndvi_3fa", "ndvi_4fa",
     "ndvi_5fa", "ndvi_6fa", "ndvi_7fa", "ndvi_8fa", "ndvi_9fa", "ndvi_10fa",
     "ndvi_1fp", "ndvi_2fp",
-    # GNDVI (nitrogen proxy) per cancha
+    # NDVI — Amalfitani + Polideportivo
+    "ndvi_amalfitani", "ndvi_poli_f11", "ndvi_poli_f8a", "ndvi_poli_f8b", "ndvi_poli_hockey",
+    # GNDVI (nitrogen proxy) per cancha — VO
     "gndvi_1fa", "gndvi_2fa", "gndvi_3fa", "gndvi_4fa",
     "gndvi_5fa", "gndvi_6fa", "gndvi_7fa", "gndvi_8fa", "gndvi_9fa", "gndvi_10fa",
     "gndvi_1fp", "gndvi_2fp",
@@ -40,24 +49,22 @@ FIELDS = [
 ]
 
 
-def write_weekly_snapshot(vd: dict) -> Path:
-    """
-    Extract metrics from velez_data.json dict and append one row to the CSV.
-    Returns the path of the CSV file written.
-    """
+def _build_row(vd: dict) -> dict:
+    """Extract all metrics from a velez_data.json dict into a CSV row dict."""
     today    = date.today()
     iso_cal  = today.isocalendar()
     wl       = vd.get("weather_live", {})
     gndvi_d  = wl.get("gndvi_por_cancha", {})
-    canchas  = gndvi_d.get("canchas", {})
+    # VO NDVI/GNDVI come from weather_live.gndvi_por_cancha.canchas
+    vo_canchas = gndvi_d.get("canchas", {})
     sectores = vd.get("sectores", {})
     roger    = vd.get("usuarios", {}).get("roger", {})
+    # New canchas NDVI comes from usuarios.roger.heatmaps.{cid}.ndvi (satellite pipeline)
+    hm_data  = roger.get("heatmaps", {})
 
-    # Clegg: from roger.mediciones.clegg or roger.kpis proxies
     clegg_raw  = roger.get("mediciones", {}).get("clegg", [])
     clegg_map  = {m.get("zona", "").lower(): m.get("valor_cg") for m in clegg_raw}
 
-    # Aspersores: if synced from Railway into vd
     asp_all = vd.get("aspersores", {})
     if asp_all:
         asp_list = [a for v in asp_all.values() if isinstance(v, list) for a in v]
@@ -71,7 +78,6 @@ def write_weekly_snapshot(vd: dict) -> Path:
     else:
         total = asp_cub = asp_sol = asp_sin = ""
 
-    # SAR
     sar = wl.get("sar", {})
 
     row: dict = {
@@ -79,12 +85,12 @@ def write_weekly_snapshot(vd: dict) -> Path:
         "semana_iso":              f"{iso_cal[0]}-W{iso_cal[1]:02d}",
         "semana_epi":              iso_cal[1],
         "fecha_local":             today.isoformat(),
-        # NDVI
-        **{f"ndvi_{cid}":  canchas.get(cid, {}).get("ndvi",  "") for cid in [
-            "1fa","2fa","3fa","4fa","5fa","6fa","7fa","8fa","9fa","10fa","1fp","2fp"]},
-        # GNDVI
-        **{f"gndvi_{cid}": canchas.get(cid, {}).get("gndvi", "") for cid in [
-            "1fa","2fa","3fa","4fa","5fa","6fa","7fa","8fa","9fa","10fa","1fp","2fp"]},
+        # NDVI VO canchas
+        **{f"ndvi_{cid}":  vo_canchas.get(cid, {}).get("ndvi",  "") for cid in _VO_CIDS},
+        # NDVI nuevas canchas (de heatmaps, escritas por satellite_pipeline)
+        **{f"ndvi_{cid}":  (hm_data.get(cid) or {}).get("ndvi", "") for cid in _NEW_CIDS},
+        # GNDVI VO
+        **{f"gndvi_{cid}": vo_canchas.get(cid, {}).get("gndvi", "") for cid in _VO_CIDS},
         # SAR
         "sar_vv_db":               sar.get("vv_db", ""),
         "sar_vh_db":               sar.get("vh_db", ""),
@@ -120,13 +126,85 @@ def write_weekly_snapshot(vd: dict) -> Path:
         "sentinel2_nubosidad_pct": gndvi_d.get("nubosidad_pct", ""),
         "sentinel2_fuente":        gndvi_d.get("fuente", ""),
     }
+    return row
 
-    file_exists = HIST_PATH.exists()
-    with open(HIST_PATH, "a", newline="", encoding="utf-8") as fh:
-        writer = csv.DictWriter(fh, fieldnames=FIELDS, extrasaction="ignore")
-        if not file_exists:
-            writer.writeheader()
+
+def _push_csv_to_github(row: dict) -> str:
+    """Append row to historial/csv/historico_velez_protocol.csv on GitHub.
+    Reads existing CSV, appends new row, pushes full file back.
+    Returns commit URL or empty string on failure.
+    """
+    import base64, requests as _req
+    token = os.environ.get("GITHUB_TOKEN", "")
+    if not token:
+        return ""
+    owner, repo, branch = "protocolfaro", "faroprotocol", "main"
+    api_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{GITHUB_CSV_PATH}"
+    hdrs = {"Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28"}
+
+    existing_sha = None
+    existing_content = ""
+    r = _req.get(api_url, headers=hdrs, params={"ref": branch}, timeout=15)
+    if r.status_code == 200:
+        d = r.json()
+        existing_sha = d["sha"]
+        existing_content = base64.b64decode(d["content"]).decode("utf-8")
+
+    # Build new CSV content
+    buf = io.StringIO()
+    writer = csv.DictWriter(buf, fieldnames=FIELDS, extrasaction="ignore", lineterminator="\n")
+    if not existing_content:
+        writer.writeheader()
+        writer.writerow(row)
+    else:
+        buf.write(existing_content.rstrip("\n") + "\n")
         writer.writerow(row)
 
-    log.info("historico: appended row %s to %s", row["semana_iso"], HIST_PATH)
+    ts = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    payload = {
+        "message": f"historico: snapshot {row['semana_iso']} [{ts}]",
+        "content": base64.b64encode(buf.getvalue().encode("utf-8")).decode(),
+        "branch":  branch,
+    }
+    if existing_sha:
+        payload["sha"] = existing_sha
+
+    resp = _req.put(api_url, headers=hdrs, json=payload, timeout=35)
+    resp.raise_for_status()
+    return resp.json().get("commit", {}).get("html_url", "")
+
+
+def write_weekly_snapshot(vd: dict) -> Path:
+    """
+    Extract metrics from velez_data.json and append one row to the historical CSV.
+    Primary: pushes to GitHub (persistent across Railway deploys).
+    Secondary: writes local CSV as dev fallback.
+    Returns local HIST_PATH.
+    """
+    row = _build_row(vd)
+
+    # Primary: GitHub CSV (survives Railway deploys)
+    try:
+        commit = _push_csv_to_github(row)
+        if commit:
+            log.info("historico: row %s pushed to GitHub CSV", row["semana_iso"])
+        else:
+            log.info("historico: GITHUB_TOKEN not set — GitHub CSV skipped")
+    except Exception as e:
+        log.warning("historico: GitHub CSV push falló (non-fatal): %s", e)
+
+    # Secondary: local filesystem (dev / CI)
+    file_exists = HIST_PATH.exists()
+    try:
+        with open(HIST_PATH, "a", newline="", encoding="utf-8") as fh:
+            writer = csv.DictWriter(fh, fieldnames=FIELDS, extrasaction="ignore")
+            if not file_exists:
+                writer.writeheader()
+            writer.writerow(row)
+        log.info("historico: row %s appended to local %s", row["semana_iso"], HIST_PATH)
+    except Exception as e:
+        log.warning("historico: local CSV write falló (non-fatal): %s", e)
+
     return HIST_PATH

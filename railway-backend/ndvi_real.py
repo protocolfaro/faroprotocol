@@ -59,6 +59,15 @@ CANCHA_BBOXES: dict[str, tuple] = {
     "8fa":  _bbox(-34.6359, -58.5160),   # east block, right column
     "9fa":  _bbox(-34.6355, -58.5162),   # east block, upper row
     "10fa": _bbox(-34.6357, -58.5149),   # far east
+
+    # Campo Principal Amalfitani (Liniers)
+    "amalfitani": _bbox(-34.6353, -58.5207),
+
+    # Polideportivo Feijóo (Liniers) — grass fields
+    "poli_f11":    _bbox(-34.6345, -58.5152, w_m=105, h_m=68),
+    "poli_f8a":    _bbox(-34.6325, -58.5143, w_m=62,  h_m=44),
+    "poli_f8b":    _bbox(-34.6338, -58.5118, w_m=62,  h_m=44),
+    "poli_hockey": _bbox(-34.6320, -58.5122, w_m=91,  h_m=55),
 }
 
 # Cluster bbox covering all canchas for STAC search

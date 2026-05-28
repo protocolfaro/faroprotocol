@@ -33,6 +33,7 @@ DIMS = {
     "1fa":(105,68),"2fa":(105,68),"3fa":(105,68),"4fa":(105,68),
     "5fa":(105,70),"6fa":(105,70),"7fa":(105,70),"8fa":(105,70),
     "9fa":(105,70),"10fa":(105,70),"1fp":(105,68),"2fp":(105,68),
+    "amalfitani": (105, 68),
     "poli_f11":   (105, 68),
     "poli_f8a":   (62,  44),
     "poli_f8b":   (62,  44),
@@ -142,7 +143,7 @@ def _qr_arr():
     except Exception:
         return None
 
-def generate_all(ipos_results: dict, semana_label: str) -> tuple[dict[str,bytes], dict[str,str]]:
+def generate_all(ipos_results: dict, semana_label: str, ndvi_map: dict = None) -> tuple[dict[str,bytes], dict[str,str]]:
     """
     Returns (png_bytes_dict, verify_hashes_dict).
     png_bytes_dict: {cancha_id -> PNG bytes}
@@ -163,8 +164,8 @@ def generate_all(ipos_results: dict, semana_label: str) -> tuple[dict[str,bytes]
         label = cid.upper()
         txt   = data["texto"]
 
-        # NDVI: fresh at IPOS=0, stressed at IPOS≥350
-        ndvi_base = max(0.18, 0.72 - (ipos / 350.0) * 0.54)
+        # NDVI: use real satellite value when available, else derive from IPOS
+        ndvi_base = (ndvi_map or {}).get(cid) or max(0.18, 0.72 - (ipos / 350.0) * 0.54)
         sha = _sha(cid, ndvi_base, ipos, semana_label, ts)
         verify_hashes[sha] = {
             "cancha": label, "semana": semana_label,

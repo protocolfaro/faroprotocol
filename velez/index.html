@@ -1595,7 +1595,9 @@ function buildHorarioGrid(cfg){
 function buildHeatmapSection(u, cfg, shadowMaps){
   var hmData=u.heatmaps||{};
   var hmMeta=u.heatmaps_meta||{};
-  var _imgV=(hmMeta.semana||'').replace(/-/g,'');
+  var _semV=(hmMeta.semana||'').replace(/-/g,'');
+  var _updV=(hmMeta.updated_at||'').slice(0,10).replace(/-/g,'');
+  var _imgV=(_updV&&_updV>_semV)?_updV:_semV;
   // Show section when we have heatmap data OR shadow maps — solar tab is always available
   if(!Object.keys(hmData).length && !shadowMaps) return;
   var el=document.getElementById('heatmap-section');

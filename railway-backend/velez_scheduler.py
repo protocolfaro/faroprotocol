@@ -1141,6 +1141,15 @@ def run_weekly_job() -> dict:
     """
     global _last_weekly
     log.info("=== Weekly job starting ===")
+
+    # Satellite pipeline as guaranteed weekly fallback (daily run may have been skipped)
+    try:
+        import satellite_pipeline
+        sat_result = satellite_pipeline.run_satellite_cycle()
+        log.info("satellite_pipeline (weekly fallback): %s", sat_result)
+    except Exception as _se:
+        log.warning("satellite_pipeline weekly fallback (non-fatal): %s", _se)
+
     config = load_config()
     vd     = _get_velez_data()   # fetch once — shared by WhatsApp + email
 

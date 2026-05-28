@@ -163,6 +163,7 @@ def push_velez_data(ipos: dict, ts: str) -> str:
             cancha["ndvi"]       = ndvi
             cancha["detalle"]    = f"NDVI {ndvi:.2f} · Sin uso esta semana — descansada" + shadow_note
 
+    roger.setdefault("heatmaps_meta", {})["updated_at"] = ts
     vd["updated_at"] = ts
 
     data = json.dumps(vd, ensure_ascii=False, indent=2).encode()

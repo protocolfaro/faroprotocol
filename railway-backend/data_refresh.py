@@ -598,6 +598,11 @@ def run_refresh() -> dict:
             ndvi_data = ndvi_real.fetch_ndvi()
             if ndvi_data:
                 weather["gndvi_por_cancha"] = ndvi_data
+                try:
+                    import satellite_pipeline
+                    satellite_pipeline.run_satellite_cycle(ndvi_data)
+                except Exception as _sp_err:
+                    log.warning("satellite_pipeline (non-fatal): %s", _sp_err)
         except Exception as _ndvi_err:
             log.warning("ndvi_real (non-fatal): %s", _ndvi_err)
         commit_url = push_weather_update(weather)
