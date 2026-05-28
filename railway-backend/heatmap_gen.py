@@ -33,6 +33,10 @@ DIMS = {
     "1fa":(105,68),"2fa":(105,68),"3fa":(105,68),"4fa":(105,68),
     "5fa":(105,70),"6fa":(105,70),"7fa":(105,70),"8fa":(105,70),
     "9fa":(105,70),"10fa":(105,70),"1fp":(105,68),"2fp":(105,68),
+    "poli_f11":   (105, 68),
+    "poli_f8a":   (62,  44),
+    "poli_f8b":   (62,  44),
+    "poli_hockey":(91,  55),
 }
 
 _CMAP = LinearSegmentedColormap.from_list("ipos_ndvi", [
@@ -86,6 +90,42 @@ def _lines(ax, W, H):
         ax.add_patch(mpatches.Arc((cx,H/2),18.3,18.3,theta1=t1,theta2=t2,**kw))
     for cx,cy,t1,t2 in [(0,0,0,90),(W,0,90,180),(0,H,270,360),(W,H,180,270)]:
         ax.add_patch(mpatches.Arc((cx,cy),2,2,theta1=t1,theta2=t2,**kw))
+
+def _lines_f8(ax, W, H):
+    """Field markings scaled for Fútbol 8 (≈62×44m)."""
+    kw = dict(color=WHITE, lw=1.3, alpha=0.72)
+    ax.plot([0,W,W,0,0],[0,0,H,H,0],**kw)
+    ax.plot([W/2,W/2],[0,H],**kw)
+    ax.add_patch(mpatches.Circle((W/2,H/2), W*0.12, fill=False, **kw))
+    ax.plot(W/2, H/2, "o", color=WHITE, ms=2.5, alpha=0.72)
+    pa_d, pa_w = W*0.145, H*0.68
+    for x0 in [0, W-pa_d]:
+        ax.add_patch(mpatches.Rectangle((x0,(H-pa_w)/2),pa_d,pa_w,fill=False,**kw))
+    ga_d, ga_w = W*0.055, H*0.36
+    for x0 in [0, W-ga_d]:
+        ax.add_patch(mpatches.Rectangle((x0,(H-ga_w)/2),ga_d,ga_w,fill=False,**kw))
+    for xp in [W*0.115, W-W*0.115]:
+        ax.plot(xp, H/2, "o", color=WHITE, ms=2.0, alpha=0.72)
+
+def _lines_hockey(ax, W, H):
+    """Field markings for hockey (91.4×55m): center, D-circles, 23m lines."""
+    kw  = dict(color=WHITE, lw=1.3, alpha=0.72)
+    dkw = dict(color=WHITE, lw=0.9, alpha=0.45, linestyle="--")
+    ax.plot([0,W,W,0,0],[0,0,H,H,0],**kw)
+    ax.plot([W/2,W/2],[0,H],**kw)
+    ax.plot(W/2, H/2, "o", color=WHITE, ms=2.5, alpha=0.72)
+    # 23m lines
+    for x in [W*0.252, W-W*0.252]:
+        ax.plot([x,x],[0,H],**dkw)
+    # D-circles (shooting circles: 14.63m radius from centre of goal line)
+    r = 14.63
+    for cx, sign in [(0, 1), (W, -1)]:
+        th = np.linspace(-np.pi/2, np.pi/2, 120)
+        ax.plot(cx + sign*r*np.cos(th), H/2 + r*np.sin(th), **kw)
+    # Goals (3.66m wide, centred on goal line)
+    goal_w = 3.66
+    for x in [0, W]:
+        ax.plot([x,x],[(H-goal_w)/2,(H+goal_w)/2],color=WHITE,lw=2.2,alpha=0.90)
 
 def _sha(cid, ndvi, ipos, semana, ts):
     return hashlib.sha256(f"{cid}|{ndvi:.4f}|{ipos:.2f}|{semana}|{ts}".encode()).hexdigest()
@@ -163,7 +203,12 @@ def generate_all(ipos_results: dict, semana_label: str) -> tuple[dict[str,bytes]
                   origin="upper", aspect="auto", extent=[0,W_m,H_m,0])
 
         # Layer 3: field lines
-        _lines(ax, W_m, H_m)
+        if cid == "poli_hockey":
+            _lines_hockey(ax, W_m, H_m)
+        elif cid in ("poli_f8a", "poli_f8b"):
+            _lines_f8(ax, W_m, H_m)
+        else:
+            _lines(ax, W_m, H_m)
         ax.axis("off")
 
         # Badge top-right
