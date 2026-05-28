@@ -41,7 +41,7 @@
     ],
     "semana": "2026-05-25"
   },
-  "updated_at": "2026-05-28T20:23:05Z",
+  "updated_at": "2026-05-28T20:36:52Z",
   "weather_live": {
     "timestamp": "2026-05-28T09:00:14",
     "fuentes": [
@@ -617,7 +617,7 @@
       "heatmaps_meta": {
         "fuente": "sentinel-2-l2a · Planetary Computer · 2026-05-17 · nubosidad 5%",
         "semana": "2026-05-17",
-        "updated_at": "2026-05-28T20:23:05Z"
+        "updated_at": "2026-05-28T20:36:52Z"
       }
     },
     "juan": {
@@ -1173,7 +1173,7 @@
   },
   "historial_meta": {
     "semana": "2026-05-17",
-    "committed_at": "2026-05-28T20:23:07Z",
+    "committed_at": "2026-05-28T20:36:54Z",
     "fuente": "Faro Protocol · Railway auto-commit"
   }
 }
