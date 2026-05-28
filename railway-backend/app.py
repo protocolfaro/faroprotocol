@@ -363,7 +363,70 @@ def manual_refresh():
     return jsonify({"status": status, **result}), code
 
 
-_insar_running = False
+_insar_running    = False
+_satellite_running = False
+_last_satellite:  dict = {}
+
+
+@app.route("/velez/satellite_force", methods=["POST"])
+def satellite_force():
+    """Force satellite pipeline with existing NDVI data, bypassing date dedup.
+    PIN-protected. Runs async — poll /velez/refresh_status for result.
+    """
+    global _satellite_running
+    body = request.get_json(silent=True) or {}
+    if not _ok_pin(body.get("pin")):
+        return jsonify({"status": "error", "error": "PIN inválido"}), 401
+    if _satellite_running:
+        return jsonify({"status": "running",
+                        "msg": "Satellite job ya en progreso — revisá /velez/refresh_status"}), 409
+
+    def _run():
+        global _last_satellite, _satellite_running
+        _satellite_running = True
+        try:
+            import satellite_pipeline, base64 as _b64, json as _json
+            import requests as _rq
+
+            # Re-use NDVI data already in weather_live.gndvi_por_cancha (avoids fresh
+            # Sentinel-2 fetch — pystac/rasterio may not be installed on Railway).
+            ndvi_data = None
+            token = os.environ.get("GITHUB_TOKEN", "")
+            if token:
+                r = _rq.get(
+                    "https://api.github.com/repos/protocolfaro/faroprotocol"
+                    "/contents/velez/velez_data.json",
+                    headers={"Authorization": f"Bearer {token}",
+                             "Accept": "application/vnd.github+json",
+                             "X-GitHub-Api-Version": "2022-11-28"},
+                    params={"ref": "main"}, timeout=15,
+                )
+                if r.status_code == 200:
+                    vd = _json.loads(_b64.b64decode(r.json()["content"]).decode())
+                    ndvi_data = vd.get("weather_live", {}).get("gndvi_por_cancha")
+                    if ndvi_data:
+                        log.info("satellite_force: usando NDVI del %s (%d canchas)",
+                                 ndvi_data.get("fecha_imagen"), len(ndvi_data.get("canchas", {})))
+
+            result = satellite_pipeline.run_satellite_cycle(ndvi_data, force=True)
+            _last_satellite = {**result,
+                               "ran_at": datetime.now(timezone.utc).isoformat(),
+                               "running": False}
+            log.info("=== satellite_force OK: %s ===", result)
+        except Exception as _e:
+            log.error("satellite_force FAILED: %s", _e)
+            _last_satellite = {"ok": False, "error": str(_e),
+                               "ran_at": datetime.now(timezone.utc).isoformat(),
+                               "running": False}
+        finally:
+            _satellite_running = False
+
+    threading.Thread(target=_run, daemon=True).start()
+    return jsonify({
+        "status":  "accepted",
+        "msg":     "Pipeline iniciado con force=True — usando NDVI de weather_live.gndvi_por_cancha.",
+        "check":   "/velez/refresh_status",
+    }), 202
 
 
 @app.route("/velez/refresh_insar", methods=["POST"])
@@ -431,6 +494,10 @@ def refresh_status():
             "running": _insar_running,
             "last": _last_insar,
             "schedule": "Lunes 10:00 UTC (07:00 ART) · Sentinel-1 12-day repeat",
+        },
+        "satellite": {
+            "running": _satellite_running,
+            "last": _last_satellite,
         },
     })
 
