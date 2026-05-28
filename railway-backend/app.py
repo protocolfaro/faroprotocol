@@ -41,6 +41,83 @@ def health():
     return jsonify({"status": "ok", "service": "velez-ipos"})
 
 
+@app.route("/velez/health")
+def velez_health():
+    """System health: data freshness, satellite state, InSAR status, env config."""
+    import requests as _rq, base64 as _b64, json as _json
+    now = datetime.now(timezone.utc)
+    checks = {}
+
+    # Check velez_data.json freshness via GitHub
+    token = os.environ.get("GITHUB_TOKEN", "")
+    vd_age_h = None
+    heatmap_semana = None
+    ndvi_canchas = 0
+    insar_configured = bool(os.environ.get("NASA_EARTHDATA_USER"))
+    if token:
+        try:
+            r = _rq.get(
+                "https://api.github.com/repos/protocolfaro/faroprotocol/contents/velez/velez_data.json",
+                headers={"Authorization": f"Bearer {token}",
+                         "Accept": "application/vnd.github+json",
+                         "X-GitHub-Api-Version": "2022-11-28"},
+                params={"ref": "main"}, timeout=10,
+            )
+            if r.status_code == 200:
+                vd = _json.loads(_b64.b64decode(r.json()["content"]).decode())
+                updated = vd.get("updated_at", "")
+                if updated:
+                    dt = datetime.fromisoformat(updated.replace("Z", "+00:00"))
+                    vd_age_h = round((now - dt).total_seconds() / 3600, 1)
+                roger = vd.get("usuarios", {}).get("roger", {})
+                heatmap_semana = roger.get("heatmaps_meta", {}).get("semana")
+                hm = roger.get("heatmaps", {})
+                ndvi_canchas = sum(1 for v in hm.values()
+                                   if isinstance(v, dict) and v.get("ndvi") is not None)
+        except Exception as _e:
+            checks["github_error"] = str(_e)
+
+    # Freshness thresholds
+    weather_ok  = vd_age_h is not None and vd_age_h < 36
+    satellite_ok = heatmap_semana is not None
+
+    if heatmap_semana:
+        from datetime import date as _date
+        try:
+            img_dt   = _date.fromisoformat(heatmap_semana)
+            img_age_d = (now.date() - img_dt).days
+        except Exception:
+            img_age_d = None
+    else:
+        img_age_d = None
+
+    overall = "ok" if (weather_ok and satellite_ok) else "degraded"
+    return jsonify({
+        "status":           overall,
+        "service":          "velez-ipos",
+        "timestamp":        now.isoformat(),
+        "weather": {
+            "ok":       weather_ok,
+            "age_h":    vd_age_h,
+            "threshold_h": 36,
+        },
+        "satellite": {
+            "ok":        satellite_ok and (img_age_d is not None and img_age_d <= 7),
+            "semana":    heatmap_semana,
+            "age_days":  img_age_d,
+            "threshold_days": 7,
+            "canchas_con_ndvi": ndvi_canchas,
+        },
+        "insar": {
+            "configured": insar_configured,
+            "msg": ("NASA_EARTHDATA_USER/PASS set — InSAR activo" if insar_configured
+                    else "InSAR inactivo — set NASA_EARTHDATA_USER + NASA_EARTHDATA_PASS"),
+        },
+        "github_token": bool(token),
+        **checks,
+    })
+
+
 @app.route("/velez/horarios", methods=["POST"])
 def horarios():
     body = request.get_json(silent=True)
@@ -430,6 +507,26 @@ def satellite_force():
         "msg":     "Pipeline iniciado con force=True — usando NDVI de weather_live.gndvi_por_cancha.",
         "check":   "/velez/refresh_status",
     }), 202
+
+
+@app.route("/velez/shadow_maps", methods=["POST"])
+def shadow_maps():
+    """Store permanent shadow analysis per cancha.
+    Body: {pin, shadow_maps: {cid: {sombra_permanente_pct, horas_sol_dia, notas}}}"""
+    body = request.get_json(silent=True) or {}
+    if not _ok_pin(body.get("pin")):
+        return jsonify({"status": "error", "error": "PIN inválido"}), 401
+    data = body.get("shadow_maps")
+    if not data or not isinstance(data, dict):
+        return jsonify({"status": "error", "error": "shadow_maps dict requerido"}), 400
+    try:
+        commit_url = github_push.push_shadow_maps(data)
+        return jsonify({"status": "ok", "canchas": list(data.keys()), "commit": commit_url})
+    except EnvironmentError as e:
+        return jsonify({"status": "error", "error": str(e)}), 503
+    except Exception as e:
+        log.error(traceback.format_exc())
+        return jsonify({"status": "error", "error": str(e)}), 500
 
 
 @app.route("/velez/refresh_insar", methods=["POST"])

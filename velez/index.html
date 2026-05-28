@@ -687,8 +687,9 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
 (function(){
 'use strict';
 
-var DATA_URL    = './velez_data.json';
-var CONFIG_URL  = './config_velez.json';
+var _cbTs       = Math.floor(Date.now()/60000);  // 1-minute cache granularity
+var DATA_URL    = './velez_data.json?t=' + _cbTs;
+var CONFIG_URL  = './config_velez.json?t=' + _cbTs;
 var RAILWAY_URL = 'https://faroprotocol-production-45fd.up.railway.app';
 var _pinValue   = '1234';
 var WEATHER_URL = 'https://api.open-meteo.com/v1/forecast?latitude=-34.6375&longitude=-58.5215' +

@@ -185,7 +185,7 @@ def run_satellite_cycle(ndvi_data: dict = None, force: bool = False) -> dict:
     # 2. Verificar si esta imagen ya fue procesada
     if not force:
         last = _last_processed_date()
-        if last and last >= img_date:
+        if last and last > img_date:
             log.info("satellite_pipeline: imagen %s ya procesada (última: %s) — omitido", img_date, last)
             return {"ok": True, "skipped": True, "reason": "already_processed", "fecha_imagen": img_date}
 
