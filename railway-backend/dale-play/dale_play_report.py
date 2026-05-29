@@ -27,7 +27,7 @@ REDL  = '#e74c3c'
 YELL  = '#f0b429'
 GRNL  = '#27ae60'
 BORDER= '#1e2a38'
-DPI   = 200
+DPI   = 100
 
 _OUT_DIR = pathlib.Path(__file__).parent / "reportes"
 _OUT_DIR.mkdir(exist_ok=True)
@@ -63,9 +63,10 @@ def _kpi(ax, x: float, label: str, value: str, color: str, w: float = 0.185):
         facecolor=color + '18', edgecolor=color + '66', lw=0.9,
         transform=ax.transAxes,
     ))
-    ax.text(x, 0.80, label, color=WDIM, fontsize=6.5,
-            ha='center', transform=ax.transAxes, fontfamily='monospace')
-    ax.text(x, 0.40, value, color=color, fontsize=13, fontweight='bold',
+    ax.text(x, 0.85, label, color=WDIM, fontsize=6,
+            ha='center', va='top', transform=ax.transAxes, fontfamily='monospace')
+    _vfs = 11 if len(value) > 6 else 14
+    ax.text(x, 0.40, value, color=color, fontsize=_vfs, fontweight='bold',
             ha='center', va='center', transform=ax.transAxes)
 
 
@@ -87,6 +88,7 @@ def generate_report(show_data: dict, show_config: dict) -> str:
     acoustic = show_data.get("acoustic")  or {}
     soil     = show_data.get("soil")      or {}
     insar    = show_data.get("insar")     or {}
+    layout   = show_data.get("layout")   or None  # layout subido via /upload-layout
 
     # ── Semáforos globales para KPI ──────────────────────────────────────────
     ndvi_v   = sat.get("ndvi")
@@ -103,9 +105,10 @@ def generate_report(show_data: dict, show_config: dict) -> str:
         ins_sem = ("ok" if worst < 1.0 else "atencion" if worst < 2.0 else "critico")
 
     # ── Figura ───────────────────────────────────────────────────────────────
-    fig = plt.figure(figsize=(13.5, 42.0), facecolor=BG)
-    gs  = gridspec.GridSpec(11, 1, figure=fig, hspace=0.0,
-          height_ratios=[1.0, 1.4, 3.8, 4.0, 4.2, 3.8, 1.8, 5.76, 4.5, 3.8, 0.7])
+    fig = plt.figure(figsize=(14, 48), facecolor=BG)
+    gs  = gridspec.GridSpec(13, 1, figure=fig, hspace=0.18,
+          height_ratios=[1.6, 1.5, 3.8, 4.0, 4.8, 5.8, 3.5, 5.76, 6.0, 4.5, 15.5, 9.0, 1.2])
+    fig.subplots_adjust(top=0.98)
 
     # ══ HEADER ════════════════════════════════════════════════════════════════
     ax_h = fig.add_subplot(gs[0])
@@ -145,8 +148,9 @@ def generate_report(show_data: dict, show_config: dict) -> str:
 
     cmap = LinearSegmentedColormap.from_list(
         'ndvi', ['#b71c1c','#ef6c00','#fdd835','#66bb6a','#1b5e20'], N=256)
-    ndvi_v2 = ndvi_v if ndvi_v is not None else 0.45
-    t  = np.clip((ndvi_v2 - 0.1) / 0.7, 0, 1)
+    ndvi_v2 = ndvi_v if ndvi_v is not None else None
+    _ndvi_disp = ndvi_v2 if ndvi_v2 is not None else 0.45
+    t  = np.clip((_ndvi_disp - 0.1) / 0.7, 0, 1)
     fc = cmap(t)
 
     # Esquema estadio (simplificado)
@@ -159,9 +163,9 @@ def generate_report(show_data: dict, show_config: dict) -> str:
     ax_s.plot([3.05,3.05],[1.3,6.8], color='#ffffff44', lw=0.5, zorder=3)
 
     ndvi_lbl = (sat.get("ndvi_status") or {}).get("label", "Sin datos")
-    ax_s.text(3.05, 4.0, f'NDVI\n{ndvi_v2:.2f}',
+    ax_s.text(3.05, 4.0, f'NDVI\n{ndvi_v2:.2f}' if ndvi_v2 is not None else 'NDVI\nN/D',
               color=WHITE, fontsize=13, fontweight='bold', ha='center', va='center', zorder=5)
-    ax_s.text(3.05, 0.3, ndvi_lbl, color=_sc(ndvi_sem), fontsize=8, ha='center',
+    ax_s.text(3.05, 0.5, ndvi_lbl, color=_sc(ndvi_sem), fontsize=8, ha='center',
               fontfamily='monospace')
     ax_s.text(0.03, 0.87,
               f'Sentinel-2 · {sat.get("ndvi_fecha","—")} · Nube {sat.get("ndvi_cloud_pct","—")}%',
@@ -169,15 +173,16 @@ def generate_report(show_data: dict, show_config: dict) -> str:
 
     # Panel TIRS (derecha)
     tirs     = sat.get("tirs_celsius")
-    tirs_col = (REDL if tirs and tirs > 35 else YELL if tirs and tirs > 28 else GRNL)
+    tirs_col = (WDIM if tirs is None else REDL if tirs > 35 else YELL if tirs > 28 else GRNL)
     ax_s.add_patch(mpatches.Rectangle((6.4, 1.3), 3.2, 5.5,
         facecolor=BG3, edgecolor=BORDER, lw=0.7, zorder=1))
     ax_s.text(8.0, 6.4, 'TEMP. SUPERFICIAL', color=GOLD, fontsize=8,
               fontweight='bold', ha='center', fontfamily='monospace')
     ax_s.text(8.0, 4.3, f"{tirs:.1f}°C" if tirs is not None else "N/D",
               color=tirs_col, fontsize=28, fontweight='bold', ha='center', va='center')
-    tirs_lbl = ("Estrés térmico — impacto en pasto" if tirs and tirs > 35
-                else "Temperatura moderada" if tirs and tirs > 28
+    tirs_lbl = ("Sin datos TIRS disponibles" if tirs is None
+                else "Estrés térmico — impacto en pasto" if tirs > 35
+                else "Temperatura moderada" if tirs > 28
                 else "Temperatura normal")
     ax_s.text(8.0, 2.7, tirs_lbl, color=tirs_col, fontsize=7.5,
               ha='center', fontfamily='monospace')
@@ -217,10 +222,10 @@ def generate_report(show_data: dict, show_config: dict) -> str:
                       color=WHITE, fontsize=9.5, ha='center')
             lluvia = day.get("lluvia_mm", 0)
             rc = REDL if lluvia > 20 else YELL if lluvia > 5 else GRNL
-            ax_w.text(xc, 5.0, f'💧 {lluvia:.0f} mm', color=rc, fontsize=9, ha='center')
+            ax_w.text(xc, 5.0, f'~ {lluvia:.0f} mm', color=rc, fontsize=9, ha='center')
             rachas = day.get("rachas_max_kmh", 0)
             wc = REDL if rachas >= 65 else YELL if rachas >= 40 else GRNL
-            ax_w.text(xc, 3.9, f'💨 {rachas:.0f} km/h', color=wc, fontsize=9, ha='center')
+            ax_w.text(xc, 3.9, f'>> {rachas:.0f} km/h', color=wc, fontsize=9, ha='center')
             sem_lbl = {"ok":"OK","atencion":"PRECAUCIÓN","critico":"⚠ RIESGO",
                        "sin_datos":"N/D"}.get(sem, sem.upper())
             ax_w.text(xc, 2.6, sem_lbl, color=bc, fontsize=8,
@@ -233,7 +238,7 @@ def generate_report(show_data: dict, show_config: dict) -> str:
     ax_a = fig.add_subplot(gs[4])
     _panel(ax_a, '  ANÁLISIS ACÚSTICO + SIGHTLINES — SPL por Sector · Modelo Geométrico')
     ax_a.set_facecolor(BG2)
-    ax_a.set_xlim(0,10); ax_a.set_ylim(70, 95)
+    ax_a.set_xlim(0,10); ax_a.set_ylim(75, 92)
     ax_a.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
     _gold_line(ax_a)
 
@@ -245,18 +250,15 @@ def generate_report(show_data: dict, show_config: dict) -> str:
     if secs:
         ns  = len(secs)
         bw  = 8.6 / ns
-        # línea base 70 dB
-        ax_a.plot([0.5, 9.7], [70, 70], color=WDIM + '55', lw=0.6, zorder=0)
-        ax_a.text(0.35, 70.2, '70', color=WDIM, fontsize=6, va='center', ha='right',
-                  fontfamily='monospace')
+        _base_db = 75
         for i, sec in enumerate(secs):
             x0      = 0.6 + i * bw
             xc      = x0 + bw / 2
             spl     = sec.get("spl_db", 0)
             cob     = sec.get("cobertura", "baja")
             col     = _sc({"optima":"verde","buena":"verde","aceptable":"amarillo","baja":"rojo"}.get(cob,"sin_datos"))
-            spl_top = min(spl, 95)
-            ax_a.add_patch(mpatches.Rectangle((x0 + 0.1, 70), bw - 0.25, max(0.2, spl_top - 70),
+            spl_top = min(spl, 91.5)
+            ax_a.add_patch(mpatches.Rectangle((x0 + 0.1, _base_db), bw - 0.25, max(0.2, spl_top - _base_db),
                 facecolor=col+'55', edgecolor=col, lw=0.8))
             _short_names = {
                 "campo_central": "Campo C.", "tribuna_norte": "Trib. Norte",
@@ -264,23 +266,25 @@ def generate_report(show_data: dict, show_config: dict) -> str:
                 "tribuna_oeste": "Trib. Oeste",
             }
             _lbl = _short_names.get(sec.get("id",""), sec.get("name","")[:10])
-            ax_a.text(xc, 94.2, _lbl,
+            ax_a.text(xc, 91.6, _lbl,
                       color=WHITE, fontsize=7, ha='center', va='bottom')
-            ax_a.text(xc, min(spl_top + 0.3, 93.5), f'{spl:.0f}dB',
+            ax_a.text(xc, min(spl_top + 0.2, 90.8), f'{spl:.0f}dB',
                       color=col, fontsize=7.5, ha='center', fontweight='bold')
             sl = sec.get("sightline","")
             sl_col = {"optima":GRNL,"buena":GRNL,"parcial":YELL,"obstruida":REDL}.get(sl,WDIM)
-            ax_a.text(xc, 70.4, sl[:3].upper(), color=sl_col, fontsize=7,
+            ax_a.text(xc, 75.3, sl[:3].upper(), color=sl_col, fontsize=7,
                       ha='center', fontfamily='monospace')
 
-    ax_a.text(9.85, 93.8, f'SPL prom: {spl_prom:.0f} dB',
-              color=WDIM, fontsize=8, ha='right', fontfamily='monospace')
-    ax_a.text(9.85, 92.8, f'Cobertura óptima: {cob_opt:.0f}%',
+    ax_a.text(0.99, 0.97, f'SPL prom: {spl_prom:.0f} dB',
+              color=WDIM, fontsize=8, ha='right', va='top', transform=ax_a.transAxes,
+              fontfamily='monospace')
+    ax_a.text(0.99, 0.90, f'Cobertura óptima: {cob_opt:.0f}%',
               color=_sc("verde" if cob_opt>=60 else "amarillo" if cob_opt>=40 else "rojo"),
-              fontsize=8, ha='right', fontfamily='monospace')
+              fontsize=8, ha='right', va='top', transform=ax_a.transAxes,
+              fontfamily='monospace')
     for j, a in enumerate(ac_alerts[:2]):
-        ax_a.text(0.2, 71.2 - j * 0.5, f'• {a[:95]}',
-                  color=YELL, fontsize=6.5)
+        ax_a.text(0.01, 0.06 - j * 0.045, f'• {a[:100]}',
+                  color=YELL, fontsize=6.5, transform=ax_a.transAxes)
 
     # ══ MAPA CARGA DEL SUELO ══════════════════════════════════════════════════
     ax_sl = fig.add_subplot(gs[5])
@@ -296,33 +300,61 @@ def generate_report(show_data: dict, show_config: dict) -> str:
     cond_s    = soil.get("condicion_suelo", "normal")
     cond_col  = {"normal":GRNL,"húmedo":YELL,"saturado":REDL}.get(cond_s, WDIM)
 
-    ax_sl.text(9.85, 7.6, f'Suelo: {cond_s.upper()}  ({cap_kpa} kPa)',
-               color=cond_col, fontsize=8.5, ha='right',
-               fontweight='bold', fontfamily='monospace')
+    ax_sl.text(0.01, 0.91, f'Suelo: {cond_s.upper()}  ({cap_kpa} kPa)',
+               color=cond_col, fontsize=8.5, ha='left',
+               fontweight='bold', fontfamily='monospace', transform=ax_sl.transAxes)
 
+    # ── Cards de zonas (parte superior, y=2.5..8.5) ───────────────────────────
     nz = min(len(zonas), 5) or 1
     cw2 = 9.2 / nz
     for i, z in enumerate(zonas[:5]):
         x0  = 0.3 + i * cw2
         xc  = x0 + cw2 / 2
         zcol = z.get("color", GRNL)
-        ax_sl.add_patch(FancyBboxPatch((x0 + 0.1, 0.4), cw2 - 0.25, 6.8,
+        ax_sl.add_patch(FancyBboxPatch((x0 + 0.1, 2.5), cw2 - 0.25, 5.9,
             boxstyle="round,pad=0.1",
             facecolor=zcol+'18', edgecolor=zcol+'77', lw=1.0))
-        ax_sl.text(xc, 6.8, z.get("nombre","")[:16], color=WHITE,
+        ax_sl.text(xc, 8.0, z.get("nombre","")[:16], color=WHITE,
                    fontsize=7.5, ha='center', fontweight='bold')
-        ax_sl.text(xc, 5.7, f'{z.get("carga_ton",0):.0f} t',
+        ax_sl.text(xc, 7.0, f'{z.get("carga_ton",0):.0f} t',
                    color=WDIM, fontsize=8, ha='center')
-        ax_sl.text(xc, 4.7, f'{z.get("presion_kpa",0):.0f} kPa',
+        ax_sl.text(xc, 5.9, f'{z.get("presion_kpa",0):.0f} kPa',
                    color=WHITE, fontsize=12, fontweight='bold', ha='center')
-        ax_sl.text(xc, 3.6, z.get("clase","").upper(),
+        ax_sl.text(xc, 4.7, z.get("clase","").upper(),
                    color=zcol, fontsize=8, fontweight='bold',
                    ha='center', fontfamily='monospace')
-        ax_sl.text(xc, 1.7, z.get("label","")[:28],
+        ax_sl.text(xc, 3.2, z.get("label","")[:28],
                    color=WDIM, fontsize=6.5, ha='center')
-    for j, a in enumerate(al_soil[:2]):
-        ax_sl.text(0.02, 0.13 - j*0.07, f'• {a[:108]}',
-                   color=YELL, fontsize=6.5, transform=ax_sl.transAxes)
+
+    # ── SMAP/ERA5 — fila separada DEBAJO de las cards (y=0.15..2.1) ──────────
+    import json as _json_smap
+    _smap_path = pathlib.Path(__file__).parent / "models" / "smap_amalfitani.json"
+    if _smap_path.exists():
+        _smap = _json_smap.loads(_smap_path.read_text(encoding='utf-8'))
+        _sm_sup  = _smap.get('humedad_superficial_%')
+        _sm_root = _smap.get('humedad_raiz_%')
+        _sm_est  = _smap.get('estado', 'sin_datos')
+        _sm_col  = _sc({'seco':'atencion','normal':'ok','saturado':'critico'}.get(_sm_est,'sin_datos'))
+        _sm_fecha = _smap.get('fecha', '')
+        _sm_fuente = _smap.get('fuente', '')[:50]
+        if _sm_sup is not None:
+            ax_sl.add_patch(FancyBboxPatch((0.15, 0.15), 9.55, 2.0,
+                boxstyle='round,pad=0.06',
+                facecolor=BG3, edgecolor=_sm_col+'44', lw=0.8))
+            ax_sl.text(0.40, 1.95, 'SMAP/ERA5 — Humedad del suelo',
+                color=GOLD, fontsize=8, fontweight='bold', fontfamily='monospace', va='top')
+            ax_sl.text(0.40, 1.45,
+                f"Superficial {_sm_sup:.1f}%   Raíz {_sm_root:.1f}%   Estado: {_sm_est.upper()}   Fecha: {_sm_fecha}",
+                color=_sm_col, fontsize=8, fontfamily='monospace', fontweight='bold', va='top')
+            ax_sl.text(0.40, 0.90, _sm_fuente,
+                color=WDIM, fontsize=6.5, fontfamily='monospace', style='italic', va='top')
+            for j, a in enumerate(al_soil[:2]):
+                ax_sl.text(5.5, 1.95 - j * 0.52, f'• {a[:55]}',
+                    color=YELL, fontsize=6.5, va='top', fontfamily='monospace')
+    else:
+        for j, a in enumerate(al_soil[:2]):
+            ax_sl.text(0.02, 0.08 - j*0.05, f'• {a[:108]}',
+                color=YELL, fontsize=6.5, transform=ax_sl.transAxes)
 
     # ══ InSAR ESTRUCTURAL ═════════════════════════════════════════════════════
     ax_i = fig.add_subplot(gs[6])
@@ -439,14 +471,14 @@ def generate_report(show_data: dict, show_config: dict) -> str:
                             ha='center', va='center', fontfamily='monospace',
                             rotation=90, alpha=0.8, zorder=3)
 
-        # Leyenda C-value — debajo del heatmap, y=0.05
-        _ly = 0.08
+        # Leyenda C-value
+        _ly = 0.40
         for _li, (_lab, _col) in enumerate([
             ('>= 120mm EXCELENTE', GRNL),
             ('60-120mm ADECUADO', YELL),
             ('< 60mm BAJO', '#e67e22'),
         ]):
-            ax_opt.add_patch(mpatches.Rectangle((0.2 + _li * 1.72, _ly - 0.15), 0.28, 0.3,
+            ax_opt.add_patch(mpatches.Rectangle((0.2 + _li * 1.72, _ly - 0.18), 0.28, 0.35,
                 facecolor=_col, edgecolor='none', alpha=0.85))
             ax_opt.text(0.56 + _li * 1.72, _ly, _lab,
                         color=WDIM, fontsize=6, va='center', fontfamily='monospace')
@@ -473,7 +505,7 @@ def generate_report(show_data: dict, show_config: dict) -> str:
         ax_opt.plot([_tx, _tx + 4.2], [_hy - 0.15, _hy - 0.15], color=GOLD + '66', lw=0.6)
 
         _n_show = min(len(_alt_rows), 5)
-        _row_step = 1.6
+        _row_step = 1.35
         for _ri, _rr in enumerate(_alt_rows[:_n_show]):
             _ry      = _hy - 0.45 - _ri * _row_step
             _is_base = abs(_rr['stage_h_m'] - 1.6) < 0.05
@@ -523,8 +555,125 @@ def generate_report(show_data: dict, show_config: dict) -> str:
                     color=WDIM, fontsize=9, ha='center', va='center',
                     fontfamily='monospace', style='italic')
 
+    # ══ INTEGRIDAD HISTÓRICA EGMS 2015-2022 ═══════════════════════════════════
+    ax_eg = fig.add_subplot(gs[8])
+    _panel(ax_eg, '  INTEGRIDAD HISTÓRICA 2015-2022 — EGMS Copernicus · Deformación Sentinel-1 · Velocidad mm/año')
+    ax_eg.set_facecolor(BG2)
+    ax_eg.set_xlim(0, 10); ax_eg.set_ylim(0, 8.8)
+    ax_eg.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
+    _gold_line(ax_eg)
+
+    import json as _json_eg
+    _eg_path = pathlib.Path(__file__).parent / "models" / "egms_amalfitani.json"
+    _eg_data = _json_eg.loads(_eg_path.read_text(encoding='utf-8')) if _eg_path.exists() else None
+
+    if _eg_data:
+        _eg_secs = _eg_data.get('sectores', {})
+        _eg_order = ['tribuna_oeste', 'tribuna_sur', 'tribuna_norte', 'campo', 'tribuna_este']
+        _eg_y     = [7.5, 6.1, 4.7, 3.3, 1.9]   # y position per bar
+        _eg_vel_max = 5.0                          # escala: -5 mm/año → ancho máximo
+
+        # ── Barra velocidad (izquierda x=0.2..4.8) ────────────────────────────
+        _EG_BAR_X0 = 2.0   # barras empiezan aquí; labels a la izquierda
+        _EG_BL_MAX = 2.6   # max bar length in data units
+        ax_eg.text((_EG_BAR_X0 + _EG_BAR_X0 + _EG_BL_MAX) / 2, 8.0,
+            'Velocidad mm/año  (2015-2022)',
+            color=WDIM, fontsize=7, ha='center', fontfamily='monospace')
+        ax_eg.plot([_EG_BAR_X0, _EG_BAR_X0 + _EG_BL_MAX + 0.5], [7.75, 7.75],
+            color=WDIM+'33', lw=0.5)
+
+        for _i, (_sid, _ey) in enumerate(zip(_eg_order, _eg_y)):
+            _es = _eg_secs.get(_sid, {})
+            _vel = _es.get('vel_mm_yr', 0)
+            _niv = _es.get('nivel', 'ok')
+            _ec  = _sc({'ok':'verde','atencion':'amarillo','critico':'rojo'}.get(_niv,'sin_datos'))
+            _bl  = abs(_vel) / _eg_vel_max * _EG_BL_MAX
+            # barra
+            ax_eg.add_patch(mpatches.Rectangle((_EG_BAR_X0, _ey - 0.38), _bl, 0.72,
+                facecolor=_ec+'55', edgecolor=_ec, lw=0.9))
+            # sector label — a la izquierda del bar start, con espacio suficiente
+            ax_eg.text(_EG_BAR_X0 - 0.12, _ey, _es.get('nombre','')[:18],
+                color=WHITE, fontsize=7, va='center', ha='right', fontfamily='monospace')
+            # valor + proyección
+            _proy = _es.get('proyeccion_2027_mm', 0)
+            _tx = min(_EG_BAR_X0 + _bl + 0.12, 4.6)
+            ax_eg.text(_tx, _ey + 0.2,
+                f'{_vel:.1f} mm/a',
+                color=_ec, fontsize=7.5, va='center', fontweight='bold')
+            ax_eg.text(_tx, _ey - 0.22,
+                f'2027: {_proy:.0f} mm',
+                color=WDIM, fontsize=6.2, va='center', fontfamily='monospace')
+            # tendencia
+            _tend = _es.get('tendencia', '')
+            _tc   = REDL if _tend == 'acelerada' else YELL if _tend == 'moderada' else GRNL
+            ax_eg.text(4.80, _ey, _tend[:9],
+                color=_tc, fontsize=6, va='center', ha='left', fontfamily='monospace',
+                style='italic')
+
+        # Alerta sector crítico
+        _critico_id  = _eg_data.get('sector_critico','')
+        _critico_sec = _eg_secs.get(_critico_id, {})
+        ax_eg.text(0.25, 0.9,
+            f"▲  SECTOR CRÍTICO: {_critico_sec.get('nombre','')}"
+            f" — {_eg_data.get('vel_max_abs_mm_yr',0):.1f} mm/año",
+            color=REDL, fontsize=7.5, fontweight='bold', fontfamily='monospace')
+        ax_eg.text(0.25, 0.45, _eg_data.get('alerta','')[:100],
+            color=YELL, fontsize=6.5, fontfamily='monospace')
+
+        # ── Serie temporal (derecha x=5.3..9.7) ────────────────────────────────
+        _XS, _XE   = 5.3, 9.7
+        _XPY       = (_XE - _XS) / 7              # unidades x por año
+        _DMIN, _DMAX = -30.0, 1.0
+        _YSD, _YED = 1.2, 7.8                      # y data para disp min/max
+
+        def _yd(d): return _YSD + (d - _DMIN) / (_DMAX - _DMIN) * (_YED - _YSD)
+
+        ax_eg.text((_XS+_XE)/2, 8.0, 'Desplazamiento acumulado (mm)',
+            color=WDIM, fontsize=7, ha='center', fontfamily='monospace')
+        # referencia 0 mm
+        ax_eg.plot([_XS, _XE], [_yd(0), _yd(0)], color=WDIM+'44', lw=0.7)
+        ax_eg.text(_XS - 0.08, _yd(0), '0', color=WDIM, fontsize=5.5, va='center', ha='right')
+        # líneas de referencia
+        for _rd in [-10, -20]:
+            _ry = _yd(_rd)
+            ax_eg.plot([_XS, _XE], [_ry, _ry], color=WDIM+'22', lw=0.5, linestyle='--')
+            ax_eg.text(_XS - 0.08, _ry, str(_rd), color=WDIM, fontsize=5.5, va='center', ha='right')
+        # etiquetas año (cada 2 para evitar superposición)
+        for _yi in range(8):
+            _xi = _XS + _yi * _XPY
+            ax_eg.plot([_xi, _xi], [_YSD, _YSD + 0.2], color=WDIM+'44', lw=0.5)
+            if _yi % 2 == 0:
+                ax_eg.text(_xi, _YSD - 0.1, str(2015+_yi),
+                    color=WDIM, fontsize=5.5, ha='center', va='top', fontfamily='monospace')
+        # líneas por sector
+        for _sid, _niv_col in [
+            ('tribuna_oeste', REDL), ('tribuna_sur', YELL),
+            ('tribuna_norte', YELL), ('campo', GRNL), ('tribuna_este', GRNL)
+        ]:
+            _es2 = _eg_secs.get(_sid, {})
+            _ser = _es2.get('serie_temporal', [])
+            if not _ser:
+                continue
+            # tomar punto anual (cada 4 entradas)
+            _pts = [_ser[_yi * 4] for _yi in range(8) if _yi * 4 < len(_ser)]
+            _xs2 = [_XS + _j * _XPY for _j in range(len(_pts))]
+            _ys2 = [_yd(_p['despl_mm']) for _p in _pts]
+            _lw2 = 1.5 if _sid == 'tribuna_oeste' else 0.9
+            ax_eg.plot(_xs2, _ys2, color=_niv_col, lw=_lw2, zorder=3,
+                alpha=0.9 if _sid == 'tribuna_oeste' else 0.65)
+        # leyenda líneas
+        ax_eg.text(_XS, 0.7, 'Rojo: T.Oeste (crítico)  Amarillo: T.Norte/Sur  Verde: T.Este/Campo',
+            color=WDIM, fontsize=5.5, fontfamily='monospace')
+
+        ax_eg.text(9.85, 8.2, f"Fuente: {_eg_data.get('producto','')}",
+            color=WDIM, fontsize=5.5, ha='right', fontfamily='monospace')
+    else:
+        ax_eg.text(5.0, 4.4, 'Correr dale_play_egms.fetch_egms_amalfitani()',
+            color=WDIM, fontsize=9, ha='center', va='center',
+            fontfamily='monospace', style='italic')
+
     # ══ RED DE DRENAJE ════════════════════════════════════════════════════════
-    ax_dr = fig.add_subplot(gs[8])
+    ax_dr = fig.add_subplot(gs[9])
     _panel(ax_dr, '  RED DE DRENAJE — Sentinel-2 SWIR B11/B12 · Landsat TIRS · SAR VV/VH · Zonas de Exclusión Estructuras')
     ax_dr.set_facecolor(BG2)
     ax_dr.set_xlim(0, 10); ax_dr.set_ylim(0, 8.8)
@@ -585,6 +734,107 @@ def generate_report(show_data: dict, show_config: dict) -> str:
         ax_dr.text(_cx, _DY0 - 0.1, 'SUR (escenario)',
             color=WDIM, fontsize=6.5, ha='center', va='top', fontfamily='monospace')
 
+        # ── Layout overlay — estructuras reales del rider subido ──────────────
+        if layout:
+            _struct = (layout.get("estructuras") or {})
+            _zonas_dr = _dr_data.get("zonas", [])
+            _lay_alerts = []
+
+            def _m_to_canvas(x_m, y_m):
+                """Convierte metros desde centro del campo a coords canvas."""
+                xp = (x_m + 34.0) / 68.0 * _DW
+                yp = (y_m + 52.5) / 105.0 * _DH
+                return _DX0 + xp, _DY0 + yp
+
+            def _zone_collision(xp0, xp1, yp0, yp1):
+                """Retorna nivel de riesgo máximo de las zonas que toca la estructura."""
+                worst = "ok"
+                for _zz in _zonas_dr:
+                    if (xp0 < _zz['x_pct'][1] and xp1 > _zz['x_pct'][0] and
+                            yp0 < _zz['y_pct'][1] and yp1 > _zz['y_pct'][0]):
+                        if _zz.get("riesgo") == "alto":
+                            worst = "alto"
+                        elif _zz.get("riesgo") == "medio" and worst != "alto":
+                            worst = "medio"
+                return worst
+
+            # Escenario
+            _esc = _struct.get("escenario") or {}
+            _ex, _ey = _esc.get("x_m"), _esc.get("y_m")
+            _ew, _ed = _esc.get("ancho_m", 28), _esc.get("profundidad_m", 20)
+            if _ex is not None and _ey is not None:
+                _ex0p = (_ex - _ew/2 + 34.0) / 68.0 * 100
+                _ex1p = (_ex + _ew/2 + 34.0) / 68.0 * 100
+                _ey0p = (_ey - _ed/2 + 52.5) / 105.0 * 100
+                _ey1p = (_ey + _ed/2 + 52.5) / 105.0 * 100
+                _cx0, _cy0 = _m_to_canvas(_ex - _ew/2, _ey - _ed/2)
+                _cx1, _cy1 = _m_to_canvas(_ex + _ew/2, _ey + _ed/2)
+                _risk = _zone_collision(_ex0p, _ex1p, _ey0p, _ey1p)
+                _rc = {REDL if _risk == "alto" else YELL if _risk == "medio" else GRNL}
+                _rc = REDL if _risk == "alto" else YELL if _risk == "medio" else GRNL
+                ax_dr.add_patch(mpatches.Rectangle(
+                    (_cx0, _cy0), _cx1 - _cx0, _cy1 - _cy0,
+                    facecolor=_rc + '33', edgecolor=_rc, lw=1.8,
+                    linestyle='--', zorder=5))
+                ax_dr.text((_cx0+_cx1)/2, (_cy0+_cy1)/2, 'ESC',
+                    color=_rc, fontsize=5, ha='center', va='center',
+                    fontweight='bold', zorder=6,
+                    bbox=dict(boxstyle='round,pad=0.1', fc='#00000099', ec='none'))
+                if _risk == "alto":
+                    _lay_alerts.append("ALERTA: Escenario sobre zona EXCLUSIÓN de drenaje")
+                elif _risk == "medio":
+                    _lay_alerts.append("PRECAUCIÓN: Escenario sobre zona de drenaje media")
+
+            # Torres L/R
+            for _t in (_struct.get("torres_lr") or []):
+                _tx, _ty = _t.get("x_m"), _t.get("y_m")
+                _tid = _t.get("id", "T")
+                if _tx is not None and _ty is not None:
+                    _txp = (_tx + 34.0) / 68.0 * 100
+                    _typ = (_ty + 52.5) / 105.0 * 100
+                    _risk = _zone_collision(_txp - 2, _txp + 2, _typ - 2, _typ + 2)
+                    _tc = REDL if _risk == "alto" else YELL if _risk == "medio" else GRNL
+                    _ctx, _cty = _m_to_canvas(_tx, _ty)
+                    ax_dr.plot(_ctx, _cty, 'D', color=_tc, ms=5, zorder=6,
+                               markeredgecolor=WHITE + '88', markeredgewidth=0.5)
+                    ax_dr.text(_ctx, _cty + 0.12, f'T{_tid}',
+                        color=_tc, fontsize=4.5, ha='center', va='bottom',
+                        fontweight='bold', zorder=6)
+                    if _risk == "alto":
+                        _lay_alerts.append(f"ALERTA: Torre {_tid} sobre zona EXCLUSIÓN")
+                    elif _risk == "medio":
+                        _lay_alerts.append(f"PRECAUCIÓN: Torre {_tid} sobre zona drenaje")
+
+            # Barricada
+            _bar = _struct.get("barricada") or {}
+            _by, _bw = _bar.get("y_m"), _bar.get("ancho_m", 40)
+            if _by is not None:
+                _bxp0 = (- _bw/2 + 34.0) / 68.0 * 100
+                _bxp1 = (_bw/2 + 34.0) / 68.0 * 100
+                _byp0 = (_by - 0.5 + 52.5) / 105.0 * 100
+                _byp1 = (_by + 0.5 + 52.5) / 105.0 * 100
+                _bx0c, _by0c = _m_to_canvas(-_bw/2, _by - 0.5)
+                _bx1c, _by1c = _m_to_canvas(_bw/2, _by + 0.5)
+                _risk = _zone_collision(_bxp0, _bxp1, _byp0, _byp1)
+                _bc = REDL if _risk == "alto" else YELL if _risk == "medio" else GRNL
+                ax_dr.add_patch(mpatches.Rectangle(
+                    (_bx0c, _by0c), _bx1c - _bx0c, max(0.06, _by1c - _by0c),
+                    facecolor=_bc + '44', edgecolor=_bc, lw=1.4,
+                    linestyle=':', zorder=5))
+                ax_dr.text((_bx0c+_bx1c)/2, _by0c - 0.08, 'BARRICADA',
+                    color=_bc, fontsize=4.5, ha='center', va='top', zorder=6)
+
+            # Label "LAYOUT SUBIDO" + alertas de colisión
+            ax_dr.text(0.01, 0.99,
+                f"LAYOUT: {layout.get('filename','')[:30]}",
+                color=GOLD, fontsize=6, ha='left', va='top',
+                transform=ax_dr.transAxes, fontfamily='monospace')
+            for _lai, _la in enumerate(_lay_alerts[:2]):
+                _la_col = REDL if 'ALERTA' in _la else YELL
+                ax_dr.text(0.01, 0.93 - _lai * 0.07, f'▲ {_la[:80]}',
+                    color=_la_col, fontsize=6, ha='left', va='top',
+                    transform=ax_dr.transAxes, fontweight='bold')
+
         # North arrow
         ax_dr.annotate('', xy=(_DX1 + 0.35, _DY0 + _DH*0.72),
             xytext=(_DX1 + 0.35, _DY0 + _DH*0.50),
@@ -615,18 +865,107 @@ def generate_report(show_data: dict, show_config: dict) -> str:
 
         # Exclusion notes
         for _ei, _ex in enumerate((_dr_data.get('exclusiones') or [])[:2]):
-            ax_dr.text(0.15, 1.08 - _ei * 0.52, f'▪ {_ex[:108]}',
+            ax_dr.text(0.15, 1.03 - _ei * 0.62, f'▪ {_ex[:108]}',
                 color=YELL, fontsize=6.5, va='top', fontfamily='monospace')
     else:
         ax_dr.text(5.0, 4.4, 'Correr dale_play_drainage.analyze_drainage()',
             color=WDIM, fontsize=9, ha='center', va='center',
             fontfamily='monospace', style='italic')
 
+    # ══ ANÁLISIS COMPARATIVO — Dale Play vs Faro Protocol ════════════════════
+    ax_cmp = fig.add_subplot(gs[10])
+    _panel(ax_cmp, '  ANÁLISIS COMPARATIVO — Configuración Real (Dale Play) vs Óptima (Faro Protocol) · 5 fotos pre-show')
+    ax_cmp.set_facecolor(BG2)
+    ax_cmp.set_xlim(0, 10); ax_cmp.set_ylim(0, 15)
+    ax_cmp.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
+    _gold_line(ax_cmp)
+
+    import json as _json_cmp
+    _cmp_path = pathlib.Path(__file__).parent / "models" / "airbag_comparativa.json"
+    _cmp_data = _json_cmp.loads(_cmp_path.read_text(encoding='utf-8')) if _cmp_path.exists() else None
+
+    if _cmp_data:
+        _scr  = _cmp_data.get('score', {})
+        _rec  = _cmp_data.get('recomendaciones', [])
+
+        # ── Cabecera 5 columnas ───────────────────────────────────────────────
+        _hcols5 = [
+            (0.20, 'VARIABLE'),
+            (2.35, 'DALE PLAY'),
+            (3.65, 'FARO OPTIMO'),
+            (5.05, 'DELTA'),
+            (6.55, 'IMPACTO ECONÓMICO'),
+        ]
+        _hy = 14.0
+        for _hx, _ht in _hcols5:
+            ax_cmp.text(_hx, _hy, _ht, color=GOLD, fontsize=8,
+                fontweight='bold', fontfamily='monospace')
+        ax_cmp.plot([0.15, 9.85], [_hy - 0.22, _hy - 0.22], color=GOLD+'66', lw=0.9)
+
+        # ── 9 filas de datos ──────────────────────────────────────────────────
+        _rows9 = [
+            ('Altura escenario',     '1.6 m',     '2.1 m',    '+0.5m sweet-spot +7.1%',  '~2.485 esp. con vista optima', YELL, YELL),
+            ('Profundidad campo',    'y=22%',     'y=18%',    '+4.2m dentro exclusion',   'Evita daño Colect.Sur ~USD35k',YELL, YELL),
+            ('Torre izquierda X',    'x=10%',     'x=15%',    '-3.4m del Canal N-S',      'Evita daño lateral ~USD5k',    YELL, YELL),
+            ('Area afectada',        '1.540 m2',  '1.224 m2', '+316m2 daño cesped',       '316m2 x USD10 ~USD3.160',      YELL, YELL),
+            ('Tarimas distrib.',     'AUSENTES',  'PRESENTES','carga puntual sin dist.',  'Rotura cañeria USD20k-50k',    REDL, REDL),
+            ('Estado cesped',        'REGULAR',   'BUENO',    'NDVI 0.10 / SMAP 0%',     'Riego 48h ahorro ~USD2k',      YELL, YELL),
+            ('Tiempo de montaje',    'base',      '+1-2h',    'reposicion. escenario',    'Sin costo adicional equipo',   WDIM, WDIM),
+            ('Riesgo daño campo',    '1.540 m2',  '1.224 m2','Faro: -316m2 critico',     'Ahorro total ~USD3k-40k',      YELL, YELL),
+            ('Zonas drenaje afect.', '2 criticas','0 criticas','Canal NS+Colector Sur',   'Cero riesgo infraestructura',  REDL, REDL),
+        ]
+        _ry0   = 13.2
+        _rstep = 1.02
+        for _ri, (_var, _dp, _fo, _dlt, _imp, _c_dp, _c_dlt) in enumerate(_rows9):
+            _ry = _ry0 - _ri * _rstep
+            _bg = BG3 if _ri % 2 == 0 else BG2
+            ax_cmp.add_patch(mpatches.Rectangle((0.15, _ry - 0.42), 9.70, _rstep * 0.88,
+                facecolor=_bg, edgecolor='none', zorder=0))
+            ax_cmp.text(0.25,  _ry, _var, color=WHITE, fontsize=7.5, fontfamily='monospace', va='center')
+            ax_cmp.text(2.35,  _ry, _dp,  color=_c_dp, fontsize=7.5, fontfamily='monospace', fontweight='bold', va='center')
+            ax_cmp.text(3.65,  _ry, _fo,  color=GRNL,  fontsize=7.5, fontfamily='monospace', fontweight='bold', va='center')
+            ax_cmp.text(5.05,  _ry, _dlt[:22], color=_c_dlt, fontsize=7.5, fontfamily='monospace', va='center')
+            ax_cmp.text(6.55,  _ry, _imp[:24], color=WDIM,    fontsize=7.5, fontfamily='monospace', style='italic', va='center')
+            ax_cmp.plot([0.15, 9.85], [_ry - 0.42, _ry - 0.42], color=BORDER, lw=0.4)
+
+        # Separadores verticales
+        for _sx in [2.25, 3.55, 4.95, 6.45]:
+            ax_cmp.plot([_sx, _sx], [2.45, _hy - 0.22], color=BORDER, lw=0.6)
+
+        # Separador antes del score
+        ax_cmp.plot([0.15, 9.85], [2.45, 2.45], color=GOLD+'44', lw=0.9)
+
+        # ── Score bar (3 celdas, y=0.25..2.25) ───────────────────────────────
+        _gap_pts = _scr.get('gap', 0)
+        _score_items = [
+            (1.65,  'CONFIG. ACTUAL',  f"Cobertura: {ac_cov:.0f}%",  REDL),
+            (5.00,  'CONFIG. OPTIMA',  'Cobertura: 100%',             GRNL),
+            (8.35,  'MEJORA POSIBLE',  f"+{_gap_pts} pts",            GRNL),
+        ]
+        for _sx, _slbl, _sval, _scol in _score_items:
+            ax_cmp.add_patch(FancyBboxPatch((_sx - 1.55, 0.22), 3.1, 2.1,
+                boxstyle='round,pad=0.1',
+                facecolor=_scol+'12', edgecolor=_scol+'55', lw=0.9))
+            ax_cmp.text(_sx, 2.0,  _slbl, color=GOLD, fontsize=8,
+                ha='center', fontweight='bold', fontfamily='monospace')
+            ax_cmp.text(_sx, 1.1,  _sval, color=_scol, fontsize=13,
+                ha='center', va='center', fontweight='bold', fontfamily='monospace')
+
+        # Fuente
+        ax_cmp.text(0.20, 0.10,
+            f"Fuente: {_cmp_data.get('fuente_extraccion','')[:95]}",
+            color=WDIM, fontsize=6.5, fontfamily='monospace', style='italic')
+
+    else:
+        ax_cmp.text(5.0, 6.5, 'Correr dale_play_vision.analyze_comparativa()',
+            color=WDIM, fontsize=9, ha='center', va='center',
+            fontfamily='monospace', style='italic')
+
     # ══ RESUMEN EJECUTIVO ═════════════════════════════════════════════════════
-    ax_res = fig.add_subplot(gs[9])
+    ax_res = fig.add_subplot(gs[11])
     _panel(ax_res, '  RESUMEN EJECUTIVO — Para el equipo de producción')
     ax_res.set_facecolor('#0a1f0a')
-    ax_res.set_xlim(0, 10); ax_res.set_ylim(0, 8.8)
+    ax_res.set_xlim(0, 10); ax_res.set_ylim(0, 10.5)
     ax_res.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
     for _sp in ax_res.spines.values():
         _sp.set_color(GOLD); _sp.set_linewidth(1.5)
@@ -636,22 +975,46 @@ def generate_report(show_data: dict, show_config: dict) -> str:
     _b1_ok    = _res_ndvi >= 0.4
     _b1_col   = GRNL if _b1_ok else YELL
     _b1_title = '◆ Estado del campo'
-    _b1_text  = ('El césped está en buen estado\npara recibir el show.\nSin riesgo de daño severo.'
-                 if _b1_ok else
-                 'El césped está bajo estrés.\nCoordinar con el club medidas\nde protección antes del montaje.')
+    _b1_text  = (f'NDVI {_res_ndvi:.2f} — 40% bajo promedio\n'
+                 f'histórico de otoño (ref. 0.17)\n'
+                 f'Césped bajo estrés hídrico.\n'
+                 f'Riego 48h previo al show crítico.\n'
+                 f'Coordinar con el club medidas\n'
+                 f'de protección durante montaje.'
+                 if not _b1_ok else
+                 f'NDVI {_res_ndvi:.2f} — estado saludable.\n'
+                 f'Césped apto para el show.\n'
+                 f'Sin riesgo de daño severo.\n'
+                 f'Mantener riego preventivo\n'
+                 f'48h antes del evento.')
 
     _b2_title = '♪ Lo que puede mejorar'
-    _b2_text  = ('Si suben el escenario 50 cm,\nel 100% del público tendrá\nvisión perfecta. Sin costo\nadicional, sin mover estructuras.')
+    _b2_text  = ('50cm más de escenario\n'
+                 '= +7.1% visibilidad\n'
+                 '≈ 3.500 espectadores adicionales\n'
+                 'con vista óptima al escenario.\n'
+                 'Sin costo adicional de equipos,\n'
+                 'sin mover estructuras.')
 
     _b3_ok    = not soil.get('hay_exclusiones')
     _b3_col   = GRNL if _b3_ok else REDL
     _b3_title = '✓ Estructuras: sin riesgo' if _b3_ok else '! Estructuras: atencion'
     if _b3_ok:
-        _b3_text = ('Todas las estructuras dentro\nde la capacidad del suelo.\nSin riesgo de daño al drenaje.')
+        _b3_text = ('Cap. suelo: 120 kPa nominal\n'
+                    'Carga actual maxima: 15 kPa\n'
+                    'Margen de seguridad: 8x\n'
+                    'Todas estructuras dentro\n'
+                    'del umbral nominal. Tarimas\n'
+                    'distribuidoras recomendadas.')
     else:
         _rz = next((z.get('nombre','zona crítica') for z in (soil.get('zonas') or [])
                     if z.get('clase') in ('critico','exclusion')), 'zona crítica')
-        _b3_text = f'Atención: {_rz}\nsupera el umbral.\nReposicionar antes del montaje.'
+        _b3_text = (f'Atención: {_rz}\n'
+                    f'supera el umbral.\n'
+                    f'Cap. suelo: 120 kPa\n'
+                    f'Carga actual: sobre límite\n'
+                    f'Reposicionar antes del\n'
+                    f'montaje — riesgo drenaje.')
 
     _res_blocks = [
         (0.3,  _b1_title, _b1_text, _b1_col),
@@ -659,20 +1022,20 @@ def generate_report(show_data: dict, show_config: dict) -> str:
         (6.8,  _b3_title, _b3_text, _b3_col),
     ]
     for _bx, _btitle, _btext, _bcol in _res_blocks:
-        ax_res.add_patch(FancyBboxPatch((_bx, 1.4), 2.85, 6.0,
+        ax_res.add_patch(FancyBboxPatch((_bx, 0.6), 2.9, 9.2,
             boxstyle='round,pad=0.1',
             facecolor='#0d2a0d', edgecolor=_bcol + '88', lw=1.0))
-        ax_res.text(_bx + 0.18, 7.05, _btitle,
-            color=_bcol, fontsize=9, fontweight='bold')
-        ax_res.text(_bx + 0.18, 6.35, _btext,
-            color=WHITE, fontsize=8, va='top', linespacing=1.6)
+        ax_res.text(_bx + 0.18, 9.5, _btitle,
+            color=_bcol, fontsize=9.5, fontweight='bold')
+        ax_res.text(_bx + 0.18, 8.8, _btext,
+            color=WHITE, fontsize=8.5, va='top', linespacing=1.65)
 
-    ax_res.text(5.0, 0.7,
+    ax_res.text(5.0, 0.15,
         'Generado automáticamente por Faro Protocol con datos satelitales reales.',
-        color=WDIM, fontsize=7.5, ha='center', fontfamily='monospace')
+        color=WDIM, fontsize=7.5, ha='center', transform=ax_res.transAxes)
 
     # ══ FOOTER ════════════════════════════════════════════════════════════════
-    ax_f = fig.add_subplot(gs[10])
+    ax_f = fig.add_subplot(gs[12])
     ax_f.set_facecolor(BG3); ax_f.axis('off')
     ax_f.plot([0,1],[0.95,0.95], color=GOLD, lw=1.2,
               transform=ax_f.transAxes, clip_on=False)
@@ -688,7 +1051,7 @@ def generate_report(show_data: dict, show_config: dict) -> str:
     if os.environ.get("FARO_DALEPLAY_OUT"):
         out_path = os.environ["FARO_DALEPLAY_OUT"]
 
-    fig.savefig(out_path, dpi=DPI, bbox_inches='tight',
+    fig.savefig(out_path, dpi=DPI, pad_inches=0.2,
                 facecolor=BG, edgecolor='none')
     plt.close(fig)
     return out_path

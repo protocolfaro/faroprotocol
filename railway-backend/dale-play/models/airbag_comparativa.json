@@ -1,0 +1,112 @@
+{
+  "show_id": "airbag_2026-05-31",
+  "fecha_analisis": "2026-05-29 11:31",
+  "fotos_analizadas": 5,
+  "fuente_extraccion": "Claude Vision (análisis visual manual) + modelos Faro Protocol",
+  "config_real": {
+    "escenario": {
+      "dist_gol_sur_m": 0.5,
+      "ancho_m": 28.0,
+      "alto_m": 1.6,
+      "x_pct_inicio": 18.0,
+      "x_pct_fin": 80.0,
+      "y_pct_fin": 22.0
+    },
+    "torres_lr": {
+      "dist_escenario_m": 62.0,
+      "x_pct_izq": 10.0,
+      "x_pct_der": 88.0,
+      "y_pct": 59.0
+    },
+    "area_afectada_m2": 1540.0,
+    "estado_cesped": "regular",
+    "observaciones": [
+      "Escenario posicionado sobre zona Colector Sur (y_pct 0-22 vs exclusión 0-18) — 4m de exceso",
+      "Torres delay en posición aceptable pero close al Canal N-S (x_pct 10 vs mínimo recomendado 15)",
+      "No se observan tarimas distribuidoras de carga bajo estructura principal",
+      "Materiales apilados en lateral izquierdo del campo (sobre zona lateral drenaje)",
+      "Césped con signos de estrés hídrico — consistente con NDVI 0.099 y SMAP seco"
+    ],
+    "confianza": "alta"
+  },
+  "config_optima": {
+    "escenario": {
+      "dist_gol_sur_m": 0.5,
+      "ancho_m": 28.0,
+      "alto_m": 2.1,
+      "x_pct_inicio": 18.0,
+      "x_pct_fin": 80.0,
+      "y_pct_fin": 18.0
+    },
+    "torres_lr": {
+      "dist_escenario_m": 62.0,
+      "x_pct_izq": 15.0,
+      "x_pct_der": 85.0,
+      "y_pct": 59.0
+    },
+    "area_afectada_m2": 1224.0,
+    "tarimas_distribuidoras": true,
+    "notas": [
+      "Stage height +50cm → sweet-spot global 100% vs 92.9% actual",
+      "Torres L/R a x_pct≥15 para evitar Canal N-S central",
+      "Tarimas distribuidoras bajo patas escenario sobre Colector Sur"
+    ]
+  },
+  "deltas": {
+    "altura_escenario_m": {
+      "real": 1.6,
+      "optimo": 2.1,
+      "delta": "+0.5m",
+      "impacto": "sweet-spot +7.1%"
+    },
+    "profundidad_campo_pct": {
+      "real": 22.0,
+      "optimo": 18.0,
+      "delta": "+4.0% (4.2m)",
+      "impacto": "escenario sobre zona exclusión drenaje"
+    },
+    "torre_izq_x_pct": {
+      "real": 10.0,
+      "optimo": 15.0,
+      "delta": "-5.0% (3.4m)",
+      "impacto": "torre cercana a Canal N-S"
+    },
+    "area_afectada_m2": {
+      "real": 1540.0,
+      "optimo": 1224.0,
+      "delta": "+316m²",
+      "impacto": "mayor daño al césped"
+    },
+    "presion_drenaje_kpa": {
+      "real": 1.8,
+      "capacidad": 28.0,
+      "riesgo": false,
+      "impacto": "Presión dentro de umbral — sin riesgo estructural"
+    },
+    "tarimas_distribuidoras": {
+      "real": false,
+      "optimo": true,
+      "delta": "ausentes",
+      "impacto": "carga puntual sin distribución sobre Colector Sur"
+    }
+  },
+  "score": {
+    "dale_play": 0,
+    "faro_optimo": 100,
+    "gap": 100,
+    "detalle": {
+      "altura_escenario": 0,
+      "zona_drenaje": 0,
+      "torres_posicion": 0,
+      "tarimas": 0,
+      "cesped": 0
+    }
+  },
+  "recomendaciones": [
+    "Subir escenario 0.5m → sweet-spot 7.1% adicional de público con visión perfecta",
+    "Retraer escenario 4.2m → salir de zona Colector Sur (capacidad 28 kPa)",
+    "Desplazar torre izquierda 3.4m al este → evitar Canal N-S",
+    "Instalar tarimas distribuidoras (mín. 2.5 m²/punto) bajo patas del escenario",
+    "Regar el campo 48h antes del show — SMAP superficial 0% (seco)"
+  ]
+}

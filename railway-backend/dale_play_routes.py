@@ -5,7 +5,7 @@ Se registra en app.py con 2 líneas sin modificar los endpoints de Vélez.
 from __future__ import annotations
 import json, logging, os, sys, threading
 
-from flask import Blueprint, jsonify, request, send_file
+from flask import Blueprint, jsonify, request, send_file, render_template_string
 
 # dale-play/ está un nivel arriba de railway-backend/
 _DP_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "dale-play"))
@@ -111,6 +111,86 @@ def dp_run():
     })
 
 
+@dale_play_bp.route("/upload-layout", methods=["POST"])
+def dp_upload_layout():
+    """
+    POST /dale-play/upload-layout
+    Form: show_id (str), file (PDF o DXF/DWG)
+    Parsea el layout con pdfplumber/ezdxf + Claude Vision.
+    Guarda shows/{show_id}_layout.json y retorna el dict.
+    """
+    show_id = request.form.get("show_id", "").strip()
+    if not show_id:
+        return jsonify({"error": "show_id required"}), 400
+    if "file" not in request.files:
+        return jsonify({"error": "file required (multipart field 'file')"}), 400
+
+    f = request.files["file"]
+    if not f.filename:
+        return jsonify({"error": "empty filename"}), 400
+
+    try:
+        from dale_play_layout import parse_layout_file
+        result = parse_layout_file(f.read(), f.filename, show_id)
+        return jsonify(result)
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
+    except Exception as e:
+        log.error("dale_play /upload-layout: %s", e)
+        return jsonify({"error": str(e)}), 500
+
+
+@dale_play_bp.route("/layout/<show_id>", methods=["GET"])
+def dp_layout(show_id: str):
+    """GET /dale-play/layout/{show_id} — retorna layout JSON si existe."""
+    try:
+        from dale_play_layout import load_layout
+        layout = load_layout(show_id)
+        if layout is None:
+            return jsonify({"error": f"No layout found for {show_id}"}), 404
+        return jsonify(layout)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@dale_play_bp.route("/certify", methods=["POST"])
+def dp_certify():
+    """
+    POST /dale-play/certify
+    Body: {"show_id": str, "mode": "post_show"}
+    Genera certificado PDF post-evento con NDVI pre/post, hash SHA-256.
+    """
+    body    = request.get_json(force=True, silent=True) or {}
+    show_id = body.get("show_id", "").strip()
+    mode    = body.get("mode", "post_show")
+
+    if not show_id:
+        return jsonify({"error": "show_id required"}), 400
+    if mode != "post_show":
+        return jsonify({"error": "mode debe ser 'post_show'"}), 400
+
+    try:
+        from dale_play_certification import run_certification
+        result = run_certification(show_id, mode=mode)
+        return jsonify(result)
+    except FileNotFoundError as e:
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        log.error("dale_play /certify: %s", e)
+        return jsonify({"error": str(e)}), 500
+
+
+@dale_play_bp.route("/certificado/<show_id>", methods=["GET"])
+def dp_certificado(show_id: str):
+    """GET /dale-play/certificado/{show_id} — descarga el PDF del certificado."""
+    import os as _os
+    pdf_path = _os.path.join(_DP_PATH, "certificados", f"{show_id}_certificado.pdf")
+    if not _os.path.exists(pdf_path):
+        return jsonify({"error": f"Certificado no encontrado: {show_id}"}), 404
+    return send_file(pdf_path, mimetype="application/pdf",
+                     download_name=f"{show_id}_certificado.pdf")
+
+
 @dale_play_bp.route("/report-png/<show_id>", methods=["GET"])
 def dp_report_png(show_id: str):
     """GET /dale-play/report-png/airbag_2026-05-31 — sirve el PNG generado."""
@@ -118,6 +198,17 @@ def dp_report_png(show_id: str):
     if not os.path.exists(png_path):
         return jsonify({"error": f"PNG not found: {png_path}"}), 404
     return send_file(png_path, mimetype="image/png")
+
+
+@dale_play_bp.route("/dashboard/<show_id>", methods=["GET"])
+def dp_dashboard(show_id: str):
+    """GET /dale-play/dashboard/{show_id} — Panel de validación interactivo."""
+    tpl_path = os.path.join(_DP_PATH, "templates", "dale_play_dashboard.html")
+    if not os.path.exists(tpl_path):
+        return jsonify({"error": "Dashboard template not found"}), 404
+    with open(tpl_path, encoding="utf-8") as f:
+        html = f.read()
+    return html, 200, {"Content-Type": "text/html; charset=utf-8"}
 
 
 # ── helper ────────────────────────────────────────────────────────────────────

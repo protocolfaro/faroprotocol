@@ -1,0 +1,9 @@
+{
+  "humedad_superficial_%": 0.0,
+  "humedad_raiz_%": 31.8,
+  "fecha": "2026-05-26",
+  "estado": "seco",
+  "fuente": "ERA5-Land (Open-Meteo) — proxy SMAP",
+  "lat": -34.6379,
+  "lon": -58.5288
+}

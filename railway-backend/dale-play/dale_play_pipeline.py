@@ -3,15 +3,17 @@ dale_play_pipeline.py — Orquestador del pipeline de auditoría Dale Play.
 Corre los módulos en orden y produce show_data completo.
 
 Modos:
-  full       — satélite + clima + acústica + suelo + reporte + GitHub
+  full         — layout → satélite → clima → acústica → suelo → drenaje → EGMS → comparativa → reporte PNG
   weather_only — solo pronóstico climático
-  post_show  — full + InSAR diferencial post-show
+  post_show    — full + InSAR diferencial + certificación automática
 """
 from __future__ import annotations
-import logging
+import logging, pathlib
 from datetime import datetime, timezone
 
 log = logging.getLogger(__name__)
+
+_SHOWS_DIR = pathlib.Path(__file__).parent / "shows"
 
 
 def run_show_audit(show_config: dict, mode: str = "full") -> dict:
@@ -35,6 +37,20 @@ def run_show_audit(show_config: dict, mode: str = "full") -> dict:
         "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "mode":      mode,
     }
+
+    # ── 0. Layout real (si fue subido) ──────────────────────────────────────────
+    try:
+        from dale_play_layout import load_layout
+        layout = load_layout(show_id)
+        if layout is not None:
+            result["layout"] = layout
+            log.info("dale_play_pipeline: layout real cargado (%s)", layout.get("filename"))
+        else:
+            result["layout"] = None
+            log.info("dale_play_pipeline: sin layout subido — usando rider JSON como fallback")
+    except Exception as e:
+        log.warning("dale_play_pipeline: layout load error: %s", e)
+        result["layout"] = None
 
     # ── 1. Baseline satelital ────────────────────────────────────────────────
     if mode in ("full", "post_show"):
@@ -83,7 +99,36 @@ def run_show_audit(show_config: dict, mode: str = "full") -> dict:
         log.warning("dale_play_pipeline: soil failed: %s", e)
         result["soil"] = {"error": str(e)}
 
-    # ── 5. InSAR post-show (solo en modo post_show) ──────────────────────────
+    # ── 5a. Drenaje del campo ────────────────────────────────────────────────
+    try:
+        from dale_play_drainage import analyze_drainage
+        result["drainage"] = analyze_drainage()
+        log.info("dale_play_pipeline: drainage OK")
+    except Exception as e:
+        log.warning("dale_play_pipeline: drainage failed: %s", e)
+        result["drainage"] = {"error": str(e)}
+
+    # ── 5b. EGMS histórico ───────────────────────────────────────────────────
+    try:
+        from dale_play_egms import fetch_egms_amalfitani
+        result["egms"] = fetch_egms_amalfitani()
+        log.info("dale_play_pipeline: egms OK — sector_critico=%s",
+                 result["egms"].get("sector_critico"))
+    except Exception as e:
+        log.warning("dale_play_pipeline: egms failed: %s", e)
+        result["egms"] = {"error": str(e)}
+
+    # ── 5c. Comparativa layout real vs Faro Protocol ─────────────────────────
+    try:
+        from dale_play_vision import analyze_comparativa
+        result["comparativa"] = analyze_comparativa(show_id=show_id)
+        log.info("dale_play_pipeline: comparativa OK — score=%d",
+                 result["comparativa"].get("score", {}).get("dale_play", 0))
+    except Exception as e:
+        log.warning("dale_play_pipeline: comparativa failed: %s", e)
+        result["comparativa"] = {"error": str(e)}
+
+    # ── 6. InSAR post-show (solo en modo post_show) ──────────────────────────
     if mode == "post_show":
         try:
             from dale_play_insar import fetch_post_show_vibration
@@ -93,7 +138,7 @@ def run_show_audit(show_config: dict, mode: str = "full") -> dict:
             log.warning("dale_play_pipeline: insar failed: %s", e)
             result["insar"] = {"error": str(e)}
 
-    # ── 6. Reporte PNG ───────────────────────────────────────────────────────
+    # ── 7. Reporte PNG (incluyendo superposición layout/drenaje si hay layout) ─
     try:
         from dale_play_report import generate_report
         result["report_png"] = generate_report(result, show_config)
@@ -102,7 +147,7 @@ def run_show_audit(show_config: dict, mode: str = "full") -> dict:
         log.warning("dale_play_pipeline: report failed: %s", e)
         result["report_png"] = None
 
-    # ── 6b. Push PNG a GitHub (persistencia) ────────────────────────────────
+    # ── 7b. Push PNG a GitHub (persistencia) ─────────────────────────────────
     result["report_png_url"] = None
     if result.get("report_png"):
         try:
@@ -112,7 +157,7 @@ def run_show_audit(show_config: dict, mode: str = "full") -> dict:
         except Exception as e:
             log.warning("dale_play_pipeline: PNG github push failed: %s", e)
 
-    # ── 7. Histórico GitHub ──────────────────────────────────────────────────
+    # ── 8. Histórico GitHub ──────────────────────────────────────────────────
     try:
         from dale_play_github import push_show_snapshot
         result["github"] = push_show_snapshot(show_id, result)
@@ -120,6 +165,17 @@ def run_show_audit(show_config: dict, mode: str = "full") -> dict:
     except Exception as e:
         log.warning("dale_play_pipeline: github failed: %s", e)
         result["github"] = {"error": str(e)}
+
+    # ── 9. Certificación automática (solo en modo post_show) ─────────────────
+    if mode == "post_show":
+        try:
+            from dale_play_certification import run_certification
+            result["certificado"] = run_certification(show_id, mode="post_show")
+            log.info("dale_play_pipeline: certificado → %s",
+                     result["certificado"].get("pdf_path"))
+        except Exception as e:
+            log.warning("dale_play_pipeline: certificacion failed: %s", e)
+            result["certificado"] = {"error": str(e)}
 
     log.info("=== dale_play_pipeline OK — %s · %s ===", artist, show_date)
     return result

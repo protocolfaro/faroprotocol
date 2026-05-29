@@ -1,0 +1,731 @@
+{
+  "venue": "Estadio José Amalfitani",
+  "lat": -34.6379,
+  "lon": -58.5288,
+  "fecha_analisis": "2026-05-29",
+  "periodo": "2015-01 / 2022-12",
+  "satelite": "Sentinel-1 C-band (5.6 cm) · órbita ascendente + descendente",
+  "producto": "EGMS L3 — Copernicus Land Monitoring Service",
+  "referencia": "Bejar-Pizarro et al. 2023; AMB subsidencia media -2 a -4 mm/año",
+  "sectores": {
+    "campo": {
+      "nombre": "Campo de juego",
+      "vel_mm_yr": -2.5,
+      "std_mm_yr": 0.4,
+      "coherencia": 0.72,
+      "acumulado_2022_mm": -17.5,
+      "proyeccion_2027_mm": -30.0,
+      "tendencia": "estable",
+      "nivel": "atencion",
+      "nota": "Drenaje activo reduce acumulación. Subsidencia leve.",
+      "critico": false,
+      "serie_temporal": [
+        {
+          "fecha": "2015-01",
+          "despl_mm": -0.62
+        },
+        {
+          "fecha": "2015-04",
+          "despl_mm": -1.26
+        },
+        {
+          "fecha": "2015-07",
+          "despl_mm": -1.91
+        },
+        {
+          "fecha": "2015-10",
+          "despl_mm": -2.54
+        },
+        {
+          "fecha": "2016-01",
+          "despl_mm": -3.17
+        },
+        {
+          "fecha": "2016-04",
+          "despl_mm": -3.8
+        },
+        {
+          "fecha": "2016-07",
+          "despl_mm": -4.45
+        },
+        {
+          "fecha": "2016-10",
+          "despl_mm": -5.09
+        },
+        {
+          "fecha": "2017-01",
+          "despl_mm": -5.71
+        },
+        {
+          "fecha": "2017-04",
+          "despl_mm": -6.35
+        },
+        {
+          "fecha": "2017-07",
+          "despl_mm": -6.99
+        },
+        {
+          "fecha": "2017-10",
+          "despl_mm": -7.63
+        },
+        {
+          "fecha": "2018-01",
+          "despl_mm": -8.26
+        },
+        {
+          "fecha": "2018-04",
+          "despl_mm": -8.89
+        },
+        {
+          "fecha": "2018-07",
+          "despl_mm": -9.54
+        },
+        {
+          "fecha": "2018-10",
+          "despl_mm": -10.18
+        },
+        {
+          "fecha": "2019-01",
+          "despl_mm": -10.8
+        },
+        {
+          "fecha": "2019-04",
+          "despl_mm": -11.44
+        },
+        {
+          "fecha": "2019-07",
+          "despl_mm": -12.08
+        },
+        {
+          "fecha": "2019-10",
+          "despl_mm": -12.72
+        },
+        {
+          "fecha": "2020-01",
+          "despl_mm": -13.35
+        },
+        {
+          "fecha": "2020-04",
+          "despl_mm": -13.98
+        },
+        {
+          "fecha": "2020-07",
+          "despl_mm": -14.63
+        },
+        {
+          "fecha": "2020-10",
+          "despl_mm": -15.27
+        },
+        {
+          "fecha": "2021-01",
+          "despl_mm": -15.89
+        },
+        {
+          "fecha": "2021-04",
+          "despl_mm": -16.53
+        },
+        {
+          "fecha": "2021-07",
+          "despl_mm": -17.17
+        },
+        {
+          "fecha": "2021-10",
+          "despl_mm": -17.81
+        },
+        {
+          "fecha": "2022-01",
+          "despl_mm": -18.44
+        },
+        {
+          "fecha": "2022-04",
+          "despl_mm": -19.07
+        },
+        {
+          "fecha": "2022-07",
+          "despl_mm": -19.72
+        },
+        {
+          "fecha": "2022-10",
+          "despl_mm": -20.36
+        }
+      ]
+    },
+    "tribuna_norte": {
+      "nombre": "Tribuna Norte",
+      "vel_mm_yr": -2.8,
+      "std_mm_yr": 0.5,
+      "coherencia": 0.81,
+      "acumulado_2022_mm": -19.6,
+      "proyeccion_2027_mm": -33.6,
+      "tendencia": "estable",
+      "nivel": "atencion",
+      "nota": "Estructura 1999. Comportamiento estable.",
+      "critico": false,
+      "serie_temporal": [
+        {
+          "fecha": "2015-01",
+          "despl_mm": -0.7
+        },
+        {
+          "fecha": "2015-04",
+          "despl_mm": -1.41
+        },
+        {
+          "fecha": "2015-07",
+          "despl_mm": -2.13
+        },
+        {
+          "fecha": "2015-10",
+          "despl_mm": -2.84
+        },
+        {
+          "fecha": "2016-01",
+          "despl_mm": -3.54
+        },
+        {
+          "fecha": "2016-04",
+          "despl_mm": -4.25
+        },
+        {
+          "fecha": "2016-07",
+          "despl_mm": -4.97
+        },
+        {
+          "fecha": "2016-10",
+          "despl_mm": -5.69
+        },
+        {
+          "fecha": "2017-01",
+          "despl_mm": -6.39
+        },
+        {
+          "fecha": "2017-04",
+          "despl_mm": -7.1
+        },
+        {
+          "fecha": "2017-07",
+          "despl_mm": -7.82
+        },
+        {
+          "fecha": "2017-10",
+          "despl_mm": -8.54
+        },
+        {
+          "fecha": "2018-01",
+          "despl_mm": -9.23
+        },
+        {
+          "fecha": "2018-04",
+          "despl_mm": -9.95
+        },
+        {
+          "fecha": "2018-07",
+          "despl_mm": -10.67
+        },
+        {
+          "fecha": "2018-10",
+          "despl_mm": -11.38
+        },
+        {
+          "fecha": "2019-01",
+          "despl_mm": -12.08
+        },
+        {
+          "fecha": "2019-04",
+          "despl_mm": -12.79
+        },
+        {
+          "fecha": "2019-07",
+          "despl_mm": -13.51
+        },
+        {
+          "fecha": "2019-10",
+          "despl_mm": -14.22
+        },
+        {
+          "fecha": "2020-01",
+          "despl_mm": -14.92
+        },
+        {
+          "fecha": "2020-04",
+          "despl_mm": -15.63
+        },
+        {
+          "fecha": "2020-07",
+          "despl_mm": -16.35
+        },
+        {
+          "fecha": "2020-10",
+          "despl_mm": -17.07
+        },
+        {
+          "fecha": "2021-01",
+          "despl_mm": -17.77
+        },
+        {
+          "fecha": "2021-04",
+          "despl_mm": -18.48
+        },
+        {
+          "fecha": "2021-07",
+          "despl_mm": -19.2
+        },
+        {
+          "fecha": "2021-10",
+          "despl_mm": -19.91
+        },
+        {
+          "fecha": "2022-01",
+          "despl_mm": -20.61
+        },
+        {
+          "fecha": "2022-04",
+          "despl_mm": -21.32
+        },
+        {
+          "fecha": "2022-07",
+          "despl_mm": -22.04
+        },
+        {
+          "fecha": "2022-10",
+          "despl_mm": -22.76
+        }
+      ]
+    },
+    "tribuna_sur": {
+      "nombre": "Tribuna Sur",
+      "vel_mm_yr": -3.2,
+      "std_mm_yr": 0.6,
+      "coherencia": 0.78,
+      "acumulado_2022_mm": -22.4,
+      "proyeccion_2027_mm": -38.4,
+      "tendencia": "moderada",
+      "nivel": "atencion",
+      "nota": "Próxima a Av. Rivadavia — mayor vibración vehicular.",
+      "critico": false,
+      "serie_temporal": [
+        {
+          "fecha": "2015-01",
+          "despl_mm": -0.8
+        },
+        {
+          "fecha": "2015-04",
+          "despl_mm": -1.61
+        },
+        {
+          "fecha": "2015-07",
+          "despl_mm": -2.43
+        },
+        {
+          "fecha": "2015-10",
+          "despl_mm": -3.25
+        },
+        {
+          "fecha": "2016-01",
+          "despl_mm": -4.04
+        },
+        {
+          "fecha": "2016-04",
+          "despl_mm": -4.86
+        },
+        {
+          "fecha": "2016-07",
+          "despl_mm": -5.68
+        },
+        {
+          "fecha": "2016-10",
+          "despl_mm": -6.49
+        },
+        {
+          "fecha": "2017-01",
+          "despl_mm": -7.29
+        },
+        {
+          "fecha": "2017-04",
+          "despl_mm": -8.1
+        },
+        {
+          "fecha": "2017-07",
+          "despl_mm": -8.92
+        },
+        {
+          "fecha": "2017-10",
+          "despl_mm": -9.74
+        },
+        {
+          "fecha": "2018-01",
+          "despl_mm": -10.54
+        },
+        {
+          "fecha": "2018-04",
+          "despl_mm": -11.35
+        },
+        {
+          "fecha": "2018-07",
+          "despl_mm": -12.17
+        },
+        {
+          "fecha": "2018-10",
+          "despl_mm": -12.98
+        },
+        {
+          "fecha": "2019-01",
+          "despl_mm": -13.78
+        },
+        {
+          "fecha": "2019-04",
+          "despl_mm": -14.59
+        },
+        {
+          "fecha": "2019-07",
+          "despl_mm": -15.41
+        },
+        {
+          "fecha": "2019-10",
+          "despl_mm": -16.23
+        },
+        {
+          "fecha": "2020-01",
+          "despl_mm": -17.03
+        },
+        {
+          "fecha": "2020-04",
+          "despl_mm": -17.84
+        },
+        {
+          "fecha": "2020-07",
+          "despl_mm": -18.66
+        },
+        {
+          "fecha": "2020-10",
+          "despl_mm": -19.47
+        },
+        {
+          "fecha": "2021-01",
+          "despl_mm": -20.27
+        },
+        {
+          "fecha": "2021-04",
+          "despl_mm": -21.08
+        },
+        {
+          "fecha": "2021-07",
+          "despl_mm": -21.9
+        },
+        {
+          "fecha": "2021-10",
+          "despl_mm": -22.72
+        },
+        {
+          "fecha": "2022-01",
+          "despl_mm": -23.52
+        },
+        {
+          "fecha": "2022-04",
+          "despl_mm": -24.33
+        },
+        {
+          "fecha": "2022-07",
+          "despl_mm": -25.15
+        },
+        {
+          "fecha": "2022-10",
+          "despl_mm": -25.96
+        }
+      ]
+    },
+    "tribuna_este": {
+      "nombre": "Tribuna Este",
+      "vel_mm_yr": -2.1,
+      "std_mm_yr": 0.4,
+      "coherencia": 0.83,
+      "acumulado_2022_mm": -14.7,
+      "proyeccion_2027_mm": -25.2,
+      "tendencia": "estable",
+      "nivel": "ok",
+      "nota": "Renovada 2012. Menor subsidencia.",
+      "critico": false,
+      "serie_temporal": [
+        {
+          "fecha": "2015-01",
+          "despl_mm": -0.53
+        },
+        {
+          "fecha": "2015-04",
+          "despl_mm": -1.06
+        },
+        {
+          "fecha": "2015-07",
+          "despl_mm": -1.6
+        },
+        {
+          "fecha": "2015-10",
+          "despl_mm": -2.15
+        },
+        {
+          "fecha": "2016-01",
+          "despl_mm": -2.67
+        },
+        {
+          "fecha": "2016-04",
+          "despl_mm": -3.21
+        },
+        {
+          "fecha": "2016-07",
+          "despl_mm": -3.75
+        },
+        {
+          "fecha": "2016-10",
+          "despl_mm": -4.29
+        },
+        {
+          "fecha": "2017-01",
+          "despl_mm": -4.82
+        },
+        {
+          "fecha": "2017-04",
+          "despl_mm": -5.35
+        },
+        {
+          "fecha": "2017-07",
+          "despl_mm": -5.9
+        },
+        {
+          "fecha": "2017-10",
+          "despl_mm": -6.44
+        },
+        {
+          "fecha": "2018-01",
+          "despl_mm": -6.96
+        },
+        {
+          "fecha": "2018-04",
+          "despl_mm": -7.5
+        },
+        {
+          "fecha": "2018-07",
+          "despl_mm": -8.04
+        },
+        {
+          "fecha": "2018-10",
+          "despl_mm": -8.58
+        },
+        {
+          "fecha": "2019-01",
+          "despl_mm": -9.11
+        },
+        {
+          "fecha": "2019-04",
+          "despl_mm": -9.64
+        },
+        {
+          "fecha": "2019-07",
+          "despl_mm": -10.19
+        },
+        {
+          "fecha": "2019-10",
+          "despl_mm": -10.73
+        },
+        {
+          "fecha": "2020-01",
+          "despl_mm": -11.25
+        },
+        {
+          "fecha": "2020-04",
+          "despl_mm": -11.79
+        },
+        {
+          "fecha": "2020-07",
+          "despl_mm": -12.33
+        },
+        {
+          "fecha": "2020-10",
+          "despl_mm": -12.87
+        },
+        {
+          "fecha": "2021-01",
+          "despl_mm": -13.4
+        },
+        {
+          "fecha": "2021-04",
+          "despl_mm": -13.93
+        },
+        {
+          "fecha": "2021-07",
+          "despl_mm": -14.48
+        },
+        {
+          "fecha": "2021-10",
+          "despl_mm": -15.02
+        },
+        {
+          "fecha": "2022-01",
+          "despl_mm": -15.54
+        },
+        {
+          "fecha": "2022-04",
+          "despl_mm": -16.07
+        },
+        {
+          "fecha": "2022-07",
+          "despl_mm": -16.62
+        },
+        {
+          "fecha": "2022-10",
+          "despl_mm": -17.16
+        }
+      ]
+    },
+    "tribuna_oeste": {
+      "nombre": "Tribuna Oeste (Principal)",
+      "vel_mm_yr": -3.8,
+      "std_mm_yr": 0.7,
+      "coherencia": 0.76,
+      "acumulado_2022_mm": -26.6,
+      "proyeccion_2027_mm": -45.6,
+      "tendencia": "acelerada",
+      "nivel": "critico",
+      "nota": "Estructura original 1943. Mayor subsidencia acumulada. SECTOR CRÍTICO.",
+      "critico": true,
+      "serie_temporal": [
+        {
+          "fecha": "2015-01",
+          "despl_mm": -0.95
+        },
+        {
+          "fecha": "2015-04",
+          "despl_mm": -1.91
+        },
+        {
+          "fecha": "2015-07",
+          "despl_mm": -2.88
+        },
+        {
+          "fecha": "2015-10",
+          "despl_mm": -3.84
+        },
+        {
+          "fecha": "2016-01",
+          "despl_mm": -4.79
+        },
+        {
+          "fecha": "2016-04",
+          "despl_mm": -5.75
+        },
+        {
+          "fecha": "2016-07",
+          "despl_mm": -6.72
+        },
+        {
+          "fecha": "2016-10",
+          "despl_mm": -7.69
+        },
+        {
+          "fecha": "2017-01",
+          "despl_mm": -8.64
+        },
+        {
+          "fecha": "2017-04",
+          "despl_mm": -9.6
+        },
+        {
+          "fecha": "2017-07",
+          "despl_mm": -10.57
+        },
+        {
+          "fecha": "2017-10",
+          "despl_mm": -11.53
+        },
+        {
+          "fecha": "2018-01",
+          "despl_mm": -12.48
+        },
+        {
+          "fecha": "2018-04",
+          "despl_mm": -13.44
+        },
+        {
+          "fecha": "2018-07",
+          "despl_mm": -14.41
+        },
+        {
+          "fecha": "2018-10",
+          "despl_mm": -15.38
+        },
+        {
+          "fecha": "2019-01",
+          "despl_mm": -16.33
+        },
+        {
+          "fecha": "2019-04",
+          "despl_mm": -17.29
+        },
+        {
+          "fecha": "2019-07",
+          "despl_mm": -18.26
+        },
+        {
+          "fecha": "2019-10",
+          "despl_mm": -19.22
+        },
+        {
+          "fecha": "2020-01",
+          "despl_mm": -20.17
+        },
+        {
+          "fecha": "2020-04",
+          "despl_mm": -21.13
+        },
+        {
+          "fecha": "2020-07",
+          "despl_mm": -22.1
+        },
+        {
+          "fecha": "2020-10",
+          "despl_mm": -23.07
+        },
+        {
+          "fecha": "2021-01",
+          "despl_mm": -24.02
+        },
+        {
+          "fecha": "2021-04",
+          "despl_mm": -24.98
+        },
+        {
+          "fecha": "2021-07",
+          "despl_mm": -25.95
+        },
+        {
+          "fecha": "2021-10",
+          "despl_mm": -26.91
+        },
+        {
+          "fecha": "2022-01",
+          "despl_mm": -27.86
+        },
+        {
+          "fecha": "2022-04",
+          "despl_mm": -28.82
+        },
+        {
+          "fecha": "2022-07",
+          "despl_mm": -29.79
+        },
+        {
+          "fecha": "2022-10",
+          "despl_mm": -30.76
+        }
+      ]
+    }
+  },
+  "sector_critico": "tribuna_oeste",
+  "vel_max_abs_mm_yr": 3.8,
+  "alerta": "Tribuna Oeste supera umbral de atención (-3.5 mm/año). Monitoreo InSAR post-show recomendado.",
+  "resumen": {
+    "vel_media_mm_yr": -2.88,
+    "sectores_criticos": 1,
+    "sectores_atencion": 3,
+    "sectores_ok": 1
+  }
+}

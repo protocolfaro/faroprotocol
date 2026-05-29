@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Faro Protocol · Dale Play · Dashboard</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:     #0a0a0a;
+    --bg2:    #0d1117;
+    --bg3:    #141c24;
+    --gold:   #c9a84c;
+    --white:  #f2ede4;
+    --dim:    #9aa0a8;
+    --red:    #e74c3c;
+    --yellow: #f0b429;
+    --green:  #27ae60;
+    --border: #1e2a38;
+  }
+  body {
+    background: var(--bg);
+    color: var(--white);
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 13px;
+    min-height: 100vh;
+  }
+  header {
+    background: var(--bg3);
+    border-bottom: 2px solid var(--gold);
+    padding: 16px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  header h1 { color: var(--gold); font-size: 18px; letter-spacing: 3px; }
+  header .sub { color: var(--dim); font-size: 11px; margin-top: 2px; }
+  .show-badge {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    padding: 6px 14px;
+    color: var(--gold);
+    font-size: 12px;
+    border-radius: 3px;
+  }
+  main { max-width: 1200px; margin: 0 auto; padding: 24px 24px 48px; }
+
+  /* KPI row */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .kpi {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 14px 10px;
+    text-align: center;
+  }
+  .kpi .label { color: var(--dim); font-size: 10px; letter-spacing: 1px; margin-bottom: 6px; }
+  .kpi .value { font-size: 22px; font-weight: bold; }
+  .kpi.ok    .value { color: var(--green); }
+  .kpi.warn  .value { color: var(--yellow); }
+  .kpi.crit  .value { color: var(--red); }
+  .kpi.dim   .value { color: var(--dim); }
+
+  /* Sections */
+  .section {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+  .section-header {
+    background: var(--bg3);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 16px;
+    color: var(--gold);
+    font-size: 11px;
+    letter-spacing: 2px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .section-body { padding: 16px; }
+
+  /* Checklist */
+  .checklist { list-style: none; }
+  .checklist li {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .checklist li:last-child { border-bottom: none; }
+  .checklist input[type="checkbox"] {
+    width: 18px; height: 18px;
+    accent-color: var(--gold);
+    cursor: pointer;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .checklist .item-text { flex: 1; }
+  .checklist .item-label { color: var(--white); font-size: 13px; }
+  .checklist .item-detail { color: var(--dim); font-size: 11px; margin-top: 3px; }
+  .checklist .item-status {
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: bold;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .status-ok   { background: #1a3a24; color: var(--green); border: 1px solid var(--green); }
+  .status-warn { background: #2d2200; color: var(--yellow); border: 1px solid var(--yellow); }
+  .status-crit { background: #2d0f0f; color: var(--red); border: 1px solid var(--red); }
+  .status-nd   { background: var(--bg3); color: var(--dim); border: 1px solid var(--border); }
+
+  /* Data grid */
+  .data-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .data-item .key { color: var(--dim); font-size: 10px; letter-spacing: 1px; }
+  .data-item .val { color: var(--white); font-size: 14px; margin-top: 2px; }
+  .val.ok   { color: var(--green); }
+  .val.warn { color: var(--yellow); }
+  .val.crit { color: var(--red); }
+  .val.nd   { color: var(--dim); }
+
+  /* Alert boxes */
+  .alert-box {
+    border-left: 3px solid;
+    padding: 8px 12px;
+    margin: 6px 0;
+    font-size: 12px;
+    border-radius: 0 3px 3px 0;
+  }
+  .alert-box.red    { border-color: var(--red);    background: #2d0f0f; color: var(--red); }
+  .alert-box.yellow { border-color: var(--yellow); background: #2d2200; color: var(--yellow); }
+  .alert-box.green  { border-color: var(--green);  background: #1a3a24; color: var(--green); }
+  .alert-box.dim    { border-color: var(--border);  background: var(--bg3); color: var(--dim); }
+
+  /* Buttons */
+  .btn-row { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; }
+  .btn {
+    padding: 10px 22px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    font-weight: bold;
+    letter-spacing: 1.5px;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    transition: opacity 0.15s;
+  }
+  .btn:hover { opacity: 0.82; }
+  .btn-gold  { background: var(--gold); color: #0a0a0a; }
+  .btn-ghost {
+    background: transparent;
+    color: var(--gold);
+    border: 1px solid var(--gold);
+  }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Spinner */
+  .spinner { display: none; color: var(--dim); font-size: 11px; margin-top: 8px; }
+  .spinner.active { display: block; }
+
+  /* Progress bar */
+  .progress-bar {
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    margin-top: 6px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--gold);
+    width: 0%;
+    transition: width 0.3s;
+    border-radius: 2px;
+  }
+
+  /* Toast */
+  #toast {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    background: var(--bg3);
+    border: 1px solid var(--gold);
+    color: var(--white);
+    padding: 12px 20px;
+    border-radius: 4px;
+    font-size: 12px;
+    display: none;
+    z-index: 100;
+    max-width: 360px;
+  }
+  #toast.show { display: block; }
+  #toast.error { border-color: var(--red); color: var(--red); }
+
+  /* Responsive */
+  @media (max-width: 700px) {
+    .kpi-row { grid-template-columns: repeat(2, 1fr); }
+    .data-grid { grid-template-columns: 1fr; }
+    .btn-row { flex-direction: column; }
+    .btn { width: 100%; text-align: center; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>FARO PROTOCOL · DALE PLAY</h1>
+    <div class="sub">Auditoría Operativa Pre-Show · Dashboard de Validación</div>
+  </div>
+  <div class="show-badge" id="show-badge">Cargando...</div>
+</header>
+
+<main>
+
+  <!-- KPI Row -->
+  <div class="kpi-row" id="kpi-row">
+    <div class="kpi dim"><div class="label">NDVI CAMPO</div><div class="value" id="kpi-ndvi">—</div></div>
+    <div class="kpi dim"><div class="label">CLIMA 72H</div><div class="value" id="kpi-wx">—</div></div>
+    <div class="kpi dim"><div class="label">SUELO</div><div class="value" id="kpi-soil">—</div></div>
+    <div class="kpi dim"><div class="label">ACÚSTICA</div><div class="value" id="kpi-ac">—</div></div>
+    <div class="kpi dim"><div class="label">INTEGRIDAD</div><div class="value" id="kpi-ins">—</div></div>
+  </div>
+
+  <!-- Checklist de validación -->
+  <div class="section">
+    <div class="section-header">
+      <span>CHECKLIST DE VALIDACIÓN — Production Manager</span>
+      <span id="check-progress" style="color:var(--dim); font-size:10px;">0 / 3</span>
+    </div>
+    <div class="section-body">
+      <ul class="checklist" id="checklist">
+
+        <li>
+          <input type="checkbox" id="chk-layout" onchange="onCheck()">
+          <div class="item-text">
+            <div class="item-label">Layout verificado contra zonas de drenaje</div>
+            <div class="item-detail" id="chk-layout-detail">
+              Confirmá que las estructuras del rider no invaden zonas de exclusión (rojo) del campo.
+              Zonas de precaución (amarillo) requieren tarimas distribuidoras de carga.
+            </div>
+          </div>
+          <span class="item-status status-nd" id="chk-layout-status">PENDIENTE</span>
+        </li>
+
+        <li>
+          <input type="checkbox" id="chk-acoustic" onchange="onCheck()">
+          <div class="item-text">
+            <div class="item-label">Recomendaciones acústicas revisadas</div>
+            <div class="item-detail" id="chk-acoustic-detail">
+              Verificar altura de escenario, posición de torres L/R y configuración delay
+              según modelo geométrico SPL. Sweet-spot global y cobertura por sector.
+            </div>
+          </div>
+          <span class="item-status status-nd" id="chk-acoustic-status">PENDIENTE</span>
+        </li>
+
+        <li>
+          <input type="checkbox" id="chk-soil" onchange="onCheck()">
+          <div class="item-text">
+            <div class="item-label">Estructuras dentro de capacidad del suelo</div>
+            <div class="item-detail" id="chk-soil-detail">
+              Confirmar presión por zona (kPa) vs capacidad efectiva del suelo.
+              Con suelo seco: riesgo de consolidación diferencial bajo cargas puntuales.
+            </div>
+          </div>
+          <span class="item-status status-nd" id="chk-soil-status">PENDIENTE</span>
+        </li>
+
+      </ul>
+      <div class="progress-bar"><div class="progress-fill" id="check-bar"></div></div>
+    </div>
+  </div>
+
+  <!-- Datos del show -->
+  <div class="section">
+    <div class="section-header">DATOS DEL SHOW</div>
+    <div class="section-body">
+      <div class="data-grid" id="show-data-grid">
+        <div class="data-item"><div class="key">ARTISTA</div><div class="val" id="d-artist">—</div></div>
+        <div class="data-item"><div class="key">FECHA</div><div class="val" id="d-date">—</div></div>
+        <div class="data-item"><div class="key">VENUE</div><div class="val" id="d-venue">—</div></div>
+        <div class="data-item"><div class="key">LAYOUT SUBIDO</div><div class="val" id="d-layout">—</div></div>
+        <div class="data-item"><div class="key">NDVI PRE-SHOW</div><div class="val" id="d-ndvi">—</div></div>
+        <div class="data-item"><div class="key">HUMEDAD SUELO</div><div class="val" id="d-smap">—</div></div>
+        <div class="data-item"><div class="key">LLUVIA SHOW DAY</div><div class="val" id="d-rain">—</div></div>
+        <div class="data-item"><div class="key">ACÚSTICA SPL PROM</div><div class="val" id="d-spl">—</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Alertas -->
+  <div class="section">
+    <div class="section-header">ALERTAS OPERATIVAS</div>
+    <div class="section-body" id="alertas-body">
+      <div class="alert-box dim">Cargando datos del pipeline...</div>
+    </div>
+  </div>
+
+  <!-- Acciones -->
+  <div class="section">
+    <div class="section-header">ACCIONES</div>
+    <div class="section-body">
+      <div class="btn-row">
+        <button class="btn btn-gold" id="btn-certify" onclick="runCertify()">
+          GENERAR CERTIFICACIÓN PRE-SHOW
+        </button>
+        <a class="btn btn-ghost" id="btn-png" href="#" target="_blank">
+          VER REPORTE PNG
+        </a>
+        <button class="btn btn-ghost" onclick="refreshData()">
+          ACTUALIZAR DATOS
+        </button>
+      </div>
+      <div class="spinner" id="certify-spinner">Generando certificado... esto puede tardar 10-15 segundos.</div>
+      <div id="certify-result" style="margin-top:10px;"></div>
+    </div>
+  </div>
+
+</main>
+
+<div id="toast"></div>
+
+<script>
+// show_id from URL path: /dale-play/dashboard/{show_id}
+const SHOW_ID = window.location.pathname.split('/').filter(Boolean).pop();
+const API     = window.location.origin;
+
+function semToClass(sem) {
+  if (!sem) return 'dim';
+  const s = sem.toLowerCase();
+  if (s === 'ok' || s === 'verde')    return 'ok';
+  if (s === 'atencion' || s === 'amarillo') return 'warn';
+  if (s === 'critico' || s === 'rojo')      return 'crit';
+  return 'dim';
+}
+function semToText(sem) {
+  if (!sem) return 'N/D';
+  const s = sem.toLowerCase();
+  if (s === 'ok' || s === 'verde')    return 'OK';
+  if (s === 'atencion' || s === 'amarillo') return 'ATEN.';
+  if (s === 'critico' || s === 'rojo')      return 'CRIT.';
+  return 'N/D';
+}
+
+function setKpi(id, value, cls) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = value || 'N/D';
+  el.parentElement.className = 'kpi ' + (cls || 'dim');
+}
+
+function showToast(msg, isError) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show' + (isError ? ' error' : '');
+  setTimeout(() => { t.className = ''; }, 4000);
+}
+
+function onCheck() {
+  const boxes  = document.querySelectorAll('#checklist input[type=checkbox]');
+  const checked = [...boxes].filter(b => b.checked).length;
+  document.getElementById('check-progress').textContent = checked + ' / ' + boxes.length;
+  document.getElementById('check-bar').style.width = (checked / boxes.length * 100) + '%';
+
+  const ids = ['chk-layout', 'chk-acoustic', 'chk-soil'];
+  ids.forEach(id => {
+    const cb = document.getElementById(id);
+    const st = document.getElementById(id + '-status');
+    if (!cb || !st) return;
+    if (cb.checked) {
+      st.textContent = 'VERIFICADO';
+      st.className = 'item-status status-ok';
+    } else {
+      st.textContent = 'PENDIENTE';
+      st.className = 'item-status status-nd';
+    }
+  });
+
+  document.getElementById('btn-certify').disabled = (checked < boxes.length);
+}
+
+async function loadShowData() {
+  document.getElementById('show-badge').textContent = SHOW_ID;
+  document.getElementById('btn-png').href = API + '/dale-play/report-png/' + SHOW_ID;
+
+  // Cargar show config (via /dale-play/layout o desde el pipeline)
+  let layout = null;
+  try {
+    const lr = await fetch(API + '/dale-play/layout/' + SHOW_ID);
+    if (lr.ok) {
+      layout = await lr.json();
+      document.getElementById('d-layout').textContent = layout.filename || 'Subido';
+      document.getElementById('d-layout').className = 'val ok';
+    } else {
+      document.getElementById('d-layout').textContent = 'No subido — usando rider JSON';
+      document.getElementById('d-layout').className = 'val dim';
+    }
+  } catch(e) {}
+
+  // Cargar datos del weather (quick endpoint)
+  try {
+    const wr = await fetch(API + '/dale-play/weather');
+    if (wr.ok) {
+      const wd = await wr.json();
+      const rg = wd.riesgo_global || 'sin_datos';
+      setKpi('kpi-wx', semToText(rg), semToClass(rg));
+      const sd = wd.show_day || {};
+      document.getElementById('d-rain').textContent =
+        (sd.lluvia_mm != null ? sd.lluvia_mm + ' mm' : 'N/D');
+    }
+  } catch(e) {}
+
+  // Cargar report (full) para el resto de KPIs
+  // Usamos el endpoint /report que corre el pipeline y retorna JSON
+  try {
+    const rr = await fetch(API + '/dale-play/report?show_id=' + SHOW_ID + '&mode=full');
+    if (rr.ok) {
+      const rd = await rr.json();
+
+      // Show info
+      document.getElementById('d-artist').textContent = rd.artist || 'N/D';
+      document.getElementById('d-date').textContent   = rd.show_date || 'N/D';
+      document.getElementById('d-venue').textContent  = rd.venue || 'Estadio Amalfitani';
+
+      // Satellite
+      const sat = rd.satellite || {};
+      const ndvi = sat.ndvi;
+      const ndviSem = (sat.ndvi_status || {}).semaforo || 'sin_datos';
+      setKpi('kpi-ndvi', ndvi != null ? ndvi.toFixed(2) : 'N/D', semToClass(ndviSem));
+      document.getElementById('d-ndvi').textContent =
+        ndvi != null ? ndvi.toFixed(3) + ' (' + ndviSem + ')' : 'N/D';
+      document.getElementById('d-ndvi').className =
+        'val ' + semToClass(ndviSem);
+
+      // Soil
+      const soil = rd.soil || {};
+      const soilSem = soil.hay_exclusiones ? 'critico' : (soil.error ? 'sin_datos' : 'ok');
+      setKpi('kpi-soil', semToText(soilSem), semToClass(soilSem));
+      const smapSup = (soil.humedad_superficial_pct != null)
+        ? soil.humedad_superficial_pct + '% sup'
+        : 'N/D';
+      document.getElementById('d-smap').textContent = smapSup;
+
+      // Acoustic
+      const ac = rd.acoustic || {};
+      const acCov = ac.cobertura_optima_pct || 0;
+      const acSem = acCov >= 60 ? 'ok' : acCov >= 40 ? 'atencion' : 'critico';
+      setKpi('kpi-ac', acCov.toFixed(0) + '%', semToClass(acSem));
+      const spl = ac.spl_promedio_db;
+      document.getElementById('d-spl').textContent =
+        spl != null ? spl.toFixed(0) + ' dB prom' : 'N/D';
+
+      // InSAR
+      const ins = rd.insar || {};
+      const insSem = ins.tribunas ? 'ok' : 'sin_datos';
+      setKpi('kpi-ins', 'PRE-SHOW', 'dim');
+
+      // Alertas
+      buildAlertas(rd);
+
+      // Update checklist details with real data
+      if (soil.hay_exclusiones) {
+        document.getElementById('chk-soil-status').textContent = 'ALERTA';
+        document.getElementById('chk-soil-status').className = 'item-status status-crit';
+      }
+      if (ndvi != null && ndvi < 0.2) {
+        document.getElementById('chk-layout-detail').innerHTML +=
+          ' <strong style="color:var(--red)">NDVI bajo — riesgo de daño en césped.</strong>';
+      }
+    }
+  } catch(e) {
+    console.error('Report load error:', e);
+  }
+
+  onCheck();
+}
+
+function buildAlertas(rd) {
+  const body = document.getElementById('alertas-body');
+  body.innerHTML = '';
+  const alerts = [];
+
+  // Weather
+  const wx = rd.weather || {};
+  if ((wx.riesgo_global || '').toLowerCase() === 'critico') {
+    alerts.push({ cls: 'red', msg: 'CLIMA: Riesgo operativo crítico — ' + (wx.resumen || '') });
+  } else if ((wx.riesgo_global || '').toLowerCase() === 'atencion') {
+    alerts.push({ cls: 'yellow', msg: 'CLIMA: Riesgo operativo medio — ' + (wx.resumen || '') });
+  }
+
+  // NDVI
+  const sat = rd.satellite || {};
+  const ndvi = sat.ndvi;
+  if (ndvi != null) {
+    const ndviSem = (sat.ndvi_status || {}).semaforo || '';
+    if (ndviSem === 'critico') {
+      alerts.push({ cls: 'red', msg: 'NDVI: Daño severo en césped — ' + ndvi.toFixed(3) + '. Requiere intervención.' });
+    } else if (ndviSem === 'atencion') {
+      alerts.push({ cls: 'yellow', msg: 'NDVI: Estrés en césped — ' + ndvi.toFixed(3) + '. Riego recomendado 48h antes.' });
+    }
+  }
+
+  // Soil
+  const soil = rd.soil || {};
+  if (soil.hay_exclusiones) {
+    alerts.push({ cls: 'red', msg: 'SUELO: Estructuras en zona de exclusión. Verificar plataformas distribuidoras.' });
+  }
+
+  // Acoustic
+  const ac = rd.acoustic || {};
+  const acAlerts = ac.alertas_globales || [];
+  acAlerts.slice(0, 2).forEach(a => {
+    alerts.push({ cls: 'yellow', msg: 'ACÚSTICA: ' + a });
+  });
+
+  // Layout colisiones (si hay layout cargado en el response)
+  if (rd.layout) {
+    alerts.push({ cls: 'green', msg: 'LAYOUT subido: ' + (rd.layout.filename || '') + ' — verificar superposición en mapa de drenaje.' });
+  }
+
+  if (alerts.length === 0) {
+    alerts.push({ cls: 'green', msg: 'Sin alertas críticas detectadas.' });
+  }
+
+  alerts.forEach(a => {
+    const div = document.createElement('div');
+    div.className = 'alert-box ' + a.cls;
+    div.textContent = a.msg;
+    body.appendChild(div);
+  });
+}
+
+async function runCertify() {
+  const btn = document.getElementById('btn-certify');
+  const spinner = document.getElementById('certify-spinner');
+  const result  = document.getElementById('certify-result');
+
+  btn.disabled = true;
+  spinner.className = 'spinner active';
+  result.innerHTML = '';
+
+  try {
+    const r = await fetch(API + '/dale-play/certify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ show_id: SHOW_ID, mode: 'post_show' }),
+    });
+    const data = await r.json();
+    if (r.ok) {
+      result.innerHTML = `
+        <div class="alert-box green">
+          Certificado generado · Hash: <strong>${data.cert_hash}</strong><br>
+          NDVI pre: ${data.ndvi_pre ?? 'N/D'} → post: ${data.ndvi_post ?? 'N/D'}
+          (Δ ${data.damage?.delta_ndvi ?? 'N/D'}) · Nivel daño: ${data.damage?.nivel_dano ?? 'N/D'}<br>
+          <a href="${API}/dale-play/certificado/${SHOW_ID}" target="_blank"
+             style="color:var(--gold); margin-top:6px; display:inline-block;">
+            DESCARGAR PDF DEL CERTIFICADO →
+          </a>
+        </div>`;
+      showToast('Certificado generado correctamente.');
+    } else {
+      result.innerHTML = `<div class="alert-box red">Error: ${data.error || 'desconocido'}</div>`;
+      showToast('Error generando certificado.', true);
+      btn.disabled = false;
+    }
+  } catch(e) {
+    result.innerHTML = `<div class="alert-box red">Error de red: ${e.message}</div>`;
+    showToast('Error de red.', true);
+    btn.disabled = false;
+  } finally {
+    spinner.className = 'spinner';
+  }
+}
+
+async function refreshData() {
+  showToast('Actualizando datos del pipeline...');
+  await loadShowData();
+  showToast('Datos actualizados.');
+}
+
+// Initial load
+document.addEventListener('DOMContentLoaded', () => {
+  onCheck();       // init button state
+  loadShowData();  // async load all data
+});
+</script>
+</body>
+</html>
