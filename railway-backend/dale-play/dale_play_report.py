@@ -269,8 +269,8 @@ def generate_report(show_data: dict, show_config: dict) -> str:
               color=_sc("verde" if cob_opt>=60 else "amarillo" if cob_opt>=40 else "rojo"),
               fontsize=8, ha='right', fontfamily='monospace')
     for j, a in enumerate(ac_alerts[:2]):
-        ax_a.text(0.02, 0.13 - j*0.10, f'• {a[:80]}',
-                  color=YELL, fontsize=6.5, transform=ax_a.transAxes)
+        ax_a.text(0.2, 0.82 - j*0.27, f'• {a[:80]}',
+                  color=YELL, fontsize=6.5)
 
     # ══ MAPA CARGA DEL SUELO ══════════════════════════════════════════════════
     ax_sl = fig.add_subplot(gs[5])
