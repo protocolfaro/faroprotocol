@@ -1,0 +1,216 @@
+{
+  "show_id": "airbag_2026-05-31",
+  "show_date": "2026-05-31",
+  "artist": "Airbag",
+  "venue": "Estadio José Amalfitani",
+  "timestamp": "2026-05-29T03:03:10Z",
+  "mode": "full",
+  "satellite": {
+    "ndvi": 0.099,
+    "ndvi_fecha": "2026-05-02",
+    "ndvi_cloud_pct": 0.9,
+    "ndvi_status": {
+      "semaforo": "rojo",
+      "label": "Daño severo — requiere intervención"
+    },
+    "fuente_s2": "Sentinel-2 L2A · Planetary Computer",
+    "tirs_celsius": null,
+    "tirs_fecha": null
+  },
+  "weather": {
+    "show_date": "2026-05-31",
+    "dias": [
+      {
+        "fecha": "2026-05-29",
+        "tmax": 14.9,
+        "tmin": 12.3,
+        "lluvia_mm": 0.0,
+        "prob_lluvia_pct": 4,
+        "viento_max_kmh": 9.0,
+        "rachas_max_kmh": 25.9,
+        "riesgo_viento": "ok",
+        "riesgo_lluvia": "ok",
+        "riesgo_dia": "ok"
+      },
+      {
+        "fecha": "2026-05-30",
+        "tmax": 16.2,
+        "tmin": 10.1,
+        "lluvia_mm": 0.0,
+        "prob_lluvia_pct": 0,
+        "viento_max_kmh": 6.3,
+        "rachas_max_kmh": 16.2,
+        "riesgo_viento": "ok",
+        "riesgo_lluvia": "ok",
+        "riesgo_dia": "ok"
+      },
+      {
+        "fecha": "2026-05-31",
+        "tmax": 16.9,
+        "tmin": 7.6,
+        "lluvia_mm": 0.0,
+        "prob_lluvia_pct": 0,
+        "viento_max_kmh": 4.3,
+        "rachas_max_kmh": 15.5,
+        "riesgo_viento": "ok",
+        "riesgo_lluvia": "ok",
+        "riesgo_dia": "ok"
+      },
+      {
+        "fecha": "2026-06-01",
+        "tmax": 14.7,
+        "tmin": 10.8,
+        "lluvia_mm": 0.3,
+        "prob_lluvia_pct": 10,
+        "viento_max_kmh": 13.2,
+        "rachas_max_kmh": 31.7,
+        "riesgo_viento": "ok",
+        "riesgo_lluvia": "ok",
+        "riesgo_dia": "ok"
+      }
+    ],
+    "show_day": {
+      "fecha": "2026-05-31",
+      "tmax": 16.9,
+      "tmin": 7.6,
+      "lluvia_mm": 0.0,
+      "prob_lluvia_pct": 0,
+      "viento_max_kmh": 4.3,
+      "rachas_max_kmh": 15.5,
+      "riesgo_viento": "ok",
+      "riesgo_lluvia": "ok",
+      "riesgo_dia": "ok"
+    },
+    "alertas": [],
+    "riesgo_global": "ok",
+    "fuente": "Open-Meteo API · Pronóstico 72hs"
+  },
+  "acoustic": {
+    "artista": "Artista",
+    "show_date": "",
+    "sectores": [
+      {
+        "id": "campo_central",
+        "name": "Campo Central",
+        "spl_db": 84.9,
+        "sightline": "optima",
+        "cobertura": "baja",
+        "dist_m": 80,
+        "alertas": [
+          "SPL insuficiente (85 dB) en Campo Central — agregar delay tower"
+        ]
+      },
+      {
+        "id": "tribuna_norte",
+        "name": "Tribuna Norte",
+        "spl_db": 81.4,
+        "sightline": "optima",
+        "cobertura": "baja",
+        "dist_m": 120,
+        "alertas": [
+          "SPL insuficiente (81 dB) en Tribuna Norte — agregar delay tower"
+        ]
+      },
+      {
+        "id": "tribuna_sur",
+        "name": "Tribuna Sur",
+        "spl_db": 80.1,
+        "sightline": "obstruida",
+        "cobertura": "baja",
+        "dist_m": 140,
+        "alertas": [
+          "Sightline obstruido en Tribuna Sur — pantalla lateral recomendada",
+          "SPL insuficiente (80 dB) en Tribuna Sur — agregar delay tower"
+        ]
+      },
+      {
+        "id": "tribuna_este",
+        "name": "Tribuna Este",
+        "spl_db": 80.7,
+        "sightline": "optima",
+        "cobertura": "baja",
+        "dist_m": 130,
+        "alertas": [
+          "SPL insuficiente (81 dB) en Tribuna Este — agregar delay tower"
+        ]
+      },
+      {
+        "id": "tribuna_oeste",
+        "name": "Tribuna Oeste",
+        "spl_db": 89.8,
+        "sightline": "obstruida",
+        "cobertura": "baja",
+        "dist_m": 70,
+        "alertas": [
+          "Sightline obstruido en Tribuna Oeste — pantalla lateral recomendada",
+          "SPL insuficiente (90 dB) en Tribuna Oeste — agregar delay tower"
+        ]
+      }
+    ],
+    "alertas_globales": [
+      "Capacidad estimada 49,540 supera el 85% del aforo (49,540) — revisar plan de evacuación",
+      "Cobertura insuficiente en 5 sector(es): Campo Central, Tribuna Norte, Tribuna Sur, Tribuna Este, Tribuna Oeste"
+    ],
+    "spl_promedio_db": 83.4,
+    "cobertura_optima_pct": 0.0,
+    "fuente": "Modelo acústico geométrico · Faro Protocol · Dale Play"
+  },
+  "soil": {
+    "condicion_suelo": "normal",
+    "lluvia_48h_mm": 0.0,
+    "capacidad_efectiva_kpa": 120,
+    "suelo_tipo": "Franco-arcilloso",
+    "zonas": [
+      {
+        "nombre": "Escenario Principal",
+        "carga_ton": 120.0,
+        "area_m2": 900.0,
+        "presion_kpa": 1.3,
+        "clase": "segura",
+        "label": "Zona segura para estructura",
+        "color": "#27ae60"
+      },
+      {
+        "nombre": "Torres de Sonido L/R",
+        "carga_ton": 4.0,
+        "area_m2": 4.0,
+        "presion_kpa": 9.8,
+        "clase": "segura",
+        "label": "Zona segura para estructura",
+        "color": "#27ae60"
+      },
+      {
+        "nombre": "Torres de Iluminación",
+        "carga_ton": 6.0,
+        "area_m2": 4.0,
+        "presion_kpa": 14.7,
+        "clase": "segura",
+        "label": "Zona segura para estructura",
+        "color": "#27ae60"
+      },
+      {
+        "nombre": "Consola FOH",
+        "carga_ton": 1.5,
+        "area_m2": 9.0,
+        "presion_kpa": 1.6,
+        "clase": "segura",
+        "label": "Zona segura para estructura",
+        "color": "#27ae60"
+      },
+      {
+        "nombre": "Barricada de Seguridad",
+        "carga_ton": 3.0,
+        "area_m2": 120.0,
+        "presion_kpa": 0.2,
+        "clase": "segura",
+        "label": "Zona segura para estructura",
+        "color": "#27ae60"
+      }
+    ],
+    "alertas": [],
+    "hay_exclusiones": false,
+    "n_exclusiones": 0,
+    "fuente": "Perfil edafológico BHCP · Modelo carga Faro Protocol"
+  },
+  "updated_at": "2026-05-29T03:03:15Z"
+}
