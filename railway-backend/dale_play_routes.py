@@ -22,6 +22,7 @@ def dp_health():
     from dale_play_storage import check_supabase_config, _client
     _sb_configured = check_supabase_config()
     _sb_connected  = False
+    _sb_error      = None
     if _sb_configured:
         try:
             _c = _client()
@@ -29,6 +30,7 @@ def dp_health():
                 _c.table("show_baselines").select("show_id").limit(1).execute()
                 _sb_connected = True
         except Exception as _e:
+            _sb_error = str(_e)
             log.warning("health: supabase ping failed: %s", _e)
     return jsonify({
         "service":          "dale-play",
@@ -38,6 +40,7 @@ def dp_health():
         "supabase": {
             "configured": _sb_configured,
             "connected":  _sb_connected,
+            "error":      _sb_error,
         },
     })
 
