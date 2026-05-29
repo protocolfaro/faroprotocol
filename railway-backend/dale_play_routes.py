@@ -19,9 +19,8 @@ dale_play_bp = Blueprint("dale_play", __name__, url_prefix="/dale-play")
 
 @dale_play_bp.route("/health", methods=["GET"])
 def dp_health():
-    from dale_play_storage import check_supabase_config, _client
+    from dale_play_storage import check_supabase_config, ping as _sb_ping
     _sb_configured = check_supabase_config()
-    from dale_play_storage import ping as _sb_ping
     _sb_connected, _sb_error = _sb_ping()
     return jsonify({
         "service":          "dale-play",
