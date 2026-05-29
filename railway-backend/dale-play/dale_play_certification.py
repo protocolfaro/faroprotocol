@@ -72,7 +72,7 @@ def _compute_damage(ndvi_pre: float | None, ndvi_post: float | None,
             zonas.append({
                 "zona": "Zona escenario",
                 "x_m": esc.get("x_m"), "y_m": esc.get("y_m"),
-                "area_m2": (esc.get("ancho_m", 28) * esc.get("profundidad_m", 20)),
+                "area_m2": ((esc.get("ancho_m") or 28) * (esc.get("profundidad_m") or 20)),
                 "ndvi_delta": delta,
             })
         for t in (struct.get("torres_lr") or []):
@@ -261,9 +261,10 @@ def _build_pdf(cert_data: dict, out_path: pathlib.Path) -> None:
                 f"Escenario planificado: ancho={esc.get('ancho_m','N/D')}m  "
                 f"prof={esc.get('profundidad_m','N/D')}m  alto={esc.get('alto_m','N/D')}m",
                 body_style))
-        area = (struct.get("area_total_m2") or
-                (struct.get("escenario") or {}).get("ancho_m", 0) *
-                (struct.get("escenario") or {}).get("profundidad_m", 0))
+        _esc2 = struct.get("escenario") or {}
+        area = (struct.get("area_total_m2")
+                or ((_esc2.get("ancho_m") or 0) * (_esc2.get("profundidad_m") or 0))
+                or 0)
         story.append(Paragraph(f"Área total planificada: {area:.0f} m²", body_style))
         story.append(Spacer(1, 0.2*cm))
 
