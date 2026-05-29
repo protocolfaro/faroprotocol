@@ -3,7 +3,7 @@
   "show_date": "2026-05-31",
   "artist": "Airbag",
   "venue": "Estadio José Amalfitani",
-  "timestamp": "2026-05-29T03:11:43Z",
+  "timestamp": "2026-05-29T03:24:02Z",
   "mode": "full",
   "satellite": {
     "ndvi": 0.099,
@@ -212,5 +212,6 @@
     "n_exclusiones": 0,
     "fuente": "Perfil edafológico BHCP · Modelo carga Faro Protocol"
   },
-  "updated_at": "2026-05-29T03:11:47Z"
+  "report_png_url": "https://raw.githubusercontent.com/protocolfaro/faroprotocol/main/dale-play/reportes/reporte_airbag_2026-05-31.png",
+  "updated_at": "2026-05-29T03:24:07Z"
 }
