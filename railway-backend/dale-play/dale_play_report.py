@@ -46,8 +46,9 @@ def _panel(ax, title: str = ""):
     for sp in ax.spines.values():
         sp.set_color(BORDER); sp.set_linewidth(0.7)
     if title:
-        ax.set_title(title, color=GOLD, fontsize=9, fontweight='bold',
-                     loc='left', pad=5, fontfamily='monospace')
+        ax.text(0.01, 0.94, title, color=GOLD, fontsize=9, fontweight='bold',
+                ha='left', va='center', transform=ax.transAxes,
+                fontfamily='monospace')
 
 
 def _gold_line(ax, y: float = 0.97):
@@ -55,14 +56,14 @@ def _gold_line(ax, y: float = 0.97):
             transform=ax.transAxes, clip_on=False)
 
 
-def _kpi(ax, x: float, label: str, value: str, color: str, w: float = 0.16):
+def _kpi(ax, x: float, label: str, value: str, color: str, w: float = 0.185):
     ax.add_patch(FancyBboxPatch(
         (x - w/2, 0.08), w, 0.84,
         boxstyle="round,pad=0.008",
         facecolor=color + '18', edgecolor=color + '66', lw=0.9,
         transform=ax.transAxes,
     ))
-    ax.text(x, 0.80, label, color=WDIM, fontsize=7,
+    ax.text(x, 0.80, label, color=WDIM, fontsize=6.5,
             ha='center', transform=ax.transAxes, fontfamily='monospace')
     ax.text(x, 0.40, value, color=color, fontsize=13, fontweight='bold',
             ha='center', va='center', transform=ax.transAxes)
@@ -104,7 +105,7 @@ def generate_report(show_data: dict, show_config: dict) -> str:
     # ── Figura ───────────────────────────────────────────────────────────────
     fig = plt.figure(figsize=(13.5, 30), facecolor=BG)
     gs  = gridspec.GridSpec(8, 1, figure=fig, hspace=0.0,
-          height_ratios=[1.0, 1.4, 3.8, 4.0, 4.2, 3.8, 3.5, 0.7])
+          height_ratios=[1.0, 1.4, 3.8, 4.0, 4.2, 3.8, 1.8, 0.7])
 
     # ══ HEADER ════════════════════════════════════════════════════════════════
     ax_h = fig.add_subplot(gs[0])
@@ -162,7 +163,7 @@ def generate_report(show_data: dict, show_config: dict) -> str:
               color=WHITE, fontsize=13, fontweight='bold', ha='center', va='center', zorder=5)
     ax_s.text(3.05, 0.3, ndvi_lbl, color=_sc(ndvi_sem), fontsize=8, ha='center',
               fontfamily='monospace')
-    ax_s.text(0.03, 0.96,
+    ax_s.text(0.03, 0.87,
               f'Sentinel-2 · {sat.get("ndvi_fecha","—")} · Nube {sat.get("ndvi_cloud_pct","—")}%',
               color=WDIM, fontsize=7.5, transform=ax_s.transAxes)
 
@@ -259,7 +260,7 @@ def generate_report(show_data: dict, show_config: dict) -> str:
                       color=col, fontsize=7.5, ha='center', fontweight='bold')
             sl = sec.get("sightline","")
             sl_col = {"optima":GRNL,"buena":GRNL,"parcial":YELL,"obstruida":REDL}.get(sl,WDIM)
-            ax_a.text(xc, 0.35, sl[:3].upper(), color=sl_col, fontsize=7,
+            ax_a.text(xc, 0.10, sl[:3].upper(), color=sl_col, fontsize=7,
                       ha='center', fontfamily='monospace')
 
     ax_a.text(9.85, 7.6, f'SPL prom: {spl_prom:.0f} dB',
@@ -268,7 +269,7 @@ def generate_report(show_data: dict, show_config: dict) -> str:
               color=_sc("verde" if cob_opt>=60 else "amarillo" if cob_opt>=40 else "rojo"),
               fontsize=8, ha='right', fontfamily='monospace')
     for j, a in enumerate(ac_alerts[:2]):
-        ax_a.text(0.02, 0.13 - j*0.07, f'• {a[:108]}',
+        ax_a.text(0.02, 0.13 - j*0.10, f'• {a[:80]}',
                   color=YELL, fontsize=6.5, transform=ax_a.transAxes)
 
     # ══ MAPA CARGA DEL SUELO ══════════════════════════════════════════════════
@@ -295,7 +296,7 @@ def generate_report(show_data: dict, show_config: dict) -> str:
         x0  = 0.3 + i * cw2
         xc  = x0 + cw2 / 2
         zcol = z.get("color", GRNL)
-        ax_sl.add_patch(FancyBboxPatch((x0 + 0.1, 1.0), cw2 - 0.25, 6.2,
+        ax_sl.add_patch(FancyBboxPatch((x0 + 0.1, 0.2), cw2 - 0.25, 7.0,
             boxstyle="round,pad=0.1",
             facecolor=zcol+'18', edgecolor=zcol+'77', lw=1.0))
         ax_sl.text(xc, 6.8, z.get("nombre","")[:16], color=WHITE,
@@ -307,7 +308,7 @@ def generate_report(show_data: dict, show_config: dict) -> str:
         ax_sl.text(xc, 3.6, z.get("clase","").upper(),
                    color=zcol, fontsize=8, fontweight='bold',
                    ha='center', fontfamily='monospace')
-        ax_sl.text(xc, 2.7, z.get("label","")[:22],
+        ax_sl.text(xc, 1.7, z.get("label","")[:28],
                    color=WDIM, fontsize=6.5, ha='center')
     for j, a in enumerate(al_soil[:2]):
         ax_sl.text(0.02, 0.13 - j*0.07, f'• {a[:108]}',
@@ -345,11 +346,11 @@ def generate_report(show_data: dict, show_config: dict) -> str:
             ax_i.text(0.5, 0.04, fuente, color=WDIM, fontsize=7,
                       ha='center', transform=ax_i.transAxes)
     else:
-        ax_i.text(5.0, 4.2,
+        ax_i.text(5.0, 5.0,
                   'InSAR post-show disponible\ndespués del evento',
-                  color=WDIM, fontsize=12, ha='center', va='center',
+                  color=WDIM, fontsize=10, ha='center', va='center',
                   fontfamily='monospace', style='italic')
-        ax_i.text(5.0, 2.6,
+        ax_i.text(5.0, 3.0,
                   'POST /dale-play/run  {show_id, mode: "post_show"}',
                   color=WDIM, fontsize=7.5, ha='center', fontfamily='monospace')
 
