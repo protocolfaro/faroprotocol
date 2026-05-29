@@ -41,7 +41,7 @@
     ],
     "semana": "2026-05-25"
   },
-  "updated_at": "2026-05-28T20:36:52Z",
+  "updated_at": "2026-05-29T09:00:59Z",
   "weather_live": {
     "timestamp": "2026-05-28T09:00:14",
     "fuentes": [
@@ -216,7 +216,7 @@
     },
     "canchero": {
       "nombre": "Villa Olímpica",
-      "score": 59,
+      "score": 49,
       "score_prev": 63,
       "sem": "rojo",
       "detalle": "4FA: fungicida urgente · NDVI: 0.31",
@@ -492,7 +492,10 @@
           "ipos": 1845,
           "semaforo": "rojo",
           "texto": "Cancha al límite — necesita descanso",
-          "detalle": "585 personas · 74h esta semana"
+          "detalle": "585 personas · 74h esta semana",
+          "gndvi": 0.183,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave"
         },
         "8fa": {
           "archivo": "heatmaps/heatmap_8fa.png",
@@ -500,7 +503,10 @@
           "ipos": 676.5,
           "semaforo": "rojo",
           "texto": "Cancha al límite — necesita descanso",
-          "detalle": "240 personas · 33h esta semana"
+          "detalle": "240 personas · 33h esta semana",
+          "gndvi": 0.188,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave"
         },
         "9fa": {
           "archivo": "heatmaps/heatmap_9fa.png",
@@ -508,7 +514,10 @@
           "ipos": 676.5,
           "semaforo": "rojo",
           "texto": "Cancha al límite — necesita descanso",
-          "detalle": "240 personas · 33h esta semana"
+          "detalle": "240 personas · 33h esta semana",
+          "gndvi": 0.153,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave"
         },
         "5fa": {
           "archivo": "heatmaps/heatmap_5fa.png",
@@ -516,7 +525,10 @@
           "ipos": 298.5,
           "semaforo": "rojo",
           "texto": "Uso muy alto — monitorear de cerca",
-          "detalle": "105 personas · 23h esta semana"
+          "detalle": "105 personas · 23h esta semana",
+          "gndvi": 0.225,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave"
         },
         "3fa": {
           "archivo": "heatmaps/heatmap_3fa.png",
@@ -524,7 +536,10 @@
           "ipos": 180,
           "semaforo": "amarillo",
           "texto": "Uso moderado — seguir de cerca",
-          "detalle": "60 personas · 6h esta semana"
+          "detalle": "60 personas · 6h esta semana",
+          "gndvi": 0.189,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave"
         },
         "2fa": {
           "archivo": "heatmaps/heatmap_2fa.png",
@@ -532,7 +547,10 @@
           "ipos": 0,
           "semaforo": "verde",
           "texto": "Cancha descansada",
-          "detalle": "Sin uso esta semana"
+          "detalle": "Sin uso esta semana",
+          "gndvi": 0.46,
+          "n_status": "ok",
+          "n_rec": "Nitrógeno adecuado"
         },
         "4fa": {
           "archivo": "heatmaps/heatmap_4fa.png",
@@ -540,7 +558,10 @@
           "ipos": 0,
           "semaforo": "verde",
           "texto": "Cancha descansada",
-          "detalle": "Sin uso esta semana"
+          "detalle": "Sin uso esta semana",
+          "gndvi": 0.184,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave"
         },
         "6fa": {
           "archivo": "heatmaps/heatmap_6fa.png",
@@ -548,7 +569,10 @@
           "ipos": 0,
           "semaforo": "verde",
           "texto": "Cancha descansada",
-          "detalle": "Sin uso esta semana"
+          "detalle": "Sin uso esta semana",
+          "gndvi": 0.183,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave"
         },
         "7fa": {
           "archivo": "heatmaps/heatmap_7fa.png",
@@ -556,7 +580,10 @@
           "ipos": 0,
           "semaforo": "verde",
           "texto": "Cancha descansada",
-          "detalle": "Sin uso esta semana"
+          "detalle": "Sin uso esta semana",
+          "gndvi": 0.191,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave"
         },
         "10fa": {
           "archivo": "heatmaps/heatmap_10fa.png",
@@ -564,7 +591,10 @@
           "ipos": 0,
           "semaforo": "verde",
           "texto": "Cancha descansada",
-          "detalle": "Sin uso esta semana"
+          "detalle": "Sin uso esta semana",
+          "gndvi": 0.205,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave"
         },
         "1fp": {
           "archivo": "heatmaps/heatmap_1fp.png",
@@ -572,7 +602,10 @@
           "ipos": 0,
           "semaforo": "verde",
           "texto": "Cancha descansada",
-          "detalle": "Primer equipo — sin carga esta semana"
+          "detalle": "Primer equipo — sin carga esta semana",
+          "gndvi": 0.092,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave"
         },
         "2fp": {
           "archivo": "heatmaps/heatmap_2fp.png",
@@ -580,12 +613,18 @@
           "ipos": 0,
           "semaforo": "verde",
           "texto": "Cancha descansada",
-          "detalle": "Primer equipo — sin carga esta semana"
+          "detalle": "Primer equipo — sin carga esta semana",
+          "gndvi": 0.11,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave"
         },
         "amalfitani": {
           "archivo": "heatmaps/heatmap_amalfitani.png",
-          "ndvi": 0.61,
-          "detalle": "Campo principal — buen estado"
+          "ndvi": 0.533,
+          "detalle": "Campo principal — buen estado",
+          "gndvi": 0.464,
+          "n_status": "ok",
+          "n_rec": "Nitrógeno adecuado"
         },
         "poli": {
           "archivo": "heatmaps/heatmap_poli.png",
@@ -595,29 +634,41 @@
         },
         "poli_f11": {
           "archivo": "heatmaps/heatmap_poli_f11.png",
-          "ndvi": null,
-          "detalle": "Futbol 11 — Polideportivo Feijoo"
+          "ndvi": 0.257,
+          "detalle": "Futbol 11 — Polideportivo Feijoo",
+          "gndvi": 0.236,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave"
         },
         "poli_f8a": {
           "archivo": "heatmaps/heatmap_poli_f8a.png",
-          "ndvi": null,
-          "detalle": "Futbol 8A — Polideportivo Feijoo"
+          "ndvi": 0.099,
+          "detalle": "Futbol 8A — Polideportivo Feijoo",
+          "gndvi": 0.141,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave"
         },
         "poli_f8b": {
           "archivo": "heatmaps/heatmap_poli_f8b.png",
-          "ndvi": null,
-          "detalle": "Futbol 8B — Polideportivo Feijoo"
+          "ndvi": 0.102,
+          "detalle": "Futbol 8B — Polideportivo Feijoo",
+          "gndvi": 0.125,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave"
         },
         "poli_hockey": {
           "archivo": "heatmaps/heatmap_poli_hockey.png",
-          "ndvi": null,
-          "detalle": "Hockey — Polideportivo Feijoo"
+          "ndvi": 0.133,
+          "detalle": "Hockey — Polideportivo Feijoo",
+          "gndvi": 0.17,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave"
         }
       },
       "heatmaps_meta": {
         "fuente": "sentinel-2-l2a · Planetary Computer · 2026-05-17 · nubosidad 5%",
         "semana": "2026-05-17",
-        "updated_at": "2026-05-28T20:36:52Z"
+        "updated_at": "2026-05-29T09:00:59Z"
       }
     },
     "juan": {
@@ -1173,7 +1224,7 @@
   },
   "historial_meta": {
     "semana": "2026-05-17",
-    "committed_at": "2026-05-28T20:36:54Z",
+    "committed_at": "2026-05-29T09:01:00Z",
     "fuente": "Faro Protocol · Railway auto-commit"
   }
 }
