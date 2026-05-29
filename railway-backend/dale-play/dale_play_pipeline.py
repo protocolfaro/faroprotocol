@@ -102,6 +102,16 @@ def run_show_audit(show_config: dict, mode: str = "full") -> dict:
         log.warning("dale_play_pipeline: report failed: %s", e)
         result["report_png"] = None
 
+    # ── 6b. Push PNG a GitHub (persistencia) ────────────────────────────────
+    result["report_png_url"] = None
+    if result.get("report_png"):
+        try:
+            from dale_play_github import push_png_to_github
+            result["report_png_url"] = push_png_to_github(show_id, result["report_png"])
+            log.info("dale_play_pipeline: PNG → GitHub %s", result["report_png_url"])
+        except Exception as e:
+            log.warning("dale_play_pipeline: PNG github push failed: %s", e)
+
     # ── 7. Histórico GitHub ──────────────────────────────────────────────────
     try:
         from dale_play_github import push_show_snapshot

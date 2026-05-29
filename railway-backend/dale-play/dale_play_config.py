@@ -17,7 +17,8 @@ VENUE_BBOX = (-58.5305, -34.6391, -58.5271, -34.6367)  # (minlon, minlat, maxlon
 GH_OWNER      = "protocolfaro"
 GH_REPO       = "faroprotocol"
 GH_BRANCH     = "main"
-GH_SHOWS_PATH = "dale-play/shows"
+GH_SHOWS_PATH    = "dale-play/shows"
+GH_REPORTES_PATH = "dale-play/reportes"
 
 # Tribunas (orden: Norte, Sur, Este, Oeste)
 TRIBUNAS = [
