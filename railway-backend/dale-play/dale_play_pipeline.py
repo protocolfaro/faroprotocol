@@ -59,6 +59,17 @@ def run_show_audit(show_config: dict, mode: str = "full") -> dict:
             result["satellite"] = fetch_satellite_baseline()
             log.info("dale_play_pipeline: satellite OK — NDVI %s",
                      result["satellite"].get("ndvi"))
+            # Persistir baseline en Supabase para certificación post-show
+            try:
+                from dale_play_storage import save_show_baseline
+                save_show_baseline(
+                    show_id       = show_id,
+                    ndvi          = result["satellite"].get("ndvi"),
+                    date          = result["satellite"].get("fecha", show_date),
+                    satellite_data= result["satellite"],
+                )
+            except Exception as _se:
+                log.warning("dale_play_pipeline: storage baseline: %s", _se)
         except Exception as e:
             log.warning("dale_play_pipeline: satellite failed: %s", e)
             result["satellite"] = {"error": str(e)}

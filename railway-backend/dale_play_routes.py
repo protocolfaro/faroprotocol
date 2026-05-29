@@ -19,11 +19,26 @@ dale_play_bp = Blueprint("dale_play", __name__, url_prefix="/dale-play")
 
 @dale_play_bp.route("/health", methods=["GET"])
 def dp_health():
+    from dale_play_storage import check_supabase_config, _client
+    _sb_configured = check_supabase_config()
+    _sb_connected  = False
+    if _sb_configured:
+        try:
+            _c = _client()
+            if _c:
+                _c.table("show_baselines").select("show_id").limit(1).execute()
+                _sb_connected = True
+        except Exception as _e:
+            log.warning("health: supabase ping failed: %s", _e)
     return jsonify({
         "service":          "dale-play",
         "status":           "ok",
         "github_token":     bool(os.environ.get("GITHUB_TOKEN")),
         "insar_configured": bool(os.environ.get("NASA_EARTHDATA_USER")),
+        "supabase": {
+            "configured": _sb_configured,
+            "connected":  _sb_connected,
+        },
     })
 
 
@@ -198,6 +213,35 @@ def dp_report_png(show_id: str):
     if not os.path.exists(png_path):
         return jsonify({"error": f"PNG not found: {png_path}"}), 404
     return send_file(png_path, mimetype="image/png")
+
+
+@dale_play_bp.route("/verify/<cert_hash>", methods=["GET"])
+def dp_verify(cert_hash: str):
+    """
+    GET /dale-play/verify/{hash}
+    Verifica un certificado por hash SHA-256.
+    Retorna: {valido, show_id, fecha, ndvi_pre, ndvi_post, nivel_dano}
+    """
+    try:
+        from dale_play_storage import get_certification_by_hash
+        cert = get_certification_by_hash(cert_hash.upper())
+        if cert is None:
+            return jsonify({"valido": False, "error": "Certificado no encontrado"}), 404
+        damage = cert.get("data", {}).get("damage") or {}
+        return jsonify({
+            "valido":      True,
+            "show_id":     cert.get("show_id"),
+            "fecha":       (cert.get("data") or {}).get("fecha_emision"),
+            "ndvi_pre":    cert.get("ndvi_pre"),
+            "ndvi_post":   cert.get("ndvi_post"),
+            "delta_ndvi":  cert.get("delta_ndvi"),
+            "nivel_dano":  cert.get("nivel_dano"),
+            "cert_hash":   cert.get("cert_hash"),
+            "interpretacion": damage.get("interpretacion"),
+        })
+    except Exception as e:
+        log.error("dale_play /verify: %s", e)
+        return jsonify({"valido": False, "error": str(e)}), 500
 
 
 @dale_play_bp.route("/dashboard/<show_id>", methods=["GET"])

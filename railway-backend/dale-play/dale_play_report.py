@@ -104,6 +104,24 @@ def generate_report(show_data: dict, show_config: dict) -> str:
         worst = max(abs(v.get("los_mm", 0)) for v in insar["tribunas"].values())
         ins_sem = ("ok" if worst < 1.0 else "atencion" if worst < 2.0 else "critico")
 
+    # ── FII — Índice Faro de Integridad ──────────────────────────────────────
+    try:
+        from dale_play_fii import compute_fii
+        import json as _json_fii, pathlib as _pl_fii
+        _egms_path = _pl_fii.Path(__file__).parent / "models" / "egms_amalfitani.json"
+        _egms_fii  = (_json_fii.loads(_egms_path.read_text(encoding="utf-8"))
+                      if _egms_path.exists() else None)
+        _dr_path_fii = _pl_fii.Path(__file__).parent / "models" / "drainage_amalfitani.json"
+        _dr_fii    = (_json_fii.loads(_dr_path_fii.read_text(encoding="utf-8"))
+                      if _dr_path_fii.exists() else None)
+        fii_result = compute_fii(ndvi_v, _egms_fii, layout, _dr_fii)
+    except Exception as _fe:
+        fii_result = {"fii": None, "semaforo": "sin_datos",
+                      "sello": "N/D", "componentes": {}}
+
+    fii_val = fii_result.get("fii")
+    fii_sem = fii_result.get("semaforo", "sin_datos")
+
     # ── Figura ───────────────────────────────────────────────────────────────
     fig = plt.figure(figsize=(14, 48), facecolor=BG)
     gs  = gridspec.GridSpec(13, 1, figure=fig, hspace=0.18,
@@ -133,7 +151,7 @@ def generate_report(show_data: dict, show_config: dict) -> str:
         ("CLIMA 72HS",    wx_sem.upper()[:9],                                _sc(wx_sem)),
         ("SUELO",         soil_sem.upper()[:9],                              _sc(soil_sem)),
         ("ACÚSTICA\nÓPT.", f"{ac_cov:.0f}%",                                 _sc(ac_sem)),
-        ("INTEGRIDAD\nEST.", ins_sem.upper()[:7] if insar else "PRE-SHOW",   _sc(ins_sem)),
+        ("FII",             f"{fii_val:.0f}/100" if fii_val is not None else "N/D", _sc(fii_sem)),
     ]
     for i, (lbl, val, col) in enumerate(kpis):
         _kpi(ax_k, (i + 0.5) / len(kpis), lbl, val, col)

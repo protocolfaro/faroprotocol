@@ -13,6 +13,17 @@ CERT_DIR   = pathlib.Path(__file__).parent / "certificados"
 SHOWS_DIR  = pathlib.Path(__file__).parent / "shows"
 MODELS_DIR = pathlib.Path(__file__).parent / "models"
 
+FARO_SYSTEM_PROMPT = (
+    "Actuás como el motor de inteligencia de Faro Protocol, sistema de auditoría técnica "
+    "inmutable para estadios. Reglas: "
+    "1) Si falta un dato nunca inventes — respondé con nivel_dano=sin_datos o "
+    "alerta_de_integridad=baja_confianza. "
+    "2) Cuando analizés un layout detectá superposición con zonas de riesgo y generá "
+    "alertas específicas con coordenadas. "
+    "3) Tu objetivo es prevenir multas, no reportar daños. "
+    "4) Tono profesional, técnico y pericial."
+)
+
 
 # ── Fetch NDVI post-show ──────────────────────────────────────────────────────
 
@@ -63,6 +74,16 @@ def _compute_damage(ndvi_pre: float | None, ndvi_post: float | None,
         "sin_dano": f"Sin daño detectable — NDVI estable (Δ={delta:+.3f}).",
     }[nivel]
 
+    # Nota estacional bermuda (dormancia otoño/invierno BsAs, abril-agosto)
+    if ndvi_post is not None and 0.08 <= ndvi_post <= 0.25:
+        _month = datetime.now(timezone.utc).month
+        if 4 <= _month <= 8:
+            interp += (
+                " Nota: El NDVI bajo corresponde a dormancia estacional esperada del"
+                " césped bermuda en otoño/invierno en Buenos Aires (abril-agosto)."
+                " No indica daño por el evento."
+            )
+
     # Zonas afectadas desde layout
     zonas = []
     if layout:
@@ -94,13 +115,33 @@ def _compute_damage(ndvi_pre: float | None, ndvi_post: float | None,
 # ── Generador PDF ─────────────────────────────────────────────────────────────
 
 def _build_pdf(cert_data: dict, out_path: pathlib.Path) -> None:
-    """Genera el PDF de certificación con reportlab."""
+    """Genera el PDF de certificación con reportlab + QR."""
+    import io as _io
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.units import cm
     from reportlab.lib import colors
     from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
-                                    Table, TableStyle, HRFlowable)
+                                    Table, TableStyle, HRFlowable, Image as RLImage)
+
+    # ── QR code ──────────────────────────────────────────────────────────────
+    _verify_url = (
+        f"https://faroprotocol-production-45fd.up.railway.app"
+        f"/dale-play/verify/{cert_data['cert_hash']}"
+    )
+    _qr_img_data = None
+    try:
+        import qrcode
+        qr = qrcode.QRCode(version=1, box_size=4, border=2)
+        qr.add_data(_verify_url)
+        qr.make(fit=True)
+        _qr_pil = qr.make_image(fill_color="black", back_color="white")
+        _qr_buf = _io.BytesIO()
+        _qr_pil.save(_qr_buf, format="PNG")
+        _qr_buf.seek(0)
+        _qr_img_data = _qr_buf
+    except Exception as _qe:
+        log.warning("QR generation failed: %s", _qe)
 
     GOLD  = colors.HexColor("#c9a84c")
     BG    = colors.HexColor("#0d1117")
@@ -173,10 +214,68 @@ def _build_pdf(cert_data: dict, out_path: pathlib.Path) -> None:
     story.append(Paragraph(f"Generado: {cert_data['fecha_emision']}", sub_style))
     story.append(Spacer(1, 0.3*cm))
 
-    # Hash SHA-256
+    # Hash SHA-256 + QR
     story.append(Paragraph(f"CERT-SHA256: {cert_data['cert_hash']}", hash_style))
+    story.append(Paragraph(f"Verificar en: {_verify_url}", hash_style))
+    if _qr_img_data:
+        _qr_rl = RLImage(_qr_img_data, width=2.8*cm, height=2.8*cm)
+        story.append(Spacer(1, 0.15*cm))
+        story.append(_qr_rl)
     story.append(HRFlowable(width="100%", thickness=0.5, color=WDIM))
     story.append(Spacer(1, 0.3*cm))
+
+    # ── FII — Índice Faro de Integridad ──────────────────────────────────────
+    _fii_result = cert_data.get("fii") or {}
+    _fii_val    = _fii_result.get("fii")
+    _fii_sello  = _fii_result.get("sello", "N/D")
+    _fii_sem    = _fii_result.get("semaforo", "sin_datos")
+    _fii_col    = (GRNL if _fii_sem == "ok"
+                   else YELL if _fii_sem == "atencion" else REDL)
+    _fii_comps  = _fii_result.get("componentes") or {}
+
+    story.append(Paragraph("ÍNDICE FARO DE INTEGRIDAD (FII)", section_style))
+    _fii_display = f"{_fii_val:.1f} / 100" if _fii_val is not None else "N/D"
+    fii_style = ParagraphStyle("fii_val",
+        parent=styles["Normal"],
+        fontName="Courier-Bold", fontSize=22,
+        textColor=_fii_col, spaceAfter=3, alignment=1,
+    )
+    sello_style = ParagraphStyle("sello",
+        parent=styles["Normal"],
+        fontName="Courier-Bold", fontSize=10,
+        textColor=_fii_col, spaceAfter=6, alignment=1,
+    )
+    story.append(Paragraph(_fii_display, fii_style))
+    story.append(Paragraph(f"[ {_fii_sello} ]", sello_style))
+    if _fii_comps:
+        fii_tbl_data = [["COMPONENTE", "PESO", "SCORE", "ESTADO"]]
+        labels = {"ndvi": "NDVI campo (40%)", "egms": "EGMS estructural (35%)",
+                  "layout": "Compliance layout (25%)"}
+        for k, lbl in labels.items():
+            c = _fii_comps.get(k) or {}
+            fii_tbl_data.append([
+                lbl,
+                f"{c.get('peso', 0)}%",
+                f"{c.get('score', 0):.1f}",
+                c.get("label", "N/D"),
+            ])
+        ft = Table(fii_tbl_data, colWidths=[6.5*cm, 2*cm, 2.5*cm, 5*cm])
+        ft.setStyle(TableStyle([
+            ("BACKGROUND",   (0, 0), (-1, 0),  BG),
+            ("TEXTCOLOR",    (0, 0), (-1, 0),  GOLD),
+            ("FONTNAME",     (0, 0), (-1, 0),  "Courier-Bold"),
+            ("FONTSIZE",     (0, 0), (-1, -1), 8),
+            ("FONTNAME",     (0, 1), (-1, -1), "Courier"),
+            ("TEXTCOLOR",    (0, 1), (-1, -1), WHITE),
+            ("BACKGROUND",   (0, 1), (-1, -1), BG),
+            ("GRID",         (0, 0), (-1, -1), 0.4, WDIM),
+            ("TOPPADDING",   (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING",(0, 0), (-1, -1), 4),
+        ]))
+        story.append(ft)
+    story.append(Spacer(1, 0.3*cm))
+    story.append(HRFlowable(width="100%", thickness=0.5, color=WDIM))
+    story.append(Spacer(1, 0.2*cm))
 
     # NDVI section
     story.append(Paragraph("1. ANÁLISIS DE IMPACTO EN CÉSPED — NDVI Sentinel-2", section_style))
@@ -305,14 +404,26 @@ def run_certification(show_id: str, mode: str = "post_show") -> dict:
     layout = (json.loads(layout_path.read_text(encoding="utf-8"))
               if layout_path.exists() else None)
 
-    # NDVI pre-show (desde JSON histórico del show si existe, sino del modelo)
-    ndvi_pre    = None
-    ndvi_pre_f  = "N/D"
-    sat_path = MODELS_DIR / "satellite_baseline.json"
-    if sat_path.exists():
-        _sat = json.loads(sat_path.read_text(encoding="utf-8"))
-        ndvi_pre   = _sat.get("ndvi")
-        ndvi_pre_f = _sat.get("fuente", "Sentinel-2 Copernicus")
+    # NDVI pre-show — Supabase primero, luego fallbacks
+    ndvi_pre   = None
+    ndvi_pre_f = "N/D"
+    try:
+        from dale_play_storage import get_show_baseline
+        _baseline = get_show_baseline(show_id)
+        if _baseline and _baseline.get("ndvi") is not None:
+            ndvi_pre   = _baseline["ndvi"]
+            ndvi_pre_f = (_baseline.get("satellite") or {}).get(
+                "fuente", "Supabase / Sentinel-2 Copernicus")
+            log.info("certification: ndvi_pre=%s desde Supabase", ndvi_pre)
+    except Exception as _se:
+        log.warning("certification: Supabase baseline error: %s", _se)
+
+    if ndvi_pre is None:
+        sat_path = MODELS_DIR / "satellite_baseline.json"
+        if sat_path.exists():
+            _sat = json.loads(sat_path.read_text(encoding="utf-8"))
+            ndvi_pre   = _sat.get("ndvi")
+            ndvi_pre_f = _sat.get("fuente", "Sentinel-2 Copernicus")
     if ndvi_pre is None:
         ndvi_pre   = show_cfg.get("rider", {}).get("ndvi_pre")
         ndvi_pre_f = "rider_config"
@@ -347,7 +458,24 @@ def run_certification(show_id: str, mode: str = "post_show") -> dict:
         "damage":        damage,
         "layout":        layout,
         "mode":          mode,
+        "fii":           {},
     }
+
+    # FII — Índice Faro de Integridad
+    try:
+        from dale_play_fii import compute_fii
+        _egms_path_fii = MODELS_DIR / "egms_amalfitani.json"
+        _egms_fii      = (json.loads(_egms_path_fii.read_text(encoding="utf-8"))
+                          if _egms_path_fii.exists() else None)
+        _dr_path_fii   = MODELS_DIR / "drainage_amalfitani.json"
+        _dr_fii        = (json.loads(_dr_path_fii.read_text(encoding="utf-8"))
+                          if _dr_path_fii.exists() else None)
+        cert_data["fii"] = compute_fii(ndvi_post, _egms_fii, layout, _dr_fii)
+        log.info("certification FII=%.1f sello=%s",
+                 cert_data["fii"].get("fii", 0),
+                 cert_data["fii"].get("sello", "N/D"))
+    except Exception as _fii_e:
+        log.warning("FII compute error: %s", _fii_e)
 
     # Generar PDF
     CERT_DIR.mkdir(exist_ok=True)
@@ -356,6 +484,14 @@ def run_certification(show_id: str, mode: str = "post_show") -> dict:
 
     cert_data["pdf_path"] = str(out_path)
     log.info("Certificado generado → %s", out_path)
+
+    # Persistir en Supabase
+    try:
+        from dale_play_storage import save_certification
+        save_certification(show_id, cert_hash, str(out_path), cert_data)
+    except Exception as _se:
+        log.warning("certification: Supabase save error: %s", _se)
+
     return cert_data
 
 
@@ -367,3 +503,5 @@ if __name__ == "__main__":
     print(f"Hash: {r['cert_hash']}")
     print(f"NDVI pre={r['ndvi_pre']}  post={r['ndvi_post']}  delta={r['damage']['delta_ndvi']}")
     print(f"Nivel daño: {r['damage']['nivel_dano']}")
+    fii = r.get("fii") or {}
+    print(f"FII={fii.get('fii','N/D')}  sello={fii.get('sello','N/D')}  semaforo={fii.get('semaforo','N/D')}")

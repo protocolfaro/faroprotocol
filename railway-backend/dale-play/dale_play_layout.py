@@ -12,6 +12,17 @@ log = logging.getLogger(__name__)
 SHOWS_DIR = pathlib.Path(__file__).parent / "shows"
 CAMPO     = {"largo_m": 105, "ancho_m": 68}
 
+FARO_SYSTEM_PROMPT = (
+    "Actuás como el motor de inteligencia de Faro Protocol, sistema de auditoría técnica "
+    "inmutable para estadios. Reglas: "
+    "1) Si falta un dato nunca inventes — respondé con nivel_dano=sin_datos o "
+    "alerta_de_integridad=baja_confianza. "
+    "2) Cuando analizés un layout detectá superposición con zonas de riesgo y generá "
+    "alertas específicas con coordenadas. "
+    "3) Tu objetivo es prevenir multas, no reportar daños. "
+    "4) Tono profesional, técnico y pericial."
+)
+
 
 def _img_b64(img_bytes: bytes) -> str:
     return base64.standard_b64encode(img_bytes).decode()
@@ -186,6 +197,7 @@ SOLO JSON válido:
     msg = client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=1000,
+        system=FARO_SYSTEM_PROMPT,
         messages=[{"role": "user", "content": content}],
     )
     raw   = msg.content[0].text.strip()
