@@ -5,7 +5,7 @@ Se registra en app.py con 2 líneas sin modificar los endpoints de Vélez.
 from __future__ import annotations
 import json, logging, os, sys, threading
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, send_file
 
 # dale-play/ está un nivel arriba de railway-backend/
 _DP_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "dale-play"))
@@ -109,6 +109,15 @@ def dp_run():
         "mode":    mode,
         "message": f"Pipeline iniciado en background para {show_id}",
     })
+
+
+@dale_play_bp.route("/report-png/<show_id>", methods=["GET"])
+def dp_report_png(show_id: str):
+    """GET /dale-play/report-png/airbag_2026-05-31 — sirve el PNG generado."""
+    png_path = os.path.join(_DP_PATH, "reportes", f"reporte_{show_id}.png")
+    if not os.path.exists(png_path):
+        return jsonify({"error": f"PNG not found: {png_path}"}), 404
+    return send_file(png_path, mimetype="image/png")
 
 
 # ── helper ────────────────────────────────────────────────────────────────────
