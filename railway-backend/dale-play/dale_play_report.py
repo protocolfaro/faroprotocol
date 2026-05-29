@@ -46,12 +46,12 @@ def _panel(ax, title: str = ""):
     for sp in ax.spines.values():
         sp.set_color(BORDER); sp.set_linewidth(0.7)
     if title:
-        ax.text(0.01, 0.94, title, color=GOLD, fontsize=9, fontweight='bold',
+        ax.text(0.01, 0.955, title, color=GOLD, fontsize=8.5, fontweight='bold',
                 ha='left', va='center', transform=ax.transAxes,
-                fontfamily='monospace')
+                fontfamily='monospace', clip_on=True)
 
 
-def _gold_line(ax, y: float = 0.97):
+def _gold_line(ax, y: float = 0.99):
     ax.plot([0, 1], [y, y], color=GOLD, lw=2,
             transform=ax.transAxes, clip_on=False)
 
@@ -139,7 +139,7 @@ def generate_report(show_data: dict, show_config: dict) -> str:
     ax_s = fig.add_subplot(gs[2])
     _panel(ax_s, '  BASELINE SATELITAL — Sentinel-2 NDVI  +  Landsat TIRS')
     ax_s.set_facecolor('#060d08')
-    ax_s.set_xlim(0,10); ax_s.set_ylim(0,8)
+    ax_s.set_xlim(0,10); ax_s.set_ylim(0, 8.8)
     ax_s.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
     _gold_line(ax_s)
 
@@ -188,7 +188,7 @@ def generate_report(show_data: dict, show_config: dict) -> str:
     ax_w = fig.add_subplot(gs[3])
     _panel(ax_w, '  PRONÓSTICO CLIMÁTICO 72HS — Riesgo Operativo · Open-Meteo')
     ax_w.set_facecolor(BG2)
-    ax_w.set_xlim(0,10); ax_w.set_ylim(0,8)
+    ax_w.set_xlim(0,10); ax_w.set_ylim(0, 8.8)
     ax_w.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
     _gold_line(ax_w)
 
@@ -233,7 +233,7 @@ def generate_report(show_data: dict, show_config: dict) -> str:
     ax_a = fig.add_subplot(gs[4])
     _panel(ax_a, '  ANÁLISIS ACÚSTICO + SIGHTLINES — SPL por Sector · Modelo Geométrico')
     ax_a.set_facecolor(BG2)
-    ax_a.set_xlim(0,10); ax_a.set_ylim(0,8)
+    ax_a.set_xlim(0,10); ax_a.set_ylim(0, 8.8)
     ax_a.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
     _gold_line(ax_a)
 
@@ -260,7 +260,7 @@ def generate_report(show_data: dict, show_config: dict) -> str:
                       color=col, fontsize=7.5, ha='center', fontweight='bold')
             sl = sec.get("sightline","")
             sl_col = {"optima":GRNL,"buena":GRNL,"parcial":YELL,"obstruida":REDL}.get(sl,WDIM)
-            ax_a.text(xc, 0.10, sl[:3].upper(), color=sl_col, fontsize=7,
+            ax_a.text(xc, 0.45, sl[:3].upper(), color=sl_col, fontsize=7,
                       ha='center', fontfamily='monospace')
 
     ax_a.text(9.85, 7.6, f'SPL prom: {spl_prom:.0f} dB',
@@ -276,7 +276,7 @@ def generate_report(show_data: dict, show_config: dict) -> str:
     ax_sl = fig.add_subplot(gs[5])
     _panel(ax_sl, '  MAPA DE CARGA DEL SUELO — Zonas Seguras / Exclusión')
     ax_sl.set_facecolor(BG2)
-    ax_sl.set_xlim(0,10); ax_sl.set_ylim(0,8)
+    ax_sl.set_xlim(0,10); ax_sl.set_ylim(0, 8.8)
     ax_sl.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
     _gold_line(ax_sl)
 
@@ -296,7 +296,7 @@ def generate_report(show_data: dict, show_config: dict) -> str:
         x0  = 0.3 + i * cw2
         xc  = x0 + cw2 / 2
         zcol = z.get("color", GRNL)
-        ax_sl.add_patch(FancyBboxPatch((x0 + 0.1, 0.2), cw2 - 0.25, 7.0,
+        ax_sl.add_patch(FancyBboxPatch((x0 + 0.1, 0.4), cw2 - 0.25, 6.8,
             boxstyle="round,pad=0.1",
             facecolor=zcol+'18', edgecolor=zcol+'77', lw=1.0))
         ax_sl.text(xc, 6.8, z.get("nombre","")[:16], color=WHITE,
@@ -318,7 +318,7 @@ def generate_report(show_data: dict, show_config: dict) -> str:
     ax_i = fig.add_subplot(gs[6])
     _panel(ax_i, '  INTEGRIDAD ESTRUCTURAL — Sentinel-1 InSAR Post-Show · Tribunas')
     ax_i.set_facecolor(BG2)
-    ax_i.set_xlim(0,10); ax_i.set_ylim(0,8)
+    ax_i.set_xlim(0,10); ax_i.set_ylim(0, 8.8)
     ax_i.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
     _gold_line(ax_i)
 
