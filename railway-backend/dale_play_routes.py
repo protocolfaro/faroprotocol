@@ -40,9 +40,11 @@ def dp_health():
         "github_token":     bool(os.environ.get("GITHUB_TOKEN")),
         "insar_configured": bool(os.environ.get("NASA_EARTHDATA_USER")),
         "supabase": {
-            "configured": _sb_configured,
-            "connected":  _sb_connected,
-            "error":      _sb_error,
+            "configured":  _sb_configured,
+            "connected":   _sb_connected,
+            "error":       _sb_error,
+            "url_preview": (os.environ.get("SUPABASE_URL","")[:30] + "…")
+                           if os.environ.get("SUPABASE_URL") else None,
         },
     })
 
