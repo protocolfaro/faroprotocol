@@ -25,10 +25,12 @@ def dp_health():
     _sb_error      = None
     if _sb_configured:
         try:
-            _c = _client()
-            if _c:
-                _c.table("show_baselines").select("show_id").limit(1).execute()
-                _sb_connected = True
+            from supabase import create_client as _sbc
+            _sb_url = os.environ.get("SUPABASE_URL", "")
+            _sb_key = os.environ.get("SUPABASE_KEY", "")
+            _c = _sbc(_sb_url, _sb_key)
+            _c.table("show_baselines").select("show_id").limit(1).execute()
+            _sb_connected = True
         except Exception as _e:
             _sb_error = str(_e)
             log.warning("health: supabase ping failed: %s", _e)
