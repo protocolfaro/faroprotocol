@@ -16,9 +16,11 @@ import heatmap_gen
 import github_push
 import data_refresh
 import velez_scheduler
+import dale_play_routes
 
 app = Flask(__name__)
 CORS(app)
+app.register_blueprint(dale_play_routes.dale_play_bp)
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger(__name__)

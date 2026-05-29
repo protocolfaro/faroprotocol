@@ -1,0 +1,32 @@
+{
+  "show_id": "airbag_2026-05-31",
+  "artist": "Airbag",
+  "show_date": "2026-05-31",
+  "venue": "Estadio José Amalfitani",
+  "promotor": "Dale Play",
+  "capacidad_estimada": 35000,
+  "rider": {
+    "stage": {
+      "lw_db": 134,
+      "speakers": 96,
+      "marca": "d&b audiotechnik",
+      "modelo": "V-Series",
+      "throws": ["main", "delay", "front_fill"],
+      "potencia_kw": 180
+    },
+    "estructuras": [
+      {"nombre": "Escenario Principal",    "carga_ton": 120, "area_m2": 900},
+      {"nombre": "Torres de Sonido L/R",   "carga_ton": 4,   "area_m2": 4},
+      {"nombre": "Torres de Iluminación",  "carga_ton": 6,   "area_m2": 4},
+      {"nombre": "Consola FOH",            "carga_ton": 1.5, "area_m2": 9},
+      {"nombre": "Barricada de Seguridad", "carga_ton": 3,   "area_m2": 120}
+    ],
+    "produccion": {
+      "empresa_produccion": "Dale Play",
+      "empresa_sonido":     "Sound Factory",
+      "empresa_luces":      "Lux Pro Argentina",
+      "empresa_escenario":  "StageSet"
+    }
+  },
+  "notas": "Primer caso real Dale Play × Faro Protocol. Show de rock nacional."
+}
