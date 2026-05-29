@@ -1,39 +1,44 @@
 """
-dale_play_storage.py — Persistencia Supabase para dale-play.
+dale_play_storage.py — Persistencia Supabase via REST API directa (requests).
 
-Tablas requeridas (crear en Supabase SQL Editor):
+Elimina supabase-py. Compatible con cualquier formato de API key (eyJ... o sb_publishable_...).
+Headers requeridos: apikey + Authorization: Bearer.
+
+Tablas requeridas (SQL Editor de Supabase):
 
   CREATE TABLE IF NOT EXISTS show_baselines (
-    show_id      TEXT PRIMARY KEY,
-    ndvi         REAL,
-    date         TEXT,
-    satellite    JSONB,
-    created_at   TIMESTAMPTZ DEFAULT NOW()
+    show_id    TEXT PRIMARY KEY,
+    ndvi       REAL,
+    date       TEXT,
+    satellite  JSONB,
+    created_at TIMESTAMPTZ DEFAULT NOW()
   );
 
   CREATE TABLE IF NOT EXISTS certifications (
-    show_id      TEXT PRIMARY KEY,
-    cert_hash    TEXT UNIQUE,
-    pdf_path     TEXT,
-    ndvi_pre     REAL,
-    ndvi_post    REAL,
-    delta_ndvi   REAL,
-    nivel_dano   TEXT,
-    data         JSONB,
-    created_at   TIMESTAMPTZ DEFAULT NOW()
+    show_id    TEXT PRIMARY KEY,
+    cert_hash  TEXT UNIQUE,
+    pdf_path   TEXT,
+    ndvi_pre   REAL,
+    ndvi_post  REAL,
+    delta_ndvi REAL,
+    nivel_dano TEXT,
+    data       JSONB,
+    created_at TIMESTAMPTZ DEFAULT NOW()
   );
 
 Variables de entorno Railway: SUPABASE_URL, SUPABASE_KEY
 
 Estrategia de resiliencia:
   1. Cache inmediato en dale-play/cache/ antes de intentar Supabase.
-  2. Supabase con un único reintento (backoff 2s) si falla.
-  3. Fallback local en models/storage/ si Supabase definitivamente no disponible.
+  2. Retry único (backoff 2s) en cada operación REST.
+  3. Fallback local en models/storage/ si Supabase no disponible.
   4. Nunca crashear — loguear todo error en stderr para auditoría.
 """
 from __future__ import annotations
 import json, logging, os, sys, time
 import pathlib as _pathlib
+
+import requests as _requests
 
 log = logging.getLogger(__name__)
 
@@ -41,85 +46,131 @@ _LOCAL_DIR = _pathlib.Path(__file__).parent / "models" / "storage"
 _CACHE_DIR = _pathlib.Path(__file__).parent / "cache"
 
 
-# ── Config check ──────────────────────────────────────────────────────────────
+# ── Config y helpers REST ─────────────────────────────────────────────────────
+
+def _base_url() -> str:
+    return os.environ.get("SUPABASE_URL", "").rstrip("/")
+
+
+def _key() -> str:
+    return os.environ.get("SUPABASE_KEY", "")
+
+
+def _headers(extra: dict | None = None) -> dict:
+    k = _key()
+    h = {
+        "apikey":        k,
+        "Authorization": f"Bearer {k}",
+        "Content-Type":  "application/json",
+        "Prefer":        "return=minimal",
+    }
+    if extra:
+        h.update(extra)
+    return h
+
+
+def _is_configured() -> bool:
+    return bool(_base_url()) and bool(_key())
+
 
 def check_supabase_config() -> bool:
-    """
-    Retorna True si SUPABASE_URL y SUPABASE_KEY están configuradas.
-    Loguea en stderr si faltan — mensaje visible en Railway logs.
-    """
-    configured = (bool(os.environ.get("SUPABASE_URL"))
-                  and bool(os.environ.get("SUPABASE_KEY")))
-    if not configured:
+    """Retorna True si env vars presentes. Loguea en stderr si faltan."""
+    ok = _is_configured()
+    if not ok:
         print(
             "SUPABASE no configurada — usando fallback local. "
             "Configurar SUPABASE_URL y SUPABASE_KEY en Railway para persistencia real.",
             file=sys.stderr, flush=True,
         )
-    return configured
+    return ok
 
 
-def _client():
-    """Retorna cliente Supabase o None si no está configurado."""
-    url = os.environ.get("SUPABASE_URL", "")
-    key = os.environ.get("SUPABASE_KEY", "")
-    if not url or not key:
-        log.warning("dale_play_storage: SUPABASE_URL/KEY no configuradas — usando fallback local")
-        return None
+def ping() -> tuple[bool, str | None]:
+    """
+    GET /rest/v1/show_baselines?select=show_id&limit=1
+    Retorna (ok: bool, error: str | None).
+    Usado por /dale-play/health.
+    """
+    if not _is_configured():
+        return False, "not configured"
+    url = f"{_base_url()}/rest/v1/show_baselines?select=show_id&limit=1"
     try:
-        from supabase import create_client
-        return create_client(url, key)
+        r = _requests.get(url, headers=_headers(), timeout=6)
+        if r.status_code in (200, 206):
+            return True, None
+        return False, f"HTTP {r.status_code}: {r.text[:300]}"
     except Exception as e:
-        print(f"dale_play_storage: supabase client error: {e}", file=sys.stderr, flush=True)
-        log.warning("dale_play_storage: supabase client error: %s", e)
-        return None
+        return False, str(e)
 
 
-def _supabase_op(fn):
-    """
-    Ejecuta fn(client). Reintenta una vez tras 2s si falla.
-    Retorna resultado de fn o None si falla definitivamente.
-    Loguea todo error en stderr para auditoría.
-    """
+# ── REST primitivas con retry ─────────────────────────────────────────────────
+
+def _upsert(table: str, row: dict) -> bool:
+    """POST con merge-duplicates. Reintenta una vez. Loguea en stderr."""
+    if not _is_configured():
+        return False
+    url  = f"{_base_url()}/rest/v1/{table}"
+    hdrs = _headers({"Prefer": "resolution=merge-duplicates,return=minimal"})
+    last_err = ""
     for attempt in range(2):
-        sb = _client()
-        if sb is None:
-            return None
         try:
-            return fn(sb)
+            r = _requests.post(url, headers=hdrs,
+                               data=json.dumps(row, default=str),
+                               timeout=10)
+            if r.status_code in (200, 201, 204):
+                return True
+            last_err = f"HTTP {r.status_code}: {r.text[:300]}"
         except Exception as e:
-            print(
-                f"Supabase error (intento {attempt + 1}/2): {e}",
-                file=sys.stderr, flush=True,
-            )
-            log.warning("Supabase error (intento %d/2): %s", attempt + 1, e)
-            if attempt == 0:
-                time.sleep(2)
+            last_err = str(e)
+        print(f"Supabase upsert/{table} (intento {attempt+1}/2): {last_err}",
+              file=sys.stderr, flush=True)
+        log.warning("Supabase upsert/%s attempt %d: %s", table, attempt + 1, last_err)
+        if attempt == 0:
+            time.sleep(2)
+    return False
+
+
+def _select_one(table: str, col: str, val: str) -> dict | None:
+    """GET con filtro eq. Reintenta una vez. Retorna primer row o None."""
+    if not _is_configured():
+        return None
+    url = f"{_base_url()}/rest/v1/{table}?select=*&{col}=eq.{val}"
+    last_err = ""
+    for attempt in range(2):
+        try:
+            r = _requests.get(url, headers=_headers(), timeout=10)
+            if r.status_code == 200:
+                data = r.json()
+                return data[0] if data else None
+            last_err = f"HTTP {r.status_code}: {r.text[:300]}"
+        except Exception as e:
+            last_err = str(e)
+        print(f"Supabase select/{table} (intento {attempt+1}/2): {last_err}",
+              file=sys.stderr, flush=True)
+        log.warning("Supabase select/%s attempt %d: %s", table, attempt + 1, last_err)
+        if attempt == 0:
+            time.sleep(2)
     return None
 
 
-# ── Cache inmediato (dale-play/cache/) ───────────────────────────────────────
+# ── Cache inmediato (dale-play/cache/) ────────────────────────────────────────
 
 def _cache_save(kind: str, show_id: str, data: dict) -> None:
-    """Escribe en cache/ antes de intentar Supabase — backup inmediato."""
     try:
         _CACHE_DIR.mkdir(parents=True, exist_ok=True)
-        path = _CACHE_DIR / f"{kind}_{show_id}.json"
-        path.write_text(
+        (_CACHE_DIR / f"{kind}_{show_id}.json").write_text(
             json.dumps(data, ensure_ascii=False, indent=2, default=str),
-            encoding="utf-8",
-        )
+            encoding="utf-8")
     except Exception as e:
         print(f"cache_save error ({kind}/{show_id}): {e}", file=sys.stderr, flush=True)
-        log.warning("cache_save error: %s", e)
 
 
 def _cache_load(kind: str, show_id: str) -> dict | None:
-    path = _CACHE_DIR / f"{kind}_{show_id}.json"
-    if not path.exists():
+    p = _CACHE_DIR / f"{kind}_{show_id}.json"
+    if not p.exists():
         return None
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        return json.loads(p.read_text(encoding="utf-8"))
     except Exception:
         return None
 
@@ -128,30 +179,21 @@ def _cache_load(kind: str, show_id: str) -> dict | None:
 
 def _local_save(kind: str, show_id: str, data: dict) -> None:
     _LOCAL_DIR.mkdir(parents=True, exist_ok=True)
-    path = _LOCAL_DIR / f"{kind}_{show_id}.json"
+    p = _LOCAL_DIR / f"{kind}_{show_id}.json"
     try:
-        path.write_text(
-            json.dumps(data, ensure_ascii=False, indent=2, default=str),
-            encoding="utf-8",
-        )
-        log.info("local storage: %s → %s", kind, path)
+        p.write_text(json.dumps(data, ensure_ascii=False, indent=2, default=str),
+                     encoding="utf-8")
+        log.info("local storage: %s → %s", kind, p)
     except Exception as e:
         print(f"local_save error ({kind}/{show_id}): {e}", file=sys.stderr, flush=True)
-        log.warning("local storage save error: %s", e)
 
 
 def _local_load(kind: str, show_id: str) -> dict | None:
-    path = _LOCAL_DIR / f"{kind}_{show_id}.json"
-    if not path.exists():
-        return None
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except Exception:
-        return None
+    p = _LOCAL_DIR / f"{kind}_{show_id}.json"
+    return json.loads(p.read_text(encoding="utf-8")) if p.exists() else None
 
 
-def _local_load_by_hash(cert_hash: str) -> dict | None:
-    """Escanea cache/ y models/storage/ buscando por hash."""
+def _scan_by_hash(cert_hash: str) -> dict | None:
     for _dir in (_CACHE_DIR, _LOCAL_DIR):
         if not _dir.exists():
             continue
@@ -169,29 +211,18 @@ def _local_load_by_hash(cert_hash: str) -> dict | None:
 
 def save_show_baseline(show_id: str, ndvi: float | None,
                        date: str, satellite_data: dict) -> bool:
-    """Guarda NDVI baseline pre-show. Cache inmediato + Supabase upsert."""
     row = {"show_id": show_id, "ndvi": ndvi, "date": date, "satellite": satellite_data}
     _cache_save("baseline", show_id, row)
-
-    def _upsert(sb):
-        sb.table("show_baselines").upsert(row).execute()
-        log.info("Supabase: baseline guardado para %s (NDVI=%s)", show_id, ndvi)
-        return True
-
-    result = _supabase_op(_upsert)
-    if result is None:
+    ok = _upsert("show_baselines", row)
+    if not ok:
         _local_save("baseline", show_id, row)
-        return False
-    return True
+    else:
+        log.info("Supabase: baseline guardado para %s (NDVI=%s)", show_id, ndvi)
+    return ok
 
 
 def get_show_baseline(show_id: str) -> dict | None:
-    """Recupera NDVI baseline: Supabase → cache → local."""
-    def _select(sb):
-        r = sb.table("show_baselines").select("*").eq("show_id", show_id).execute()
-        return r.data[0] if r.data else None
-
-    result = _supabase_op(_select)
+    result = _select_one("show_baselines", "show_id", show_id)
     if result is not None:
         log.info("Supabase: baseline recuperado para %s", show_id)
         return result
@@ -202,7 +233,6 @@ def get_show_baseline(show_id: str) -> dict | None:
 
 def save_certification(show_id: str, cert_hash: str,
                        pdf_path: str, data: dict) -> bool:
-    """Guarda certificación post-evento. Cache inmediato + Supabase upsert."""
     damage = data.get("damage") or {}
     row = {
         "show_id":    show_id,
@@ -215,42 +245,24 @@ def save_certification(show_id: str, cert_hash: str,
         "data":       data,
     }
     _cache_save("cert", show_id, row)
-
-    def _upsert(sb):
-        sb.table("certifications").upsert(row).execute()
+    ok = _upsert("certifications", row)
+    if not ok:
+        _local_save("cert", show_id, row)
+    else:
         log.info("Supabase: certificación guardada para %s (hash=%s...)",
                  show_id, cert_hash[:12])
-        return True
-
-    result = _supabase_op(_upsert)
-    if result is None:
-        _local_save("cert", show_id, row)
-        return False
-    return True
+    return ok
 
 
 def get_certification(show_id: str) -> dict | None:
-    """Recupera certificación: Supabase → cache → local."""
-    def _select(sb):
-        r = sb.table("certifications").select("*").eq("show_id", show_id).execute()
-        return r.data[0] if r.data else None
-
-    result = _supabase_op(_select)
+    result = _select_one("certifications", "show_id", show_id)
     if result is not None:
         return result
     return _cache_load("cert", show_id) or _local_load("cert", show_id)
 
 
 def get_certification_by_hash(cert_hash: str) -> dict | None:
-    """Busca certificación por hash SHA-256 (endpoint /verify/{hash})."""
-    def _select(sb):
-        r = (sb.table("certifications")
-               .select("*")
-               .eq("cert_hash", cert_hash)
-               .execute())
-        return r.data[0] if r.data else None
-
-    result = _supabase_op(_select)
+    result = _select_one("certifications", "cert_hash", cert_hash)
     if result is not None:
         return result
-    return _local_load_by_hash(cert_hash)
+    return _scan_by_hash(cert_hash)
