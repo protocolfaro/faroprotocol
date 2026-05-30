@@ -90,31 +90,50 @@ def run_show_audit(show_config: dict, mode: str = "full") -> dict:
     # ── 3. Análisis acústico + sightlines ────────────────────────────────────
     try:
         from dale_play_acoustic import analyze_acoustic_sightlines
-        result["acoustic"] = analyze_acoustic_sightlines(rider)
-        log.info("dale_play_pipeline: acoustic OK — cobertura_optima=%s%%",
-                 result["acoustic"].get("cobertura_optima_pct"))
+        result["acoustic"] = analyze_acoustic_sightlines(rider, show_id=show_id)
+        log.info("dale_play_pipeline: acoustic OK — cobertura_optima=%s%% · RT60=%ss",
+                 result["acoustic"].get("cobertura_optima_pct"),
+                 result["acoustic"].get("rt60_s", "—"))
     except Exception as e:
         log.warning("dale_play_pipeline: acoustic failed: %s", e)
         result["acoustic"] = {"error": str(e)}
 
-    # ── 4. Carga del suelo ───────────────────────────────────────────────────
+    # ── 4a. Datos reales de suelo (SoilGrids + Terzaghi) ────────────────────
+    # Pre-fetch en background; analyze_soil_load lo cargará del JSON.
+    try:
+        from dale_play_soil import fetch_real_soil_capacity
+        from dale_play_config import VENUE_LAT, VENUE_LON
+        result["soil_real"] = fetch_real_soil_capacity(show_id, VENUE_LAT, VENUE_LON)
+        log.info("dale_play_pipeline: soil_real OK — %.0f kPa %s",
+                 result["soil_real"].get("capacidad_portante_kpa", 0),
+                 "[ESTIMADO]" if result["soil_real"].get("estimado") else "(SoilGrids)")
+    except Exception as e:
+        log.warning("dale_play_pipeline: soil_real failed: %s", e)
+        result["soil_real"] = {"error": str(e)}
+
+    # ── 4b. Carga del suelo ──────────────────────────────────────────────────
     try:
         from dale_play_soil import analyze_soil_load
         lluvia = float(
             (result.get("weather") or {}).get("show_day", {}).get("lluvia_mm") or 0
         )
-        result["soil"] = analyze_soil_load(rider, lluvia_48h_mm=lluvia)
-        log.info("dale_play_pipeline: soil OK — exclusiones=%d",
-                 result["soil"].get("n_exclusiones", 0))
+        result["soil"] = analyze_soil_load(rider, lluvia_48h_mm=lluvia, show_id=show_id)
+        log.info("dale_play_pipeline: soil OK — exclusiones=%d · cap=%.0f kPa",
+                 result["soil"].get("n_exclusiones", 0),
+                 result["soil"].get("capacidad_efectiva_kpa", 0))
     except Exception as e:
         log.warning("dale_play_pipeline: soil failed: %s", e)
         result["soil"] = {"error": str(e)}
 
-    # ── 5a. Drenaje del campo ────────────────────────────────────────────────
+    # ── 5a. Drenaje del campo (con Ksat HiHydroSoil via SoilGrids) ──────────
     try:
         from dale_play_drainage import analyze_drainage
-        result["drainage"] = analyze_drainage()
-        log.info("dale_play_pipeline: drainage OK")
+        from dale_play_config import VENUE_LAT, VENUE_LON, VENUE_NAME
+        result["drainage"] = analyze_drainage(VENUE_LAT, VENUE_LON, VENUE_NAME)
+        dr_resumen = result["drainage"].get("resumen", {})
+        log.info("dale_play_pipeline: drainage OK — ksat=%.1f mm/h · riesgo=%s",
+                 dr_resumen.get("ksat_mm_h", 0),
+                 dr_resumen.get("riesgo_global", "—"))
     except Exception as e:
         log.warning("dale_play_pipeline: drainage failed: %s", e)
         result["drainage"] = {"error": str(e)}

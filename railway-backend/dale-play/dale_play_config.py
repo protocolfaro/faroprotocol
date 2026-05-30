@@ -30,11 +30,15 @@ TRIBUNAS = [
 
 # Zonas de escenario por defecto (ajustables por rider)
 STAGE_ZONES = [
-    {"id": "escenario_principal", "name": "Escenario Principal",
+    {"id": "escenario_principal",  "name": "Escenario Principal",
      "lat": -34.6379, "lon": -58.5295, "w_m": 50, "h_m": 20, "carga_ton": 80},
-    {"id": "mix_central",        "name": "Consola FOH",
+    {"id": "torres_sonido",        "name": "Torres de Sonido",
+     "lat": -34.6375, "lon": -58.5291, "w_m": 4,  "h_m": 4,  "carga_ton": 8},
+    {"id": "torres_iluminacion",   "name": "Torres de Iluminación",
+     "lat": -34.6383, "lon": -58.5291, "w_m": 4,  "h_m": 4,  "carga_ton": 6},
+    {"id": "mix_central",          "name": "Consola FOH",
      "lat": -34.6379, "lon": -58.5285, "w_m": 6,  "h_m": 6,  "carga_ton": 2},
-    {"id": "barricada",          "name": "Barricada de Seguridad",
+    {"id": "barricada",            "name": "Barricada de Seguridad",
      "lat": -34.6379, "lon": -58.5291, "w_m": 40, "h_m": 3,  "carga_ton": 5},
 ]
 

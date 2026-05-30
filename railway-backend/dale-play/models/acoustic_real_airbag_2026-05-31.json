@@ -1,0 +1,161 @@
+{
+  "artista": "Artista",
+  "show_date": "",
+  "sectores": [
+    {
+      "id": "campo_central",
+      "name": "Campo Central",
+      "spl_db": 101.9,
+      "sightline": "optima",
+      "cobertura": "buena",
+      "dist_m": 80,
+      "height_m": 0,
+      "alertas": [],
+      "c_value_db": 2.5
+    },
+    {
+      "id": "tribuna_norte",
+      "name": "Tribuna Norte",
+      "spl_db": 98.4,
+      "sightline": "optima",
+      "cobertura": "buena",
+      "dist_m": 120,
+      "height_m": 8,
+      "alertas": [],
+      "c_value_db": 0.5
+    },
+    {
+      "id": "tribuna_sur",
+      "name": "Tribuna Sur",
+      "spl_db": 97.1,
+      "sightline": "optima",
+      "cobertura": "aceptable",
+      "dist_m": 140,
+      "height_m": 8,
+      "alertas": [
+        "Instalar delay tower lateral sur a ~70m del escenario para refuerzo +3dB",
+        "Apuntar cluster delay con ángulo -5° hacia gradería baja para compensar pérdida "
+      ],
+      "c_value_db": 0.3
+    },
+    {
+      "id": "tribuna_este",
+      "name": "Tribuna Este",
+      "spl_db": 99.7,
+      "sightline": "optima",
+      "cobertura": "buena",
+      "dist_m": 130,
+      "height_m": 8,
+      "alertas": [],
+      "c_value_db": 1.0
+    },
+    {
+      "id": "platea_alta_norte",
+      "name": "Platea Alta Norte",
+      "spl_db": 96.5,
+      "sightline": "optima",
+      "cobertura": "aceptable",
+      "dist_m": 150,
+      "height_m": 15,
+      "alertas": [
+        "Instalar delay tower elevada norte a ~90m del escenario orientada hacia platea a",
+        "Considerar EQ high-shelf +2dB por pérdida de HF a 150m de distancia"
+      ],
+      "c_value_db": -1.5
+    },
+    {
+      "id": "platea_alta_sur",
+      "name": "Platea Alta Sur",
+      "spl_db": 94.8,
+      "sightline": "optima",
+      "cobertura": "aceptable",
+      "dist_m": 170,
+      "height_m": 15,
+      "alertas": [
+        "Delay tower sur elevada imprescindible, sector con mayor déficit SPL del recinto",
+        "Delay time ~435ms (170m / 343m/s × 1000) con compensación de temperatura ambient"
+      ],
+      "c_value_db": -2.0
+    }
+  ],
+  "alertas_globales": [
+    "Platea Alta Sur registra SPL crítico de 94.8dB, muy por debajo del umbral de 98dB recomendado para c",
+    "Diferencia de 7.1dB entre sector más cercano (Campo Central) y más lejano (Platea Alta Sur): se reco",
+    "RT60 estimado de 2.1s en estadio lleno puede comprometer inteligibilidad en sectores con C-value neg",
+    "Capacidad estimada 49,540 supera el 85% del aforo (49,540) — revisar plan de evacuación"
+  ],
+  "spl_promedio_db": 98.1,
+  "cobertura_optima_pct": 0.0,
+  "rt60_s": 2.1,
+  "modelo_acustico": "Claude API acústico geométrico",
+  "fuente": "Claude API (claude-sonnet-4-6) · análisis acústico geométrico real",
+  "sala": {
+    "dimensiones_m": "68×105×22",
+    "rt60_sabine_s": 2.3,
+    "room_constant_R_m2": 22187.0
+  },
+  "claude_raw": {
+    "sectores": [
+      {
+        "id": "campo_central",
+        "spl_db": 101.9,
+        "c_value": 2.5,
+        "sightline": "DIRECTA",
+        "recomendaciones": []
+      },
+      {
+        "id": "tribuna_norte",
+        "spl_db": 98.4,
+        "c_value": 0.5,
+        "sightline": "DIRECTA",
+        "recomendaciones": []
+      },
+      {
+        "id": "tribuna_sur",
+        "spl_db": 97.1,
+        "c_value": 0.3,
+        "sightline": "DIRECTA",
+        "recomendaciones": [
+          "Instalar delay tower lateral sur a ~70m del escenario para refuerzo +3dB",
+          "Apuntar cluster delay con ángulo -5° hacia gradería baja para compensar pérdida de nivel"
+        ]
+      },
+      {
+        "id": "tribuna_este",
+        "spl_db": 99.7,
+        "c_value": 1.0,
+        "sightline": "DIRECTA",
+        "recomendaciones": []
+      },
+      {
+        "id": "platea_alta_norte",
+        "spl_db": 96.5,
+        "c_value": -1.5,
+        "sightline": "DIRECTA",
+        "recomendaciones": [
+          "Instalar delay tower elevada norte a ~90m del escenario orientada hacia platea alta",
+          "Considerar EQ high-shelf +2dB por pérdida de HF a 150m de distancia"
+        ]
+      },
+      {
+        "id": "platea_alta_sur",
+        "spl_db": 94.8,
+        "c_value": -2.0,
+        "sightline": "DIRECTA",
+        "recomendaciones": [
+          "Delay tower sur elevada imprescindible, sector con mayor déficit SPL del recinto",
+          "Delay time ~435ms (170m / 343m/s × 1000) con compensación de temperatura ambiente"
+        ]
+      }
+    ],
+    "rt60_estimado_s": 2.1,
+    "alertas_globales": [
+      "Platea Alta Sur registra SPL crítico de 94.8dB, muy por debajo del umbral de 98dB recomendado para conciertos",
+      "Diferencia de 7.1dB entre sector más cercano (Campo Central) y más lejano (Platea Alta Sur): se recomienda sistema de delay en dos puntos para homogeneizar cobertura",
+      "RT60 estimado de 2.1s en estadio lleno puede comprometer inteligibilidad en sectores con C-value negativo; evaluar procesado con HF clarity boost",
+      "Sector Tribuna Sur con ángulo 330° puede presentar comb filtering por reflexión lateral de Tribuna Oeste; verificar in-situ con medición RTA"
+    ],
+    "modelo": "Claude API acústico geométrico"
+  },
+  "timestamp": "2026-05-30 16:48"
+}
