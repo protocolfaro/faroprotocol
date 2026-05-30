@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "4.0",
-    "fecha": "2026-05-28",
+    "fecha": "2026-05-29",
     "cliente": "Club Atletico Velez Sarsfield",
     "coords": {
       "lat": -34.6375,
@@ -41,36 +41,36 @@
     ],
     "semana": "2026-05-25"
   },
-  "updated_at": "2026-05-29T09:00:59Z",
+  "updated_at": "2026-05-30T09:00:53Z",
   "weather_live": {
-    "timestamp": "2026-05-28T09:00:14",
+    "timestamp": "2026-05-29T09:00:15",
     "fuentes": [
       "nasa-power",
       "soilgrids",
       "open-meteo-hourly"
     ],
-    "et0_mm_dia": 1.78,
+    "et0_mm_dia": 1.4,
     "et0_fuente": "nasa+penman-monteith",
-    "et0_semana_mm": 12.5,
+    "et0_semana_mm": 9.8,
     "precipitacion_semana_mm": 0.3,
-    "deficit_hidrico_mm": 12.2,
+    "deficit_hidrico_mm": 9.5,
     "deficit_hidrico": true,
-    "litros_m2_semana": 12.2,
-    "riego_min_sector": 37,
+    "litros_m2_semana": 9.5,
+    "riego_min_sector": 28,
     "riego_min_fuente": "estimado",
     "hora_riego_optima": "05:00",
     "dia_riego_offset": 0,
     "hora_riego_alternativa": "17:00",
     "hora_corte_optima": "06:00",
-    "humedad_suelo_pct": 41.0,
+    "humedad_suelo_pct": 42.0,
     "humedad_suelo_estado": "humedo",
-    "humedad_subsuperficial_pct": 41.1,
+    "humedad_subsuperficial_pct": 42.1,
     "suelo_tipo": "Suelo pesado",
     "suelo_clay_pct": 32,
     "suelo_sand_pct": 28,
     "suelo_whc_mm": 42,
-    "gdd_acumulado_7d": 6.3,
-    "gdd_rate_diario": 1.3,
+    "gdd_acumulado_7d": 9.2,
+    "gdd_rate_diario": 1.8,
     "dias_proximo_corte": 14,
     "gndvi_por_cancha": {
       "fuente": "sentinel-2-l2a · Planetary Computer · 2026-05-17 · nubosidad 5%",
@@ -160,19 +160,68 @@
           "n_status": "grave",
           "n_rec": "Fertilizar URGENTE — deficiencia N grave",
           "coverage_pct": 94.9
+        },
+        "amalfitani": {
+          "ndvi": 0.533,
+          "gndvi": 0.464,
+          "n_status": "ok",
+          "n_rec": "Nitrógeno adecuado",
+          "coverage_pct": 100.0
+        },
+        "poli_f11": {
+          "ndvi": 0.257,
+          "gndvi": 0.236,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave",
+          "coverage_pct": 94.0
+        },
+        "poli_f8a": {
+          "ndvi": 0.099,
+          "gndvi": 0.141,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave",
+          "coverage_pct": 100.0
+        },
+        "poli_f8b": {
+          "ndvi": 0.102,
+          "gndvi": 0.125,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave",
+          "coverage_pct": 92.1
+        },
+        "poli_hockey": {
+          "ndvi": 0.133,
+          "gndvi": 0.17,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave",
+          "coverage_pct": 97.9
         }
       }
     },
     "riesgo_fungosis": {
       "nivel": "alto",
-      "horas_favorables_48h": 31,
+      "horas_favorables_48h": 43,
       "horas_brown_patch_48h": 0,
-      "descripcion": "ALTO: 31h Dollar Spot · 0h Brown Patch (48h)",
+      "descripcion": "ALTO: 43h Dollar Spot · 0h Brown Patch (48h)",
       "accion_recomendada": "Aplicar fungicida preventivo HOY",
       "canchas_en_riesgo": [
         "1fa",
+        "2fa",
         "3fa",
-        "2fa"
+        "4fa",
+        "5fa",
+        "6fa",
+        "7fa",
+        "8fa",
+        "9fa",
+        "10fa",
+        "1fp",
+        "2fp",
+        "amalfitani",
+        "poli_f11",
+        "poli_f8a",
+        "poli_f8b",
+        "poli_hockey"
       ],
       "enfermedad": "Dollar Spot + Brown Patch"
     },
@@ -184,13 +233,13 @@
     "smap": {
       "disponible": true,
       "producto": "SPL3SMP_E",
-      "fecha": "2026-05-26",
-      "mensaje": "SMAP SPL3SMP_E disponible: 2026-05-26",
+      "fecha": "2026-05-27",
+      "mensaje": "SMAP SPL3SMP_E disponible: 2026-05-27",
       "nota": "Valor exacto requiere Earthdata auth — Open-Meteo como proxy"
     },
     "sar_disponible": false,
     "sar_mensaje": "Sin integración SAR activa",
-    "costo_agua_ars": 68500
+    "costo_agua_ars": 53000
   },
   "sectores": {
     "estadio": {
@@ -668,7 +717,7 @@
       "heatmaps_meta": {
         "fuente": "sentinel-2-l2a · Planetary Computer · 2026-05-17 · nubosidad 5%",
         "semana": "2026-05-17",
-        "updated_at": "2026-05-29T09:00:59Z"
+        "updated_at": "2026-05-30T09:00:53Z"
       }
     },
     "juan": {
@@ -1224,7 +1273,7 @@
   },
   "historial_meta": {
     "semana": "2026-05-17",
-    "committed_at": "2026-05-29T09:01:00Z",
+    "committed_at": "2026-05-30T09:00:55Z",
     "fuente": "Faro Protocol · Railway auto-commit"
   }
 }
