@@ -266,3 +266,63 @@ def get_certification_by_hash(cert_hash: str) -> dict | None:
     if result is not None:
         return result
     return _scan_by_hash(cert_hash)
+
+
+# ── audit_log (inmutable — solo INSERT, nunca UPDATE) ─────────────────────────
+#
+#   CREATE TABLE IF NOT EXISTS audit_log (
+#     id                 BIGSERIAL PRIMARY KEY,
+#     show_id            TEXT        NOT NULL,
+#     timestamp          TIMESTAMPTZ DEFAULT NOW(),
+#     modulos_ejecutados JSONB,
+#     modulos_fallidos   JSONB,
+#     fuentes_usadas     JSONB,
+#     confianza_general  TEXT,
+#     smoke_tests        JSONB
+#   );
+
+def _insert(table: str, row: dict) -> bool:
+    """POST sin merge-duplicates (INSERT puro). Para tablas append-only."""
+    if not _is_configured():
+        return False
+    url  = f"{_base_url()}/rest/v1/{table}"
+    hdrs = _headers({"Prefer": "return=minimal"})
+    try:
+        r = _requests.post(url, headers=hdrs,
+                           data=_json.dumps(row, default=str),
+                           timeout=10)
+        if r.status_code in (200, 201, 204):
+            return True
+        print(f"Supabase insert/{table}: HTTP {r.status_code}: {r.text[:300]}",
+              file=_sys.stderr, flush=True)
+    except Exception as e:
+        print(f"Supabase insert/{table}: {e}", file=_sys.stderr, flush=True)
+    return False
+
+
+def save_audit_log(show_id: str, modulos_ejecutados: list, modulos_fallidos: list,
+                   fuentes_usadas: dict, confianza_general: str,
+                   smoke_tests: dict | None = None) -> bool:
+    """
+    Guarda una entrada inmutable en audit_log.
+    Local siempre (run_log). Supabase si disponible.
+    """
+    row = {
+        "show_id":            show_id,
+        "modulos_ejecutados": modulos_ejecutados,
+        "modulos_fallidos":   modulos_fallidos,
+        "fuentes_usadas":     fuentes_usadas,
+        "confianza_general":  confianza_general,
+        "smoke_tests":        smoke_tests or {},
+    }
+    _cache_save("audit_log", show_id, row)
+    ok = _insert("audit_log", row)
+    if not ok:
+        _local_save("audit_log", show_id, row)
+    else:
+        log.info("Supabase: audit_log guardado para %s", show_id)
+    return ok
+
+
+# ── aliases para imports legacy ───────────────────────────────────────────────
+import json as _json, sys as _sys

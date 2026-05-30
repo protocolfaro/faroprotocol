@@ -60,6 +60,30 @@ def _section_title(ax, title: str, fs: float = 8.5):
             fontfamily='monospace', clip_on=True)
 
 
+def _confianza_tag(ax, confianza: str):
+    """Semáforo de confianza del dato — aparece en el extremo derecho del título."""
+    _cfg = {
+        'verde':    (GRNL, '● DATO REAL'),
+        'amarillo': (YELL, '● ESTIMADO'),
+        'rojo':     (REDL, '● SIN DATOS'),
+    }
+    color, label = _cfg.get(confianza, (WDIM, '● N/D'))
+    ax.text(0.99, 0.96, label, color=color, fontsize=6.5, ha='right', va='top',
+            transform=ax.transAxes, fontfamily='monospace')
+
+
+def _get_confianza(data: dict) -> str:
+    """Calcula nivel de confianza desde el output de un módulo."""
+    if not data or data.get("error"):
+        return "rojo"
+    if data.get("fallback_usado") or data.get("estimado"):
+        return "amarillo"
+    fuente = str(data.get("fuente", ""))
+    if "[ESTIMADO]" in fuente or "ESTIMADO" in fuente.upper():
+        return "amarillo"
+    return "verde"
+
+
 def _separator(ax, label: str):
     ax.set_facecolor(BG); ax.axis('off')
     ax.plot([0.02, 0.98], [0.5, 0.5], color=GOLD, lw=1.0,
@@ -137,14 +161,18 @@ def generate_report(show_data: dict, show_config: dict) -> str:
     venue     = show_data.get('venue') or show_config.get('venue', 'Estadio Amalfitani')
     ts        = datetime.now(timezone.utc)
 
-    # ── Extraer datos ─────────────────────────────────────────────────────────
-    sat     = show_data.get('satellite') or {}
-    weather = show_data.get('weather')   or {}
-    soil    = show_data.get('soil')      or {}
-    ac      = show_data.get('acoustic')  or {}
-    comp    = show_data.get('comparativa') or {}
-    dr      = show_data.get('drainage')  or {}
-    eg      = show_data.get('egms')      or {}
+    # ── Extraer datos vía módulos registrados (nunca strings hardcodeados) ──────
+    from dale_play_modules import MODULES_BY_KEY
+    sat          = MODULES_BY_KEY['satellite'].extract(show_data)
+    weather      = MODULES_BY_KEY['weather'].extract(show_data)
+    soil         = MODULES_BY_KEY['soil'].extract(show_data)
+    ac           = MODULES_BY_KEY['acoustic'].extract(show_data)
+    dr           = MODULES_BY_KEY['drainage'].extract(show_data)
+    eg           = MODULES_BY_KEY['egms'].extract(show_data)
+    spl_comp     = MODULES_BY_KEY['spl_compliance'].extract(show_data)
+    structural   = MODULES_BY_KEY['structural'].extract(show_data)
+    rider_comp   = MODULES_BY_KEY['rider_compliance'].extract(show_data)
+    comp         = show_data.get('comparativa') or {}
 
     ndvi       = sat.get('ndvi')
     ndvi_fecha = sat.get('ndvi_fecha', '—')
@@ -276,12 +304,14 @@ def generate_report(show_data: dict, show_config: dict) -> str:
         f'FARO-{show_id}'.encode()).hexdigest()[:28].upper()
     verify_url = f'https://faroprotocol-production-45fd.up.railway.app/dale-play/verify/{cert_hash}'
 
-    # ── Figura y GridSpec (15 filas) ──────────────────────────────────────────
-    fig = plt.figure(figsize=(14, 56), dpi=DPI, facecolor=BG)
-    gs  = gridspec.GridSpec(15, 1, figure=fig, hspace=0.10,
+    # ── Figura y GridSpec (19 filas) ──────────────────────────────────────────
+    fig = plt.figure(figsize=(14, 68), dpi=DPI, facecolor=BG)
+    gs  = gridspec.GridSpec(19, 1, figure=fig, hspace=0.10,
           height_ratios=[1.5, 5.5, 2.0, 5.0, 0.4, 8.0,
                          4.5,                   # ROW 6 — Distribución de carga
-                         5.0, 4.0, 3.0, 3.5, 0.4, 3.5, 4.0, 3.5])
+                         5.0, 4.0, 3.0, 3.5,
+                         0.4, 3.5, 3.5, 4.0,   # ROW 11-14 — Análisis Avanzado
+                         0.4, 3.5, 4.0, 3.5])  # ROW 15-18 — Certificación Legal
     fig.subplots_adjust(left=0.02, right=0.98, top=0.99, bottom=0.005)
 
     # ═══════════════════════════════════════════════════════════════════════════
@@ -306,6 +336,7 @@ def generate_report(show_data: dict, show_config: dict) -> str:
     ax_sem = fig.add_subplot(gs[1])
     _ax_base(ax_sem, bg=BG2, xlim=(0, 12), ylim=(0, 14))
     _section_title(ax_sem, '  ESTADO OPERATIVO — Semáforo de producción')
+    _confianza_tag(ax_sem, 'verde' if not weather.get('error') and not sat.get('error') else 'rojo')
 
     # Nota estacional — caja amarilla ANTES de los semáforos
     if _ndvi_estacional:
@@ -395,7 +426,7 @@ def generate_report(show_data: dict, show_config: dict) -> str:
     # ROW 3 — RESUMEN EJECUTIVO
     # ═══════════════════════════════════════════════════════════════════════════
     ax_res = fig.add_subplot(gs[3])
-    _ax_base(ax_res, bg='#08100a', xlim=(0, 10), ylim=(0, 11))
+    _ax_base(ax_res, bg='#08100a', xlim=(0, 10), ylim=(0, 5))
     _section_title(ax_res, '  RESUMEN EJECUTIVO — Para el equipo de producción', fs=9)
     for sp in ax_res.spines.values():
         sp.set_color(GOLD); sp.set_linewidth(1.2)
@@ -439,17 +470,17 @@ def generate_report(show_data: dict, show_config: dict) -> str:
         _card_x0 = bx + 0.12
         _card_w  = 2.9
         _card_cx = _card_x0 + _card_w / 2
-        ax_res.add_patch(FancyBboxPatch((_card_x0, 0.3), _card_w, 10.3,
+        ax_res.add_patch(FancyBboxPatch((_card_x0, 0.25), _card_w, 4.4,
             boxstyle='round,pad=0.06', facecolor='#0a1a0a',
             edgecolor=GOLD, linewidth=1.1))
-        ax_res.text(_card_cx, 10.2, btitle,
-                    color=bcol, fontsize=13, fontweight='bold',
+        ax_res.text(_card_cx, 4.5, btitle,
+                    color=bcol, fontsize=9, fontweight='bold',
                     ha='center', va='top')
         ax_res.plot([_card_x0 + 0.15, _card_x0 + _card_w - 0.15],
-                    [9.3, 9.3], color=GOLD + '55', lw=0.7)
-        ax_res.text(_card_cx, 9.0, bbody,
-                    color=WHITE, fontsize=10, va='top', ha='center',
-                    linespacing=1.7)
+                    [3.7, 3.7], color=GOLD + '55', lw=0.7)
+        ax_res.text(_card_cx, 3.5, bbody,
+                    color=WHITE, fontsize=8, va='top', ha='center',
+                    linespacing=1.5)
 
     # ═══════════════════════════════════════════════════════════════════════════
     # ROW 4 — SEPARATOR
@@ -530,6 +561,7 @@ def generate_report(show_data: dict, show_config: dict) -> str:
     # Panel derecho — tabla de suelo
     _ax_base(ax_soil, bg=BG2, xlim=(0, 10), ylim=(0, 10))
     _section_title(ax_soil, '  RESISTENCIA DEL SUELO', fs=7.5)
+    _confianza_tag(ax_soil, _get_confianza(soil))
     ax_soil.text(5.0, 9.1, f'Cap. nominal: {soil_kpa} kPa',
                  color=GOLD, fontsize=9, ha='center', fontweight='bold',
                  fontfamily='monospace')
@@ -676,6 +708,7 @@ def generate_report(show_data: dict, show_config: dict) -> str:
 
     _ax_base(ax_spl, bg=BG2, xlim=(0, 10), ylim=(0, 10))
     _section_title(ax_spl, f'  ANÁLISIS ACÚSTICO — SPL por sector (dB)  · RT60≈{ac_rt60:.1f}s' if ac_rt60 else '  ANÁLISIS ACÚSTICO — SPL por sector (dB)')
+    _confianza_tag(ax_spl, _get_confianza(ac))
 
     # Sectores actualizados: sin tribuna_oeste, con platea alta (2d)
     _spl_names = {
@@ -768,10 +801,16 @@ def generate_report(show_data: dict, show_config: dict) -> str:
             continue
         _snm   = _sl_labels.get(_sid, _sid)
         _ssl   = _sd.get('sightline', '—')
-        _ssl_c = GRNL if _ssl == 'optima' else YELL if _ssl == 'buena' else REDL
+        _ssl_c = GRNL if _ssl == 'optima' else YELL if _ssl in ('buena', 'atencion') else REDL
+        _ssl_lbl = {
+            'optima':    'ÓPTIMO',
+            'buena':     'BUENA',
+            'atencion':  'ATENCIÓN',
+            'obstruida': 'OBSTRUIDA',
+        }.get(_ssl, _ssl.upper()[:10])
         ax_sl.text(1.0, _sl_y, _snm, color=WHITE, fontsize=8.5,
                    fontfamily='monospace', va='center')
-        ax_sl.text(6.5, _sl_y, _ssl.upper()[:10], color=_ssl_c, fontsize=8.5,
+        ax_sl.text(6.5, _sl_y, _ssl_lbl, color=_ssl_c, fontsize=8.5,
                    fontfamily='monospace', va='center', fontweight='bold')
         _sl_y -= 1.2
         if _sl_y < 1.5:
@@ -864,6 +903,7 @@ def generate_report(show_data: dict, show_config: dict) -> str:
     ax_eg = fig.add_subplot(gs[10])
     _ax_base(ax_eg, bg=BG2, xlim=(0, 10), ylim=(0, 9))
     _section_title(ax_eg, '  INTEGRIDAD ESTRUCTURAL — EGMS Copernicus 2015-2022 · Deformación mm/año')
+    _confianza_tag(ax_eg, _get_confianza(eg))
 
     _eg_hdrs = ['SECTOR', 'VEL mm/año', 'PROYEC. 2027', 'TENDENCIA', 'ESTADO']
     _eg_xs   = [0.4, 3.1, 5.2, 7.0, 8.7]
@@ -910,14 +950,230 @@ def generate_report(show_data: dict, show_config: dict) -> str:
     # ROW 11 — SEPARATOR
     # ═══════════════════════════════════════════════════════════════════════════
     ax_sep2 = fig.add_subplot(gs[11])
-    _separator(ax_sep2, '▼  CERTIFICACIÓN LEGAL — Faro Protocol')
+    _separator(ax_sep2, '▼  ANÁLISIS AVANZADO — Compliance · Estructura · Rider')
 
     # ═══════════════════════════════════════════════════════════════════════════
-    # ROW 12 — FII COMPONENTES (solo sección certificación legal — 2g)
+    # ROW 12 — COMPLIANCE SPL — ORDENANZA GCBA
     # ═══════════════════════════════════════════════════════════════════════════
-    ax_fii2 = fig.add_subplot(gs[12])
+    ax_spl_c = fig.add_subplot(gs[12])
+    _ax_base(ax_spl_c, bg=BG2, xlim=(0, 10), ylim=(0, 9))
+    _section_title(ax_spl_c, '  COMPLIANCE SPL — Ordenanza GCBA 11.554 · OMS · NIOSH')
+    _confianza_tag(ax_spl_c, _get_confianza(spl_comp))
+
+    _spl_c_estado = spl_comp.get('estado_global', 'N/D')
+    _spl_c_col    = (GRNL if _spl_c_estado == 'CONFORME' else
+                     YELL if _spl_c_estado == 'ATENCIÓN' else
+                     REDL if _spl_c_estado == 'NO CONFORME' else WDIM)
+    _spl_c_pred   = spl_comp.get('spl_predial_db', 0) or 0
+    _spl_c_lim    = spl_comp.get('limite_exterior_dba', 65) or 65
+    _spl_c_col2   = REDL if spl_comp.get('excede_exterior') else GRNL
+
+    ax_spl_c.text(0.4, 8.3, f'Estado: {_spl_c_estado}', color=_spl_c_col,
+                  fontsize=10, fontweight='bold', fontfamily='monospace')
+    ax_spl_c.text(3.8, 8.3,
+                  f'Predial: {_spl_c_pred:.1f} dB(A) vs límite {_spl_c_lim:.0f} dB(A)',
+                  color=_spl_c_col2, fontsize=9, fontfamily='monospace')
+
+    _spl_c_hdrs = ['SECTOR', 'SPL MEDIDO', 'OMS ≤100 dB', 'NIOSH ≤103 dB', 'ESTADO']
+    _spl_c_xs   = [0.3, 2.9, 4.8, 6.7, 8.4]
+    for _cx, _ch in zip(_spl_c_xs, _spl_c_hdrs):
+        ax_spl_c.text(_cx, 7.6, _ch, color=GOLD, fontsize=7.5,
+                      fontfamily='monospace', fontweight='bold')
+    ax_spl_c.plot([0.2, 9.8], [7.3, 7.3], color=GOLD + '55', lw=0.5)
+
+    _spl_c_secs  = spl_comp.get('sectores') or []
+    _spl_c_names = {
+        'campo_central':     'Campo C.',
+        'tribuna_norte':     'Trib. Norte',
+        'tribuna_sur':       'Trib. Sur',
+        'tribuna_este':      'Trib. Este',
+        'platea_alta_norte': 'Platea N.',
+        'platea_alta_sur':   'Platea S.',
+    }
+    _spl_cy = 6.9
+    for _sc_s in _spl_c_secs[:6]:
+        _sc_id    = _sc_s.get('id', '')
+        _sc_spl   = _sc_s.get('spl_db', 0) or 0
+        _sc_oms   = _sc_s.get('sobre_oms', False)
+        _sc_niosh = _sc_s.get('sobre_niosh', False)
+        _sc_est   = _sc_s.get('estado', 'OK')
+        _sc_row_c = REDL if _sc_niosh else YELL if _sc_oms else GRNL
+        ax_spl_c.text(_spl_c_xs[0], _spl_cy, _spl_c_names.get(_sc_id, _sc_id)[:12],
+                      color=WHITE, fontsize=7.5, fontfamily='monospace', va='center')
+        ax_spl_c.text(_spl_c_xs[1], _spl_cy, f'{_sc_spl:.1f} dB',
+                      color=WHITE, fontsize=7.5, fontfamily='monospace', va='center')
+        ax_spl_c.text(_spl_c_xs[2], _spl_cy, '✗' if _sc_oms else '✓',
+                      color=REDL if _sc_oms else GRNL, fontsize=8, fontfamily='monospace', va='center')
+        ax_spl_c.text(_spl_c_xs[3], _spl_cy, '✗' if _sc_niosh else '✓',
+                      color=REDL if _sc_niosh else GRNL, fontsize=8, fontfamily='monospace', va='center')
+        ax_spl_c.text(_spl_c_xs[4], _spl_cy, _sc_est[:14],
+                      color=_sc_row_c, fontsize=7.5, fontfamily='monospace', va='center', fontweight='bold')
+        _spl_cy -= 0.85
+
+    _spl_c_alertas = spl_comp.get('alertas') or []
+    if _spl_c_alertas:
+        ax_spl_c.text(0.3, 0.4, f'⚠ {str(_spl_c_alertas[0])[:88]}',
+                      color=YELL, fontsize=7.5, fontfamily='monospace')
+    else:
+        ax_spl_c.text(0.3, 0.4, 'Fuente: Ordenanza GCBA 11.554/1994 + Res. 5613/2016 + OMS + NIOSH',
+                      color=WDIM, fontsize=7.5, fontfamily='monospace')
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # ROW 13 — DIGITAL TWIN ESTRUCTURAL
+    # ═══════════════════════════════════════════════════════════════════════════
+    ax_str = fig.add_subplot(gs[13])
+    _ax_base(ax_str, bg=BG2, xlim=(0, 10), ylim=(0, 9))
+    _section_title(ax_str, '  DIGITAL TWIN ESTRUCTURAL — Margen de Seguridad Dinámico')
+    _confianza_tag(ax_str, _get_confianza(structural))
+
+    _str_estado = structural.get('estado_global', 'N/D')
+    _str_margen = structural.get('margen_seguridad_pct', 0) or 0
+    _str_col    = (GRNL if _str_estado == 'OK' else
+                   YELL if _str_estado == 'ATENCIÓN' else
+                   REDL if 'CRÍT' in str(_str_estado) else WDIM)
+
+    ax_str.text(1.5, 5.5, f'{_str_margen:.0f}%', color=_str_col, fontsize=30,
+                ha='center', va='center', fontweight='bold')
+    ax_str.text(1.5, 3.2, 'Margen seg.', color=WDIM, fontsize=8,
+                ha='center', fontfamily='monospace')
+    ax_str.text(1.5, 2.5, _str_estado, color=_str_col, fontsize=9,
+                ha='center', fontweight='bold', fontfamily='monospace')
+    if _str_margen < 20:
+        _bbox(ax_str, 0.2, 0.3, 2.7, 0.9, fc='#1a0505', ec=REDL, lw=0.8)
+        ax_str.text(1.5, 0.75, '⚠ REVISAR TENSORES',
+                    color=REDL, fontsize=8, ha='center', fontweight='bold', fontfamily='monospace')
+
+    _str_f      = structural.get('factores') or {}
+    _str_vient  = _str_f.get('viento') or {}
+    _str_egms2  = _str_f.get('egms') or {}
+    _str_suelo2 = _str_f.get('suelo') or {}
+
+    _str_items = [
+        ('VIENTO',
+         f"{structural.get('vel_viento_kmh', 0):.0f} km/h",
+         f"F={_str_vient.get('fuerza_lateral_kn', 0):.0f} kN",
+         f"FS={_str_vient.get('factor_seguridad', 0):.1f}",
+         _str_vient.get('estado', '—')),
+        ('EGMS',
+         f"{_str_egms2.get('vel_max_mm_yr', 0):.1f} mm/año",
+         f"5yr={_str_egms2.get('acumulado_5yr_mm', 0):.0f} mm",
+         '—',
+         _str_egms2.get('estado', '—')),
+        ('SUELO',
+         f"{_str_suelo2.get('capacidad_kpa', 0):.0f} kPa cap.",
+         f"{_str_suelo2.get('presion_max_kpa', 0):.0f} kPa carga",
+         f"FS={_str_suelo2.get('factor_seguridad', 0):.1f}",
+         _str_suelo2.get('estado', '—')),
+    ]
+    _str_xs = [3.1, 4.8, 6.3, 7.8, 9.0]
+    for _sx, _sh in zip(_str_xs, ['FACTOR', 'VALOR', 'DETALLE', 'FS', 'ESTADO']):
+        ax_str.text(_sx, 8.3, _sh, color=GOLD, fontsize=8,
+                    fontfamily='monospace', fontweight='bold')
+    ax_str.plot([3.0, 9.8], [7.9, 7.9], color=GOLD + '55', lw=0.5)
+    _str_y = 7.3
+    for _sfact, _sval, _sdet, _sfs, _sest in _str_items:
+        _sest_c = (GRNL if _sest == 'OK' else
+                   YELL if _sest == 'ATENCIÓN' else
+                   REDL if 'CRÍT' in str(_sest) else WDIM)
+        ax_str.text(_str_xs[0], _str_y, _sfact, color=WHITE, fontsize=8,
+                    fontfamily='monospace', va='center', fontweight='bold')
+        ax_str.text(_str_xs[1], _str_y, _sval, color=WDIM, fontsize=8,
+                    fontfamily='monospace', va='center')
+        ax_str.text(_str_xs[2], _str_y, _sdet, color=WDIM, fontsize=8,
+                    fontfamily='monospace', va='center')
+        ax_str.text(_str_xs[3], _str_y, _sfs, color=WHITE, fontsize=8,
+                    fontfamily='monospace', va='center')
+        ax_str.text(_str_xs[4], _str_y, str(_sest)[:9], color=_sest_c, fontsize=8,
+                    fontfamily='monospace', va='center', fontweight='bold')
+        _str_y -= 1.5
+    ax_str.text(3.1, 0.5, f'Normativa: {(structural.get("normativa") or "")[:55]}',
+                color=WDIM, fontsize=7.5, fontfamily='monospace')
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # ROW 14 — RIDER COMPLIANCE
+    # ═══════════════════════════════════════════════════════════════════════════
+    ax_rc = fig.add_subplot(gs[14])
+    _ax_base(ax_rc, bg=BG2, xlim=(0, 10), ylim=(0, 10))
+    _section_title(ax_rc, '  RIDER COMPLIANCE — Requerimientos técnicos vs condiciones reales')
+    _confianza_tag(ax_rc, _get_confianza(rider_comp))
+
+    _rc_estado = rider_comp.get('estado_global', 'N/D')
+    _rc_col    = (GRNL if _rc_estado == 'CONFORME' else
+                  YELL if _rc_estado in ('ATENCIÓN', 'INDETERMINADO') else REDL)
+    _rc_n_crit = rider_comp.get('n_criticos', 0) or 0
+    _rc_n_adv  = rider_comp.get('n_advertencias', 0) or 0
+    _rc_n_conf = rider_comp.get('n_conformes', 0) or 0
+
+    ax_rc.text(0.4, 9.4, f'Estado global: {_rc_estado}', color=_rc_col,
+               fontsize=10, fontweight='bold', fontfamily='monospace')
+    ax_rc.text(5.0, 9.4, f'Críticos: {_rc_n_crit}',
+               color=REDL if _rc_n_crit else WDIM, fontsize=9, fontfamily='monospace')
+    ax_rc.text(6.8, 9.4, f'Advertencias: {_rc_n_adv}',
+               color=YELL if _rc_n_adv else WDIM, fontsize=9, fontfamily='monospace')
+    ax_rc.text(8.8, 9.4, f'OK: {_rc_n_conf}',
+               color=GRNL if _rc_n_conf else WDIM, fontsize=9, fontfamily='monospace')
+    ax_rc.plot([0.2, 9.8], [9.0, 9.0], color=GOLD + '55', lw=0.5)
+
+    _rc_incs = rider_comp.get('incumplimientos') or []
+    _rc_inds = rider_comp.get('indeterminados') or []
+    _rc_aprs = rider_comp.get('aprobaciones') or []
+    _rc_all  = (
+        [(i, 'critico')     for i in _rc_incs if i.get('severidad') == 'critico'] +
+        [(i, 'advertencia') for i in _rc_incs if i.get('severidad') in ('advertencia', 'leve')] +
+        [(i, 'indeterminado') for i in _rc_inds] +
+        [(a, 'conforme')    for a in _rc_aprs[:3]]
+    )
+
+    _rc_hdrs = ['CAT.', 'DETALLE', 'SEV.', 'ACCIÓN']
+    _rc_xs   = [0.3, 1.8, 7.5, 8.5]
+    for _rhx, _rhdr in zip(_rc_xs, _rc_hdrs):
+        ax_rc.text(_rhx, 8.7, _rhdr, color=GOLD, fontsize=7.5,
+                   fontfamily='monospace', fontweight='bold')
+    ax_rc.plot([0.2, 9.8], [8.3, 8.3], color=GOLD + '55', lw=0.5)
+
+    _rc_y = 7.9
+    if not _rc_all:
+        ax_rc.text(5.0, 5.0, 'Sin datos de compliance — ejecutar módulos acústico/suelo/drenaje',
+                   color=WDIM, fontsize=9, ha='center', fontfamily='monospace')
+    else:
+        for _rce, _rctype in _rc_all[:9]:
+            _rc_row_c = (REDL if _rctype == 'critico' else
+                         YELL if _rctype == 'advertencia' else
+                         WDIM if 'indeter' in _rctype else GRNL)
+            _rc_cat = _rce.get('categoria', '')[:7].upper()
+            _rc_det = _rce.get('detalle', '')[:52]
+            _rc_sev = ('OK' if _rctype == 'conforme' else
+                       _rce.get('severidad', _rce.get('estado', ''))[:8].upper())
+            _rc_acc = ('✓' if _rctype == 'conforme' else _rce.get('accion', '')[:14])
+            ax_rc.text(_rc_xs[0], _rc_y, _rc_cat, color=_rc_row_c,
+                       fontsize=7.5, fontfamily='monospace', va='center', fontweight='bold')
+            ax_rc.text(_rc_xs[1], _rc_y, _rc_det,
+                       color=WHITE if _rctype != 'conforme' else WDIM,
+                       fontsize=7, fontfamily='monospace', va='center')
+            ax_rc.text(_rc_xs[2], _rc_y, _rc_sev, color=_rc_row_c,
+                       fontsize=7.5, fontfamily='monospace', va='center')
+            ax_rc.text(_rc_xs[3], _rc_y, _rc_acc, color=_rc_row_c,
+                       fontsize=7, fontfamily='monospace', va='center')
+            _rc_y -= 0.85
+            if _rc_y < 0.5:
+                break
+
+    ax_rc.text(5.0, 0.3, f'Fuente: {(rider_comp.get("fuente") or "Rider técnico")[:60]}',
+               color=WDIM, fontsize=7.5, ha='center', fontfamily='monospace')
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # ROW 15 — SEPARATOR
+    # ═══════════════════════════════════════════════════════════════════════════
+    ax_sep3 = fig.add_subplot(gs[15])
+    _separator(ax_sep3, '▼  CERTIFICACIÓN LEGAL — Faro Protocol')
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # ROW 16 — FII COMPONENTES (solo sección certificación legal — 2g)
+    # ═══════════════════════════════════════════════════════════════════════════
+    ax_fii2 = fig.add_subplot(gs[16])
     _ax_base(ax_fii2, bg=BG2, xlim=(0, 10), ylim=(0, 9))
     _section_title(ax_fii2, '  FII — Índice Faro de Integridad · Certificación Legal')
+    _confianza_tag(ax_fii2, _get_confianza(show_data.get('fii') or {}))
 
     fii_disp = fii_val if fii_val is not None else 0
     fii_col  = _sc(fii_sem)
@@ -960,9 +1216,9 @@ def generate_report(show_data: dict, show_config: dict) -> str:
         _fii_ty -= 1.4
 
     # ═══════════════════════════════════════════════════════════════════════════
-    # ROW 13 — COMPARATIVA DALE PLAY vs FARO PROTOCOL (2e)
+    # ROW 17 — COMPARATIVA DALE PLAY vs FARO PROTOCOL (2e)
     # ═══════════════════════════════════════════════════════════════════════════
-    ax_cmp = fig.add_subplot(gs[13])
+    ax_cmp = fig.add_subplot(gs[17])
     _ax_base(ax_cmp, bg=BG2, xlim=(0, 10), ylim=(0, 10))
     _section_title(ax_cmp, '  ANÁLISIS COMPARATIVO — Dale Play vs Faro Protocol Óptimo')
 
@@ -1022,9 +1278,9 @@ def generate_report(show_data: dict, show_config: dict) -> str:
                 fontfamily='monospace')
 
     # ═══════════════════════════════════════════════════════════════════════════
-    # ROW 14 — HASH + QR + FOOTER
+    # ROW 18 — HASH + QR + FOOTER
     # ═══════════════════════════════════════════════════════════════════════════
-    ax_ft = fig.add_subplot(gs[14])
+    ax_ft = fig.add_subplot(gs[18])
     _ax_base(ax_ft, bg=BG3, xlim=(0, 10), ylim=(0, 9))
     for sp in ax_ft.spines.values():
         sp.set_color(GOLD); sp.set_linewidth(0.8)

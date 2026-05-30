@@ -15,7 +15,10 @@ log = logging.getLogger(__name__)
 _PC_STAC = "https://planetarycomputer.microsoft.com/api/stac/v1"
 
 
-def _classify_ndvi(ndvi: float) -> dict:
+def _classify_ndvi(ndvi: float, month: int | None = None) -> dict:
+    # Bermuda grass dormancy: NDVI 0.08-0.25 in months 4-8 (BsAs otoño/invierno)
+    if month is not None and 4 <= month <= 8 and 0.08 <= ndvi <= 0.25:
+        return {"semaforo": "amarillo", "label": "Dormancia estacional (Bermuda — invierno BsAs)"}
     if ndvi >= NDVI_BUENO:
         return {"semaforo": "verde",    "label": "Césped en buen estado"}
     if ndvi >= NDVI_DEGRADADO:
@@ -147,7 +150,7 @@ def fetch_satellite_baseline(days_back_s2: int = 30, days_back_ls: int = 45) -> 
                 "ndvi":           ndvi,
                 "ndvi_fecha":     (props.get("datetime") or "")[:10],
                 "ndvi_cloud_pct": round(props.get("eo:cloud_cover", 0), 1),
-                "ndvi_status":    _classify_ndvi(ndvi) if ndvi is not None
+                "ndvi_status":    _classify_ndvi(ndvi, month=int((props.get("datetime") or "")[:7].split("-")[1]) if (props.get("datetime") or "")[:7] else None) if ndvi is not None
                                   else {"semaforo": "sin_datos", "label": "Sin imagen disponible"},
                 "fuente_s2":      "Sentinel-2 L2A · Planetary Computer",
             })

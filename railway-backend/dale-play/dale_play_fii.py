@@ -5,6 +5,7 @@ FII = 40% NDVI + 35% EGMS + 25% Layout compliance
 Escala 0-100. 100 = configuración perfecta.
 """
 from __future__ import annotations
+from datetime import date as _date
 
 
 def compute_fii(
@@ -20,9 +21,16 @@ def compute_fii(
 
     # ── Componente NDVI (40%) ─────────────────────────────────────────────────
     # 0.45+ → 100, 0.30-0.45 → 70-100, 0.20-0.30 → 40-70, <0.20 → 0-40
+    # Dormancia estacional Bermuda: NDVI 0.08-0.25 en meses 4-8 (BsAs otoño/invierno)
+    _month = _date.today().month
+    _dormancia = (ndvi is not None and 0.08 <= ndvi <= 0.25 and 4 <= _month <= 8)
+
     if ndvi is None:
         ndvi_score = 50.0
         ndvi_label = "N/D"
+    elif _dormancia:
+        ndvi_score = 35.0 + (ndvi - 0.08) / (0.25 - 0.08) * 15.0
+        ndvi_label = "Dormancia estacional (Bermuda)"
     elif ndvi >= 0.45:
         ndvi_score = 100.0
         ndvi_label = "Excelente"

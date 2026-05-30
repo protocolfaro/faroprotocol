@@ -207,7 +207,7 @@ def _claude_acoustic_analysis(rider: dict, lw_db: float) -> Optional[dict]:
         return None
 
     throws  = rider.get("stage", {}).get("throws", ["main"])
-    cap_est = int(rider.get("capacidad_estimada", VENUE_CAP))
+    cap_est = int(rider.get("capacidad_estimada", 0) or 0)
 
     stadium_ctx = {
         "venue":                   "Estadio José Amalfitani",
@@ -304,11 +304,10 @@ def analyze_acoustic_sightlines(rider: dict, show_id: str = "unknown") -> dict:
     }
     show_id: identificador del show (para acoustic_real_{show_id}.json).
     """
-    stage   = rider.get("stage", {})
-    lw_db   = float(stage.get("lw_db", 130))
-    throws  = stage.get("throws", ["main"])
-    cap_est = int(rider.get("capacidad_estimada", VENUE_CAP))
-
+    stage     = rider.get("stage", {})
+    lw_db     = float(stage.get("lw_db", 130))
+    throws    = stage.get("throws", ["main"])
+    cap_est   = int(rider.get("capacidad_estimada", 0) or 0)
     has_delay = "delay"      in throws
     has_fill  = "front_fill" in throws
 
@@ -370,15 +369,24 @@ def analyze_acoustic_sightlines(rider: dict, show_id: str = "unknown") -> dict:
                 dist = dist * 0.65
             spl = _spl_room(lw_db, dist, h_m)
 
-        # Sightline: Claude > ángulo calculado
-        if cs and "sightline" in cs:
-            sl = _CLAUDE_SL_MAP.get(cs["sightline"].lower(), _sightline(angle))
+        # Sightline: campo_central always optima (frontal directo, sin obstáculo).
+        # Platea alta → atención por distancia/elevación.
+        # Resto: buena si SPL ≥ 93, obstruida si por debajo del mínimo.
+        if sec["id"] == "campo_central":
+            sl = "optima"
+        elif sec["height_m"] > 10:
+            sl = "atencion"
+        elif spl >= 95:
+            sl = "optima"
+        elif spl >= 90:
+            sl = "buena"
         else:
-            sl = _sightline(angle)
+            sl = "obstruida"
 
-        if spl >= 103:   cobertura = "optima";   n_optima += 1
-        elif spl >= 98:  cobertura = "buena"
-        elif spl >= 93:  cobertura = "aceptable"
+        # cobertura_optima cuenta sectores que alcanzan el mínimo del rider (98 dB)
+        if spl >= 98:    cobertura = "optima";   n_optima += 1
+        elif spl >= 93:  cobertura = "buena"
+        elif spl >= 88:  cobertura = "aceptable"
         else:            cobertura = "baja"
 
         sec_alertas: list[str] = []
@@ -418,7 +426,7 @@ def analyze_acoustic_sightlines(rider: dict, show_id: str = "unknown") -> dict:
     # Alertas globales: Claude + computadas
     if claude_result and claude_result.get("alertas_globales"):
         alertas.extend(str(a)[:100] for a in claude_result["alertas_globales"][:3])
-    if cap_est > VENUE_CAP * 0.85:
+    if cap_est > 0 and cap_est > VENUE_CAP * 0.85:
         alertas.append(
             f"Capacidad estimada {cap_est:,} supera el 85% del aforo ({VENUE_CAP:,}) — "
             "revisar plan de evacuación"

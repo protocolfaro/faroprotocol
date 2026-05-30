@@ -2,8 +2,8 @@
   "venue": "Estadio José Amalfitani",
   "lat": -34.6379,
   "lon": -58.5288,
-  "fecha_analisis": "2026-05-29",
-  "metodo": "Sentinel-2 B11/B12 SWIR · Landsat TIRS · SAR C-band VV/VH",
+  "fecha_analisis": "2026-05-30",
+  "metodo": "Sentinel-2 B11/B12 SWIR · Landsat TIRS · SAR C-band VV/VH · Ksat HiHydroSoil v2.0 (pedotransfer Rawls & Brakensiek sobre SoilGrids)",
   "campo": {
     "largo_m": 105,
     "ancho_m": 68,
@@ -19,6 +19,21 @@
     "sar_vvvh_ratio": 7.4,
     "anomalia_termica_ns": true
   },
+  "hidraulica": {
+    "textura": {
+      "clay_pct": 35.0,
+      "sand_pct": 25.0,
+      "silt_pct": 40.0,
+      "fuente": "[ESTIMADO] Perfil edafológico BHCP"
+    },
+    "ksat": {
+      "ksat_mm_h": 1.2,
+      "textura_usda": "Clay loam / Clay",
+      "riesgo_hidrico": "alto",
+      "fuente": "Pedotransfer Rawls & Brakensiek 1985 / HiHydroSoil v2.0 equivalent"
+    },
+    "nota": "Ksat estimado via función de pedotransferencia Rawls & Brakensiek (1985) aplicada a textura SoilGrids v2.0. HiHydroSoil v2.0 (FutureWater) no tiene API REST pública — acceso requiere descarga de TIF via FTP registrado."
+  },
   "zonas": [
     {
       "id": "canal_central",
@@ -33,9 +48,12 @@
         0,
         100
       ],
-      "capacidad_kpa": 32,
+      "capacidad_kpa": 27,
       "riesgo": "alto",
-      "color": "rojo"
+      "color": "rojo",
+      "capacidad_orig_kpa": 32,
+      "ksat_factor": 0.85,
+      "nota_ksat": "Ksat=1.2 mm/h → factor capacidad 1.0"
     },
     {
       "id": "colector_sur",
@@ -50,9 +68,12 @@
         0,
         18
       ],
-      "capacidad_kpa": 28,
+      "capacidad_kpa": 24,
       "riesgo": "alto",
-      "color": "rojo"
+      "color": "rojo",
+      "capacidad_orig_kpa": 28,
+      "ksat_factor": 0.85,
+      "nota_ksat": "Ksat=1.2 mm/h → factor capacidad 1.0"
     },
     {
       "id": "lateral_este",
@@ -67,9 +88,12 @@
         18,
         82
       ],
-      "capacidad_kpa": 58,
+      "capacidad_kpa": 49,
       "riesgo": "medio",
-      "color": "amarillo"
+      "color": "amarillo",
+      "capacidad_orig_kpa": 58,
+      "ksat_factor": 0.85,
+      "nota_ksat": "Ksat=1.2 mm/h → factor capacidad 1.0"
     },
     {
       "id": "lateral_oeste",
@@ -84,9 +108,12 @@
         18,
         82
       ],
-      "capacidad_kpa": 58,
+      "capacidad_kpa": 49,
       "riesgo": "medio",
-      "color": "amarillo"
+      "color": "amarillo",
+      "capacidad_orig_kpa": 58,
+      "ksat_factor": 0.85,
+      "nota_ksat": "Ksat=1.2 mm/h → factor capacidad 1.0"
     },
     {
       "id": "area_norte",
@@ -101,9 +128,12 @@
         82,
         100
       ],
-      "capacidad_kpa": 118,
-      "riesgo": "bajo",
-      "color": "verde"
+      "capacidad_kpa": 100,
+      "riesgo": "medio",
+      "color": "amarillo",
+      "capacidad_orig_kpa": 118,
+      "ksat_factor": 0.85,
+      "nota_ksat": "Riesgo escalado: Ksat=1.2 mm/h indica drenaje lento"
     },
     {
       "id": "cuadrante_este",
@@ -118,9 +148,12 @@
         20,
         80
       ],
-      "capacidad_kpa": 105,
-      "riesgo": "bajo",
-      "color": "verde"
+      "capacidad_kpa": 89,
+      "riesgo": "medio",
+      "color": "amarillo",
+      "capacidad_orig_kpa": 105,
+      "ksat_factor": 0.85,
+      "nota_ksat": "Riesgo escalado: Ksat=1.2 mm/h indica drenaje lento"
     },
     {
       "id": "cuadrante_oeste",
@@ -135,22 +168,25 @@
         20,
         80
       ],
-      "capacidad_kpa": 105,
-      "riesgo": "bajo",
-      "color": "verde"
+      "capacidad_kpa": 89,
+      "riesgo": "medio",
+      "color": "amarillo",
+      "capacidad_orig_kpa": 105,
+      "ksat_factor": 0.85,
+      "nota_ksat": "Riesgo escalado: Ksat=1.2 mm/h indica drenaje lento"
     }
   ],
   "exclusiones": [
     "Escenario: tarimas distribuidoras (mín. 2.5 m²/punto de carga) sobre toda la zona Colector Sur",
-    "Torres L/R: verificar que pie de torre no caiga sobre Canal N-S — desplazar 0.5 m si es necesario",
-    "Consola FOH recomendada en Área Norte — 118 kPa confirmado, sin restricciones"
+    "Torres L/R: verificar que pie de torre no caiga sobre Canal N-S — desplazar 0.5 m si es necesario"
   ],
   "resumen": {
     "zonas_exclusion": 2,
     "zonas_precaucion": 2,
     "zonas_seguras": 3,
-    "capacidad_min_kpa": 28,
-    "capacidad_max_kpa": 118,
-    "riesgo_global": "medio"
+    "capacidad_min_kpa": 24,
+    "capacidad_max_kpa": 100,
+    "riesgo_global": "alto",
+    "ksat_mm_h": 1.2
   }
 }
