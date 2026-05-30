@@ -3,7 +3,7 @@
   "show_date": "2026-05-31",
   "artist": "Airbag",
   "venue": "Estadio José Amalfitani",
-  "timestamp": "2026-05-30T00:26:58Z",
+  "timestamp": "2026-05-30T13:35:29Z",
   "mode": "full",
   "layout": null,
   "satellite": {
@@ -22,49 +22,49 @@
     "show_date": "2026-05-31",
     "dias": [
       {
-        "fecha": "2026-05-29",
-        "tmax": 15.1,
-        "tmin": 11.6,
-        "lluvia_mm": 0.0,
-        "prob_lluvia_pct": 2,
-        "viento_max_kmh": 8.2,
-        "rachas_max_kmh": 23.4,
-        "riesgo_viento": "ok",
-        "riesgo_lluvia": "ok",
-        "riesgo_dia": "ok"
-      },
-      {
         "fecha": "2026-05-30",
-        "tmax": 16.5,
-        "tmin": 9.6,
+        "tmax": 15.6,
+        "tmin": 6.5,
         "lluvia_mm": 0.0,
-        "prob_lluvia_pct": 2,
-        "viento_max_kmh": 7.0,
-        "rachas_max_kmh": 17.3,
+        "prob_lluvia_pct": 0,
+        "viento_max_kmh": 6.3,
+        "rachas_max_kmh": 14.8,
         "riesgo_viento": "ok",
         "riesgo_lluvia": "ok",
         "riesgo_dia": "ok"
       },
       {
         "fecha": "2026-05-31",
-        "tmax": 16.6,
-        "tmin": 6.5,
+        "tmax": 16.4,
+        "tmin": 5.0,
         "lluvia_mm": 0.0,
         "prob_lluvia_pct": 0,
-        "viento_max_kmh": 5.7,
-        "rachas_max_kmh": 13.0,
+        "viento_max_kmh": 5.5,
+        "rachas_max_kmh": 13.3,
         "riesgo_viento": "ok",
         "riesgo_lluvia": "ok",
         "riesgo_dia": "ok"
       },
       {
         "fecha": "2026-06-01",
-        "tmax": 13.1,
-        "tmin": 8.9,
+        "tmax": 13.4,
+        "tmin": 8.7,
+        "lluvia_mm": 0.1,
+        "prob_lluvia_pct": 10,
+        "viento_max_kmh": 11.2,
+        "rachas_max_kmh": 27.4,
+        "riesgo_viento": "ok",
+        "riesgo_lluvia": "ok",
+        "riesgo_dia": "ok"
+      },
+      {
+        "fecha": "2026-06-02",
+        "tmax": 15.1,
+        "tmin": 9.6,
         "lluvia_mm": 0.0,
-        "prob_lluvia_pct": 6,
-        "viento_max_kmh": 10.7,
-        "rachas_max_kmh": 25.9,
+        "prob_lluvia_pct": 0,
+        "viento_max_kmh": 11.7,
+        "rachas_max_kmh": 32.0,
         "riesgo_viento": "ok",
         "riesgo_lluvia": "ok",
         "riesgo_dia": "ok"
@@ -72,12 +72,12 @@
     ],
     "show_day": {
       "fecha": "2026-05-31",
-      "tmax": 16.6,
-      "tmin": 6.5,
+      "tmax": 16.4,
+      "tmin": 5.0,
       "lluvia_mm": 0.0,
       "prob_lluvia_pct": 0,
-      "viento_max_kmh": 5.7,
-      "rachas_max_kmh": 13.0,
+      "viento_max_kmh": 5.5,
+      "rachas_max_kmh": 13.3,
       "riesgo_viento": "ok",
       "riesgo_lluvia": "ok",
       "riesgo_dia": "ok"
@@ -1102,7 +1102,7 @@
   },
   "comparativa": {
     "show_id": "airbag_2026-05-31",
-    "fecha_analisis": "2026-05-30 00:27",
+    "fecha_analisis": "2026-05-30 13:35",
     "fotos_analizadas": 5,
     "fuente_extraccion": "Claude Vision (análisis visual manual) + modelos Faro Protocol",
     "config_real": {
@@ -1213,5 +1213,5 @@
     ]
   },
   "report_png_url": "https://raw.githubusercontent.com/protocolfaro/faroprotocol/main/dale-play/reportes/reporte_airbag_2026-05-31.png",
-  "updated_at": "2026-05-30T00:27:07Z"
+  "updated_at": "2026-05-30T13:35:36Z"
 }
