@@ -3,54 +3,9 @@
   "show_date": "2026-05-31",
   "artist": "Airbag",
   "venue": "Estadio José Amalfitani",
-  "timestamp": "2026-05-29T19:08:48Z",
+  "timestamp": "2026-05-30T00:25:01Z",
   "mode": "full",
-  "layout": {
-    "show_id": "airbag_2026-05-31",
-    "filename": "airbag_test.pdf",
-    "file_type": "pdf",
-    "fecha_analisis": "2026-05-29 19:08",
-    "campo": {
-      "largo_m": 105,
-      "ancho_m": 68
-    },
-    "estructuras": {
-      "escenario": {
-        "x_m": null,
-        "y_m": null,
-        "ancho_m": null,
-        "profundidad_m": null,
-        "alto_m": null
-      },
-      "torres_lr": [
-        {
-          "id": "L",
-          "x_m": null,
-          "y_m": null
-        },
-        {
-          "id": "R",
-          "x_m": null,
-          "y_m": null
-        }
-      ],
-      "pantallas_led": [],
-      "barricada": {
-        "y_m": null,
-        "ancho_m": null
-      },
-      "area_total_m2": null,
-      "observaciones": [
-        "No se recibieron datos geométricos en el payload (campo 'datos_geometricos' vacío: {}).",
-        "Sin archivo PDF adjunto ni coordenadas extraídas previas, es imposible determinar ningún valor posicional.",
-        "Para procesar correctamente, adjuntar el PDF del rider/layout o proveer las medidas extraídas en el campo 'datos_geometricos'.",
-        "Referencia de campo: Estadio José Amalfitani, 105m × 68m, origen (0,0) en centro, eje Y+ hacia Norte, escenario en sector SUR (Y negativo esperado)."
-      ],
-      "confianza": "baja"
-    },
-    "geometry_raw": {},
-    "fuente": "Claude Vision + pdfplumber"
-  },
+  "layout": null,
   "satellite": {
     "ndvi": 0.099,
     "ndvi_fecha": "2026-05-02",
@@ -72,7 +27,7 @@
         "tmin": 11.6,
         "lluvia_mm": 0.0,
         "prob_lluvia_pct": 2,
-        "viento_max_kmh": 8.8,
+        "viento_max_kmh": 8.2,
         "rachas_max_kmh": 23.4,
         "riesgo_viento": "ok",
         "riesgo_lluvia": "ok",
@@ -84,7 +39,7 @@
         "tmin": 9.6,
         "lluvia_mm": 0.0,
         "prob_lluvia_pct": 2,
-        "viento_max_kmh": 5.6,
+        "viento_max_kmh": 7.0,
         "rachas_max_kmh": 17.3,
         "riesgo_viento": "ok",
         "riesgo_lluvia": "ok",
@@ -96,7 +51,7 @@
         "tmin": 6.5,
         "lluvia_mm": 0.0,
         "prob_lluvia_pct": 0,
-        "viento_max_kmh": 5.1,
+        "viento_max_kmh": 5.7,
         "rachas_max_kmh": 13.0,
         "riesgo_viento": "ok",
         "riesgo_lluvia": "ok",
@@ -108,7 +63,7 @@
         "tmin": 8.9,
         "lluvia_mm": 0.0,
         "prob_lluvia_pct": 6,
-        "viento_max_kmh": 11.2,
+        "viento_max_kmh": 10.7,
         "rachas_max_kmh": 25.9,
         "riesgo_viento": "ok",
         "riesgo_lluvia": "ok",
@@ -121,7 +76,7 @@
       "tmin": 6.5,
       "lluvia_mm": 0.0,
       "prob_lluvia_pct": 0,
-      "viento_max_kmh": 5.1,
+      "viento_max_kmh": 5.7,
       "rachas_max_kmh": 13.0,
       "riesgo_viento": "ok",
       "riesgo_lluvia": "ok",
@@ -262,7 +217,7 @@
     "venue": "Estadio José Amalfitani",
     "lat": -34.6379,
     "lon": -58.5288,
-    "fecha_analisis": "2026-05-29",
+    "fecha_analisis": "2026-05-30",
     "metodo": "Sentinel-2 B11/B12 SWIR · Landsat TIRS · SAR C-band VV/VH",
     "campo": {
       "largo_m": 105,
@@ -418,7 +373,7 @@
     "venue": "Estadio José Amalfitani",
     "lat": -34.6379,
     "lon": -58.5288,
-    "fecha_analisis": "2026-05-29",
+    "fecha_analisis": "2026-05-30",
     "periodo": "2015-01 / 2022-12",
     "satelite": "Sentinel-1 C-band (5.6 cm) · órbita ascendente + descendente",
     "producto": "EGMS L3 — Copernicus Land Monitoring Service",
@@ -1147,7 +1102,7 @@
   },
   "comparativa": {
     "show_id": "airbag_2026-05-31",
-    "fecha_analisis": "2026-05-29 19:08",
+    "fecha_analisis": "2026-05-30 00:25",
     "fotos_analizadas": 5,
     "fuente_extraccion": "Claude Vision (análisis visual manual) + modelos Faro Protocol",
     "config_real": {
@@ -1258,5 +1213,5 @@
     ]
   },
   "report_png_url": "https://raw.githubusercontent.com/protocolfaro/faroprotocol/main/dale-play/reportes/reporte_airbag_2026-05-31.png",
-  "updated_at": "2026-05-29T19:08:55Z"
+  "updated_at": "2026-05-30T00:25:10Z"
 }
