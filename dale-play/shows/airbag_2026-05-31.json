@@ -3,7 +3,7 @@
   "show_date": "2026-05-31",
   "artist": "Airbag",
   "venue": "Estadio José Amalfitani",
-  "timestamp": "2026-05-30T00:25:22Z",
+  "timestamp": "2026-05-30T00:26:58Z",
   "mode": "full",
   "layout": null,
   "satellite": {
@@ -1102,7 +1102,7 @@
   },
   "comparativa": {
     "show_id": "airbag_2026-05-31",
-    "fecha_analisis": "2026-05-30 00:25",
+    "fecha_analisis": "2026-05-30 00:27",
     "fotos_analizadas": 5,
     "fuente_extraccion": "Claude Vision (análisis visual manual) + modelos Faro Protocol",
     "config_real": {
@@ -1213,5 +1213,5 @@
     ]
   },
   "report_png_url": "https://raw.githubusercontent.com/protocolfaro/faroprotocol/main/dale-play/reportes/reporte_airbag_2026-05-31.png",
-  "updated_at": "2026-05-30T00:25:30Z"
+  "updated_at": "2026-05-30T00:27:07Z"
 }
