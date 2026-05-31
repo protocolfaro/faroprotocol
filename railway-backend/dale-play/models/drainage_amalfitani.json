@@ -2,7 +2,7 @@
   "venue": "Estadio José Amalfitani",
   "lat": -34.6379,
   "lon": -58.5288,
-  "fecha_analisis": "2026-05-30",
+  "fecha_analisis": "2026-05-31",
   "metodo": "Sentinel-2 B11/B12 SWIR · Landsat TIRS · SAR C-band VV/VH · Ksat HiHydroSoil v2.0 (pedotransfer Rawls & Brakensiek sobre SoilGrids)",
   "campo": {
     "largo_m": 105,

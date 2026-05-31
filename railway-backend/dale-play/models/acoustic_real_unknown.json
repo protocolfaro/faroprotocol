@@ -1,13 +1,13 @@
 {
-  "artista": "Airbag",
-  "show_date": "2026-05-31",
+  "artista": "Test",
+  "show_date": "",
   "sectores": [
     {
       "id": "campo_central",
       "name": "Campo Central",
-      "spl_db": 97.1,
+      "spl_db": 228.1,
       "sightline": "optima",
-      "cobertura": "buena",
+      "cobertura": "optima",
       "dist_m": 80,
       "height_m": 0,
       "alertas": []
@@ -15,9 +15,9 @@
     {
       "id": "tribuna_norte",
       "name": "Tribuna Norte",
-      "spl_db": 97.1,
+      "spl_db": 228.2,
       "sightline": "optima",
-      "cobertura": "buena",
+      "cobertura": "optima",
       "dist_m": 120,
       "height_m": 8,
       "alertas": []
@@ -25,9 +25,9 @@
     {
       "id": "tribuna_sur",
       "name": "Tribuna Sur",
-      "spl_db": 97.0,
+      "spl_db": 228.0,
       "sightline": "obstruida",
-      "cobertura": "buena",
+      "cobertura": "optima",
       "dist_m": 140,
       "height_m": 8,
       "alertas": [
@@ -37,9 +37,9 @@
     {
       "id": "tribuna_este",
       "name": "Tribuna Este",
-      "spl_db": 96.8,
+      "spl_db": 227.8,
       "sightline": "optima",
-      "cobertura": "buena",
+      "cobertura": "optima",
       "dist_m": 130,
       "height_m": 8,
       "alertas": []
@@ -47,9 +47,9 @@
     {
       "id": "platea_alta_norte",
       "name": "Platea Alta Norte",
-      "spl_db": 96.7,
-      "sightline": "atencion",
-      "cobertura": "buena",
+      "spl_db": 227.8,
+      "sightline": "optima",
+      "cobertura": "optima",
       "dist_m": 150,
       "height_m": 15,
       "alertas": []
@@ -57,17 +57,21 @@
     {
       "id": "platea_alta_sur",
       "name": "Platea Alta Sur",
-      "spl_db": 96.7,
-      "sightline": "atencion",
-      "cobertura": "buena",
+      "spl_db": 227.7,
+      "sightline": "obstruida",
+      "cobertura": "optima",
       "dist_m": 170,
       "height_m": 15,
-      "alertas": []
+      "alertas": [
+        "Sightline obstruido en Platea Alta Sur — pantalla lateral recomendada"
+      ]
     }
   ],
-  "alertas_globales": [],
-  "spl_promedio_db": 96.9,
-  "cobertura_optima_pct": 0.0,
+  "alertas_globales": [
+    "Capacidad estimada 49,540 supera el 85% del aforo (49,540) — revisar plan de evacuación"
+  ],
+  "spl_promedio_db": 227.9,
+  "cobertura_optima_pct": 100.0,
   "rt60_s": 2.3,
   "modelo_acustico": "Sabine-Eyring geométrico",
   "fuente": "Modelo acústico Sabine-Eyring · Faro Protocol · Dale Play",
@@ -76,6 +80,5 @@
     "rt60_sabine_s": 2.3,
     "room_constant_R_m2": 22187.0
   },
-  "claude_raw": null,
-  "timestamp": "2026-05-31 18:09"
+  "timestamp": "2026-05-30 11:23"
 }

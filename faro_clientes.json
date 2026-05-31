@@ -1,0 +1,9 @@
+{
+  "_instrucciones": "Agregar emails de clientes por area. Formato: 'area_name': ['email1@empresa.com']. Para generar credenciales del portal: python gen_portal_key.py <email> <password>",
+  "cordoba":     ["protocolfaro@gmail.com"],
+  "balcarce":    [],
+  "vaca_muerta": [],
+  "indiana":     [],
+  "rotterdam":   [],
+  "amazonas":    []
+}

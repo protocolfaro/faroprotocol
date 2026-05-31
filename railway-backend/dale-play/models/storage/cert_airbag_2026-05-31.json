@@ -1,0 +1,52 @@
+{
+  "show_id": "airbag_2026-05-31",
+  "cert_hash": "05BD7B86FF977E7A364FA20AC135B76F26B9163605A5FDD79E5D7770BC8BB71C",
+  "pdf_path": "C:\\Users\\Usuario\\Desktop\\Faro-index\\railway-backend\\dale-play\\certificados\\airbag_2026-05-31_certificado.pdf",
+  "ndvi_pre": 0.099,
+  "ndvi_post": 0.099,
+  "delta_ndvi": 0.0,
+  "nivel_dano": "sin_dano",
+  "data": {
+    "show_id": "airbag_2026-05-31",
+    "show_date": "2026-05-31",
+    "artist": "Airbag",
+    "venue": "Estadio José Amalfitani",
+    "fecha_emision": "2026-05-31 21:09 UTC",
+    "cert_hash": "05BD7B86FF977E7A364FA20AC135B76F26B9163605A5FDD79E5D7770BC8BB71C",
+    "ndvi_pre": 0.099,
+    "ndvi_pre_fuente": "HLS / Sentinel-2 L2A / Landsat C2L2 · Planetary Computer + NASA CMR MODIS",
+    "ndvi_post": 0.099,
+    "ndvi_post_fuente": "Sentinel-2 Copernicus",
+    "damage": {
+      "delta_ndvi": 0.0,
+      "interpretacion": "Sin daño detectable — NDVI estable (Δ=+0.000). Nota: El NDVI bajo corresponde a dormancia estacional esperada del césped bermuda en otoño/invierno en Buenos Aires (abril-agosto). No indica daño por el evento.",
+      "sectores_afectados": [],
+      "nivel_dano": "sin_dano"
+    },
+    "layout": null,
+    "mode": "post_show",
+    "fii": {
+      "fii": 42.9,
+      "semaforo": "atencion",
+      "sello": "REQUIERE INTERVENCIÓN",
+      "componentes": {
+        "ndvi": {
+          "score": 36.7,
+          "peso": 40,
+          "label": "Dormancia estacional (Bermuda)"
+        },
+        "egms": {
+          "score": 45.0,
+          "peso": 35,
+          "label": "Atención"
+        },
+        "layout": {
+          "score": 50.0,
+          "peso": 25,
+          "label": "Sin layout"
+        }
+      }
+    },
+    "pdf_path": "C:\\Users\\Usuario\\Desktop\\Faro-index\\railway-backend\\dale-play\\certificados\\airbag_2026-05-31_certificado.pdf"
+  }
+}

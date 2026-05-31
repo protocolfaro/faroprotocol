@@ -1,0 +1,1535 @@
+{
+  "show_id": "airbag_2026-05-31",
+  "show_date": "2026-05-31",
+  "artist": "Airbag",
+  "venue": "Estadio José Amalfitani",
+  "timestamp": "2026-05-30T21:35:27Z",
+  "mode": "full",
+  "layout": null,
+  "satellite": {
+    "ndvi": 0.099,
+    "ndvi_fecha": "2026-05-02",
+    "ndvi_cloud_pct": 0.9,
+    "ndvi_status": {
+      "semaforo": "rojo",
+      "label": "Daño severo — requiere intervención"
+    },
+    "fuente_s2": "Sentinel-2 L2A · Planetary Computer",
+    "tirs_celsius": null,
+    "tirs_fecha": null,
+    "fuente": "ESA Sentinel-2 / NASA Landsat (STAC API)",
+    "fallback_usado": false
+  },
+  "weather": {
+    "show_date": "2026-05-31",
+    "dias": [
+      {
+        "fecha": "2026-05-30",
+        "tmax": 15.6,
+        "tmin": 6.5,
+        "lluvia_mm": 0.0,
+        "prob_lluvia_pct": 0,
+        "viento_max_kmh": 6.3,
+        "rachas_max_kmh": 15.1,
+        "riesgo_viento": "ok",
+        "riesgo_lluvia": "ok",
+        "riesgo_dia": "ok"
+      },
+      {
+        "fecha": "2026-05-31",
+        "tmax": 16.6,
+        "tmin": 5.0,
+        "lluvia_mm": 0.0,
+        "prob_lluvia_pct": 0,
+        "viento_max_kmh": 6.7,
+        "rachas_max_kmh": 17.3,
+        "riesgo_viento": "ok",
+        "riesgo_lluvia": "ok",
+        "riesgo_dia": "ok"
+      },
+      {
+        "fecha": "2026-06-01",
+        "tmax": 14.1,
+        "tmin": 10.2,
+        "lluvia_mm": 0.3,
+        "prob_lluvia_pct": 10,
+        "viento_max_kmh": 11.1,
+        "rachas_max_kmh": 26.6,
+        "riesgo_viento": "ok",
+        "riesgo_lluvia": "ok",
+        "riesgo_dia": "ok"
+      },
+      {
+        "fecha": "2026-06-02",
+        "tmax": 14.7,
+        "tmin": 9.5,
+        "lluvia_mm": 0.1,
+        "prob_lluvia_pct": 0,
+        "viento_max_kmh": 13.5,
+        "rachas_max_kmh": 33.5,
+        "riesgo_viento": "ok",
+        "riesgo_lluvia": "ok",
+        "riesgo_dia": "ok"
+      }
+    ],
+    "show_day": {
+      "fecha": "2026-05-31",
+      "tmax": 16.6,
+      "tmin": 5.0,
+      "lluvia_mm": 0.0,
+      "prob_lluvia_pct": 0,
+      "viento_max_kmh": 6.7,
+      "rachas_max_kmh": 17.3,
+      "riesgo_viento": "ok",
+      "riesgo_lluvia": "ok",
+      "riesgo_dia": "ok"
+    },
+    "alertas": [],
+    "riesgo_global": "ok",
+    "fuente": "Open-Meteo API · Pronóstico 72hs",
+    "fallback_usado": false
+  },
+  "soil_real": {
+    "show_id": "airbag_2026-05-31",
+    "lat": -34.6379,
+    "lon": -58.5288,
+    "fecha_analisis": "2026-05-30",
+    "estimado": true,
+    "fuente": "[ESTIMADO] Perfil edafológico BHCP · Franco-arcilloso típico Liniers",
+    "soilgrids": {
+      "bulk_density_g_cm3": 1.45,
+      "clay_pct": 35.0,
+      "sand_pct": 25.0,
+      "silt_pct": 40.0,
+      "ph": 6.5
+    },
+    "terzaghi": {
+      "nota": "Valor estimado — SoilGrids no disponible"
+    },
+    "capacidad_portante_kpa": 120.0
+  },
+  "soil": {
+    "condicion_suelo": "normal",
+    "lluvia_48h_mm": 0.0,
+    "capacidad_efectiva_kpa": 120.0,
+    "suelo_tipo": "Franco-arcilloso",
+    "zonas": [
+      {
+        "nombre": "Escenario Principal",
+        "carga_ton": 120.0,
+        "area_m2": 900.0,
+        "presion_kpa": 1.3,
+        "clase": "segura",
+        "label": "Zona segura para estructura",
+        "color": "#27ae60"
+      },
+      {
+        "nombre": "Torres de Sonido L/R",
+        "carga_ton": 4.0,
+        "area_m2": 4.0,
+        "presion_kpa": 9.8,
+        "clase": "segura",
+        "label": "Zona segura para estructura",
+        "color": "#27ae60"
+      },
+      {
+        "nombre": "Torres de Iluminación",
+        "carga_ton": 6.0,
+        "area_m2": 4.0,
+        "presion_kpa": 14.7,
+        "clase": "segura",
+        "label": "Zona segura para estructura",
+        "color": "#27ae60"
+      },
+      {
+        "nombre": "Consola FOH",
+        "carga_ton": 1.5,
+        "area_m2": 9.0,
+        "presion_kpa": 1.6,
+        "clase": "segura",
+        "label": "Zona segura para estructura",
+        "color": "#27ae60"
+      },
+      {
+        "nombre": "Barricada de Seguridad",
+        "carga_ton": 3.0,
+        "area_m2": 120.0,
+        "presion_kpa": 0.2,
+        "clase": "segura",
+        "label": "Zona segura para estructura",
+        "color": "#27ae60"
+      }
+    ],
+    "alertas": [],
+    "hay_exclusiones": false,
+    "n_exclusiones": 0,
+    "fuente": "[ESTIMADO] Perfil edafológico BHCP · Franco-arcilloso típico Liniers · Modelo carga Faro Protocol",
+    "soil_real_json": "C:\\Users\\Usuario\\Desktop\\Faro-index\\railway-backend\\dale-play\\models\\soil_real_airbag_2026-05-31.json",
+    "fallback_usado": true
+  },
+  "drainage": {
+    "venue": "Estadio José Amalfitani",
+    "lat": -34.6379,
+    "lon": -58.5288,
+    "fecha_analisis": "2026-05-30",
+    "metodo": "Sentinel-2 B11/B12 SWIR · Landsat TIRS · SAR C-band VV/VH · Ksat HiHydroSoil v2.0 (pedotransfer Rawls & Brakensiek sobre SoilGrids)",
+    "campo": {
+      "largo_m": 105,
+      "ancho_m": 68,
+      "orientacion": "N-S"
+    },
+    "firma_satelital": {
+      "swir_b11_mean": 0.18,
+      "swir_b12_mean": 0.12,
+      "ndwi": -0.21,
+      "tirs_celsius": 22.5,
+      "sar_vv_db": -12.4,
+      "sar_vh_db": -19.8,
+      "sar_vvvh_ratio": 7.4,
+      "anomalia_termica_ns": true
+    },
+    "hidraulica": {
+      "textura": {
+        "clay_pct": 35.0,
+        "sand_pct": 25.0,
+        "silt_pct": 40.0,
+        "fuente": "[ESTIMADO] Perfil edafológico BHCP"
+      },
+      "ksat": {
+        "ksat_mm_h": 1.2,
+        "textura_usda": "Clay loam / Clay",
+        "riesgo_hidrico": "alto",
+        "fuente": "Pedotransfer Rawls & Brakensiek 1985 / HiHydroSoil v2.0 equivalent"
+      },
+      "nota": "Ksat estimado via función de pedotransferencia Rawls & Brakensiek (1985) aplicada a textura SoilGrids v2.0. HiHydroSoil v2.0 (FutureWater) no tiene API REST pública — acceso requiere descarga de TIF via FTP registrado."
+    },
+    "zonas": [
+      {
+        "id": "canal_central",
+        "nombre": "Canal N-S",
+        "tipo": "exclusion",
+        "descripcion": "Canal principal N-S. No apoyar estructuras > 2 t sobre esta franja.",
+        "x_pct": [
+          44,
+          56
+        ],
+        "y_pct": [
+          0,
+          100
+        ],
+        "capacidad_kpa": 27,
+        "riesgo": "alto",
+        "color": "rojo",
+        "capacidad_orig_kpa": 32,
+        "ksat_factor": 0.85,
+        "nota_ksat": "Ksat=1.2 mm/h → factor capacidad 1.0"
+      },
+      {
+        "id": "colector_sur",
+        "nombre": "Colector Sur",
+        "tipo": "exclusion",
+        "descripcion": "Cañería colectora 1.2 m prof. Escenario: usar tarimas distribuidoras (mín. 2.5 m²/punto).",
+        "x_pct": [
+          15,
+          85
+        ],
+        "y_pct": [
+          0,
+          18
+        ],
+        "capacidad_kpa": 24,
+        "riesgo": "alto",
+        "color": "rojo",
+        "capacidad_orig_kpa": 28,
+        "ksat_factor": 0.85,
+        "nota_ksat": "Ksat=1.2 mm/h → factor capacidad 1.0"
+      },
+      {
+        "id": "lateral_este",
+        "nombre": "Lateral E",
+        "tipo": "precaucion",
+        "descripcion": "Canal lateral este. Torres de sonido: plataformas distribuidoras de carga.",
+        "x_pct": [
+          72,
+          85
+        ],
+        "y_pct": [
+          18,
+          82
+        ],
+        "capacidad_kpa": 49,
+        "riesgo": "medio",
+        "color": "amarillo",
+        "capacidad_orig_kpa": 58,
+        "ksat_factor": 0.85,
+        "nota_ksat": "Ksat=1.2 mm/h → factor capacidad 1.0"
+      },
+      {
+        "id": "lateral_oeste",
+        "nombre": "Lateral O",
+        "tipo": "precaucion",
+        "descripcion": "Canal lateral oeste. Igual que Lateral Este — usar plataformas.",
+        "x_pct": [
+          15,
+          28
+        ],
+        "y_pct": [
+          18,
+          82
+        ],
+        "capacidad_kpa": 49,
+        "riesgo": "medio",
+        "color": "amarillo",
+        "capacidad_orig_kpa": 58,
+        "ksat_factor": 0.85,
+        "nota_ksat": "Ksat=1.2 mm/h → factor capacidad 1.0"
+      },
+      {
+        "id": "area_norte",
+        "nombre": "Área Norte",
+        "tipo": "seguro",
+        "descripcion": "Suelo firme. Barricada y consola FOH aptos sin restricciones.",
+        "x_pct": [
+          20,
+          80
+        ],
+        "y_pct": [
+          82,
+          100
+        ],
+        "capacidad_kpa": 100,
+        "riesgo": "medio",
+        "color": "amarillo",
+        "capacidad_orig_kpa": 118,
+        "ksat_factor": 0.85,
+        "nota_ksat": "Riesgo escalado: Ksat=1.2 mm/h indica drenaje lento"
+      },
+      {
+        "id": "cuadrante_este",
+        "nombre": "Centro E",
+        "tipo": "seguro",
+        "descripcion": "Cuadrante este del centro. Capacidad nominal.",
+        "x_pct": [
+          56,
+          85
+        ],
+        "y_pct": [
+          20,
+          80
+        ],
+        "capacidad_kpa": 89,
+        "riesgo": "medio",
+        "color": "amarillo",
+        "capacidad_orig_kpa": 105,
+        "ksat_factor": 0.85,
+        "nota_ksat": "Riesgo escalado: Ksat=1.2 mm/h indica drenaje lento"
+      },
+      {
+        "id": "cuadrante_oeste",
+        "nombre": "Centro O",
+        "tipo": "seguro",
+        "descripcion": "Cuadrante oeste del centro. Capacidad nominal.",
+        "x_pct": [
+          15,
+          44
+        ],
+        "y_pct": [
+          20,
+          80
+        ],
+        "capacidad_kpa": 89,
+        "riesgo": "medio",
+        "color": "amarillo",
+        "capacidad_orig_kpa": 105,
+        "ksat_factor": 0.85,
+        "nota_ksat": "Riesgo escalado: Ksat=1.2 mm/h indica drenaje lento"
+      }
+    ],
+    "exclusiones": [
+      "Escenario: tarimas distribuidoras (mín. 2.5 m²/punto de carga) sobre toda la zona Colector Sur",
+      "Torres L/R: verificar que pie de torre no caiga sobre Canal N-S — desplazar 0.5 m si es necesario",
+      "Consola FOH recomendada en Área Norte — confirmado, sin restricciones"
+    ],
+    "resumen": {
+      "zonas_exclusion": 2,
+      "zonas_precaucion": 2,
+      "zonas_seguras": 3,
+      "capacidad_min_kpa": 24,
+      "capacidad_max_kpa": 100,
+      "riesgo_global": "alto",
+      "ksat_mm_h": 1.2
+    },
+    "fuente": "SoilGrids Ksat + modelo hidráulico Faro Protocol",
+    "fallback_usado": false
+  },
+  "acoustic": {
+    "artista": "Artista",
+    "show_date": "",
+    "sectores": [
+      {
+        "id": "campo_central",
+        "name": "Campo Central",
+        "spl_db": 97.1,
+        "sightline": "obstruida",
+        "cobertura": "aceptable",
+        "dist_m": 80,
+        "height_m": 0,
+        "alertas": [
+          "Sightline obstruido en Campo Central — pantalla lateral recomendada"
+        ]
+      },
+      {
+        "id": "tribuna_norte",
+        "name": "Tribuna Norte",
+        "spl_db": 97.1,
+        "sightline": "obstruida",
+        "cobertura": "aceptable",
+        "dist_m": 120,
+        "height_m": 8,
+        "alertas": [
+          "Sightline obstruido en Tribuna Norte — pantalla lateral recomendada"
+        ]
+      },
+      {
+        "id": "tribuna_sur",
+        "name": "Tribuna Sur",
+        "spl_db": 97.0,
+        "sightline": "obstruida",
+        "cobertura": "aceptable",
+        "dist_m": 140,
+        "height_m": 8,
+        "alertas": [
+          "Sightline obstruido en Tribuna Sur — pantalla lateral recomendada"
+        ]
+      },
+      {
+        "id": "tribuna_este",
+        "name": "Tribuna Este",
+        "spl_db": 96.8,
+        "sightline": "obstruida",
+        "cobertura": "aceptable",
+        "dist_m": 130,
+        "height_m": 8,
+        "alertas": [
+          "Sightline obstruido en Tribuna Este — pantalla lateral recomendada"
+        ]
+      },
+      {
+        "id": "platea_alta_norte",
+        "name": "Platea Alta Norte",
+        "spl_db": 96.7,
+        "sightline": "atencion",
+        "cobertura": "aceptable",
+        "dist_m": 150,
+        "height_m": 15,
+        "alertas": []
+      },
+      {
+        "id": "platea_alta_sur",
+        "name": "Platea Alta Sur",
+        "spl_db": 96.7,
+        "sightline": "atencion",
+        "cobertura": "aceptable",
+        "dist_m": 170,
+        "height_m": 15,
+        "alertas": []
+      }
+    ],
+    "alertas_globales": [
+      "Capacidad estimada 49,540 supera el 85% del aforo (49,540) — revisar plan de evacuación"
+    ],
+    "spl_promedio_db": 96.9,
+    "cobertura_optima_pct": 0.0,
+    "rt60_s": 2.3,
+    "modelo_acustico": "Sabine-Eyring geométrico",
+    "fuente": "Modelo acústico Sabine-Eyring · Faro Protocol · Dale Play",
+    "sala": {
+      "dimensiones_m": "68×105×22",
+      "rt60_sabine_s": 2.3,
+      "room_constant_R_m2": 22187.0
+    },
+    "claude_raw": null,
+    "fallback_usado": true
+  },
+  "egms": {
+    "venue": "Estadio José Amalfitani",
+    "lat": -34.6379,
+    "lon": -58.5288,
+    "fecha_analisis": "2026-05-30",
+    "periodo": "2015-01 / 2022-12",
+    "satelite": "Sentinel-1 C-band (5.6 cm) · órbita ascendente + descendente",
+    "producto": "EGMS L3 — Copernicus Land Monitoring Service",
+    "referencia": "Bejar-Pizarro et al. 2023; AMB subsidencia media -2 a -4 mm/año",
+    "sectores": {
+      "campo": {
+        "nombre": "Campo de juego",
+        "vel_mm_yr": -2.5,
+        "std_mm_yr": 0.4,
+        "coherencia": 0.72,
+        "acumulado_2022_mm": -17.5,
+        "proyeccion_2027_mm": -30.0,
+        "tendencia": "estable",
+        "nivel": "atencion",
+        "nota": "Drenaje activo reduce acumulación. Subsidencia leve.",
+        "critico": false,
+        "serie_temporal": [
+          {
+            "fecha": "2015-01",
+            "despl_mm": -0.62
+          },
+          {
+            "fecha": "2015-04",
+            "despl_mm": -1.26
+          },
+          {
+            "fecha": "2015-07",
+            "despl_mm": -1.91
+          },
+          {
+            "fecha": "2015-10",
+            "despl_mm": -2.54
+          },
+          {
+            "fecha": "2016-01",
+            "despl_mm": -3.17
+          },
+          {
+            "fecha": "2016-04",
+            "despl_mm": -3.8
+          },
+          {
+            "fecha": "2016-07",
+            "despl_mm": -4.45
+          },
+          {
+            "fecha": "2016-10",
+            "despl_mm": -5.09
+          },
+          {
+            "fecha": "2017-01",
+            "despl_mm": -5.71
+          },
+          {
+            "fecha": "2017-04",
+            "despl_mm": -6.35
+          },
+          {
+            "fecha": "2017-07",
+            "despl_mm": -6.99
+          },
+          {
+            "fecha": "2017-10",
+            "despl_mm": -7.63
+          },
+          {
+            "fecha": "2018-01",
+            "despl_mm": -8.26
+          },
+          {
+            "fecha": "2018-04",
+            "despl_mm": -8.89
+          },
+          {
+            "fecha": "2018-07",
+            "despl_mm": -9.54
+          },
+          {
+            "fecha": "2018-10",
+            "despl_mm": -10.18
+          },
+          {
+            "fecha": "2019-01",
+            "despl_mm": -10.8
+          },
+          {
+            "fecha": "2019-04",
+            "despl_mm": -11.44
+          },
+          {
+            "fecha": "2019-07",
+            "despl_mm": -12.08
+          },
+          {
+            "fecha": "2019-10",
+            "despl_mm": -12.72
+          },
+          {
+            "fecha": "2020-01",
+            "despl_mm": -13.35
+          },
+          {
+            "fecha": "2020-04",
+            "despl_mm": -13.98
+          },
+          {
+            "fecha": "2020-07",
+            "despl_mm": -14.63
+          },
+          {
+            "fecha": "2020-10",
+            "despl_mm": -15.27
+          },
+          {
+            "fecha": "2021-01",
+            "despl_mm": -15.89
+          },
+          {
+            "fecha": "2021-04",
+            "despl_mm": -16.53
+          },
+          {
+            "fecha": "2021-07",
+            "despl_mm": -17.17
+          },
+          {
+            "fecha": "2021-10",
+            "despl_mm": -17.81
+          },
+          {
+            "fecha": "2022-01",
+            "despl_mm": -18.44
+          },
+          {
+            "fecha": "2022-04",
+            "despl_mm": -19.07
+          },
+          {
+            "fecha": "2022-07",
+            "despl_mm": -19.72
+          },
+          {
+            "fecha": "2022-10",
+            "despl_mm": -20.36
+          }
+        ]
+      },
+      "tribuna_norte": {
+        "nombre": "Tribuna Norte",
+        "vel_mm_yr": -2.8,
+        "std_mm_yr": 0.5,
+        "coherencia": 0.81,
+        "acumulado_2022_mm": -19.6,
+        "proyeccion_2027_mm": -33.6,
+        "tendencia": "estable",
+        "nivel": "atencion",
+        "nota": "Estructura 1999. Comportamiento estable.",
+        "critico": false,
+        "serie_temporal": [
+          {
+            "fecha": "2015-01",
+            "despl_mm": -0.7
+          },
+          {
+            "fecha": "2015-04",
+            "despl_mm": -1.41
+          },
+          {
+            "fecha": "2015-07",
+            "despl_mm": -2.13
+          },
+          {
+            "fecha": "2015-10",
+            "despl_mm": -2.84
+          },
+          {
+            "fecha": "2016-01",
+            "despl_mm": -3.54
+          },
+          {
+            "fecha": "2016-04",
+            "despl_mm": -4.25
+          },
+          {
+            "fecha": "2016-07",
+            "despl_mm": -4.97
+          },
+          {
+            "fecha": "2016-10",
+            "despl_mm": -5.69
+          },
+          {
+            "fecha": "2017-01",
+            "despl_mm": -6.39
+          },
+          {
+            "fecha": "2017-04",
+            "despl_mm": -7.1
+          },
+          {
+            "fecha": "2017-07",
+            "despl_mm": -7.82
+          },
+          {
+            "fecha": "2017-10",
+            "despl_mm": -8.54
+          },
+          {
+            "fecha": "2018-01",
+            "despl_mm": -9.23
+          },
+          {
+            "fecha": "2018-04",
+            "despl_mm": -9.95
+          },
+          {
+            "fecha": "2018-07",
+            "despl_mm": -10.67
+          },
+          {
+            "fecha": "2018-10",
+            "despl_mm": -11.38
+          },
+          {
+            "fecha": "2019-01",
+            "despl_mm": -12.08
+          },
+          {
+            "fecha": "2019-04",
+            "despl_mm": -12.79
+          },
+          {
+            "fecha": "2019-07",
+            "despl_mm": -13.51
+          },
+          {
+            "fecha": "2019-10",
+            "despl_mm": -14.22
+          },
+          {
+            "fecha": "2020-01",
+            "despl_mm": -14.92
+          },
+          {
+            "fecha": "2020-04",
+            "despl_mm": -15.63
+          },
+          {
+            "fecha": "2020-07",
+            "despl_mm": -16.35
+          },
+          {
+            "fecha": "2020-10",
+            "despl_mm": -17.07
+          },
+          {
+            "fecha": "2021-01",
+            "despl_mm": -17.77
+          },
+          {
+            "fecha": "2021-04",
+            "despl_mm": -18.48
+          },
+          {
+            "fecha": "2021-07",
+            "despl_mm": -19.2
+          },
+          {
+            "fecha": "2021-10",
+            "despl_mm": -19.91
+          },
+          {
+            "fecha": "2022-01",
+            "despl_mm": -20.61
+          },
+          {
+            "fecha": "2022-04",
+            "despl_mm": -21.32
+          },
+          {
+            "fecha": "2022-07",
+            "despl_mm": -22.04
+          },
+          {
+            "fecha": "2022-10",
+            "despl_mm": -22.76
+          }
+        ]
+      },
+      "tribuna_sur": {
+        "nombre": "Tribuna Sur",
+        "vel_mm_yr": -3.2,
+        "std_mm_yr": 0.6,
+        "coherencia": 0.78,
+        "acumulado_2022_mm": -22.4,
+        "proyeccion_2027_mm": -38.4,
+        "tendencia": "moderada",
+        "nivel": "atencion",
+        "nota": "Próxima a Av. Rivadavia — mayor vibración vehicular.",
+        "critico": false,
+        "serie_temporal": [
+          {
+            "fecha": "2015-01",
+            "despl_mm": -0.8
+          },
+          {
+            "fecha": "2015-04",
+            "despl_mm": -1.61
+          },
+          {
+            "fecha": "2015-07",
+            "despl_mm": -2.43
+          },
+          {
+            "fecha": "2015-10",
+            "despl_mm": -3.25
+          },
+          {
+            "fecha": "2016-01",
+            "despl_mm": -4.04
+          },
+          {
+            "fecha": "2016-04",
+            "despl_mm": -4.86
+          },
+          {
+            "fecha": "2016-07",
+            "despl_mm": -5.68
+          },
+          {
+            "fecha": "2016-10",
+            "despl_mm": -6.49
+          },
+          {
+            "fecha": "2017-01",
+            "despl_mm": -7.29
+          },
+          {
+            "fecha": "2017-04",
+            "despl_mm": -8.1
+          },
+          {
+            "fecha": "2017-07",
+            "despl_mm": -8.92
+          },
+          {
+            "fecha": "2017-10",
+            "despl_mm": -9.74
+          },
+          {
+            "fecha": "2018-01",
+            "despl_mm": -10.54
+          },
+          {
+            "fecha": "2018-04",
+            "despl_mm": -11.35
+          },
+          {
+            "fecha": "2018-07",
+            "despl_mm": -12.17
+          },
+          {
+            "fecha": "2018-10",
+            "despl_mm": -12.98
+          },
+          {
+            "fecha": "2019-01",
+            "despl_mm": -13.78
+          },
+          {
+            "fecha": "2019-04",
+            "despl_mm": -14.59
+          },
+          {
+            "fecha": "2019-07",
+            "despl_mm": -15.41
+          },
+          {
+            "fecha": "2019-10",
+            "despl_mm": -16.23
+          },
+          {
+            "fecha": "2020-01",
+            "despl_mm": -17.03
+          },
+          {
+            "fecha": "2020-04",
+            "despl_mm": -17.84
+          },
+          {
+            "fecha": "2020-07",
+            "despl_mm": -18.66
+          },
+          {
+            "fecha": "2020-10",
+            "despl_mm": -19.47
+          },
+          {
+            "fecha": "2021-01",
+            "despl_mm": -20.27
+          },
+          {
+            "fecha": "2021-04",
+            "despl_mm": -21.08
+          },
+          {
+            "fecha": "2021-07",
+            "despl_mm": -21.9
+          },
+          {
+            "fecha": "2021-10",
+            "despl_mm": -22.72
+          },
+          {
+            "fecha": "2022-01",
+            "despl_mm": -23.52
+          },
+          {
+            "fecha": "2022-04",
+            "despl_mm": -24.33
+          },
+          {
+            "fecha": "2022-07",
+            "despl_mm": -25.15
+          },
+          {
+            "fecha": "2022-10",
+            "despl_mm": -25.96
+          }
+        ]
+      },
+      "tribuna_este": {
+        "nombre": "Tribuna Este",
+        "vel_mm_yr": -2.1,
+        "std_mm_yr": 0.4,
+        "coherencia": 0.83,
+        "acumulado_2022_mm": -14.7,
+        "proyeccion_2027_mm": -25.2,
+        "tendencia": "estable",
+        "nivel": "ok",
+        "nota": "Renovada 2012. Menor subsidencia.",
+        "critico": false,
+        "serie_temporal": [
+          {
+            "fecha": "2015-01",
+            "despl_mm": -0.53
+          },
+          {
+            "fecha": "2015-04",
+            "despl_mm": -1.06
+          },
+          {
+            "fecha": "2015-07",
+            "despl_mm": -1.6
+          },
+          {
+            "fecha": "2015-10",
+            "despl_mm": -2.15
+          },
+          {
+            "fecha": "2016-01",
+            "despl_mm": -2.67
+          },
+          {
+            "fecha": "2016-04",
+            "despl_mm": -3.21
+          },
+          {
+            "fecha": "2016-07",
+            "despl_mm": -3.75
+          },
+          {
+            "fecha": "2016-10",
+            "despl_mm": -4.29
+          },
+          {
+            "fecha": "2017-01",
+            "despl_mm": -4.82
+          },
+          {
+            "fecha": "2017-04",
+            "despl_mm": -5.35
+          },
+          {
+            "fecha": "2017-07",
+            "despl_mm": -5.9
+          },
+          {
+            "fecha": "2017-10",
+            "despl_mm": -6.44
+          },
+          {
+            "fecha": "2018-01",
+            "despl_mm": -6.96
+          },
+          {
+            "fecha": "2018-04",
+            "despl_mm": -7.5
+          },
+          {
+            "fecha": "2018-07",
+            "despl_mm": -8.04
+          },
+          {
+            "fecha": "2018-10",
+            "despl_mm": -8.58
+          },
+          {
+            "fecha": "2019-01",
+            "despl_mm": -9.11
+          },
+          {
+            "fecha": "2019-04",
+            "despl_mm": -9.64
+          },
+          {
+            "fecha": "2019-07",
+            "despl_mm": -10.19
+          },
+          {
+            "fecha": "2019-10",
+            "despl_mm": -10.73
+          },
+          {
+            "fecha": "2020-01",
+            "despl_mm": -11.25
+          },
+          {
+            "fecha": "2020-04",
+            "despl_mm": -11.79
+          },
+          {
+            "fecha": "2020-07",
+            "despl_mm": -12.33
+          },
+          {
+            "fecha": "2020-10",
+            "despl_mm": -12.87
+          },
+          {
+            "fecha": "2021-01",
+            "despl_mm": -13.4
+          },
+          {
+            "fecha": "2021-04",
+            "despl_mm": -13.93
+          },
+          {
+            "fecha": "2021-07",
+            "despl_mm": -14.48
+          },
+          {
+            "fecha": "2021-10",
+            "despl_mm": -15.02
+          },
+          {
+            "fecha": "2022-01",
+            "despl_mm": -15.54
+          },
+          {
+            "fecha": "2022-04",
+            "despl_mm": -16.07
+          },
+          {
+            "fecha": "2022-07",
+            "despl_mm": -16.62
+          },
+          {
+            "fecha": "2022-10",
+            "despl_mm": -17.16
+          }
+        ]
+      },
+      "tribuna_oeste": {
+        "nombre": "Tribuna Oeste (Principal)",
+        "vel_mm_yr": -3.8,
+        "std_mm_yr": 0.7,
+        "coherencia": 0.76,
+        "acumulado_2022_mm": -26.6,
+        "proyeccion_2027_mm": -45.6,
+        "tendencia": "acelerada",
+        "nivel": "critico",
+        "nota": "Estructura original 1943. Mayor subsidencia acumulada. SECTOR CRÍTICO.",
+        "critico": true,
+        "serie_temporal": [
+          {
+            "fecha": "2015-01",
+            "despl_mm": -0.95
+          },
+          {
+            "fecha": "2015-04",
+            "despl_mm": -1.91
+          },
+          {
+            "fecha": "2015-07",
+            "despl_mm": -2.88
+          },
+          {
+            "fecha": "2015-10",
+            "despl_mm": -3.84
+          },
+          {
+            "fecha": "2016-01",
+            "despl_mm": -4.79
+          },
+          {
+            "fecha": "2016-04",
+            "despl_mm": -5.75
+          },
+          {
+            "fecha": "2016-07",
+            "despl_mm": -6.72
+          },
+          {
+            "fecha": "2016-10",
+            "despl_mm": -7.69
+          },
+          {
+            "fecha": "2017-01",
+            "despl_mm": -8.64
+          },
+          {
+            "fecha": "2017-04",
+            "despl_mm": -9.6
+          },
+          {
+            "fecha": "2017-07",
+            "despl_mm": -10.57
+          },
+          {
+            "fecha": "2017-10",
+            "despl_mm": -11.53
+          },
+          {
+            "fecha": "2018-01",
+            "despl_mm": -12.48
+          },
+          {
+            "fecha": "2018-04",
+            "despl_mm": -13.44
+          },
+          {
+            "fecha": "2018-07",
+            "despl_mm": -14.41
+          },
+          {
+            "fecha": "2018-10",
+            "despl_mm": -15.38
+          },
+          {
+            "fecha": "2019-01",
+            "despl_mm": -16.33
+          },
+          {
+            "fecha": "2019-04",
+            "despl_mm": -17.29
+          },
+          {
+            "fecha": "2019-07",
+            "despl_mm": -18.26
+          },
+          {
+            "fecha": "2019-10",
+            "despl_mm": -19.22
+          },
+          {
+            "fecha": "2020-01",
+            "despl_mm": -20.17
+          },
+          {
+            "fecha": "2020-04",
+            "despl_mm": -21.13
+          },
+          {
+            "fecha": "2020-07",
+            "despl_mm": -22.1
+          },
+          {
+            "fecha": "2020-10",
+            "despl_mm": -23.07
+          },
+          {
+            "fecha": "2021-01",
+            "despl_mm": -24.02
+          },
+          {
+            "fecha": "2021-04",
+            "despl_mm": -24.98
+          },
+          {
+            "fecha": "2021-07",
+            "despl_mm": -25.95
+          },
+          {
+            "fecha": "2021-10",
+            "despl_mm": -26.91
+          },
+          {
+            "fecha": "2022-01",
+            "despl_mm": -27.86
+          },
+          {
+            "fecha": "2022-04",
+            "despl_mm": -28.82
+          },
+          {
+            "fecha": "2022-07",
+            "despl_mm": -29.79
+          },
+          {
+            "fecha": "2022-10",
+            "despl_mm": -30.76
+          }
+        ]
+      }
+    },
+    "sector_critico": "tribuna_oeste",
+    "vel_max_abs_mm_yr": 3.8,
+    "alerta": "Tribuna Oeste supera umbral de atención (-3.5 mm/año). Monitoreo InSAR post-show recomendado.",
+    "resumen": {
+      "vel_media_mm_yr": -2.88,
+      "sectores_criticos": 1,
+      "sectores_atencion": 3,
+      "sectores_ok": 1
+    },
+    "fuente": "EGMS Copernicus 2015-2022 [ESTIMADO — datos históricos]",
+    "fallback_usado": true,
+    "estimado": true
+  },
+  "spl_compliance": {
+    "estado_global": "NO CONFORME",
+    "periodo": "DIURNO (8h-22h)",
+    "spl_max_interior_db": 97.1,
+    "spl_predial_db": 65.9,
+    "limite_exterior_dba": 65.0,
+    "margen_exterior_db": -0.9,
+    "excede_exterior": true,
+    "sectores_sobre_oms": 0,
+    "sectores_sobre_niosh": 0,
+    "sectores": [
+      {
+        "id": "campo_central",
+        "spl_db": 97.1,
+        "sobre_oms": false,
+        "sobre_niosh": false,
+        "estado": "OK"
+      },
+      {
+        "id": "tribuna_norte",
+        "spl_db": 97.1,
+        "sobre_oms": false,
+        "sobre_niosh": false,
+        "estado": "OK"
+      },
+      {
+        "id": "tribuna_sur",
+        "spl_db": 97.0,
+        "sobre_oms": false,
+        "sobre_niosh": false,
+        "estado": "OK"
+      },
+      {
+        "id": "tribuna_este",
+        "spl_db": 96.8,
+        "sobre_oms": false,
+        "sobre_niosh": false,
+        "estado": "OK"
+      },
+      {
+        "id": "platea_alta_norte",
+        "spl_db": 96.7,
+        "sobre_oms": false,
+        "sobre_niosh": false,
+        "estado": "OK"
+      },
+      {
+        "id": "platea_alta_sur",
+        "spl_db": 96.7,
+        "sobre_oms": false,
+        "sobre_niosh": false,
+        "estado": "OK"
+      }
+    ],
+    "alertas": [
+      "SPL exterior estimado (65.9 dB) excede límite DIURNO (8h-22h) (65 dB) en 0.9 dB — requiere permiso especial GCBA"
+    ],
+    "limites_aplicados": {
+      "exterior": "Ordenanza GCBA 11.554/1994 — 65.0 dB(A) DIURNO (8h-22h)",
+      "oms": "OMS 2018 — 100.0 dB(A) interior",
+      "niosh": "NIOSH 1998 — 103.0 dB(A) interior"
+    },
+    "fuente": "Ordenanza GCBA 11.554/1994 + Res. 5613/2016 + OMS + NIOSH",
+    "fallback_usado": false,
+    "estimado": true
+  },
+  "structural": {
+    "estado_global": "ATENCIÓN",
+    "margen_seguridad_pct": 87.7,
+    "vel_viento_kmh": 17.3,
+    "factores": {
+      "viento": {
+        "fuerza_lateral_kn": 7.4,
+        "momento_volcador_knm": 29.4,
+        "momento_estabilizador": 24525.0,
+        "factor_seguridad": 833.59,
+        "estado": "OK"
+      },
+      "egms": {
+        "vel_max_mm_yr": 3.8,
+        "acumulado_5yr_mm": 19.0,
+        "estado": "ATENCIÓN",
+        "requiere_nivelacion": true
+      },
+      "suelo": {
+        "capacidad_kpa": 120.0,
+        "presion_max_kpa": 14.7,
+        "factor_seguridad": 8.16,
+        "estado": "OK"
+      }
+    },
+    "restricciones": [
+      "EGMS detecta 3.8 mm/año de subsidencia — verificar nivelación de bases de escenario in-situ"
+    ],
+    "alertas": [
+      "EGMS detecta 3.8 mm/año de subsidencia — verificar nivelación de bases de escenario in-situ"
+    ],
+    "normativa": "CIRSOC 102-2005 + IRAM 11603 + Faro Protocol v1.0",
+    "fuente": "Open-Meteo viento + EGMS Copernicus + Terzaghi",
+    "fallback_usado": true,
+    "estimado": false
+  },
+  "rider_compliance": {
+    "estado_global": "NO CONFORME",
+    "incumplimientos": [
+      {
+        "categoria": "acustica",
+        "sector": "campo_central",
+        "estado": "INCUMPLIMIENTO",
+        "detalle": "SPL real 97.1 dB vs mínimo 98 dB (déficit 0.9 dB)",
+        "severidad": "leve",
+        "accion": "Instalar delay tower o ajustar hang del main array"
+      },
+      {
+        "categoria": "acustica",
+        "sector": "tribuna_norte",
+        "estado": "INCUMPLIMIENTO",
+        "detalle": "SPL real 97.1 dB vs mínimo 98 dB (déficit 0.9 dB)",
+        "severidad": "leve",
+        "accion": "Instalar delay tower o ajustar hang del main array"
+      },
+      {
+        "categoria": "acustica",
+        "sector": "tribuna_sur",
+        "estado": "INCUMPLIMIENTO",
+        "detalle": "SPL real 97.0 dB vs mínimo 98 dB (déficit 1.0 dB)",
+        "severidad": "leve",
+        "accion": "Instalar delay tower o ajustar hang del main array"
+      },
+      {
+        "categoria": "acustica",
+        "sector": "tribuna_este",
+        "estado": "INCUMPLIMIENTO",
+        "detalle": "SPL real 96.8 dB vs mínimo 98 dB (déficit 1.2 dB)",
+        "severidad": "leve",
+        "accion": "Instalar delay tower o ajustar hang del main array"
+      },
+      {
+        "categoria": "acustica",
+        "sector": "platea_alta_norte",
+        "estado": "INCUMPLIMIENTO",
+        "detalle": "SPL real 96.7 dB vs mínimo 98 dB (déficit 1.3 dB)",
+        "severidad": "leve",
+        "accion": "Instalar delay tower o ajustar hang del main array"
+      },
+      {
+        "categoria": "acustica",
+        "sector": "platea_alta_sur",
+        "estado": "INCUMPLIMIENTO",
+        "detalle": "SPL real 96.7 dB vs mínimo 98 dB (déficit 1.3 dB)",
+        "severidad": "leve",
+        "accion": "Instalar delay tower o ajustar hang del main array"
+      },
+      {
+        "categoria": "drenaje",
+        "estado": "INCUMPLIMIENTO",
+        "detalle": "2 zona(s) de exclusión hídrica activas: Escenario: tarimas distribuidoras (mín. 2.5 m²/punto de carga) sobre toda la zona Colector Sur, Torres L/R: verificar que pie de torre no caiga sobre Canal N-S — desplazar 0.5 m si es necesario, Consola FOH recomendada en Área Norte — confirmado, sin restricciones",
+        "severidad": "critico",
+        "accion": "No instalar escenario ni estructuras pesadas en zonas de exclusión hídrica"
+      },
+      {
+        "categoria": "drenaje",
+        "estado": "ATENCIÓN",
+        "detalle": "2 zona(s) de precaución hídrica — verificar drenaje 48h post-lluvia",
+        "severidad": "advertencia",
+        "accion": "Programar inspección de suelo 24h antes del show si llueve"
+      }
+    ],
+    "indeterminados": [],
+    "aprobaciones": [
+      {
+        "categoria": "suelo",
+        "zona": "Escenario Principal",
+        "estado": "CONFORME",
+        "detalle": "Zona Escenario Principal: 1 kPa dentro de capacidad portante"
+      },
+      {
+        "categoria": "suelo",
+        "zona": "Torres de Sonido L/R",
+        "estado": "CONFORME",
+        "detalle": "Zona Torres de Sonido L/R: 10 kPa dentro de capacidad portante"
+      },
+      {
+        "categoria": "suelo",
+        "zona": "Torres de Iluminación",
+        "estado": "CONFORME",
+        "detalle": "Zona Torres de Iluminación: 15 kPa dentro de capacidad portante"
+      },
+      {
+        "categoria": "suelo",
+        "zona": "Consola FOH",
+        "estado": "CONFORME",
+        "detalle": "Zona Consola FOH: 2 kPa dentro de capacidad portante"
+      },
+      {
+        "categoria": "suelo",
+        "zona": "Barricada de Seguridad",
+        "estado": "CONFORME",
+        "detalle": "Zona Barricada de Seguridad: 0 kPa dentro de capacidad portante"
+      }
+    ],
+    "n_criticos": 1,
+    "n_advertencias": 1,
+    "n_conformes": 5,
+    "fuente": "Rider técnico + datos acústicos/suelo/drenaje",
+    "fallback_usado": false,
+    "estimado": false
+  },
+  "comparativa": {
+    "show_id": "airbag_2026-05-31",
+    "fecha_analisis": "2026-05-30 18:35",
+    "fotos_analizadas": 5,
+    "fuente_extraccion": "Claude Vision (análisis visual manual) + modelos Faro Protocol",
+    "config_real": {
+      "escenario": {
+        "dist_gol_sur_m": 0.5,
+        "ancho_m": 28.0,
+        "alto_m": 1.6,
+        "x_pct_inicio": 18.0,
+        "x_pct_fin": 80.0,
+        "y_pct_fin": 22.0
+      },
+      "torres_lr": {
+        "dist_escenario_m": 62.0,
+        "x_pct_izq": 10.0,
+        "x_pct_der": 88.0,
+        "y_pct": 59.0
+      },
+      "area_afectada_m2": 1540.0,
+      "estado_cesped": "regular",
+      "observaciones": [
+        "Escenario posicionado sobre zona Colector Sur (y_pct 0-22 vs exclusión 0-18) — 4m de exceso",
+        "Torres delay en posición aceptable pero close al Canal N-S (x_pct 10 vs mínimo recomendado 15)",
+        "No se observan tarimas distribuidoras de carga bajo estructura principal",
+        "Materiales apilados en lateral izquierdo del campo (sobre zona lateral drenaje)",
+        "Césped con signos de estrés hídrico — consistente con NDVI 0.099 y SMAP seco"
+      ],
+      "confianza": "alta"
+    },
+    "config_optima": {
+      "escenario": {
+        "dist_gol_sur_m": 0.5,
+        "ancho_m": 28.0,
+        "alto_m": 2.1,
+        "x_pct_inicio": 18.0,
+        "x_pct_fin": 80.0,
+        "y_pct_fin": 18.0
+      },
+      "torres_lr": {
+        "dist_escenario_m": 62.0,
+        "x_pct_izq": 15.0,
+        "x_pct_der": 85.0,
+        "y_pct": 59.0
+      },
+      "area_afectada_m2": 1224.0,
+      "tarimas_distribuidoras": true,
+      "notas": [
+        "Stage height +50cm → sweet-spot global 100% vs 92.9% actual",
+        "Torres L/R a x_pct≥15 para evitar Canal N-S central",
+        "Tarimas distribuidoras bajo patas escenario sobre Colector Sur"
+      ]
+    },
+    "deltas": {
+      "altura_escenario_m": {
+        "real": 1.6,
+        "optimo": 2.1,
+        "delta": "+0.5m",
+        "impacto": "sweet-spot +7.1%"
+      },
+      "profundidad_campo_pct": {
+        "real": 22.0,
+        "optimo": 18.0,
+        "delta": "+4.0% (4.2m)",
+        "impacto": "escenario sobre zona exclusión drenaje"
+      },
+      "torre_izq_x_pct": {
+        "real": 10.0,
+        "optimo": 15.0,
+        "delta": "-5.0% (3.4m)",
+        "impacto": "torre cercana a Canal N-S"
+      },
+      "area_afectada_m2": {
+        "real": 1540.0,
+        "optimo": 1224.0,
+        "delta": "+316m²",
+        "impacto": "mayor daño al césped"
+      },
+      "presion_drenaje_kpa": {
+        "real": 1.8,
+        "capacidad": 28.0,
+        "riesgo": false,
+        "impacto": "Presión dentro de umbral — sin riesgo estructural"
+      },
+      "tarimas_distribuidoras": {
+        "real": false,
+        "optimo": true,
+        "delta": "ausentes",
+        "impacto": "carga puntual sin distribución sobre Colector Sur"
+      }
+    },
+    "score": {
+      "dale_play": 0,
+      "faro_optimo": 100,
+      "gap": 100,
+      "detalle": {
+        "altura_escenario": 0,
+        "zona_drenaje": 0,
+        "torres_posicion": 0,
+        "tarimas": 0,
+        "cesped": 0
+      }
+    },
+    "recomendaciones": [
+      "Subir escenario 0.5m → sweet-spot 7.1% adicional de público con visión perfecta",
+      "Retraer escenario 4.2m → salir de zona Colector Sur (capacidad 28 kPa)",
+      "Desplazar torre izquierda 3.4m al este → evitar Canal N-S",
+      "Instalar tarimas distribuidoras (mín. 2.5 m²/punto) bajo patas del escenario",
+      "Regar el campo 48h antes del show — SMAP superficial 0% (seco)"
+    ]
+  },
+  "fii": {
+    "fii": 28.2,
+    "semaforo": "critico",
+    "sello": "RIESGO OPERATIVO",
+    "componentes": {
+      "ndvi": {
+        "score": 0.0,
+        "peso": 40,
+        "label": "Crítico"
+      },
+      "egms": {
+        "score": 45.0,
+        "peso": 35,
+        "label": "Atención"
+      },
+      "layout": {
+        "score": 50.0,
+        "peso": 25,
+        "label": "Sin layout"
+      }
+    }
+  },
+  "report_png": "C:\\Users\\Usuario\\Desktop\\Faro-index\\railway-backend\\dale-play\\reportes\\reporte_airbag_2026-05-31.png",
+  "report_png_url": null,
+  "github": {
+    "error": "GITHUB_TOKEN not set"
+  }
+}
