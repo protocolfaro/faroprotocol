@@ -2,7 +2,7 @@
 
 > **LEER ANTES DE TOCAR UNA SOLA LÍNEA DE CÓDIGO.**
 > Este archivo es la fuente de verdad del sistema. Si algo no está aquí, no existe o está mal.
-> Fecha de última actualización: TEST-2026-05-31. Versión: 1.1.
+> Fecha de última actualización: 2026-05-31. Versión: 1.2.
 
 ---
 
@@ -1148,6 +1148,10 @@ railway-backend/
     ├── dale_play_vision.py         ← Comparativa layout (Claude Vision)
     ├── dale_play_layout.py         ← Parser de planos (PDF/DXF)
     ├── dale_play_insar.py          ← InSAR post-show (NASA Earthdata)
+    ├── dale_play_umbra.py          ← Módulo: Umbra SAR Open Data (v1.4)
+    ├── dale_play_starfm.py         ← ESTARFM fusion MODIS+S2 post-show (v1.5)
+    ├── dale_play_cloudremoval.py   ← s2cloudless cloud removal SILVER (v1.5)
+    ├── dale_play_scheduler.py      ← Auto-actualización 6h post-show (v1.5)
     │
     ├── dale_play_satellite.py      ← Módulo: Sentinel-2 NDVI + Landsat TIRS
     ├── dale_play_weather.py        ← Módulo: Open-Meteo pronóstico 72h

@@ -84,7 +84,10 @@ def _spl_room(lw_db: float, dist_m: float, height_m: float = 0, Q: float = 2.0) 
 
 
 def _sightline(angle_deg: float) -> str:
-    a = abs(angle_deg)
+    # Normalize to 0-180° so 330° → 30° (tribuna_sur = optima, not obstruida)
+    a = angle_deg % 360
+    if a > 180:
+        a = 360 - a
     if a <= 60:   return "optima"
     if a <= 120:  return "buena"
     if a <= 150:  return "parcial"
