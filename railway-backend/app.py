@@ -709,7 +709,16 @@ def _start_scheduler():
 try:
     _scheduler = _start_scheduler()
     velez_scheduler.register_jobs(_scheduler)
-    log.info("Schedulers registered: daily weather + weekly reports")
+    # Dale Play — check fuentes nuevas cada 3 días
+    try:
+        import sys as _sys, pathlib as _pathlib
+        _sys.path.insert(0, str(_pathlib.Path(__file__).parent / "dale-play"))
+        from check_new_sources import register_scheduler as _dp_register
+        _dp_register(_scheduler)
+        log.info("Dale Play check_new_sources registrado en APScheduler (cada 3 días)")
+    except Exception as _dp_sched_err:
+        log.warning("Dale Play check_new_sources scheduler: %s", _dp_sched_err)
+    log.info("Schedulers registered: daily weather + weekly reports + dale_play sources")
 except Exception as _sched_err:
     _scheduler = None
     log.error("Scheduler failed to start (non-fatal): %s", _sched_err)

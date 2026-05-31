@@ -240,6 +240,36 @@ class RiderComplianceModule(DalePlayModule):
             return {"error": str(exc), "fuente": self.DATA_SOURCE, "fallback_usado": False}
 
 
+class UmbraModule(DalePlayModule):
+    RESULT_KEY      = "umbra_sar"
+    REQUIRED_FIELDS = ["umbra_cobre_venue", "escena_datetime"]
+    MODES           = ("full", "post_show")
+    CRITICAL        = False
+    TIMEOUT_S       = 90
+    DATA_SOURCE     = "Umbra Open Data Catalog CC-BY-4.0 · X-band VV Spotlight · ~25cm · COG HTTP range"
+
+    def run(self, rider: dict, **kwargs) -> dict:
+        try:
+            from dale_play_umbra import fetch_umbra_sar
+            from dale_play_config import VENUE_LAT, VENUE_LON
+            out = fetch_umbra_sar(
+                venue_lat=kwargs.get("lat", VENUE_LAT),
+                venue_lon=kwargs.get("lon", VENUE_LON),
+                show_id=kwargs.get("show_id", "unknown"),
+                window_m=500,
+            )
+            out.setdefault("fuente", self.DATA_SOURCE)
+            return out
+        except Exception as exc:
+            return {
+                "error":             str(exc),
+                "fuente":            self.DATA_SOURCE,
+                "fallback_usado":    True,
+                "umbra_cobre_venue": False,
+                "escena_datetime":   None,
+            }
+
+
 # ── Registro global ───────────────────────────────────────────────────────────
 # Para agregar un módulo: crear clase arriba, agregar instancia aquí. Nada más.
 MODULES: list[DalePlayModule] = [
@@ -253,6 +283,7 @@ MODULES: list[DalePlayModule] = [
     SPLComplianceModule(),
     StructuralTwinModule(),
     RiderComplianceModule(),
+    UmbraModule(),
 ]
 
 MODULES_BY_KEY: dict[str, DalePlayModule] = {m.RESULT_KEY: m for m in MODULES}

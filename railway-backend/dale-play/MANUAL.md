@@ -2,7 +2,7 @@
 
 > **LEER ANTES DE TOCAR UNA SOLA LÍNEA DE CÓDIGO.**
 > Este archivo es la fuente de verdad del sistema. Si algo no está aquí, no existe o está mal.
-> Fecha de última actualización: 2026-05-31. Versión: 1.1.
+> Fecha de última actualización: TEST-2026-05-31. Versión: 1.1.
 
 ---
 
@@ -245,6 +245,20 @@ from dale_play_insar import fetch_sar_compaction
 result = fetch_sar_compaction(show_date="2026-05-31", days_pre=10, days_post=5)
 # → {disponible, pre_vv_db, post_vv_db, delta_vv_db, alerta_compactacion, interpretacion}
 ```
+
+<!-- append:2026-05-31 v1.1. -->
+#### Umbra Space SAR X-band · integrado 2026-05-31
+- **RESULT_KEY:** `umbra_sar`
+- **Archivo:** `dale_play_umbra.py`
+- **Fuente:** Umbra Open Data Catalog (CC-BY-4.0, sin autenticación)
+- **Sensor:** X-band (9.8 GHz) · VV · Modo SPOTLIGHT
+- **Resolución:** ~0.18m EW × 0.20m NS (~25cm nominal)
+- **Formato:** COG uint8 amplitud EPSG:4326 · lectura via HTTP range (sin descarga completa)
+- **Cobertura Buenos Aires:** escena 2024-07-15 UMBRA-05, bbox (-58.418, -34.633, -58.346, -34.574)
+- **Nota cobertura:** Amalfitani (lon=-58.529) queda 9.4 km al oeste del bbox disponible
+- **Fallback:** cuando no hay escena que cubra el venue, reporta escena BA con `umbra_cobre_venue: False`
+- **Detección de cambio:** `compare_umbra_scenes()` — umbral compactación 1.5 dB, estructural 3.0 dB
+- **STAC:** https://s3.us-west-2.amazonaws.com/umbra-open-data-catalog/stac/catalog.json
 
 ---
 
@@ -1273,3 +1287,39 @@ El token `GITHUB_TOKEN` necesita permiso `repo` (lectura y escritura) sobre `pro
 ---
 
 *Fin del manual. Cualquier modificación al sistema debe reflejarse aquí antes de hacer commit.*
+
+## Fuentes nuevas detectadas automáticamente
+
+<!-- append:2026-05-31 v1.1. -->
+#### Open-Elevation SRTM 30m — DEM gratuito · detectada 2026-05-31
+- **Módulo mejorado:** `structural`
+- **Descripción:** Elevación real del venue para corrección de presión atmosférica y cálculo de velocidad de viento por cota.
+- **Resolución:** 30m  ·  **Frecuencia:** None días
+- **Credenciales:** No requiere
+- **Mejora:** Disponible y mejor que pipeline actual
+
+<!-- append:2026-05-31 v1.1. -->
+#### GSMaP JAXA — Precipitación horaria 0.1° (~11km) · detectada 2026-05-31
+- **Módulo mejorado:** `weather`
+- **Descripción:** Precipitación horaria para alertas en tiempo real el día del show. Complementa Open-Meteo (pronóstico) con observación real.
+- **Resolución:** 11000m  ·  **Frecuencia:** 0.04 días
+- **Credenciales:** No requiere
+- **Mejora:** Disponible y mejor que pipeline actual
+
+<!-- append:2026-05-31 v1.1. -->
+#### Open-Elevation SRTM 30m — DEM gratuito · detectada 2026-05-31
+- **Módulo mejorado:** `structural`
+- **Descripción:** Elevación real del venue para corrección de presión atmosférica y cálculo de velocidad de viento por cota.
+- **Resolución:** 30m  ·  **Frecuencia:** None días
+- **Credenciales:** No requiere
+- **Mejora:** Disponible y mejor que pipeline actual
+
+<!-- append:2026-05-31 v1.1. -->
+#### GSMaP JAXA — Precipitación horaria 0.1° (~11km) · detectada 2026-05-31
+- **Módulo mejorado:** `weather`
+- **Descripción:** Precipitación horaria para alertas en tiempo real el día del show. Complementa Open-Meteo (pronóstico) con observación real.
+- **Resolución:** 11000m  ·  **Frecuencia:** 0.04 días
+- **Credenciales:** No requiere
+- **Mejora:** Disponible y mejor que pipeline actual
+
+---
