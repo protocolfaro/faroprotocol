@@ -13,13 +13,15 @@ class SatelliteModule(DalePlayModule):
     REQUIRED_FIELDS = ["ndvi", "ndvi_fecha"]
     MODES           = ("full", "post_show")
     CRITICAL        = True
-    TIMEOUT_S       = 45
-    DATA_SOURCE     = "ESA Sentinel-2 / NASA Landsat (STAC API)"
+    TIMEOUT_S       = 60
+    DATA_SOURCE     = "HLS / Sentinel-2 L2A / Landsat C2L2 · Planetary Computer + NASA CMR MODIS"
 
     def run(self, rider: dict, **kwargs) -> dict:
         try:
             from dale_play_satellite import fetch_satellite_baseline
-            out = fetch_satellite_baseline()
+            mode      = kwargs.get("mode", "full")
+            show_date = kwargs.get("show_date", "")
+            out = fetch_satellite_baseline(mode=mode, show_date=show_date)
             out.setdefault("fuente", self.DATA_SOURCE)
             out.setdefault("fallback_usado", out.get("ndvi") is None)
             return out

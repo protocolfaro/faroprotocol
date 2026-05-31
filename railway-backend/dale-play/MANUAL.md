@@ -2,7 +2,7 @@
 
 > **LEER ANTES DE TOCAR UNA SOLA LÍNEA DE CÓDIGO.**
 > Este archivo es la fuente de verdad del sistema. Si algo no está aquí, no existe o está mal.
-> Fecha de última actualización: 2026-05-30. Versión: 1.0.
+> Fecha de última actualización: 2026-05-31. Versión: 1.1.
 
 ---
 
@@ -161,27 +161,54 @@ El sistema nunca crashea por falta de Supabase. Todo error se loguea en stderr.
 | Archivo | `dale_play_satellite.py` |
 | RESULT_KEY | `satellite` |
 | CRITICAL | `True` |
-| TIMEOUT_S | 45 |
-| DATA_SOURCE | ESA Sentinel-2 L2A / NASA Landsat C2L2 (STAC API) |
+| TIMEOUT_S | 60 |
+| DATA_SOURCE | HLS / Sentinel-2 L2A / Landsat C2L2 · Planetary Computer + NASA CMR MODIS |
 | MODES | full, post_show |
 
+**Jerarquía de fuentes NDVI (por prioridad en modo post_show):**
+
+| Fuente | Resolución | Revisita | Modo | Requiere credenciales |
+|---|---|---|---|---|
+| HLS (Harmonized Landsat+S2) | 30m | ~1.4 días | post_show (primaria) | No |
+| Sentinel-2 L2A | 10m | ~5 días | full (primaria) / post_show (fallback) | No |
+| Landsat-9 TIRS | 100m | ~16 días | complementario | No |
+| MODIS MOD09GQ | 250m | ~1 día | post_show (alerta temprana) | No (solo metadatos) |
+| Sen2SR (ESA) | 2.5m | — | post_show + S2 limpia | No (pip install sen2sr) |
+
+**Sentinel-1 GRD SAR (compactación post-show):**
+Implementado en `dale_play_insar.py` como `fetch_sar_compaction()`. Detecta cambios en backscatter VV pre/post show. Delta > 1.5 dB → alerta. No requiere HyP3 ni NASA Earthdata.
+
 **Fuente de datos:**
-- NDVI: Sentinel-2 L2A bands B04 (red) + B08 (NIR) via Microsoft Planetary Computer STAC
-- Temperatura superficial: Landsat-9 Collection 2 Level-2 ST_B10 via Planetary Computer
-- No requiere credenciales para acceso básico. Token SAS se obtiene automáticamente.
+- NDVI: HLS o Sentinel-2 B04/B08 via Planetary Computer STAC (token SAS automático)
+- TIRS: Landsat-9 C2L2 ST_B10 via Planetary Computer
+- MODIS alerta: NASA CMR granule count (sin descarga de píxeles)
+- Sen2SR: librería ESA (opcional, degradación graceful si no instalada)
 
 **Output esperado:**
 ```json
 {
   "ndvi": 0.099,
-  "ndvi_fecha": "2026-05-02",
-  "ndvi_cloud_pct": 12.3,
+  "ndvi_fecha": "2026-05-29",
+  "ndvi_cloud_pct": 8.1,
   "ndvi_status": {"semaforo": "amarillo", "label": "Dormancia estacional (Bermuda — invierno BsAs)"},
+  "fuente_tipo": "HLS",
+  "revisita_dias": 1.4,
+  "fuente_ndvi": "HLS · Harmonized Landsat+Sentinel-2 · Planetary Computer",
   "fuente_s2": "Sentinel-2 L2A · Planetary Computer",
   "tirs_celsius": 14.2,
   "tirs_fecha": "2026-04-28",
   "fuente_tirs": "Landsat-9 C2L2 ST_B10 · Planetary Computer",
-  "fuente": "ESA Sentinel-2 / NASA Landsat (STAC API)",
+  "modis_alerta": {
+    "disponible": true,
+    "n_granules": 8,
+    "fecha_mas_reciente": "2026-05-30",
+    "tile": "h13v12",
+    "producto": "MOD09GQ v061 · 250m · diario",
+    "fuente": "NASA CMR · MODIS Terra MOD09GQ"
+  },
+  "sen2sr_aplicado": false,
+  "sen2sr_estado": "no_instalado — pip install sen2sr",
+  "fuente": "HLS / Sentinel-2 L2A / Landsat C2L2 · Planetary Computer + NASA CMR MODIS",
   "fallback_usado": false
 }
 ```
@@ -204,6 +231,19 @@ def _classify_ndvi(ndvi, month=None):
     if month is not None and 4 <= month <= 8 and 0.08 <= ndvi <= 0.25:
         return {"semaforo": "amarillo", "label": "Dormancia estacional (Bermuda — invierno BsAs)"}
     ...
+```
+
+**Sen2SR — instalación:**
+```bash
+pip install sen2sr
+```
+Si no está instalado, el módulo retorna `sen2sr_estado: "no_instalado"` sin error. No bloquea el pipeline.
+
+**Sentinel-1 SAR compactación — uso standalone:**
+```python
+from dale_play_insar import fetch_sar_compaction
+result = fetch_sar_compaction(show_date="2026-05-31", days_pre=10, days_post=5)
+# → {disponible, pre_vv_db, post_vv_db, delta_vv_db, alerta_compactacion, interpretacion}
 ```
 
 ---
@@ -1133,7 +1173,7 @@ railway-backend/
 
 | # | RESULT_KEY | CRITICAL | Fuente de datos | Confianza típica |
 |---|---|---|---|---|
-| 1 | satellite | Sí | Sentinel-2 + Landsat (Planetary Computer) | Verde (cuando hay imagen) |
+| 1 | satellite | Sí | HLS / S2 / Landsat / MODIS (Planetary Computer + NASA CMR) | Verde (modo full: S2; post_show: HLS) |
 | 2 | weather | Sí | Open-Meteo API | Verde |
 | 3 | soil_real | No | SoilGrids REST v2 | Amarillo (SoilGrids responde errático) |
 | 4 | soil | Sí | SoilGrids + Terzaghi | Amarillo |
@@ -1144,12 +1184,23 @@ railway-backend/
 | 9 | structural | No | Open-Meteo + EGMS + Terzaghi | Amarillo |
 | 10 | rider_compliance | No | Rider + módulos acústico/suelo/drenaje | Verde |
 
+### Funciones satelitales post_show (nuevo — 2026-05-31)
+
+| Función | Archivo | Qué hace | Requiere |
+|---|---|---|---|
+| `_search_hls()` | `dale_play_satellite.py` | Busca HLS en PC STAC (30m, ~1.4d) | Nada |
+| `_ndvi_from_hls_item()` | `dale_play_satellite.py` | NDVI desde HLS L30/S30 | rasterio |
+| `_check_modis_alert()` | `dale_play_satellite.py` | Cuenta granules MODIS post-show | Nada |
+| `_apply_sen2sr()` | `dale_play_satellite.py` | Super-resolución 10m→2.5m | pip install sen2sr |
+| `fetch_sar_compaction()` | `dale_play_insar.py` | Delta VV Sentinel-1 pre/post show | rasterio, PC STAC |
+
 ### Módulos pendientes / futuros
 
 | Módulo | Descripción | Bloqueado por |
 |---|---|---|
 | EGMS real-time | Datos InSAR actualizados (no hardcodeados) | Credenciales Copernicus Data Space + API compleja |
-| InSAR post-show | Detección de deformación post-evento | NASA Earthdata (`dale_play_insar.py` existe) |
+| InSAR post-show HyP3 | Detección de deformación post-evento | NASA Earthdata (`dale_play_insar.py` existe) |
+| MODIS NDVI real | Descarga píxeles MODIS MOD09GQ | NASA Earthdata credentials |
 | Crowd density | Densidad de público real-time via cámara | Hardware de cámaras en Amalfitani |
 | Multi-venue | Soporte para más de un estadio | Refactoring config por venue |
 

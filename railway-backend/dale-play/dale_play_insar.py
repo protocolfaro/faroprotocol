@@ -5,13 +5,18 @@ Cuatro tribunas del Amalfitani: Norte, Sur, Este, Oeste.
 Mejorado: cruce EGMS histórico (mm/año) vs InSAR semanal HyP3.
   delta = medición_actual_normalizada − velocidad_histórica
   Si |delta| > 0.5 mm → alerta estructural.
+
+Adicionado: fetch_sar_compaction() — Sentinel-1 GRD backscatter delta pre/post show.
+  Delta VV > 1.5 dB → alerta de compactación/humectación anómala del suelo.
+  No requiere NASA Earthdata. Usa Planetary Computer STAC directamente.
+  Revisita real ~3-4 días sobre 34°S / tile 21HUB.
 """
 from __future__ import annotations
 import json, logging, math, os, pathlib
 from typing import Optional
 
 from dale_play_config import (
-    VENUE_LAT, TRIBUNAS,
+    VENUE_LAT, VENUE_BBOX, TRIBUNAS,
     INSAR_OK_MM, INSAR_CAUTION_MM, INSAR_CRITICAL_MM,
 )
 
@@ -272,3 +277,169 @@ def fetch_post_show_vibration() -> Optional[dict]:
                 os.rmdir(os.path.dirname(tif_path))
             except Exception:
                 pass
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Sentinel-1 GRD backscatter delta — compactación post-show
+# ─────────────────────────────────────────────────────────────────────────────
+
+_PC_STAC             = "https://planetarycomputer.microsoft.com/api/stac/v1"
+_S1_COLLECTION       = "sentinel-1-grd"
+_DELTA_COMPACTION_DB = 1.5  # dB — umbral de alerta de compactación/humectación
+
+
+def fetch_sar_compaction(
+    show_date: str = "",
+    days_pre: int  = 10,
+    days_post: int = 5,
+) -> dict:
+    """
+    Compara backscatter Sentinel-1 VV pre vs post show sobre el campo.
+    No requiere NASA Earthdata — usa Planetary Computer STAC.
+    Revisita real ~3-4 días a 34°S.
+
+    Delta VV > +1.5 dB → posible anegamiento/humectación anómala.
+    Delta VV < -1.5 dB → posible compactación/secado post-show.
+
+    Output:
+      disponible, pre_fecha, post_fecha, pre_vv_db, post_vv_db,
+      delta_vv_db, alerta_compactacion, umbral_db, interpretacion, fuente
+    """
+    import requests
+    from datetime import date as _date, timedelta
+
+    _fallback = {"disponible": False, "fuente": f"Sentinel-1 GRD · Planetary Computer · 20m"}
+
+    try:
+        if show_date:
+            try:
+                show_dt = _date.fromisoformat(show_date)
+            except Exception:
+                show_dt = _date.today() - timedelta(days=5)
+        else:
+            show_dt = _date.today() - timedelta(days=5)
+
+        pre_end   = show_dt - timedelta(days=1)
+        pre_start = pre_end  - timedelta(days=days_pre)
+        post_start = show_dt
+        post_end   = show_dt + timedelta(days=days_post)
+
+        minx, miny, maxx, maxy = VENUE_BBOX
+
+        def _search_s1(start: _date, end: _date) -> Optional[dict]:
+            payload = {
+                "collections": [_S1_COLLECTION],
+                "bbox":        [minx, miny, maxx, maxy],
+                "datetime":    f"{start.isoformat()}T00:00:00Z/{end.isoformat()}T23:59:59Z",
+                "limit":       5,
+                "sortby":      [{"field": "datetime", "direction": "desc"}],
+            }
+            r = requests.post(f"{_PC_STAC}/search", json=payload, timeout=20)
+            if r.status_code in (400, 404):
+                return None
+            r.raise_for_status()
+            features = r.json().get("features", [])
+            return features[0] if features else None
+
+        pre_item  = _search_s1(pre_start, pre_end)
+        post_item = _search_s1(post_start, post_end)
+
+        if not pre_item and not post_item:
+            return {**_fallback, "motivo": "Sin escenas S1 disponibles en el período"}
+
+        def _mean_vv_db(item: dict) -> Optional[float]:
+            """
+            Backscatter VV medio sobre VENUE_BBOX en dB (amplitud relativa).
+            Sentinel-1 GRD en PC no tiene CRS embebido → se mapea la ventana
+            usando el bbox geográfico del item STAC (interpolación bilineal).
+            Valor en dB es relativo (no sigma0 calibrado), válido para delta pre/post.
+            """
+            try:
+                import rasterio, numpy as np
+                from rasterio.windows import Window
+
+                tok_r = requests.get(
+                    f"https://planetarycomputer.microsoft.com/api/sas/v1/token/{_S1_COLLECTION}",
+                    timeout=10
+                )
+                token = tok_r.json().get("token", "") if tok_r.ok else ""
+
+                # Asset key es minúsculas "vv" en el catálogo PC sentinel-1-grd
+                vv_href = item.get("assets", {}).get("vv", {}).get("href", "")
+                if not vv_href:
+                    return None
+                if token:
+                    vv_href = f"{vv_href}?{token}"
+
+                # Bbox geográfico del item para mapear pixels (GRD no tiene CRS)
+                i_lon0, i_lat0, i_lon1, i_lat1 = item.get("bbox", [0, 0, 1, 1])
+
+                with rasterio.open(vv_href) as src:
+                    H, W = src.shape
+                    # Fracción de longitud/latitud del venue dentro del item
+                    fx0 = (minx - i_lon0) / (i_lon1 - i_lon0)
+                    fx1 = (maxx - i_lon0) / (i_lon1 - i_lon0)
+                    # Latitud: fila 0 = lat máxima → invertir eje Y
+                    fy0 = (i_lat1 - maxy) / (i_lat1 - i_lat0)
+                    fy1 = (i_lat1 - miny) / (i_lat1 - i_lat0)
+
+                    col_off = max(0, int(fx0 * W))
+                    col_end = min(W, max(col_off + 20, int(fx1 * W)))
+                    row_off = max(0, int(fy0 * H))
+                    row_end = min(H, max(row_off + 20, int(fy1 * H)))
+
+                    win  = Window(col_off, row_off, col_end - col_off, row_end - row_off)
+                    data = src.read(1, window=win).astype("float32")
+
+                valid = (data > 0) & np.isfinite(data)
+                if valid.sum() < 4:
+                    return None
+                # dB relativo (amplitud): válido para comparación pre/post
+                return float(round(10.0 * float(np.log10(float(np.mean(data[valid])))), 2))
+            except Exception as exc:
+                log.debug("dale_play_insar: S1 VV read: %s", exc)
+                return None
+
+        pre_vv  = _mean_vv_db(pre_item)  if pre_item  else None
+        post_vv = _mean_vv_db(post_item) if post_item else None
+
+        delta_vv            = round(post_vv - pre_vv, 2) if (pre_vv is not None and post_vv is not None) else None
+        alerta_compactacion = abs(delta_vv) >= _DELTA_COMPACTION_DB if delta_vv is not None else False
+
+        pre_fecha  = (pre_item.get("properties",  {}).get("datetime") or "")[:10] if pre_item  else None
+        post_fecha = (post_item.get("properties", {}).get("datetime") or "")[:10] if post_item else None
+
+        if alerta_compactacion and delta_vv is not None:
+            interpretacion = (
+                f"Delta VV {delta_vv:+.1f} dB post-show → "
+                f"{'humectación anómala (posible anegamiento)' if delta_vv > 0 else 'compactación/secado anómalo'}. "
+                "Inspección de campo recomendada."
+            )
+        elif delta_vv is not None:
+            interpretacion = f"Delta VV {delta_vv:+.1f} dB — dentro del rango normal post-show."
+        else:
+            interpretacion = "Sin datos comparables pre/post para calcular delta."
+
+        resultado = {
+            "disponible":           True,
+            "pre_fecha":            pre_fecha,
+            "post_fecha":           post_fecha,
+            "pre_vv_db":            pre_vv,
+            "post_vv_db":           post_vv,
+            "delta_vv_db":          delta_vv,
+            "alerta_compactacion":  alerta_compactacion,
+            "umbral_db":            _DELTA_COMPACTION_DB,
+            "revisita_dias":        3.5,
+            "interpretacion":       interpretacion,
+            "fuente":               "Sentinel-1 GRD · Planetary Computer · 20m · VV",
+        }
+
+        log.info(
+            "dale_play_insar: SAR compaction — pre=%s post=%s delta_vv=%s dB alerta=%s",
+            pre_fecha, post_fecha, delta_vv, alerta_compactacion
+        )
+        return resultado
+
+    except Exception as e:
+        log.warning("dale_play_insar: SAR compaction failed: %s", e)
+        return {**_fallback, "error": str(e)}

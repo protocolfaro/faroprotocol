@@ -180,6 +180,13 @@ def generate_report(show_data: dict, show_config: dict) -> str:
     ndvi_sem   = ndvi_status.get('semaforo', 'sin_datos')
     ndvi_label = ndvi_status.get('label', 'Sin datos')
 
+    # Fuente satelital activa (HLS / S2 / sin_dato)
+    sat_fuente_tipo  = sat.get('fuente_tipo', 'sin_dato')
+    sat_revisita     = sat.get('revisita_dias')
+    sat_cloud        = sat.get('ndvi_cloud_pct')
+    sat_modis        = sat.get('modis_alerta') or {}
+    sat_sen2sr       = sat.get('sen2sr_aplicado', False)
+
     wx_day  = weather.get('show_day') or {}
     wx_rain = wx_day.get('lluvia_mm', 0) or 0
     wx_wind = wx_day.get('viento_max_kmh', 0) or 0
@@ -383,6 +390,25 @@ def generate_report(show_data: dict, show_config: dict) -> str:
     ax_sem.text(6.0, _div_y - 2.2, puedo_txt, color=puedo_col, fontsize=15,
                 ha='center', va='center', fontweight='bold')
 
+    # Indicador de fuente satelital activa
+    _src_map = {
+        'HLS':      (f'▲ HLS · Harmonized Landsat+S2 · 30m', GRNL),
+        'S2':       (f'▲ Sentinel-2 L2A · 10m', GRNL),
+        'sin_dato': ('▲ Sin imagen satelital reciente', WDIM),
+        'error':    ('▲ Error en fuente satelital', REDL),
+    }
+    _src_lbl, _src_col = _src_map.get(sat_fuente_tipo, ('▲ N/D', WDIM))
+    if sat_revisita is not None:
+        _src_lbl += f' · revisita ~{sat_revisita:.1f}d'
+    if sat_cloud is not None:
+        _src_lbl += f' · {sat_cloud:.0f}% nubes'
+    if sat_modis.get('disponible'):
+        _src_lbl += f'  ·  MODIS: {sat_modis.get("n_granules", 0)} gran. disponibles'
+    if sat_sen2sr:
+        _src_lbl += '  ·  Sen2SR 2.5m'
+    ax_sem.text(6.0, 0.7, _src_lbl, color=_src_col, fontsize=7.0,
+                ha='center', va='center', fontfamily='monospace')
+
     # ═══════════════════════════════════════════════════════════════════════════
     # ROW 2 — IROE (Índice de Riesgo Operativo del Evento)
     # ═══════════════════════════════════════════════════════════════════════════
@@ -405,8 +431,8 @@ def generate_report(show_data: dict, show_config: dict) -> str:
                  '40% riesgo climático + 35% riesgo suelo + 25% riesgo acústico. '
                  'Escala 0=sin riesgo · 100=riesgo máximo.',
                  color=WDIM, fontsize=8, fontfamily='monospace')
-    ax_iroe.text(6.3, 1.75, iroe_str, color=iroe_col, fontsize=10,
-                 fontweight='bold', fontfamily='monospace', va='center')
+    ax_iroe.text(6.5, 1.75, iroe_str, color=iroe_col, fontsize=10,
+                 fontweight='bold', fontfamily='monospace', va='center', ha='left')
     # Componentes
     _ic_data = [
         ('Clima', _r_clima_iroe, 0.40, clima_col),
@@ -426,7 +452,7 @@ def generate_report(show_data: dict, show_config: dict) -> str:
     # ROW 3 — RESUMEN EJECUTIVO
     # ═══════════════════════════════════════════════════════════════════════════
     ax_res = fig.add_subplot(gs[3])
-    _ax_base(ax_res, bg='#08100a', xlim=(0, 10), ylim=(0, 5))
+    _ax_base(ax_res, bg='#08100a', xlim=(0, 10), ylim=(0, 4))
     _section_title(ax_res, '  RESUMEN EJECUTIVO — Para el equipo de producción', fs=9)
     for sp in ax_res.spines.values():
         sp.set_color(GOLD); sp.set_linewidth(1.2)
@@ -470,15 +496,15 @@ def generate_report(show_data: dict, show_config: dict) -> str:
         _card_x0 = bx + 0.12
         _card_w  = 2.9
         _card_cx = _card_x0 + _card_w / 2
-        ax_res.add_patch(FancyBboxPatch((_card_x0, 0.25), _card_w, 4.4,
+        ax_res.add_patch(FancyBboxPatch((_card_x0, 0.15), _card_w, 3.6,
             boxstyle='round,pad=0.06', facecolor='#0a1a0a',
             edgecolor=GOLD, linewidth=1.1))
-        ax_res.text(_card_cx, 4.5, btitle,
+        ax_res.text(_card_cx, 3.5, btitle,
                     color=bcol, fontsize=9, fontweight='bold',
                     ha='center', va='top')
         ax_res.plot([_card_x0 + 0.15, _card_x0 + _card_w - 0.15],
-                    [3.7, 3.7], color=GOLD + '55', lw=0.7)
-        ax_res.text(_card_cx, 3.5, bbody,
+                    [2.5, 2.5], color=GOLD + '55', lw=0.7)
+        ax_res.text(_card_cx, 1.5, bbody,
                     color=WHITE, fontsize=8, va='top', ha='center',
                     linespacing=1.5)
 
@@ -723,15 +749,15 @@ def generate_report(show_data: dict, show_config: dict) -> str:
                   'tribuna_este', 'platea_alta_norte', 'platea_alta_sur']
     _spl_data  = {s.get('id'): s for s in ac_secs}
 
-    # Escala dinámica basada en los datos reales
+    # Escala fija desde 85 dB para que las diferencias de SPL sean visibles
     _spl_vals_raw = [s.get('spl_db') for s in ac_secs if s.get('spl_db') is not None]
     if _spl_vals_raw:
-        _SPL_MIN = max(70, int(min(_spl_vals_raw)) - 5)
+        _SPL_MIN = 85
         _SPL_MAX = int(max(_spl_vals_raw)) + 5
         if _SPL_MAX - _SPL_MIN < 10:
             _SPL_MAX = _SPL_MIN + 10
     else:
-        _SPL_MIN, _SPL_MAX = 88, 108
+        _SPL_MIN, _SPL_MAX = 85, 110
     _BAR_X0, _BAR_LEN  = 2.3, 5.5
     _spl_ys = [8.8, 7.6, 6.4, 5.2, 4.0, 2.8]  # 6 sectores
 
@@ -902,7 +928,7 @@ def generate_report(show_data: dict, show_config: dict) -> str:
     # ═══════════════════════════════════════════════════════════════════════════
     ax_eg = fig.add_subplot(gs[10])
     _ax_base(ax_eg, bg=BG2, xlim=(0, 10), ylim=(0, 9))
-    _section_title(ax_eg, '  INTEGRIDAD ESTRUCTURAL — EGMS Copernicus 2015-2022 · Deformación mm/año')
+    _section_title(ax_eg, '  INTEGRIDAD ESTRUCTURAL — EGMS Copernicus 2015-2022 · Deformación mm/año', y_title=0.91)
     _confianza_tag(ax_eg, _get_confianza(eg))
 
     _eg_hdrs = ['SECTOR', 'VEL mm/año', 'PROYEC. 2027', 'TENDENCIA', 'ESTADO']
@@ -1010,6 +1036,25 @@ def generate_report(show_data: dict, show_config: dict) -> str:
                       color=_sc_row_c, fontsize=7.5, fontfamily='monospace', va='center', fontweight='bold')
         _spl_cy -= 0.85
 
+    # Fila predial exterior — siempre roja si excede límite nocturno GCBA
+    _pred_db  = _spl_c_pred
+    _pred_lim = 55.0
+    _pred_exc = round(_pred_db - _pred_lim, 1)
+    if _pred_db > 0:
+        _bbox(ax_spl_c, 0.2, _spl_cy - 0.42, 9.6, 0.72, fc='#1a0505', ec=REDL, lw=1.0)
+        ax_spl_c.text(_spl_c_xs[0], _spl_cy, 'EXT.PREDIAL',
+                      color=REDL, fontsize=7, fontfamily='monospace', va='center', fontweight='bold')
+        ax_spl_c.text(_spl_c_xs[1], _spl_cy, f'{_pred_db:.1f} dB',
+                      color=REDL, fontsize=7.5, fontfamily='monospace', va='center', fontweight='bold')
+        ax_spl_c.text(_spl_c_xs[2], _spl_cy, '✗', color=REDL, fontsize=8, fontfamily='monospace', va='center')
+        ax_spl_c.text(_spl_c_xs[3], _spl_cy, '✗', color=REDL, fontsize=8, fontfamily='monospace', va='center')
+        ax_spl_c.text(_spl_c_xs[4], _spl_cy, f'EXCEDE +{_pred_exc:.1f} dB',
+                      color=REDL, fontsize=7, fontfamily='monospace', va='center', fontweight='bold')
+        _spl_cy -= 0.85
+        ax_spl_c.text(0.3, _spl_cy + 0.35,
+                      f'↳ Límite nocturno GCBA: {_pred_lim:.0f} dB(A) → Requiere permiso especial GCBA',
+                      color=REDL, fontsize=6.5, fontfamily='monospace', va='center')
+
     _spl_c_alertas = spl_comp.get('alertas') or []
     if _spl_c_alertas:
         ax_spl_c.text(0.3, 0.4, f'⚠ {str(_spl_c_alertas[0])[:88]}',
@@ -1094,7 +1139,7 @@ def generate_report(show_data: dict, show_config: dict) -> str:
     # ═══════════════════════════════════════════════════════════════════════════
     ax_rc = fig.add_subplot(gs[14])
     _ax_base(ax_rc, bg=BG2, xlim=(0, 10), ylim=(0, 10))
-    _section_title(ax_rc, '  RIDER COMPLIANCE — Requerimientos técnicos vs condiciones reales')
+    _section_title(ax_rc, '  RIDER COMPLIANCE — Requerimientos técnicos vs condiciones reales', y_title=0.88)
     _confianza_tag(ax_rc, _get_confianza(rider_comp))
 
     _rc_estado = rider_comp.get('estado_global', 'N/D')
@@ -1141,7 +1186,7 @@ def generate_report(show_data: dict, show_config: dict) -> str:
                          YELL if _rctype == 'advertencia' else
                          WDIM if 'indeter' in _rctype else GRNL)
             _rc_cat = _rce.get('categoria', '')[:7].upper()
-            _rc_det = _rce.get('detalle', '')[:52]
+            _rc_det = _rce.get('detalle', '')[:75]
             _rc_sev = ('OK' if _rctype == 'conforme' else
                        _rce.get('severidad', _rce.get('estado', ''))[:8].upper())
             _rc_acc = ('✓' if _rctype == 'conforme' else _rce.get('accion', '')[:14])
@@ -1211,7 +1256,9 @@ def generate_report(show_data: dict, show_config: dict) -> str:
         ax_fii2.text(8.2, _fii_ty, f'{_fscore:.0f}' if _fscore else 'N/D',
                      color=_fcol, fontsize=8.5, fontfamily='monospace', va='center',
                      fontweight='bold')
-        ax_fii2.text(9.1, _fii_ty, _fsem.upper()[:6], color=_fcol, fontsize=8,
+        _fsem_lbl = {'verde': 'OK', 'amarillo': 'ESTIM.', 'rojo': 'ROJO',
+                     'sin_datos': 'SIN DATO'}.get(_fsem, _fsem.upper()[:8])
+        ax_fii2.text(8.8, _fii_ty, _fsem_lbl, color=_fcol, fontsize=8,
                      fontfamily='monospace', va='center')
         _fii_ty -= 1.4
 
@@ -1220,7 +1267,7 @@ def generate_report(show_data: dict, show_config: dict) -> str:
     # ═══════════════════════════════════════════════════════════════════════════
     ax_cmp = fig.add_subplot(gs[17])
     _ax_base(ax_cmp, bg=BG2, xlim=(0, 10), ylim=(0, 10))
-    _section_title(ax_cmp, '  ANÁLISIS COMPARATIVO — Dale Play vs Faro Protocol Óptimo')
+    _section_title(ax_cmp, '  ANÁLISIS COMPARATIVO — Dale Play vs Faro Protocol Óptimo', y_title=0.91)
 
     _cmp_hdrs = ['VARIABLE', 'DALE PLAY (REAL)', 'FARO ÓPTIMO']
     _cmp_xs   = [0.4, 4.2, 7.5]

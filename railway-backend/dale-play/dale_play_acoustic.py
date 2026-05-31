@@ -369,19 +369,15 @@ def analyze_acoustic_sightlines(rider: dict, show_id: str = "unknown") -> dict:
                 dist = dist * 0.65
             spl = _spl_room(lw_db, dist, h_m)
 
-        # Sightline: campo_central always optima (frontal directo, sin obstáculo).
+        # Sightline: campo_central siempre óptima (frontal directo).
         # Platea alta → atención por distancia/elevación.
-        # Resto: buena si SPL ≥ 93, obstruida si por debajo del mínimo.
+        # Resto: clasificación por ángulo respecto al escenario (no por SPL).
         if sec["id"] == "campo_central":
             sl = "optima"
         elif sec["height_m"] > 10:
             sl = "atencion"
-        elif spl >= 95:
-            sl = "optima"
-        elif spl >= 90:
-            sl = "buena"
         else:
-            sl = "obstruida"
+            sl = _sightline(sec["angle"])
 
         # cobertura_optima cuenta sectores que alcanzan el mínimo del rider (98 dB)
         if spl >= 98:    cobertura = "optima";   n_optima += 1
