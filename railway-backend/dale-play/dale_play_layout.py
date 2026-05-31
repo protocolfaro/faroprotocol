@@ -1,10 +1,11 @@
 """
-dale_play_layout.py — Parseo de rider/layout (PDF o DXF) + Claude Vision.
+dale_play_layout.py — Parseo de rider/layout (PDF, DXF, SDE) + Claude Vision.
 Extrae posiciones reales de estructuras del evento sobre el campo.
+SDE (System Design Exchange) — estándar L-Acoustics/d&b 2026 — soportado.
 Output: shows/{show_id}_layout.json
 """
 from __future__ import annotations
-import base64, io, json, logging, os, pathlib
+import base64, io, json, logging, os, pathlib, xml.etree.ElementTree as _ET
 from datetime import datetime
 
 log = logging.getLogger(__name__)
@@ -206,37 +207,246 @@ SOLO JSON válido:
     return json.loads(raw[start:end])
 
 
-def parse_layout_file(file_bytes: bytes, filename: str, show_id: str) -> dict:
-    """
-    Parsea PDF o DXF, llama a Claude Vision, guarda shows/{show_id}_layout.json.
-    Retorna el dict del layout.
-    """
-    ext       = pathlib.Path(filename).suffix.lower()
-    file_type = "pdf" if ext == ".pdf" else "dxf" if ext in (".dxf", ".dwg") else None
+# ── SDE (System Design Exchange) parser ──────────────────────────────────────
+# Estándar XML de L-Acoustics (K-series, Kara, Kiva) y d&b audiotechnik 2026.
+# El schema SDE incluye: arrays de cabinets, posición 3D, ángulo, potencia W, modelo.
 
-    if file_type is None:
-        raise ValueError(f"Formato no soportado: {ext}. Usar PDF o DXF/DWG.")
-
-    if file_type == "pdf":
-        geometry  = _extract_pdf_geometry(file_bytes)
-        img_bytes = _pdf_to_image_bytes(file_bytes)
-    else:
-        geometry  = _extract_dxf_geometry(file_bytes)
-        img_bytes = _dxf_to_image_bytes(file_bytes)
-
+def _is_sde_xml(xml_bytes: bytes) -> bool:
+    """Detecta si el XML tiene estructura SDE (SystemDesign root o namespace SDE)."""
     try:
-        estructuras = _vision_analyze(img_bytes, geometry, file_type)
-    except Exception as e:
-        log.warning("Vision failed: %s", e)
-        estructuras = {
+        root = _ET.fromstring(xml_bytes)
+        tag = root.tag.lower()
+        # Acepta: <SystemDesign>, <SDE>, <ArrayProcessing>, xmlns con sde
+        if any(k in tag for k in ("systemdesign", "sde", "arrayprocessing", "designfile")):
+            return True
+        # Busca elementos hijos típicos SDE
+        child_tags = {c.tag.split("}")[-1].lower() for c in root}
+        return bool(child_tags & {"array", "arrays", "speaker", "sources", "rigging"})
+    except Exception:
+        return False
+
+
+def _parse_sde_xml(sde_bytes: bytes) -> dict:
+    """
+    Parsea archivo SDE (System Design Exchange, XML) de L-Acoustics / d&b audiotechnik.
+    Extrae: arrays de torres (posición x/y/z, ángulo, potencia W, modelo de sistema).
+    Retorna dict en el mismo formato que _vision_analyze para compatibilidad.
+    """
+    try:
+        root = _ET.fromstring(sde_bytes)
+    except _ET.ParseError as e:
+        return {
             "escenario": None, "torres_lr": [], "pantallas_led": [],
             "barricada": None, "area_total_m2": None,
-            "observaciones": [f"Vision no disponible: {e}"],
+            "observaciones": [f"SDE parse error: {e}"],
             "confianza": "baja",
+            "sde_raw": {},
         }
 
-    fuente = ("Claude Vision + pdfplumber" if file_type == "pdf"
-              else "Claude Vision + ezdxf")
+    def _txt(el, attr: str, default=None):
+        if el is None:
+            return default
+        v = el.get(attr) or el.findtext(attr)
+        if v is None:
+            # Busca sub-elemento case-insensitive
+            for child in el:
+                if child.tag.split("}")[-1].lower() == attr.lower():
+                    return child.text or child.get("value") or default
+        return v or default
+
+    def _float(v, default=0.0) -> float:
+        try:
+            return float(v) if v is not None else default
+        except (ValueError, TypeError):
+            return default
+
+    # Namespaces — strip para simplificar búsqueda
+    def _strip_ns(tag: str) -> str:
+        return tag.split("}")[-1].lower()
+
+    # Buscar todos los arrays/sources/towers
+    arrays: list[dict] = []
+    for el in root.iter():
+        etag = _strip_ns(el.tag)
+        if etag in ("array", "source", "speaker", "loudspeakerarray", "cluster"):
+            array_id   = el.get("id") or el.get("name") or f"array_{len(arrays)}"
+            x_m        = _float(el.get("x") or el.get("xPos") or el.findtext("x"))
+            y_m        = _float(el.get("y") or el.get("yPos") or el.findtext("y"))
+            z_m        = _float(el.get("z") or el.get("zPos") or el.findtext("z"))
+            azimuth    = _float(el.get("azimuth") or el.get("rz") or el.findtext("azimuth"))
+            elevation  = _float(el.get("elevation") or el.get("ry") or el.findtext("elevation"))
+            power_w    = _float(el.get("power") or el.get("powerW") or el.findtext("power"))
+            model      = (el.get("model") or el.get("type") or
+                          el.findtext("model") or el.findtext("type") or "unknown")
+
+            # Buscar cabinets hijos
+            cabinets: list[dict] = []
+            for cab in el:
+                ctag = _strip_ns(cab.tag)
+                if ctag in ("cabinet", "element", "module", "unit"):
+                    cabinets.append({
+                        "model":   cab.get("model") or cab.get("type") or model,
+                        "power_w": _float(cab.get("power") or cab.get("powerW") or power_w),
+                        "angle":   _float(cab.get("angle") or cab.get("splay")),
+                    })
+
+            arrays.append({
+                "id":         array_id,
+                "x_m":        x_m,
+                "y_m":        y_m,
+                "z_m":        z_m,
+                "azimuth_deg": azimuth,
+                "elevation_deg": elevation,
+                "power_w":    power_w,
+                "model":      model,
+                "n_cabinets": len(cabinets),
+                "cabinets":   cabinets[:8],  # limit for JSON size
+            })
+
+    # Intentar identificar torres L / R / Delay según posición o ID
+    torres_lr: list[dict] = []
+    for arr in arrays:
+        aid = arr["id"].lower()
+        if any(k in aid for k in ("main_l", "left", "_l", "mhl", "ml")):
+            torres_lr.append({"id": "L", "x_m": arr["x_m"], "y_m": arr["y_m"],
+                              "z_m": arr["z_m"], "power_w": arr["power_w"],
+                              "model": arr["model"], "azimuth_deg": arr["azimuth_deg"]})
+        elif any(k in aid for k in ("main_r", "right", "_r", "mhr", "mr")):
+            torres_lr.append({"id": "R", "x_m": arr["x_m"], "y_m": arr["y_m"],
+                              "z_m": arr["z_m"], "power_w": arr["power_w"],
+                              "model": arr["model"], "azimuth_deg": arr["azimuth_deg"]})
+
+    # Si no se identificaron L/R por nombre, tomar primer y segundo array
+    if not torres_lr and len(arrays) >= 2:
+        for i, lr in enumerate(("L", "R")):
+            a = arrays[i]
+            torres_lr.append({"id": lr, "x_m": a["x_m"], "y_m": a["y_m"],
+                              "z_m": a["z_m"], "power_w": a["power_w"],
+                              "model": a["model"], "azimuth_deg": a["azimuth_deg"]})
+
+    # Escenario: buscar elemento stage/palco/scene
+    escenario = None
+    for el in root.iter():
+        if _strip_ns(el.tag) in ("stage", "palco", "scene", "platform"):
+            escenario = {
+                "x_m":          _float(el.get("x")),
+                "y_m":          _float(el.get("y")),
+                "ancho_m":      _float(el.get("width") or el.get("w")),
+                "profundidad_m": _float(el.get("depth") or el.get("d")),
+                "alto_m":       _float(el.get("height") or el.get("h") or el.get("z"), 1.6),
+            }
+            break
+
+    obs = [f"SDE: {len(arrays)} arrays detectados · {len(torres_lr)} torres L/R identificadas"]
+    if arrays:
+        obs.append(f"Sistema: {arrays[0]['model']} — potencia total: "
+                   f"{sum(a['power_w'] for a in arrays):.0f} W")
+    confianza = "alta" if (len(arrays) >= 2 and torres_lr) else ("media" if arrays else "baja")
+
+    return {
+        "escenario":      escenario,
+        "torres_lr":      torres_lr,
+        "pantallas_led":  [],
+        "barricada":      None,
+        "area_total_m2":  None,
+        "observaciones":  obs,
+        "confianza":      confianza,
+        "sde_arrays":     arrays,
+    }
+
+
+def parse_layout_file(file_bytes: bytes, filename: str, show_id: str) -> dict:
+    """
+    Parsea PDF, DXF/DWG o SDE/XML, llama a Claude Vision, guarda shows/{show_id}_layout.json.
+    SDE: parseo directo sin Vision (datos exactos). PDF/DXF: Vision + geometría.
+    """
+    ext       = pathlib.Path(filename).suffix.lower()
+
+    if ext == ".pdf":
+        file_type = "pdf"
+    elif ext in (".dxf", ".dwg"):
+        file_type = "dxf"
+    elif ext == ".sde":
+        file_type = "sde"
+    elif ext in (".xml", ".sdx"):
+        # XML puede ser SDE — verificar estructura
+        file_type = "sde" if _is_sde_xml(file_bytes) else None
+    else:
+        file_type = None
+
+    if file_type is None:
+        raise ValueError(
+            f"Formato no soportado: {ext}. "
+            "Usar PDF, DXF/DWG, SDE, o XML con formato SDE (L-Acoustics/d&b)."
+        )
+
+    if file_type == "sde":
+        # SDE: parseo directo — datos exactos del sistema de sonido
+        log.info("Layout: SDE detectado — parseo directo (sin Vision)")
+        estructuras = _parse_sde_xml(file_bytes)
+
+        # Si hay torres L/R con posición: cruzar con pyroomacoustics
+        if estructuras.get("sde_arrays"):
+            try:
+                from dale_play_acoustic import analyze_acoustic_sightlines
+                # Reconstruir rider desde datos SDE
+                total_power_w = sum(
+                    a.get("power_w", 0) for a in estructuras["sde_arrays"]
+                )
+                # Convertir potencia total a Lw aproximado: Lw = 10*log10(P/1e-12)
+                import math
+                lw_approx = 10 * math.log10(max(total_power_w, 1) / 1e-12) if total_power_w > 0 else 130
+                lw_approx = min(140, max(110, lw_approx))
+                rider_sde = {
+                    "stage": {"lw_db": lw_approx, "throws": ["main", "delay"]},
+                    "artist": "SDE import",
+                }
+                ac_result = analyze_acoustic_sightlines(rider_sde, show_id=show_id)
+                estructuras["acoustic_sde"] = {
+                    "lw_db_calculado":  round(lw_approx, 1),
+                    "rt60_s":           ac_result.get("rt60_s"),
+                    "spl_promedio_db":  ac_result.get("spl_promedio_db"),
+                    "cobertura_optima": ac_result.get("cobertura_optima_pct"),
+                    "modelo":           ac_result.get("modelo_acustico"),
+                }
+                log.info("SDE → pyroomacoustics: Lw=%.1f dB RT60=%.2fs",
+                         lw_approx, ac_result.get("rt60_s", 0))
+            except Exception as exc:
+                log.warning("SDE acoustic cross: %s", exc)
+
+        geometry = {"source": "SDE XML", "n_arrays": len(estructuras.get("sde_arrays", []))}
+        fuente   = "SDE (System Design Exchange) · L-Acoustics/d&b 2026 · Faro Protocol"
+
+    elif file_type == "pdf":
+        geometry  = _extract_pdf_geometry(file_bytes)
+        img_bytes = _pdf_to_image_bytes(file_bytes)
+        try:
+            estructuras = _vision_analyze(img_bytes, geometry, file_type)
+        except Exception as e:
+            log.warning("Vision failed: %s", e)
+            estructuras = {
+                "escenario": None, "torres_lr": [], "pantallas_led": [],
+                "barricada": None, "area_total_m2": None,
+                "observaciones": [f"Vision no disponible: {e}"],
+                "confianza": "baja",
+            }
+        fuente = "Claude Vision + pdfplumber"
+
+    else:  # dxf/dwg
+        geometry  = _extract_dxf_geometry(file_bytes)
+        img_bytes = _dxf_to_image_bytes(file_bytes)
+        try:
+            estructuras = _vision_analyze(img_bytes, geometry, file_type)
+        except Exception as e:
+            log.warning("Vision failed: %s", e)
+            estructuras = {
+                "escenario": None, "torres_lr": [], "pantallas_led": [],
+                "barricada": None, "area_total_m2": None,
+                "observaciones": [f"Vision no disponible: {e}"],
+                "confianza": "baja",
+            }
+        fuente = "Claude Vision + ezdxf"
+
     result = {
         "show_id":        show_id,
         "filename":       filename,
@@ -251,7 +461,7 @@ def parse_layout_file(file_bytes: bytes, filename: str, show_id: str) -> dict:
     SHOWS_DIR.mkdir(exist_ok=True)
     out = SHOWS_DIR / f"{show_id}_layout.json"
     out.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
-    log.info("Layout saved → %s", out)
+    log.info("Layout saved → %s  (file_type=%s)", out, file_type)
     return result
 
 

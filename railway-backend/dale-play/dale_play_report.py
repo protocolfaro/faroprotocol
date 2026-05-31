@@ -52,12 +52,12 @@ def _ax_base(ax, bg=BG2, xlim=(0, 10), ylim=(0, 10)):
         sp.set_color(BORDER); sp.set_linewidth(0.7)
 
 
-def _section_title(ax, title: str, fs: float = 8.5):
+def _section_title(ax, title: str, fs: float = 8.5, y_title: float = 0.96):
     ax.plot([0, 1], [0.998, 0.998], color=GOLD, lw=1.8,
             transform=ax.transAxes, clip_on=False)
-    ax.text(0.012, 0.96, title, color=GOLD, fontsize=fs, fontweight='bold',
+    ax.text(0.012, y_title, title, color=GOLD, fontsize=fs, fontweight='bold',
             ha='left', va='top', transform=ax.transAxes,
-            fontfamily='monospace', clip_on=True)
+            fontfamily='monospace', clip_on=False)
 
 
 def _confianza_tag(ax, confianza: str):
