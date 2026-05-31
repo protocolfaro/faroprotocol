@@ -3,7 +3,7 @@
   "show_date": "2026-05-31",
   "artist": "Airbag",
   "venue": "Estadio José Amalfitani",
-  "timestamp": "2026-05-31T00:21:41Z",
+  "timestamp": "2026-05-31T00:23:20Z",
   "mode": "full",
   "layout": null,
   "satellite": {
@@ -368,7 +368,7 @@
       {
         "id": "campo_central",
         "name": "Campo Central",
-        "spl_db": 102.9,
+        "spl_db": 100.0,
         "sightline": "optima",
         "cobertura": "optima",
         "dist_m": 80,
@@ -379,72 +379,78 @@
       {
         "id": "tribuna_norte",
         "name": "Tribuna Norte",
-        "spl_db": 101.4,
+        "spl_db": 98.4,
         "sightline": "optima",
         "cobertura": "optima",
         "dist_m": 120,
         "height_m": 8,
         "alertas": [],
-        "c_value_db": 0.8
+        "c_value_db": 0.5
       },
       {
         "id": "tribuna_sur",
         "name": "Tribuna Sur",
-        "spl_db": 99.6,
+        "spl_db": 97.1,
         "sightline": "optima",
-        "cobertura": "optima",
+        "cobertura": "buena",
         "dist_m": 140,
         "height_m": 8,
-        "alertas": [],
-        "c_value_db": 0.6
+        "alertas": [
+          "Incorporar delay tower lateral sur para compensar 0.9 dB de déficit respecto umb",
+          "Apuntar cluster de delay con ángulo de incidencia ≤15° sobre plano de asientos"
+        ],
+        "c_value_db": 0.5
       },
       {
         "id": "tribuna_este",
         "name": "Tribuna Este",
-        "spl_db": 100.7,
+        "spl_db": 97.7,
         "sightline": "optima",
-        "cobertura": "optima",
+        "cobertura": "buena",
         "dist_m": 130,
         "height_m": 8,
-        "alertas": [],
-        "c_value_db": 0.4
+        "alertas": [
+          "Instalar delay tower central este para refuerzo de 2–3 dB y reducción de tiempo ",
+          "Verificar coherencia de fase con main PA mediante retardo de 12–15 ms"
+        ],
+        "c_value_db": 1.0
       },
       {
         "id": "platea_alta_norte",
         "name": "Platea Alta Norte",
-        "spl_db": 97.6,
+        "spl_db": 96.5,
         "sightline": "atencion",
         "cobertura": "buena",
         "dist_m": 150,
         "height_m": 15,
         "alertas": [
-          "Instalar delay tower intermedia a ~90 m del escenario apuntando a platea alta no",
-          "Considerar array vertical con mayor throw angle para cubrir filas superiores"
+          "Agregar delay tower elevada norte con throw dirigido al plano de asientos altos",
+          "Considerar line array vertical de al menos 8 elementos para cobertura uniforme d"
         ],
-        "c_value_db": -1.2
+        "c_value_db": -1.0
       },
       {
         "id": "platea_alta_sur",
         "name": "Platea Alta Sur",
-        "spl_db": 95.8,
+        "spl_db": 95.0,
         "sightline": "atencion",
         "cobertura": "buena",
         "dist_m": 170,
         "height_m": 15,
         "alertas": [
-          "Instalar delay tower lateral sur a ~100 m del escenario con cobertura dedicada",
-          "Aumentar nivel de referencia en sistema de delay sur en +3 dB respecto al norte"
+          "Prioridad alta: instalar delay tower sur-alta; déficit de 3 dB respecto umbral d",
+          "Evaluar subwoofer cardioid en delay tower para refuerzo de graves sin incremento"
         ],
-        "c_value_db": -2.1
+        "c_value_db": -1.5
       }
     ],
     "alertas_globales": [
-      "Platea Alta Norte y Platea Alta Sur presentan SPL < 98 dB: requieren delay towers obligatorias",
-      "RT60 estimado 2.1 s en estadio abierto con absorción de pasto α=0.5 y apertura cenital alta; conside",
-      "Ángulo de throw principal desde escenario oeste hacia Tribuna Este supera 115 m: verificar cobertura"
+      "Platea Alta Sur presenta SPL 95.0 dB, por debajo del umbral mínimo de 98 dB para conciertos; delay t",
+      "RT60 estimado de 2.1 s en recinto semi-abierto puede degradar C80/C50; recomendar procesado de predi",
+      "Verificar nivel máximo de escenario frente a límites municipales de emisión acústica (Resolución 51/"
     ],
-    "spl_promedio_db": 99.7,
-    "cobertura_optima_pct": 66.7,
+    "spl_promedio_db": 97.5,
+    "cobertura_optima_pct": 33.3,
     "rt60_s": 2.1,
     "modelo_acustico": "Claude API acústico geométrico",
     "fuente": "Claude API (claude-sonnet-4-6) · análisis acústico geométrico real",
@@ -457,59 +463,64 @@
       "sectores": [
         {
           "id": "campo_central",
-          "spl_db": 102.9,
+          "spl_db": 100.0,
           "c_value": 2.5,
           "sightline": "DIRECTA",
           "recomendaciones": []
         },
         {
           "id": "tribuna_norte",
-          "spl_db": 101.4,
-          "c_value": 0.8,
+          "spl_db": 98.4,
+          "c_value": 0.5,
           "sightline": "DIRECTA",
           "recomendaciones": []
         },
         {
           "id": "tribuna_sur",
-          "spl_db": 99.6,
-          "c_value": 0.6,
+          "spl_db": 97.1,
+          "c_value": 0.5,
           "sightline": "DIRECTA",
-          "recomendaciones": []
+          "recomendaciones": [
+            "Incorporar delay tower lateral sur para compensar 0.9 dB de déficit respecto umbral de referencia",
+            "Apuntar cluster de delay con ángulo de incidencia ≤15° sobre plano de asientos"
+          ]
         },
         {
           "id": "tribuna_este",
-          "spl_db": 100.7,
-          "c_value": 0.4,
+          "spl_db": 97.7,
+          "c_value": 1.0,
           "sightline": "DIRECTA",
-          "recomendaciones": []
+          "recomendaciones": [
+            "Instalar delay tower central este para refuerzo de 2–3 dB y reducción de tiempo de llegada",
+            "Verificar coherencia de fase con main PA mediante retardo de 12–15 ms"
+          ]
         },
         {
           "id": "platea_alta_norte",
-          "spl_db": 97.6,
-          "c_value": -1.2,
+          "spl_db": 96.5,
+          "c_value": -1.0,
           "sightline": "DIRECTA",
           "recomendaciones": [
-            "Instalar delay tower intermedia a ~90 m del escenario apuntando a platea alta norte",
-            "Considerar array vertical con mayor throw angle para cubrir filas superiores"
+            "Agregar delay tower elevada norte con throw dirigido al plano de asientos altos",
+            "Considerar line array vertical de al menos 8 elementos para cobertura uniforme del gradiente de altura"
           ]
         },
         {
           "id": "platea_alta_sur",
-          "spl_db": 95.8,
-          "c_value": -2.1,
+          "spl_db": 95.0,
+          "c_value": -1.5,
           "sightline": "DIRECTA",
           "recomendaciones": [
-            "Instalar delay tower lateral sur a ~100 m del escenario con cobertura dedicada",
-            "Aumentar nivel de referencia en sistema de delay sur en +3 dB respecto al norte"
+            "Prioridad alta: instalar delay tower sur-alta; déficit de 3 dB respecto umbral de referencia",
+            "Evaluar subwoofer cardioid en delay tower para refuerzo de graves sin incremento de RT60"
           ]
         }
       ],
       "rt60_estimado_s": 2.1,
       "alertas_globales": [
-        "Platea Alta Norte y Platea Alta Sur presentan SPL < 98 dB: requieren delay towers obligatorias",
-        "RT60 estimado 2.1 s en estadio abierto con absorción de pasto α=0.5 y apertura cenital alta; considerar EQ high-pass en delays para compensar acumulación de graves",
-        "Ángulo de throw principal desde escenario oeste hacia Tribuna Este supera 115 m: verificar cobertura HF con array de largo alcance",
-        "Diferencia de SPL entre campo central y platea alta sur excede 7 dB: gestión de ganancia por zonas recomendada con sistema de procesado independiente por sector"
+        "Platea Alta Sur presenta SPL 95.0 dB, por debajo del umbral mínimo de 98 dB para conciertos; delay towers obligatorias",
+        "RT60 estimado de 2.1 s en recinto semi-abierto puede degradar C80/C50; recomendar procesado de predicción FIR en procesadores de delay",
+        "Verificar nivel máximo de escenario frente a límites municipales de emisión acústica (Resolución 51/2015 GCABA)"
       ],
       "modelo": "Claude API acústico geométrico"
     },
@@ -1252,60 +1263,59 @@
   "spl_compliance": {
     "estado_global": "NO CONFORME",
     "periodo": "NOCTURNO (22h-8h)",
-    "spl_max_interior_db": 102.9,
+    "spl_max_interior_db": 100.0,
     "spl_predial_db": 65.9,
     "limite_exterior_dba": 55.0,
     "margen_exterior_db": -10.9,
     "excede_exterior": true,
-    "sectores_sobre_oms": 3,
+    "sectores_sobre_oms": 0,
     "sectores_sobre_niosh": 0,
     "sectores": [
       {
         "id": "campo_central",
-        "spl_db": 102.9,
-        "sobre_oms": true,
+        "spl_db": 100.0,
+        "sobre_oms": false,
         "sobre_niosh": false,
-        "estado": "EXCEDE OMS"
+        "estado": "OK"
       },
       {
         "id": "tribuna_norte",
-        "spl_db": 101.4,
-        "sobre_oms": true,
+        "spl_db": 98.4,
+        "sobre_oms": false,
         "sobre_niosh": false,
-        "estado": "EXCEDE OMS"
+        "estado": "OK"
       },
       {
         "id": "tribuna_sur",
-        "spl_db": 99.6,
+        "spl_db": 97.1,
         "sobre_oms": false,
         "sobre_niosh": false,
         "estado": "OK"
       },
       {
         "id": "tribuna_este",
-        "spl_db": 100.7,
-        "sobre_oms": true,
+        "spl_db": 97.7,
+        "sobre_oms": false,
         "sobre_niosh": false,
-        "estado": "EXCEDE OMS"
+        "estado": "OK"
       },
       {
         "id": "platea_alta_norte",
-        "spl_db": 97.6,
+        "spl_db": 96.5,
         "sobre_oms": false,
         "sobre_niosh": false,
         "estado": "OK"
       },
       {
         "id": "platea_alta_sur",
-        "spl_db": 95.8,
+        "spl_db": 95.0,
         "sobre_oms": false,
         "sobre_niosh": false,
         "estado": "OK"
       }
     ],
     "alertas": [
-      "SPL exterior estimado (65.9 dB) excede límite NOCTURNO (22h-8h) (55 dB) en 10.9 dB — requiere permiso especial GCBA",
-      "3 sector(es) superan recomendación OMS (100 dB) — informar a público en accesos"
+      "SPL exterior estimado (65.9 dB) excede límite NOCTURNO (22h-8h) (55 dB) en 10.9 dB — requiere permiso especial GCBA"
     ],
     "limites_aplicados": {
       "exterior": "Ordenanza GCBA 11.554/1994 — 55.0 dB(A) NOCTURNO (22h-8h)",
@@ -1357,9 +1367,25 @@
     "incumplimientos": [
       {
         "categoria": "acustica",
+        "sector": "tribuna_sur",
+        "estado": "INCUMPLIMIENTO",
+        "detalle": "SPL real 97.1 dB vs mínimo 98 dB (déficit 0.9 dB)",
+        "severidad": "leve",
+        "accion": "Instalar delay tower o ajustar hang del main array"
+      },
+      {
+        "categoria": "acustica",
+        "sector": "tribuna_este",
+        "estado": "INCUMPLIMIENTO",
+        "detalle": "SPL real 97.7 dB vs mínimo 98 dB (déficit 0.3 dB)",
+        "severidad": "leve",
+        "accion": "Instalar delay tower o ajustar hang del main array"
+      },
+      {
+        "categoria": "acustica",
         "sector": "platea_alta_norte",
         "estado": "INCUMPLIMIENTO",
-        "detalle": "SPL real 97.6 dB vs mínimo 98 dB (déficit 0.4 dB)",
+        "detalle": "SPL real 96.5 dB vs mínimo 98 dB (déficit 1.5 dB)",
         "severidad": "leve",
         "accion": "Instalar delay tower o ajustar hang del main array"
       },
@@ -1367,7 +1393,7 @@
         "categoria": "acustica",
         "sector": "platea_alta_sur",
         "estado": "INCUMPLIMIENTO",
-        "detalle": "SPL real 95.8 dB vs mínimo 98 dB (déficit 2.2 dB)",
+        "detalle": "SPL real 95.0 dB vs mínimo 98 dB (déficit 3.0 dB)",
         "severidad": "advertencia",
         "accion": "Instalar delay tower o ajustar hang del main array"
       },
@@ -1392,25 +1418,13 @@
         "categoria": "acustica",
         "sector": "campo_central",
         "estado": "CONFORME",
-        "detalle": "SPL 102.9 dB ≥ mínimo 98 dB (+4.9 dB margen)"
+        "detalle": "SPL 100.0 dB ≥ mínimo 98 dB (+2.0 dB margen)"
       },
       {
         "categoria": "acustica",
         "sector": "tribuna_norte",
         "estado": "CONFORME",
-        "detalle": "SPL 101.4 dB ≥ mínimo 98 dB (+3.4 dB margen)"
-      },
-      {
-        "categoria": "acustica",
-        "sector": "tribuna_sur",
-        "estado": "CONFORME",
-        "detalle": "SPL 99.6 dB ≥ mínimo 98 dB (+1.6 dB margen)"
-      },
-      {
-        "categoria": "acustica",
-        "sector": "tribuna_este",
-        "estado": "CONFORME",
-        "detalle": "SPL 100.7 dB ≥ mínimo 98 dB (+2.7 dB margen)"
+        "detalle": "SPL 98.4 dB ≥ mínimo 98 dB (+0.4 dB margen)"
       },
       {
         "categoria": "suelo",
@@ -1445,14 +1459,14 @@
     ],
     "n_criticos": 1,
     "n_advertencias": 2,
-    "n_conformes": 9,
+    "n_conformes": 7,
     "fuente": "Rider técnico + datos acústicos/suelo/drenaje",
     "fallback_usado": false,
     "estimado": false
   },
   "comparativa": {
     "show_id": "airbag_2026-05-31",
-    "fecha_analisis": "2026-05-31 00:22",
+    "fecha_analisis": "2026-05-31 00:23",
     "fotos_analizadas": 5,
     "fuente_extraccion": "Claude Vision (análisis visual manual) + modelos Faro Protocol",
     "config_real": {
@@ -1585,5 +1599,5 @@
     }
   },
   "report_png_url": "https://raw.githubusercontent.com/protocolfaro/faroprotocol/main/dale-play/reportes/reporte_airbag_2026-05-31.png",
-  "updated_at": "2026-05-31T00:22:05Z"
+  "updated_at": "2026-05-31T00:23:44Z"
 }
