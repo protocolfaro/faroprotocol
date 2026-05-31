@@ -19,8 +19,10 @@ from dale_play_config import VENUE_BBOX, NDVI_BUENO, NDVI_DEGRADADO
 
 log = logging.getLogger(__name__)
 
-_PC_STAC = "https://planetarycomputer.microsoft.com/api/stac/v1"
-_CMR_API = "https://cmr.earthdata.nasa.gov/search/granules.json"
+_PC_STAC  = "https://planetarycomputer.microsoft.com/api/stac/v1"
+# AWS Earth Search (Element84) — sin autenticación, datos disponibles horas después del pase
+_AWS_STAC = "https://earth-search.aws.element84.com/v1"
+_CMR_API  = "https://cmr.earthdata.nasa.gov/search/granules.json"
 
 # MODIS tile que cubre Buenos Aires (lat -34.6, lon -58.5)
 _MODIS_TILE = "h13v12"
@@ -120,7 +122,84 @@ def _ndvi_from_hls_item(item: dict) -> Optional[float]:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Sentinel-2 — fuente principal modo full (10m, ~5 días)
+# Sentinel-2 — AWS S3 directo (Element84 Earth Search, sin autenticación)
+# Disponible ~2-4 horas después del pase de satélite
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _search_s2_aws(days_back: int = 30, max_cloud: float = 30.0) -> Optional[dict]:
+    """
+    Busca S2 en AWS Element84 Earth Search.
+    Los assets apuntan a s3://sentinel-cogs/ accesibles via HTTPS sin token.
+    Ventaja: datos disponibles ~2-4h después del pase (vs ~12-24h en PC).
+    """
+    try:
+        import requests
+        end_dt   = date.today()
+        start_dt = end_dt - timedelta(days=days_back)
+        minx, miny, maxx, maxy = VENUE_BBOX
+        payload = {
+            "collections": ["sentinel-2-l2a"],
+            "bbox":        [minx, miny, maxx, maxy],
+            "datetime":    f"{start_dt.isoformat()}T00:00:00Z/{end_dt.isoformat()}T23:59:59Z",
+            "query":       {"eo:cloud_cover": {"lt": max_cloud}},
+            "limit":       10,
+            "sortby":      [{"field": "eo:cloud_cover", "direction": "asc"}],
+        }
+        r = requests.post(f"{_AWS_STAC}/search", json=payload, timeout=20)
+        if not r.ok:
+            return None
+        features = r.json().get("features", [])
+        return features[0] if features else None
+    except Exception as exc:
+        log.debug("dale_play_satellite: AWS S2 search: %s", exc)
+        return None
+
+
+def _ndvi_from_item_aws(item: dict) -> Optional[float]:
+    """NDVI desde S2 via AWS S3 (sin token, HTTPS público)."""
+    try:
+        import rasterio, numpy as np, os
+        from rasterio.warp import transform_bounds
+        from rasterio.windows import from_bounds
+
+        os.environ["AWS_NO_SIGN_REQUEST"] = "YES"
+
+        def _read(key: str) -> Optional[np.ndarray]:
+            href = item.get("assets", {}).get(key, {}).get("href", "")
+            if not href:
+                return None
+            # Convertir s3:// a HTTPS si es necesario
+            if href.startswith("s3://sentinel-cogs/"):
+                href = href.replace("s3://sentinel-cogs/",
+                                    "https://sentinel-cogs.s3.us-west-2.amazonaws.com/")
+            with rasterio.open(href) as src:
+                minx, miny, maxx, maxy = VENUE_BBOX
+                native = transform_bounds("EPSG:4326", src.crs, minx, miny, maxx, maxy)
+                win    = from_bounds(*native, transform=src.transform)
+                return src.read(1, window=win).astype("float32") / 10_000.0
+
+        red = _read("red")   # Earth Search usa "red" / "nir" como keys
+        nir = _read("nir")
+        if red is None:
+            red = _read("B04")
+        if nir is None:
+            nir = _read("B08")
+
+        if red is None or nir is None:
+            return None
+
+        valid = (red > 0) & (nir > 0) & (red < 1) & (nir < 1)
+        if valid.sum() < 4:
+            return None
+        r_v, n_v = red[valid], nir[valid]
+        return float(round(float(np.mean((n_v - r_v) / (n_v + r_v + 1e-9))), 3))
+    except Exception as exc:
+        log.debug("dale_play_satellite: AWS S2 NDVI: %s", exc)
+        return None
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Sentinel-2 — Planetary Computer fallback (10m, ~5 días)
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _search_s2(days_back: int = 30, max_cloud: float = 30.0) -> Optional[dict]:
@@ -405,45 +484,76 @@ def fetch_satellite_baseline(
         except Exception as e:
             log.warning("dale_play_satellite: HLS failed: %s", e)
 
-    # ── 2. Sentinel-2 — primaria en full, fallback en post_show ───────────────
+    # ── 2. Sentinel-2 — AWS primero (más rápido), PC como fallback ───────────
     if not result.get("ndvi_fecha"):
+        s2_item    = None
+        s2_source  = None
+
+        # Intentar AWS Earth Search primero (datos disponibles ~2-4h antes)
         try:
-            s2_item = _search_s2(days_back=days_back_s2)
+            s2_item = _search_s2_aws(days_back=days_back_s2)
             if s2_item:
-                ndvi  = _ndvi_from_item(s2_item)
-                props = s2_item.get("properties", {})
+                s2_source = "AWS"
+                log.info("dale_play_satellite: S2 encontrada en AWS Earth Search")
+        except Exception as exc_aws:
+            log.debug("dale_play_satellite: AWS S2 search: %s", exc_aws)
+
+        # Fallback a Planetary Computer
+        if not s2_item:
+            try:
+                s2_item = _search_s2(days_back=days_back_s2)
+                if s2_item:
+                    s2_source = "PC"
+            except Exception as exc_pc:
+                log.warning("dale_play_satellite: PC S2 search: %s", exc_pc)
+
+        if s2_item:
+            try:
+                # Leer NDVI con el cliente correcto
+                ndvi = _ndvi_from_item_aws(s2_item) if s2_source == "AWS" else None
+                if ndvi is None:
+                    ndvi = _ndvi_from_item(s2_item)
+                    s2_source = "PC"
+
+                props  = s2_item.get("properties", {})
                 dt_str = (props.get("datetime") or "")[:10]
                 _ndvi_month = int(dt_str[5:7]) if len(dt_str) >= 7 else None
+                fuente_label = (
+                    "Sentinel-2 L2A · AWS Earth Search (s3://sentinel-cogs)"
+                    if s2_source == "AWS"
+                    else "Sentinel-2 L2A · Planetary Computer"
+                )
                 result.update({
                     "ndvi":           ndvi,
                     "ndvi_fecha":     dt_str,
                     "ndvi_cloud_pct": round(props.get("eo:cloud_cover", 0), 1),
                     "ndvi_status":    _classify_ndvi(ndvi, month=_ndvi_month) if ndvi is not None
                                       else {"semaforo": "sin_datos", "label": "Sin imagen disponible"},
-                    "fuente_ndvi":    "Sentinel-2 L2A · Planetary Computer",
-                    "fuente_s2":      "Sentinel-2 L2A · Planetary Computer",
+                    "fuente_ndvi":    fuente_label,
+                    "fuente_s2":      fuente_label,
                     "fuente_tipo":    "S2",
+                    "s2_fuente_backend": s2_source,
                     "revisita_dias":  5.0,
                 })
-                log.info("dale_play_satellite: S2 NDVI %s fecha %s", ndvi, dt_str)
+                log.info("dale_play_satellite: S2 [%s] NDVI %s fecha %s",
+                         s2_source, ndvi, dt_str)
 
                 # Sen2SR — solo post_show + imagen limpia
                 if mode == "post_show":
                     result.update(_apply_sen2sr(s2_item))
-            else:
+            except Exception as exc:
+                log.warning("dale_play_satellite: S2 NDVI read: %s", exc)
                 result.update({
-                    "ndvi":         None,
-                    "ndvi_fecha":   None,
-                    "fuente_tipo":  "sin_dato",
-                    "revisita_dias": None,
-                    "ndvi_status":  {"semaforo": "sin_datos", "label": "Sin escena disponible"},
+                    "ndvi": None, "fuente_tipo": "error",
+                    "ndvi_status": {"semaforo": "error", "label": str(exc)},
                 })
-        except Exception as e:
-            log.warning("dale_play_satellite: S2 failed: %s", e)
+        else:
             result.update({
-                "ndvi":        None,
-                "fuente_tipo": "error",
-                "ndvi_status": {"semaforo": "error", "label": str(e)},
+                "ndvi":          None,
+                "ndvi_fecha":    None,
+                "fuente_tipo":   "sin_dato",
+                "revisita_dias": None,
+                "ndvi_status":   {"semaforo": "sin_datos", "label": "Sin escena disponible"},
             })
 
     # ── 3. Landsat TIRS — temperatura superficial ─────────────────────────────

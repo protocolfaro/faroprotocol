@@ -237,6 +237,16 @@ def dp_verify(cert_hash: str):
         return jsonify({"valido": False, "error": str(e)}), 500
 
 
+@dale_play_bp.route("/scheduler-status", methods=["GET"])
+def dp_scheduler_status():
+    """GET /dale-play/scheduler-status — monitores post-show activos."""
+    try:
+        from dale_play_scheduler import get_active_monitors
+        return jsonify({"monitors": get_active_monitors()})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @dale_play_bp.route("/dashboard/<show_id>", methods=["GET"])
 def dp_dashboard(show_id: str):
     """GET /dale-play/dashboard/{show_id} — Panel de validación interactivo."""

@@ -186,6 +186,50 @@ def run_show_audit(show_config: dict, mode: str = "full") -> dict:
             log.warning("dale_play_pipeline: insar failed: %s", e)
             result["insar"] = {"error": str(e)}
 
+    # ── ESTARFM — NDVI sintético post-show ──────────────────────────────────
+    if mode == "post_show":
+        try:
+            from dale_play_starfm import compute_starfm_ndvi
+            sat      = result.get("satellite") or {}
+            result["starfm"] = compute_starfm_ndvi(
+                show_id       = show_id,
+                show_date     = show_date,
+                baseline_ndvi = sat.get("ndvi"),
+                baseline_date = sat.get("ndvi_fecha"),
+            )
+            log.info("dale_play_pipeline: STARFM → NDVI=%.3f conf=%.0f%%",
+                     result["starfm"].get("ndvi_sintetico") or 0,
+                     result["starfm"].get("confianza_pct") or 0)
+        except Exception as e:
+            log.warning("dale_play_pipeline: STARFM failed: %s", e)
+            result["starfm"] = {"error": str(e)}
+
+    # ── Cloud Removal — NDVI post-show con s2cloudless ───────────────────────
+    if mode == "post_show":
+        try:
+            from dale_play_cloudremoval import compute_cloud_removed_ndvi
+            result["cloudremoval"] = compute_cloud_removed_ndvi(
+                show_id   = show_id,
+                show_date = show_date,
+            )
+            log.info("dale_play_pipeline: cloudremoval → %s cobertura=%.0f%%",
+                     result["cloudremoval"].get("estado"),
+                     result["cloudremoval"].get("cobertura_limpia_pct") or 0)
+        except Exception as e:
+            log.warning("dale_play_pipeline: cloudremoval failed: %s", e)
+            result["cloudremoval"] = {"error": str(e)}
+
+    # ── Chain of Custody ─────────────────────────────────────────────────────
+    if mode == "post_show":
+        try:
+            result["chain_of_custody"] = _compute_chain_of_custody(result)
+            coc = result["chain_of_custody"]
+            log.info("dale_play_pipeline: chain_of_custody → %s (%d%%)",
+                     coc.get("nivel"), coc.get("confianza_pct"))
+        except Exception as e:
+            log.warning("dale_play_pipeline: chain_of_custody: %s", e)
+            result["chain_of_custody"] = {"error": str(e)}
+
     # ── FII ──────────────────────────────────────────────────────────────────
     try:
         from dale_play_fii import compute_fii
@@ -258,12 +302,125 @@ def run_show_audit(show_config: dict, mode: str = "full") -> dict:
             log.warning("dale_play_pipeline: certificacion failed: %s", e)
             result["certificado"] = {"error": str(e)}
 
+    # ── Scheduler post-show (auto-actualización cada 6h durante 7 días) ──────
+    if mode == "post_show":
+        try:
+            from dale_play_scheduler import schedule_post_show_updates
+            schedule_post_show_updates(
+                show_id    = show_id,
+                show_date  = show_date,
+                show_config= show_config,
+                coc_nivel  = (result.get("chain_of_custody") or {}).get("nivel", "SIN_DATOS"),
+            )
+            log.info("dale_play_pipeline: scheduler post-show registrado para %s", show_id)
+        except Exception as e:
+            log.warning("dale_play_pipeline: scheduler post-show: %s", e)
+
     # ── Run log + Audit log inmutable ────────────────────────────────────────
     _guardar_run_log(show_id, result, _log_ejecutados, _log_fallidos,
                      _fuentes, ts_inicio, smoke=smoke_result)
 
     log.info("=== dale_play_pipeline OK — %s · %s ===", artist, show_date)
     return result
+
+
+# ── Chain of Custody ──────────────────────────────────────────────────────────
+
+def _compute_chain_of_custody(result: dict) -> dict:
+    """
+    Evalúa el nivel de evidencia del reporte post-show.
+
+    GOLD       (95%): SAR disponible + S2 limpia (cloud_pct < 15%)
+    SILVER     (88%): SAR disponible + s2cloudless limpio > 30% del campo
+    BRONZE     (80%): SAR disponible + ESTARFM sintético (confianza >= 60%)
+    RADAR_PURO (75%): Solo SAR, sin dato óptico disponible
+    SIN_DATOS   (0%): Sin SAR ni óptico
+    """
+    sat          = result.get("satellite")     or {}
+    umbra        = result.get("umbra_sar")     or {}
+    sar_comp_res = (result.get("insar") or {}).get("sar_compaction")
+    cloud_rem    = result.get("cloudremoval")  or {}
+    starfm_res   = result.get("starfm")        or {}
+
+    # SAR disponible si Umbra cubre el venue O si hay Sentinel-1 compaction
+    sar_umbra  = (umbra.get("umbra_cobre_venue") is True
+                  and not umbra.get("error")
+                  and umbra.get("backscatter_n_px", 0) > 0)
+    sar_s1     = (isinstance(sar_comp_res, dict)
+                  and sar_comp_res.get("disponible")
+                  and not sar_comp_res.get("error"))
+    sar_ok     = sar_umbra or sar_s1
+
+    sar_fuentes = []
+    if sar_umbra:
+        sar_fuentes.append(f"Umbra X-band VV {umbra.get('escena_datetime','')}")
+    if sar_s1:
+        sar_fuentes.append("Sentinel-1 GRD SAR compaction")
+
+    # Calidad óptica S2
+    ndvi_cloud   = float(sat.get("ndvi_cloud_pct") or 100)
+    ndvi_ok      = sat.get("ndvi") is not None and not sat.get("error")
+    s2_clean     = ndvi_ok and ndvi_cloud < 15.0 and not sat.get("fallback_usado")
+
+    # s2cloudless coverage
+    cloud_pct    = float(cloud_rem.get("cobertura_limpia_pct") or 0)
+    cloud_ndvi   = cloud_rem.get("ndvi_limpio")
+    silver_cloud = (cloud_rem.get("estado") in ("SILVER", "marginal")
+                    and cloud_pct >= 30.0
+                    and cloud_ndvi is not None
+                    and not cloud_rem.get("error"))
+
+    # STARFM
+    sf_conf  = float(starfm_res.get("confianza_pct") or 0)
+    sf_ndvi  = starfm_res.get("ndvi_sintetico")
+    sf_ok    = sf_ndvi is not None and sf_conf >= 60.0 and not starfm_res.get("error")
+
+    # Asignar nivel
+    if sar_ok and s2_clean:
+        nivel        = "GOLD"
+        confianza    = 95
+        optico_desc  = f"S2 limpia (nub={ndvi_cloud:.0f}%)"
+        estimado     = False
+    elif sar_ok and silver_cloud:
+        nivel        = "SILVER"
+        confianza    = 88
+        optico_desc  = f"s2cloudless {cloud_pct:.0f}% campo limpio"
+        estimado     = False
+    elif sar_ok and sf_ok:
+        nivel        = "BRONZE"
+        confianza    = 80
+        optico_desc  = f"ESTARFM sintético (conf={sf_conf:.0f}%) — ESTIMACIÓN PROYECTADA"
+        estimado     = True
+    elif sar_ok:
+        nivel        = "RADAR_PURO"
+        confianza    = 75
+        optico_desc  = "Sin dato óptico post-show disponible"
+        estimado     = False
+    else:
+        nivel        = "SIN_DATOS"
+        confianza    = 0
+        optico_desc  = "Sin SAR ni óptico"
+        estimado     = False
+
+    fuentes = sar_fuentes.copy()
+    if optico_desc:
+        fuentes.append(optico_desc)
+
+    return {
+        "nivel":                     nivel,
+        "confianza_pct":             confianza,
+        "fuentes":                   fuentes,
+        "estimacion_proyectada":     estimado,
+        "sar_disponible":            sar_ok,
+        "ndvi_cloud_pct_s2":         ndvi_cloud,
+        "cloud_coverage_limpia_pct": cloud_pct,
+        "starfm_confianza_pct":      sf_conf,
+        "descripcion":               (
+            f"Nivel {nivel} — {confianza}% confianza. "
+            f"{'ESTIMACIÓN PROYECTADA. ' if estimado else ''}"
+            f"Fuentes: {', '.join(fuentes) or 'ninguna'}"
+        ),
+    }
 
 
 # ── Persistencia del run log ──────────────────────────────────────────────────

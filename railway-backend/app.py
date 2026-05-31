@@ -718,7 +718,14 @@ try:
         log.info("Dale Play check_new_sources registrado en APScheduler (cada 3 días)")
     except Exception as _dp_sched_err:
         log.warning("Dale Play check_new_sources scheduler: %s", _dp_sched_err)
-    log.info("Schedulers registered: daily weather + weekly reports + dale_play sources")
+    # Dale Play — scheduler post-show (auto-actualización cada 6h)
+    try:
+        from dale_play_scheduler import init_scheduler as _dp_sched_init
+        _dp_sched_init(_scheduler)
+        log.info("Dale Play post-show scheduler inicializado (compartiendo APScheduler)")
+    except Exception as _dp_sched2_err:
+        log.warning("Dale Play post-show scheduler: %s", _dp_sched2_err)
+    log.info("Schedulers registered: daily weather + weekly reports + dale_play sources + dale_play post-show")
 except Exception as _sched_err:
     _scheduler = None
     log.error("Scheduler failed to start (non-fatal): %s", _sched_err)

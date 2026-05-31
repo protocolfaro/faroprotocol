@@ -1288,6 +1288,157 @@ El token `GITHUB_TOKEN` necesita permiso `repo` (lectura y escritura) sobre `pro
 
 *Fin del manual. Cualquier modificación al sistema debe reflejarse aquí antes de hacer commit.*
 
+---
+
+## 18. SISTEMA DE CADENA DE CUSTODIA (Chain of Custody) — v1.2
+
+> Integrado 2026-05-31. Documenta el nivel de evidencia del reporte post-show.
+
+### 18.1 Niveles
+
+| Nivel | Confianza | Condición | Marcado |
+|---|---|---|---|
+| GOLD | 95% | SAR disponible + S2 limpia (cloud < 15%) | — |
+| SILVER | 88% | SAR disponible + s2cloudless > 30% campo limpio | — |
+| BRONZE | 80% | SAR disponible + ESTARFM sintético (conf ≥ 60%) | ESTIMACIÓN PROYECTADA |
+| RADAR_PURO | 75% | Solo SAR, sin dato óptico | — |
+| SIN_DATOS | 0% | Sin SAR ni óptico | — |
+
+Calculado en `dale_play_pipeline._compute_chain_of_custody()`. Resultado en `result["chain_of_custody"]`.
+
+**SAR "disponible":** Umbra X-band cubre venue (`umbra_cobre_venue=True`) O Sentinel-1 compaction OK.
+
+### 18.2 Timing real esperado (Buenos Aires, post-show)
+
+| D+ | Nivel típico | Fuente |
+|---|---|---|
+| D+0 (inmediato) | RADAR_PURO | Umbra SAR (si escena disponible) |
+| D+1 | BRONZE | ESTARFM MODIS MOD09GQ (si sin nubes) |
+| D+2 – D+4 | SILVER | s2cloudless S2 post-show con nubes parciales |
+| D+3 – D+7 | GOLD | S2 limpia vía AWS Earth Search (~2-4h vs ~12-24h PC) |
+| D+12+ | GOLD | Sentinel-1 RTC disponible vía Element84 |
+
+---
+
+## 19. MÓDULOS POST-SHOW NUEVOS — v1.2
+
+### 19.1 ESTARFM (dale_play_starfm.py)
+
+| Atributo | Valor |
+|---|---|
+| Función principal | `compute_starfm_ndvi(show_id, show_date, baseline_ndvi, baseline_date)` |
+| Requiere | `pip install starfm4py` (opcional — hay fallback simplificado sin él) |
+| Fuente MODIS | `modis-09-gq-061` (MOD09GQ Terra 250m diario) · Planetary Computer |
+| Output | `models/starfm_ndvi_{show_id}.json` |
+| RESULT_KEY en pipeline | `starfm` |
+| Confianza | 40-90% según disponibilidad MODIS y nubosidad |
+
+**Algoritmo:**  
+Para el Amalfitani (~150m, sub-pixel MODIS 250m):  
+`NDVI_S2_t2 ≈ NDVI_S2_t1 + (NDVI_MODIS_t2 − NDVI_MODIS_t1) × 0.92`  
+Con starfm4py: ESTARFM completo en ventana 3×3 sintética.
+
+**Fallback sin MODIS:** Estimación por tendencia estacional (dormancia Bermuda abril-agosto).
+
+### 19.2 Cloud Removal (dale_play_cloudremoval.py)
+
+| Atributo | Valor |
+|---|---|
+| Función principal | `compute_cloud_removed_ndvi(show_id, show_date, days_after=15)` |
+| Requiere | `pip install s2cloudless` (sin GPU — gradient-boosted, CPU only) |
+| Fuente | Sentinel-2 L2A · Planetary Computer |
+| Output | `models/cloudremoved_{show_id}.json` |
+| RESULT_KEY en pipeline | `cloudremoval` |
+| Umbral cobertura SILVER | > 30% del campo libre de nubes |
+| Umbral prob. nube | 0.40 |
+
+**Bandas requeridas (s2cloudless):** B01, B02, B04, B05, B08, B8A, B09, B10, B11, B12  
+**Resolución de lectura:** 20m (balance calidad/velocidad en Railway)
+
+### 19.3 Fuente S2 directa AWS (dale_play_satellite.py)
+
+- **Endpoint:** `https://earth-search.aws.element84.com/v1` (Element84 Earth Search)
+- **Colección:** `sentinel-2-l2a` (idéntico a PC, misma estructura STAC)
+- **Assets:** `s3://sentinel-cogs/` accesibles via HTTPS sin token (`AWS_NO_SIGN_REQUEST=YES`)
+- **Ventaja:** Datos disponibles ~2-4 horas después del pase (PC: ~12-24h)
+- **Fallback:** Si AWS falla → usa Planetary Computer (comportamiento anterior)
+- **Campo nuevo en output:** `s2_fuente_backend: "AWS" | "PC"`
+
+---
+
+## 20. SCHEDULER POST-SHOW (dale_play_scheduler.py) — v1.2
+
+### 20.1 Funcionamiento
+
+Se activa automáticamente al final de cada `run_show_audit(mode='post_show')`.  
+Corre cada **6 horas** durante máximo **7 días** o hasta alcanzar nivel GOLD.
+
+```
+D+0  (post_show run)   → registra job en APScheduler
+D+6h                   → check #1: busca S2 post-show + re-evalúa CoC
+D+12h                  → check #2 …
+…
+D+7d o GOLD            → cancela job automáticamente
+```
+
+Al detectar mejora de nivel:
+1. Re-genera PNG completo (run_show_audit post_show)
+2. Calcula SHA-256 del nuevo PNG
+3. Push a GitHub (via dale_play_github.py)
+4. Envía email al cliente
+
+### 20.2 Variables de entorno
+
+| Variable | Descripción |
+|---|---|
+| `GMAIL_USER` | Remitente (default: protocolfaro@gmail.com) |
+| `EMAIL_APP_PASS` | App Password Gmail — si no está, no envía email (no falla) |
+| `DALE_PLAY_CLIENT_EMAIL` | Email del cliente por defecto |
+
+### 20.3 Endpoint de monitoreo
+
+`GET /dale-play/scheduler-status` → lista shows con monitor activo, nivel actual, horas transcurridas.
+
+### 20.4 Integración APScheduler
+
+El scheduler comparte la instancia de `BackgroundScheduler` de `app.py` (inicializado en `_start_scheduler()`). Se inyecta via `dale_play_scheduler.init_scheduler(external_scheduler)`.
+
+---
+
+## 21. ESTADO DEL SISTEMA — v1.2
+
+**Versión:** 1.2  
+**Fecha:** 2026-05-31  
+**Venue activo:** Estadio José Amalfitani (único)
+
+### Módulos activos (13 total: 10 principales + 3 post-show)
+
+| # | RESULT_KEY | Modo | Fuente |
+|---|---|---|---|
+| 1 | satellite | full/post_show | AWS Earth Search (primario) + PC (fallback) + HLS + Landsat |
+| 2 | weather | full/post_show/weather_only | Open-Meteo |
+| 3 | soil_real | full/post_show | SoilGrids REST v2 |
+| 4 | soil | full/post_show | SoilGrids + Terzaghi |
+| 5 | drainage | full/post_show | SoilGrids Ksat + infra 2015 |
+| 6 | acoustic | full/post_show | Claude API / Sabine-Eyring |
+| 7 | egms | full/post_show | EGMS Copernicus 2015-2022 |
+| 8 | spl_compliance | full/post_show | Ord. GCBA 11.554 |
+| 9 | structural | full/post_show | Open-Meteo + EGMS + Terzaghi |
+| 10 | rider_compliance | full/post_show | Rider técnico |
+| 11 | umbra_sar | full/post_show | Umbra Open Data CC-BY-4.0 |
+| 12 | **starfm** | post_show | MODIS MOD09GQ + S2 baseline (NUEVO) |
+| 13 | **cloudremoval** | post_show | s2cloudless + S2 post-show (NUEVO) |
+
+### Output nuevo en post_show
+
+```json
+{
+  "starfm": {"ndvi_sintetico": 0.087, "confianza_pct": 72.0, "metodo": "ESTARFM-simplificado"},
+  "cloudremoval": {"estado": "SILVER", "ndvi_limpio": 0.091, "cobertura_limpia_pct": 43.2},
+  "chain_of_custody": {"nivel": "SILVER", "confianza_pct": 88, "estimacion_proyectada": false}
+}
+```
+
 ## Fuentes nuevas detectadas automáticamente
 
 <!-- append:2026-05-31 v1.1. -->
