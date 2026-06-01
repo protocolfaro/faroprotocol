@@ -1,0 +1,27 @@
+{
+  "show_id": "airbag_2026-05-29",
+  "artist": "Airbag",
+  "show_date": "2026-05-29",
+  "venue": "Estadio José Amalfitani",
+  "promotor": "Dale Play",
+  "capacidad_estimada": 35000,
+  "rider": {
+    "stage": {
+      "tipo": "escenario_principal",
+      "ancho_m": 40,
+      "profundidad_m": 20,
+      "altura_m": 6
+    },
+    "estructuras": [
+      {"tipo": "torre_sonido", "cantidad": 2},
+      {"tipo": "pantalla_led", "cantidad": 2},
+      {"tipo": "barrera_pit", "cantidad": 1}
+    ],
+    "produccion": {
+      "generadores": 4,
+      "catering_zona": true,
+      "backstage_carpas": 3
+    }
+  },
+  "notas": "Primer show de la serie 3 fechas Airbag Amalfitani (viernes). Dale Play x Faro Protocol."
+}
