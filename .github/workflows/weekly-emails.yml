@@ -28,6 +28,7 @@ jobs:
           pip install requests matplotlib pillow numpy scipy
 
       - name: Fase A — Ingesta de datos en caliente
+        id: fase_a
         env:
           RAILWAY_URL:   ${{ secrets.RAILWAY_URL }}
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
@@ -36,8 +37,55 @@ jobs:
           python data_refresh.py || echo "[WARN] data_refresh falló — usando velez_data.json existente"
           cd ..
 
+          if [ -z "$RAILWAY_URL" ]; then
+            echo "RAILWAY_FAIL: RAILWAY_URL no configurada"
+            echo "railway_ok=false" >> "$GITHUB_OUTPUT"
+          else
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+              --max-time 10 "${RAILWAY_URL}/health" 2>/dev/null || echo "000")
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "RAILWAY_OK: HTTP ${HTTP_CODE}"
+              echo "railway_ok=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "RAILWAY_FAIL: HTTP ${HTTP_CODE}"
+              echo "railway_ok=false" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+      - name: Alerta Railway — email
+        if: steps.fase_a.outputs.railway_ok != 'true'
+        env:
+          GMAIL_USER:     protocolfaro@gmail.com
+          GMAIL_APP_PASS: ${{ secrets.GMAIL_APP_PASS }}
+          RAILWAY_URL:    ${{ secrets.RAILWAY_URL }}
+        run: |
+          python3 << 'PYEOF'
+          import smtplib, os
+          from email.message import EmailMessage
+          try:
+              url = os.environ.get('RAILWAY_URL', '(no configurada)')
+              msg = EmailMessage()
+              msg['Subject'] = 'ALERTA Faro Protocol — Railway no respondió, pipeline cancelado'
+              msg['From']    = os.environ['GMAIL_USER']
+              msg['To']      = os.environ['GMAIL_USER']
+              msg.set_content(
+                  f"Railway URL no respondió HTTP 200.\n\n"
+                  f"URL consultada: {url}/health\n\n"
+                  f"Las Fases B (regenerar PNGs) y C (enviar emails) fueron canceladas.\n"
+                  f"Los destinatarios de Vélez NO recibirán su reporte esta semana.\n\n"
+                  f"Revisar Railway dashboard."
+              )
+              with smtplib.SMTP_SSL('smtp.gmail.com', 465) as s:
+                  s.login(os.environ['GMAIL_USER'], os.environ.get('GMAIL_APP_PASS', ''))
+                  s.send_message(msg)
+              print("Alerta email enviado a protocolfaro@gmail.com")
+          except Exception as e:
+              print(f"Email error (no crítico): {e}")
+          PYEOF
+
       # ── FASE B: Histórico + Regeneración de PNGs ─────────────────────────
       - name: Fase B — Registro histórico semanal
+        if: steps.fase_a.outputs.railway_ok == 'true'
         run: |
           cd railway-backend
           python -c "
@@ -52,6 +100,7 @@ jobs:
           cd ..
 
       - name: Fase B — Regenerar PNGs frescos (headless)
+        if: steps.fase_a.outputs.railway_ok == 'true'
         env:
           MPLBACKEND: Agg
         run: |
@@ -61,6 +110,7 @@ jobs:
 
       # ── Commit histórico y PNGs actualizados al repo ──────────────────────
       - name: Commit PNG + CSV histórico
+        if: steps.fase_a.outputs.railway_ok == 'true'
         run: |
           git config user.name  "Faro Protocol Bot"
           git config user.email "protocolfaro@gmail.com"
@@ -68,12 +118,14 @@ jobs:
           git diff --cached --quiet || git commit -m "chore(auto): reportes PNG + historico semana $(date +%Y-W%V)"
 
       - name: Push cambios
+        if: steps.fase_a.outputs.railway_ok == 'true'
         run: |
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/protocolfaro/faroprotocol.git
           git push origin main
 
       # ── FASE C: Despacho de correos ───────────────────────────────────────
       - name: Fase C — Enviar reportes semanales
+        if: steps.fase_a.outputs.railway_ok == 'true'
         env:
           GMAIL_USER:    protocolfaro@gmail.com
           GMAIL_APP_PASS: ${{ secrets.GMAIL_APP_PASS }}
@@ -86,8 +138,8 @@ jobs:
         if: always()
         run: |
           echo "=== Pipeline Faro Protocol completado ==="
+          echo "Railway OK: ${{ steps.fase_a.outputs.railway_ok }}"
           ls -lh reportes_velez/*.png 2>/dev/null || echo "Sin PNGs en reportes_velez/"
           [ -f historico_velez_protocol.csv ] && \
             echo "historico: $(wc -l < historico_velez_protocol.csv) filas" || \
             echo "historico: archivo no encontrado"
-

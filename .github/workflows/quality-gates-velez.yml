@@ -1,0 +1,215 @@
+name: Quality Gates — Vélez Sarsfield
+
+on:
+  workflow_run:
+    workflows: ["Emails semanales — Vélez Sarsfield"]
+    types: [completed]
+  workflow_dispatch:
+
+jobs:
+  quality-gates:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0   # necesario para git log por archivo
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependencias
+        run: pip install requests
+
+      # ── Gate 1 — velez_data.json menor a 7 días ───────────────────────────
+      - name: Gate 1 — velez_data.json < 7 días
+        id: gate_data
+        run: |
+          python3 << 'PYEOF'
+          import subprocess, sys
+          from datetime import datetime, timezone, timedelta
+          result = subprocess.run(
+              ['git', 'log', '-1', '--format=%ct', 'velez/velez_data.json'],
+              capture_output=True, text=True
+          )
+          ts = result.stdout.strip()
+          if not ts:
+              print("GATE1_FAIL: velez_data.json sin historial git")
+              sys.exit(1)
+          last = datetime.fromtimestamp(int(ts), tz=timezone.utc)
+          age  = (datetime.now(timezone.utc) - last).days
+          if age >= 7:
+              print(f"GATE1_FAIL: velez_data.json tiene {age} días (máx 6)")
+              sys.exit(1)
+          print(f"GATE1_OK: velez_data.json — {age} día(s) desde {last.strftime('%Y-%m-%d')}")
+          PYEOF
+
+      # ── Gate 2 — los 8 PNGs tienen fecha de esta semana ──────────────────
+      - name: Gate 2 — 8 PNGs de esta semana
+        id: gate_pngs
+        run: |
+          python3 << 'PYEOF'
+          import subprocess, sys
+          from datetime import datetime, timezone, timedelta
+          PNGS = [
+              'reportes_velez/faro_reporte_velez.png',
+              'reportes_velez/faro_reporte_velez_canchero.png',
+              'reportes_velez/faro_reporte_velez_agro_FINAL.png',
+              'reportes_velez/faro_reporte_velez_solar_v2.png',
+              'reportes_velez/faro_reporte_velez_poli.png',
+              'reportes_velez/faro_reporte_velez_piletas.png',
+              'reportes_velez/faro_reporte_velez_sede.png',
+              'reportes_velez/faro_reporte_velez_instituto.png',
+          ]
+          now        = datetime.now(timezone.utc)
+          week_start = (now - timedelta(days=now.weekday())).replace(
+              hour=0, minute=0, second=0, microsecond=0)
+          failed = []
+          for png in PNGS:
+              r = subprocess.run(['git', 'log', '-1', '--format=%ct', png],
+                                 capture_output=True, text=True)
+              ts = r.stdout.strip()
+              if not ts:
+                  failed.append(f"{png.split('/')[-1]}: sin historial")
+                  continue
+              last = datetime.fromtimestamp(int(ts), tz=timezone.utc)
+              if last < week_start:
+                  failed.append(
+                      f"{png.split('/')[-1]}: {(now - last).days}d (último: {last.strftime('%Y-%m-%d')})")
+          if failed:
+              print("GATE2_FAIL: PNGs desactualizados:")
+              for f in failed:
+                  print(f"  - {f}")
+              sys.exit(1)
+          print(f"GATE2_OK: 8/8 PNGs generados esta semana (desde {week_start.strftime('%Y-%m-%d')})")
+          PYEOF
+
+      # ── Gate 3 — Railway responde HTTP 200 ───────────────────────────────
+      - name: Gate 3 — Railway /health HTTP 200
+        id: gate_railway
+        env:
+          RAILWAY_URL: ${{ secrets.RAILWAY_URL }}
+        run: |
+          python3 << 'PYEOF'
+          import os, sys, requests
+          url = os.environ.get('RAILWAY_URL', '').strip()
+          if not url:
+              print("GATE3_FAIL: RAILWAY_URL no configurada")
+              sys.exit(1)
+          try:
+              r = requests.get(f"{url}/health", timeout=15)
+              if r.status_code == 200:
+                  print(f"GATE3_OK: {url}/health → HTTP {r.status_code}")
+              else:
+                  print(f"GATE3_FAIL: {url}/health → HTTP {r.status_code}")
+                  sys.exit(1)
+          except Exception as e:
+              print(f"GATE3_FAIL: Railway no responde — {e}")
+              sys.exit(1)
+          PYEOF
+
+      # ── Gate 4 — fórmula footer produce un lunes válido ──────────────────
+      - name: Gate 4 — Fórmula footer próximo lunes válida
+        id: gate_footer
+        run: |
+          python3 << 'PYEOF'
+          import sys
+          from datetime import datetime, timedelta
+          hoy   = datetime.now().date()
+          dias  = (7 - hoy.weekday()) % 7 or 7
+          lunes = hoy + timedelta(days=dias)
+          if lunes.weekday() != 0:
+              print(f"GATE4_FAIL: fórmula produce {lunes} (weekday={lunes.weekday()}, no es lunes)")
+              sys.exit(1)
+          meses = ['enero','febrero','marzo','abril','mayo','junio','julio',
+                   'agosto','septiembre','octubre','noviembre','diciembre']
+          texto = f"lunes {lunes.day} de {meses[lunes.month - 1]} {lunes.year}"
+          print(f"GATE4_OK: 'Próximo escaneo automático: {texto}'")
+          PYEOF
+
+      # ── Fallo: abrir Issue + email ────────────────────────────────────────
+      - name: Notificar fallo — Issue + email
+        if: failure()
+        env:
+          GH_TOKEN:       ${{ secrets.GITHUB_TOKEN }}
+          GMAIL_USER:     protocolfaro@gmail.com
+          GMAIL_APP_PASS: ${{ secrets.GMAIL_APP_PASS }}
+          RUN_URL:        ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GATE1_STATUS:   ${{ steps.gate_data.outcome }}
+          GATE2_STATUS:   ${{ steps.gate_pngs.outcome }}
+          GATE3_STATUS:   ${{ steps.gate_railway.outcome }}
+          GATE4_STATUS:   ${{ steps.gate_footer.outcome }}
+        run: |
+          python3 << 'PYEOF'
+          import smtplib, os
+          from email.message import EmailMessage
+
+          gates = {
+              'Gate 1 — velez_data.json edad < 7d': os.environ.get('GATE1_STATUS', 'unknown'),
+              'Gate 2 — 8 PNGs de esta semana':     os.environ.get('GATE2_STATUS', 'unknown'),
+              'Gate 3 — Railway /health HTTP 200':  os.environ.get('GATE3_STATUS', 'unknown'),
+              'Gate 4 — fórmula footer lunes':      os.environ.get('GATE4_STATUS', 'unknown'),
+          }
+          failed = [f"- **{k}**: {v}" for k, v in gates.items() if v == 'failure']
+          run_url = os.environ.get('RUN_URL', '')
+
+          body = (
+              "## Quality Gates fallidos — Vélez Sarsfield\n\n"
+              + "\n".join(failed)
+              + f"\n\n**Run:** {run_url}\n**Fecha:** "
+              + __import__('datetime').datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')
+          )
+          with open('/tmp/issue_body.txt', 'w') as f:
+              f.write(body)
+
+          try:
+              app_pass = os.environ.get('GMAIL_APP_PASS', '')
+              if app_pass:
+                  msg = EmailMessage()
+                  msg['Subject'] = 'ALERTA Faro Protocol — Quality Gates Vélez fallidos'
+                  msg['From']    = os.environ['GMAIL_USER']
+                  msg['To']      = os.environ['GMAIL_USER']
+                  msg.set_content(
+                      "Quality gates fallidos en el pipeline de Vélez Sarsfield.\n\n"
+                      + "\n".join(f.replace('**','').replace('- ','') for f in failed)
+                      + f"\n\nRun: {run_url}"
+                  )
+                  with smtplib.SMTP_SSL('smtp.gmail.com', 465) as s:
+                      s.login(os.environ['GMAIL_USER'], app_pass)
+                      s.send_message(msg)
+                  print("Email de alerta enviado")
+          except Exception as e:
+              print(f"Email error (no crítico): {e}")
+          PYEOF
+
+          gh label create "quality-gate" --color "D93F0B" \
+            --description "Fallo automático de quality gate Vélez" 2>/dev/null || true
+
+          gh issue create \
+            --title "Quality Gate Falla — Vélez $(date +%Y-%m-%d)" \
+            --body "$(cat /tmp/issue_body.txt)" \
+            --label "quality-gate" \
+          || gh issue create \
+            --title "Quality Gate Falla — Vélez $(date +%Y-%m-%d)" \
+            --body "$(cat /tmp/issue_body.txt)" \
+          || true
+
+      # ── Todo OK: cerrar issues previos ───────────────────────────────────
+      - name: Cerrar Issues previos — todo OK
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue list \
+            --label "quality-gate" \
+            --state open \
+            --json number \
+            --jq '.[].number' \
+          | xargs -r -I{} gh issue close {} \
+              --comment "Quality gates OK — cerrado automáticamente $(date -u '+%Y-%m-%d %H:%M UTC')" \
+          || true
+          echo "GATES_ALL_OK: todos los gates pasaron"
