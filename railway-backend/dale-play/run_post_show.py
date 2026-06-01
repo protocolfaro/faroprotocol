@@ -691,16 +691,14 @@ def run_post_show() -> dict:
 
     log.info("--- Verificando SAR post-show Sentinel-1 GRD (post 2026-05-31) ---")
     from datetime import date, timedelta
-    today     = date.today()
-    today_str = today.isoformat()
-    # El show fue hoy (2026-05-31); revisita S1 ~3-4 días, buscar desde mañana
-    post_sar_start = (today + timedelta(days=1)).isoformat()
+    show_dt   = date.fromisoformat(SHOW_DATE)
+    today_str = date.today().isoformat()
+    post_sar_start = (show_dt + timedelta(days=1)).isoformat()
     if post_sar_start > today_str:
-        # No puede haber SAR post-show aún — show es hoy
-        log.info("SAR_POST: show hoy %s — SAR post-show no disponible todavía", today_str)
+        log.info("SAR_POST: aún no hay fechas post-show disponibles (show=%s, hoy=%s)", SHOW_DATE, today_str)
         sar_post = {"vv_db": None, "n_px": 0, "item_id": None,
                     "fecha": None, "estado": "pendiente_revisita",
-                    "nota": f"Show {SHOW_DATE} — próxima revisita S1 ~{(today + timedelta(days=3)).isoformat()}"}
+                    "nota": f"Show {SHOW_DATE} — próxima revisita S1 ~{(show_dt + timedelta(days=3)).isoformat()}"}
     else:
         sar_post = _fetch_sar_vv(post_sar_start, today_str, label="SAR_POST")
     log.info("SAR POST: VV=%s dB  n_px=%d  fecha=%s  estado=%s",
