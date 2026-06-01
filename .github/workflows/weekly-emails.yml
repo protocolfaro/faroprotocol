@@ -14,11 +14,11 @@ jobs:
 
     steps:
       # ── Checkout + Python ─────────────────────────────────────────────────
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
@@ -90,3 +90,4 @@ jobs:
           [ -f historico_velez_protocol.csv ] && \
             echo "historico: $(wc -l < historico_velez_protocol.csv) filas" || \
             echo "historico: archivo no encontrado"
+
