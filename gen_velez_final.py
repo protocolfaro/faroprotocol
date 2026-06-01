@@ -11,7 +11,7 @@ from matplotlib.patches import FancyBboxPatch, FancyArrowPatch
 from matplotlib.colors import LinearSegmentedColormap
 import numpy as np
 import hashlib, os, textwrap
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # ─── PALETA ──────────────────────────────────────────────────────────────────
 BG    = '#06080b'
@@ -816,8 +816,14 @@ ax_ftr.axis('off')
 
 ax_ftr.axhline(0.99, color=GOLD, linewidth=1.2)
 
+_hoy = datetime.now().date()
+_dias = (7 - _hoy.weekday()) % 7 or 7
+_lunes = _hoy + timedelta(days=_dias)
+_meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
+_proximo_lunes = f"lunes {_lunes.day} de {_meses[_lunes.month-1]} {_lunes.year}"
+
 ax_ftr.text(0.5, 0.88,
-    'Próximo escaneo automático: lunes 25 de mayo 2026',
+    f'Próximo escaneo automático: {_proximo_lunes}',
     transform=ax_ftr.transAxes,
     color=GOLD, fontsize=9, fontweight='bold',
     ha='center', va='top', fontfamily='monospace')
