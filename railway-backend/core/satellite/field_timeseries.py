@@ -257,11 +257,13 @@ def build_venue_timeseries(
         venue_id, len(existing),
     )
 
-    today     = date.today()
-    new_obs   = 0
-    skipped   = 0
-    errors    = 0
-    processed = 0
+    today          = date.today()
+    new_obs        = 0
+    skipped        = 0
+    ndvi_errors    = 0
+    supabase_errors = 0
+    processed      = 0
+    sample_rows: list[dict] = []   # primeras 3 filas exitosas para diagnóstico
 
     for year in range(start_year, today.year + 1):
         for month in range(1, 13):
@@ -278,7 +280,7 @@ def build_venue_timeseries(
                 items = _search_s2_month(year, month, bbox, max_cloud)
             except Exception as exc:
                 log.warning("field_timeseries: search %d-%02d: %s", year, month, exc)
-                errors += 1
+                ndvi_errors += 1
                 continue
 
             if not items:
@@ -301,7 +303,11 @@ def build_venue_timeseries(
             processed += 1
 
             if ndvi is None:
-                errors += 1
+                log.warning(
+                    "field_timeseries: NDVI None para %d-%02d [%s] item=%s",
+                    year, month, source, item.get("id", "")[:40],
+                )
+                ndvi_errors += 1
                 continue
 
             row = {
@@ -318,24 +324,34 @@ def build_venue_timeseries(
             if _sb_upsert("field_timeseries", row):
                 new_obs += 1
                 existing.add(fecha)
+                if len(sample_rows) < 3:
+                    sample_rows.append({"fecha": fecha, "ndvi": ndvi,
+                                        "cloud": cloud, "source": source})
                 log.info(
                     "field_timeseries: %s %s NDVI=%.3f nube=%.0f%% [%s]",
                     venue_id, fecha, ndvi, cloud, source,
                 )
             else:
-                errors += 1
+                log.warning(
+                    "field_timeseries: Supabase upsert FAILED para %s %s ndvi=%.3f",
+                    venue_id, fecha, ndvi,
+                )
+                supabase_errors += 1
 
     total_obs = len(existing)
     log.info(
-        "field_timeseries: build completado — new=%d skipped=%d errors=%d total=%d",
-        new_obs, skipped, errors, total_obs,
+        "field_timeseries: build completado — new=%d skipped=%d "
+        "ndvi_errors=%d supabase_errors=%d total=%d",
+        new_obs, skipped, ndvi_errors, supabase_errors, total_obs,
     )
     return {
-        "venue_id":  venue_id,
-        "new_obs":   new_obs,
-        "skipped":   skipped,
-        "errors":    errors,
-        "total_obs": total_obs,
+        "venue_id":       venue_id,
+        "new_obs":        new_obs,
+        "skipped":        skipped,
+        "ndvi_errors":    ndvi_errors,
+        "supabase_errors": supabase_errors,
+        "total_obs":      total_obs,
+        "sample":         sample_rows,
     }
 
 
