@@ -12,7 +12,7 @@ Adicionado: fetch_sar_compaction() — Sentinel-1 GRD backscatter delta pre/post
   Revisita real ~3-4 días sobre 34°S / tile 21HUB.
 """
 from __future__ import annotations
-import json, logging, math, os, pathlib
+import json, logging, math, os, pathlib, sys as _sys
 from typing import Optional
 
 from dale_play_config import (
@@ -20,26 +20,27 @@ from dale_play_config import (
     INSAR_OK_MM, INSAR_CAUTION_MM, INSAR_CRITICAL_MM,
 )
 
+# Asegurar que core/ esté en sys.path para imports transversales
+_CORE_DIR = str(pathlib.Path(__file__).parents[3] / "core")
+if _CORE_DIR not in _sys.path:
+    _sys.path.insert(0, _CORE_DIR)
+from utils import coords_to_bbox
+
 log = logging.getLogger(__name__)
 
 _MODELS_DIR = pathlib.Path(__file__).parent / "models"
 _EGMS_JSON  = _MODELS_DIR / "egms_amalfitani.json"
 
-_DEG_LAT = 1 / 111_139
-_DEG_LON = 1 / (111_139 * math.cos(math.radians(VENUE_LAT)))
 _COS_INC = math.cos(math.radians(38.0))
 
 # Umbral de anomalía EGMS vs InSAR (mm desplazamiento)
 _DELTA_ALERTA_MM = 0.5
 
-
-def _tribuna_bbox(lat: float, lon: float, w_m: float = 60, h_m: float = 40) -> tuple:
-    dlat = (h_m / 2) * _DEG_LAT
-    dlon = (w_m / 2) * _DEG_LON
-    return (lon - dlon, lat - dlat, lon + dlon, lat + dlat)
-
-
-TRIBUNA_BBOXES = {t["id"]: _tribuna_bbox(t["lat"], t["lon"]) for t in TRIBUNAS}
+# Tribunas Amalfitani: 60 m ancho × 40 m alto por tribuna
+TRIBUNA_BBOXES = {
+    t["id"]: tuple(coords_to_bbox(t["lat"], t["lon"], h_m=40, w_m=60))
+    for t in TRIBUNAS
+}
 
 
 def _classify(los_mm: float) -> dict:

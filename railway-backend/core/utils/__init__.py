@@ -30,16 +30,19 @@ def format_date(date) -> str:
     return "N/D"
 
 
-def coords_to_bbox(lat: float, lon: float, radius_m: float) -> list[float]:
+def coords_to_bbox(lat: float, lon: float, radius_m: float = 0, *,
+                   h_m: float | None = None, w_m: float | None = None) -> list[float]:
     """
-    Convierte coordenadas centrales + radio en metros a bbox [W, S, E, N].
-    Usa aproximación plana válida para radios < 500 km.
-    Retorna [lon_min, lat_min, lon_max, lat_max] (orden GeoJSON/STAC).
+    Convierte coordenadas centrales a bbox [W, S, E, N] (orden GeoJSON/STAC).
+    Modos:
+      - radius_m         → bbox cuadrado (mitad de lado = radius_m)
+      - h_m=..., w_m=... → bbox rectangular (alto × ancho en metros)
+    Usa aproximación plana válida para distancias < 500 km.
     """
     lat_deg_per_m = 1.0 / 111_320.0
     lon_deg_per_m = 1.0 / (111_320.0 * math.cos(math.radians(lat)))
-    dlat = radius_m * lat_deg_per_m
-    dlon = radius_m * lon_deg_per_m
+    dlat = (h_m / 2 if h_m is not None else radius_m) * lat_deg_per_m
+    dlon = (w_m / 2 if w_m is not None else radius_m) * lon_deg_per_m
     return [
         round(lon - dlon, 6),
         round(lat - dlat, 6),
