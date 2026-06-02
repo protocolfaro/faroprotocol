@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "4.0",
-    "fecha": "2026-05-22",
+    "fecha": "2026-06-01",
     "cliente": "Club Atletico Velez Sarsfield",
     "coords": {
       "lat": -34.6375,
@@ -38,126 +38,144 @@
         "score": 70,
         "sem": "amarillo"
       }
-    ]
+    ],
+    "semana": "2026-06-01"
   },
-  "updated_at": "2026-05-22T20:49:21Z",
+  "updated_at": "2026-06-02T09:00:56Z",
   "weather_live": {
-    "timestamp": "2026-05-22T20:49:20",
+    "timestamp": "2026-06-01T09:00:13",
     "fuentes": [
       "nasa-power",
       "soilgrids",
       "open-meteo-hourly"
     ],
-    "et0_mm_dia": 1.86,
+    "et0_mm_dia": 1.22,
     "et0_fuente": "nasa+penman-monteith",
-    "et0_semana_mm": 13.0,
-    "precipitacion_semana_mm": 1.9,
-    "deficit_hidrico_mm": 11.1,
+    "et0_semana_mm": 8.5,
+    "precipitacion_semana_mm": 0.9,
+    "deficit_hidrico_mm": 7.6,
     "deficit_hidrico": true,
-    "litros_m2_semana": 11.1,
-    "riego_min_sector": 33,
+    "litros_m2_semana": 7.6,
+    "riego_min_sector": 23,
     "riego_min_fuente": "estimado",
     "hora_riego_optima": "05:00",
     "dia_riego_offset": 0,
     "hora_riego_alternativa": "17:00",
     "hora_corte_optima": "06:00",
-    "humedad_suelo_pct": 38.7,
+    "humedad_suelo_pct": 41.1,
     "humedad_suelo_estado": "humedo",
-    "humedad_subsuperficial_pct": 38.8,
+    "humedad_subsuperficial_pct": 41.2,
     "suelo_tipo": "Suelo pesado",
     "suelo_clay_pct": 32,
     "suelo_sand_pct": 28,
     "suelo_whc_mm": 42,
-    "gdd_acumulado_7d": 3.1,
-    "gdd_rate_diario": 1.5,
-    "dias_proximo_corte": 14,
+    "gdd_acumulado_7d": 15.6,
+    "gdd_rate_diario": 3.1,
+    "dias_proximo_corte": 13,
     "gndvi_por_cancha": {
-      "fuente": "sentinel-2-l2a · Planetary Computer · 2026-05-17 · nubosidad 5%",
-      "fecha_imagen": "2026-05-17",
-      "nubosidad_pct": 5.0,
+      "fuente": "estimado-ndvi",
       "canchas": {
         "1fa": {
-          "ndvi": 0.188,
-          "gndvi": 0.183,
-          "n_status": "grave",
-          "n_rec": "Fertilizar URGENTE — deficiencia N grave"
+          "gndvi": 0.43,
+          "n_status": "borderline",
+          "n_rec": "Fertilización preventiva recomendable"
         },
         "2fa": {
-          "ndvi": 0.524,
-          "gndvi": 0.46,
+          "gndvi": 0.47,
           "n_status": "ok",
           "n_rec": "Nitrógeno adecuado"
         },
-        "1fp": {
-          "ndvi": 0.074,
-          "gndvi": 0.092,
-          "n_status": "grave",
-          "n_rec": "Fertilizar URGENTE — deficiencia N grave"
-        },
-        "2fp": {
-          "ndvi": 0.1,
-          "gndvi": 0.11,
-          "n_status": "grave",
-          "n_rec": "Fertilizar URGENTE — deficiencia N grave"
+        "3fa": {
+          "gndvi": 0.32,
+          "n_status": "bajo",
+          "n_rec": "Fertilizar esta semana — déficit N moderado"
         },
         "4fa": {
-          "ndvi": 0.158,
-          "gndvi": 0.184,
-          "n_status": "grave",
-          "n_rec": "Fertilizar URGENTE — deficiencia N grave"
-        },
-        "3fa": {
-          "ndvi": 0.173,
-          "gndvi": 0.189,
+          "gndvi": 0.25,
           "n_status": "grave",
           "n_rec": "Fertilizar URGENTE — deficiencia N grave"
         },
         "5fa": {
-          "ndvi": 0.189,
-          "gndvi": 0.225,
-          "n_status": "grave",
-          "n_rec": "Fertilizar URGENTE — deficiencia N grave"
+          "gndvi": 0.35,
+          "n_status": "bajo",
+          "n_rec": "Fertilizar esta semana — déficit N moderado"
         },
         "6fa": {
-          "ndvi": 0.161,
-          "gndvi": 0.183,
+          "gndvi": 0.29,
           "n_status": "grave",
           "n_rec": "Fertilizar URGENTE — deficiencia N grave"
         },
         "7fa": {
-          "ndvi": 0.166,
-          "gndvi": 0.191,
-          "n_status": "grave",
-          "n_rec": "Fertilizar URGENTE — deficiencia N grave"
+          "gndvi": 0.32,
+          "n_status": "bajo",
+          "n_rec": "Fertilizar esta semana — déficit N moderado"
         },
         "8fa": {
-          "ndvi": 0.16,
-          "gndvi": 0.188,
-          "n_status": "grave",
-          "n_rec": "Fertilizar URGENTE — deficiencia N grave"
+          "gndvi": 0.3,
+          "n_status": "bajo",
+          "n_rec": "Fertilizar esta semana — déficit N moderado"
         },
         "9fa": {
-          "ndvi": 0.136,
-          "gndvi": 0.153,
+          "gndvi": 0.27,
           "n_status": "grave",
           "n_rec": "Fertilizar URGENTE — deficiencia N grave"
         },
         "10fa": {
-          "ndvi": 0.197,
-          "gndvi": 0.205,
-          "n_status": "grave",
-          "n_rec": "Fertilizar URGENTE — deficiencia N grave"
+          "gndvi": 0.4,
+          "n_status": "borderline",
+          "n_rec": "Fertilización preventiva recomendable"
+        },
+        "1fp": {
+          "gndvi": 0.5,
+          "n_status": "ok",
+          "n_rec": "Nitrógeno adecuado"
+        },
+        "2fp": {
+          "gndvi": 0.46,
+          "n_status": "ok",
+          "n_rec": "Nitrógeno adecuado"
+        },
+        "amalfitani": {
+          "gndvi": 0.54,
+          "n_status": "ok",
+          "n_rec": "Nitrógeno adecuado"
+        },
+        "poli_f11": {
+          "gndvi": 0.4,
+          "n_status": "borderline",
+          "n_rec": "Fertilización preventiva recomendable"
+        },
+        "poli_f8a": {
+          "gndvi": 0.36,
+          "n_status": "bajo",
+          "n_rec": "Fertilizar esta semana — déficit N moderado"
+        },
+        "poli_f8b": {
+          "gndvi": 0.36,
+          "n_status": "bajo",
+          "n_rec": "Fertilizar esta semana — déficit N moderado"
+        },
+        "poli_hockey": {
+          "gndvi": 0.32,
+          "n_status": "bajo",
+          "n_rec": "Fertilizar esta semana — déficit N moderado"
         }
       }
     },
     "riesgo_fungosis": {
-      "nivel": "bajo",
-      "horas_favorables_48h": 0,
+      "nivel": "medio",
+      "horas_favorables_48h": 6,
       "horas_brown_patch_48h": 0,
-      "descripcion": "Riesgo bajo: 0h favorables en últimas 48h",
-      "accion_recomendada": "Sin acción preventiva necesaria",
-      "canchas_en_riesgo": [],
-      "enfermedad": null
+      "descripcion": "MEDIO: 6h favorables Dollar Spot en últimas 48h",
+      "accion_recomendada": "Monitorear canchas afectadas — aplicar fungicida si aparecen manchas",
+      "canchas_en_riesgo": [
+        "1fa",
+        "2fa",
+        "3fa",
+        "amalfitani",
+        "poli_f11"
+      ],
+      "enfermedad": "Dollar Spot"
     },
     "ecostress": {
       "disponible": false,
@@ -167,13 +185,13 @@
     "smap": {
       "disponible": true,
       "producto": "SPL3SMP_E",
-      "fecha": "2026-05-21",
-      "mensaje": "SMAP SPL3SMP_E disponible: 2026-05-21",
+      "fecha": "2026-05-29",
+      "mensaje": "SMAP SPL3SMP_E disponible: 2026-05-29",
       "nota": "Valor exacto requiere Earthdata auth — Open-Meteo como proxy"
     },
     "sar_disponible": false,
     "sar_mensaje": "Sin integración SAR activa",
-    "costo_agua_ars": 62000
+    "costo_agua_ars": 42500
   },
   "sectores": {
     "estadio": {
@@ -199,7 +217,7 @@
     },
     "canchero": {
       "nombre": "Villa Olímpica",
-      "score": 59,
+      "score": 40,
       "score_prev": 63,
       "sem": "rojo",
       "detalle": "4FA: fungicida urgente · NDVI: 0.31",
@@ -207,42 +225,122 @@
         {
           "id": "1fa",
           "nombre": "1FA",
-          "score": 26,
-          "score_prev": 68,
+          "score": 16,
+          "score_prev": 28,
           "sem": "rojo",
-          "ndvi": 0.18,
+          "ndvi": 0.043,
           "ndvi_prev": 0.52,
-          "detalle": "NDVI 0.18 · Cancha al límite — necesita descanso · 120 pers · 12.5h"
+          "detalle": "NDVI 0.04 · Cancha al límite — necesita descanso · 120 pers · 12.5h"
         },
         {
           "id": "2fa",
           "nombre": "2FA",
-          "score": 98,
-          "score_prev": 75,
-          "sem": "verde",
-          "ndvi": 0.72,
+          "score": 44,
+          "score_prev": 82,
+          "sem": "rojo",
+          "ndvi": 0.047,
           "ndvi_prev": 0.48,
-          "detalle": "NDVI 0.72 · Sin uso esta semana — descansada"
+          "detalle": "NDVI 0.05 · Sin actividad registrada · 0 pers · 0h"
         },
         {
           "id": "3fa",
           "nombre": "3FA",
-          "score": 67,
-          "score_prev": 55,
-          "sem": "amarillo",
-          "ndvi": 0.44,
+          "score": 37,
+          "score_prev": 46,
+          "sem": "rojo",
+          "ndvi": 0.071,
           "ndvi_prev": 0.44,
-          "detalle": "NDVI 0.44 · Cancha descansada · 30 pers · 3.0h"
+          "detalle": "NDVI 0.07 · Cancha descansada · 30 pers · 3.0h"
         },
         {
           "id": "4fa",
           "nombre": "4FA",
-          "score": 98,
-          "score_prev": 31,
-          "sem": "verde",
-          "ndvi": 0.72,
+          "score": 47,
+          "score_prev": 53,
+          "sem": "rojo",
+          "ndvi": 0.086,
           "ndvi_prev": 0.38,
-          "detalle": "NDVI 0.72 · Sin uso esta semana — descansada"
+          "detalle": "NDVI 0.09 · Sin actividad registrada · 0 pers · 0h"
+        },
+        {
+          "id": "5fa",
+          "nombre": "5FA",
+          "score": 36,
+          "score_prev": 45,
+          "sem": "rojo",
+          "ndvi": 0.074,
+          "ndvi_prev": 0.38,
+          "detalle": "NDVI 0.07 · Uso normal · 30 pers · 3.5h"
+        },
+        {
+          "id": "6fa",
+          "nombre": "6FA",
+          "score": 46,
+          "score_prev": 53,
+          "sem": "rojo",
+          "ndvi": 0.077,
+          "ndvi_prev": 0.7,
+          "detalle": "NDVI 0.08 · Sin actividad registrada · 0 pers · 0h"
+        },
+        {
+          "id": "7fa",
+          "nombre": "7FA",
+          "score": 47,
+          "score_prev": 53,
+          "sem": "rojo",
+          "ndvi": 0.083,
+          "ndvi_prev": 0.68,
+          "detalle": "NDVI 0.08 · Sin actividad registrada · 0 pers · 0h"
+        },
+        {
+          "id": "8fa",
+          "nombre": "8FA",
+          "score": 36,
+          "score_prev": 42,
+          "sem": "rojo",
+          "ndvi": 0.079,
+          "ndvi_prev": 0.42,
+          "detalle": "NDVI 0.08 · Uso normal · 45 pers · 6.5h"
+        },
+        {
+          "id": "9fa",
+          "nombre": "9FA",
+          "score": 41,
+          "score_prev": 47,
+          "sem": "rojo",
+          "ndvi": 0.061,
+          "ndvi_prev": 0.3,
+          "detalle": "NDVI 0.06 · Cancha descansada · 15 pers · 3.0h"
+        },
+        {
+          "id": "10fa",
+          "nombre": "10FA",
+          "score": 50,
+          "score_prev": 57,
+          "sem": "amarillo",
+          "ndvi": 0.117,
+          "ndvi_prev": 0.65,
+          "detalle": "NDVI 0.12 · Sin actividad registrada · 0 pers · 0h"
+        },
+        {
+          "id": "1fp",
+          "nombre": "1FP",
+          "score": 35,
+          "score_prev": 38,
+          "sem": "rojo",
+          "ndvi": 0.034,
+          "ndvi_prev": 0.61,
+          "detalle": "NDVI 0.03 · Cancha descansada · 30 pers · 3.0h"
+        },
+        {
+          "id": "2fp",
+          "nombre": "2FP",
+          "score": 44,
+          "score_prev": 48,
+          "sem": "rojo",
+          "ndvi": 0.044,
+          "ndvi_prev": 0.59,
+          "detalle": "NDVI 0.04 · Sin actividad registrada · 0 pers · 0h"
         }
       ]
     },
@@ -320,7 +418,7 @@
         {
           "dia_offset": 0,
           "dia_nombre": "Lun",
-          "fecha_iso": "2026-05-18",
+          "fecha_iso": "2026-06-01",
           "tareas": [
             "Aplicar fungicida 4FA zona central y lateral sur",
             "Verificar drenaje lateral 4FA"
@@ -330,7 +428,7 @@
         {
           "dia_offset": 1,
           "dia_nombre": "Mar",
-          "fecha_iso": "2026-05-19",
+          "fecha_iso": "2026-06-02",
           "tareas": [
             "Regar 3FA y 4FA: 25 min por sector",
             "Fungicida preventivo 1FA/3FA"
@@ -340,7 +438,7 @@
         {
           "dia_offset": 2,
           "dia_nombre": "Mié",
-          "fecha_iso": "2026-05-20",
+          "fecha_iso": "2026-06-03",
           "tareas": [
             "Cortar 2FA y 4FA temprano (7-9 hs)",
             "Fertilizar 2FA: 20 kg N/ha"
@@ -350,7 +448,7 @@
         {
           "dia_offset": 3,
           "dia_nombre": "Jue",
-          "fecha_iso": "2026-05-21",
+          "fecha_iso": "2026-06-04",
           "tareas": [
             "Sembrar 4FA zona central (85 m²)",
             "Regar 1FA y 3FA"
@@ -360,7 +458,7 @@
         {
           "dia_offset": 4,
           "dia_nombre": "Vie",
-          "fecha_iso": "2026-05-22",
+          "fecha_iso": "2026-06-05",
           "tareas": [
             "Aerificar porterías Amalfitani",
             "Inspección general campo principal"
@@ -370,7 +468,7 @@
         {
           "dia_offset": 5,
           "dia_nombre": "Sáb",
-          "fecha_iso": "2026-05-23",
+          "fecha_iso": "2026-06-06",
           "tareas": [
             "Inspección Poli Feijóo — básquet y playón norte",
             "Riego mantenimiento 1FA y 3FA"
@@ -380,7 +478,7 @@
         {
           "dia_offset": 6,
           "dia_nombre": "Dom",
-          "fecha_iso": "2026-05-24",
+          "fecha_iso": "2026-06-07",
           "tareas": [
             "Revisión integral — VO + Amalfitani + Poli",
             "Control sistema de riego todos los campos"
@@ -391,115 +489,187 @@
       "heatmaps": {
         "1fa": {
           "archivo": "heatmaps/heatmap_1fa.png",
-          "ndvi": 0.18,
+          "ndvi": 0.043,
           "ipos": 1845,
           "semaforo": "rojo",
-          "texto": "Cancha al lÃ­mite â€” necesita descanso",
-          "detalle": "585 personas Â· 74h esta semana"
+          "texto": "Cancha al límite — necesita descanso",
+          "detalle": "585 personas · 74h esta semana",
+          "gndvi": 0.044,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave"
         },
         "8fa": {
           "archivo": "heatmaps/heatmap_8fa.png",
-          "ndvi": 0.18,
+          "ndvi": 0.079,
           "ipos": 676.5,
           "semaforo": "rojo",
-          "texto": "Cancha al lÃ­mite â€” necesita descanso",
-          "detalle": "240 personas Â· 33h esta semana"
+          "texto": "Cancha al límite — necesita descanso",
+          "detalle": "240 personas · 33h esta semana",
+          "gndvi": 0.086,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave"
         },
         "9fa": {
           "archivo": "heatmaps/heatmap_9fa.png",
-          "ndvi": 0.18,
+          "ndvi": 0.061,
           "ipos": 676.5,
           "semaforo": "rojo",
-          "texto": "Cancha al lÃ­mite â€” necesita descanso",
-          "detalle": "240 personas Â· 33h esta semana"
+          "texto": "Cancha al límite — necesita descanso",
+          "detalle": "240 personas · 33h esta semana",
+          "gndvi": 0.064,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave"
         },
         "5fa": {
           "archivo": "heatmaps/heatmap_5fa.png",
-          "ndvi": 0.26,
+          "ndvi": 0.074,
           "ipos": 298.5,
           "semaforo": "rojo",
-          "texto": "Uso muy alto â€” monitorear de cerca",
-          "detalle": "105 personas Â· 23h esta semana"
+          "texto": "Uso muy alto — monitorear de cerca",
+          "detalle": "105 personas · 23h esta semana",
+          "gndvi": 0.078,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave"
         },
         "3fa": {
           "archivo": "heatmaps/heatmap_3fa.png",
-          "ndvi": 0.44,
+          "ndvi": 0.071,
           "ipos": 180,
           "semaforo": "amarillo",
-          "texto": "Uso moderado â€” seguir de cerca",
-          "detalle": "60 personas Â· 6h esta semana"
+          "texto": "Uso moderado — seguir de cerca",
+          "detalle": "60 personas · 6h esta semana",
+          "gndvi": 0.07,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave"
         },
         "2fa": {
           "archivo": "heatmaps/heatmap_2fa.png",
-          "ndvi": 0.72,
+          "ndvi": 0.047,
           "ipos": 0,
           "semaforo": "verde",
           "texto": "Cancha descansada",
-          "detalle": "Sin uso esta semana"
+          "detalle": "Sin uso esta semana",
+          "gndvi": 0.044,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave"
         },
         "4fa": {
           "archivo": "heatmaps/heatmap_4fa.png",
-          "ndvi": 0.72,
+          "ndvi": 0.086,
           "ipos": 0,
           "semaforo": "verde",
           "texto": "Cancha descansada",
-          "detalle": "Sin uso esta semana"
+          "detalle": "Sin uso esta semana",
+          "gndvi": 0.08,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave"
         },
         "6fa": {
           "archivo": "heatmaps/heatmap_6fa.png",
-          "ndvi": 0.72,
+          "ndvi": 0.077,
           "ipos": 0,
           "semaforo": "verde",
           "texto": "Cancha descansada",
-          "detalle": "Sin uso esta semana"
+          "detalle": "Sin uso esta semana",
+          "gndvi": 0.08,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave"
         },
         "7fa": {
           "archivo": "heatmaps/heatmap_7fa.png",
-          "ndvi": 0.72,
+          "ndvi": 0.083,
           "ipos": 0,
           "semaforo": "verde",
           "texto": "Cancha descansada",
-          "detalle": "Sin uso esta semana"
+          "detalle": "Sin uso esta semana",
+          "gndvi": 0.087,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave"
         },
         "10fa": {
           "archivo": "heatmaps/heatmap_10fa.png",
-          "ndvi": 0.72,
+          "ndvi": 0.117,
           "ipos": 0,
           "semaforo": "verde",
           "texto": "Cancha descansada",
-          "detalle": "Sin uso esta semana"
+          "detalle": "Sin uso esta semana",
+          "gndvi": 0.104,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave"
         },
         "1fp": {
           "archivo": "heatmaps/heatmap_1fp.png",
-          "ndvi": 0.72,
+          "ndvi": 0.034,
           "ipos": 0,
           "semaforo": "verde",
           "texto": "Cancha descansada",
-          "detalle": "Primer equipo â€” sin carga esta semana"
+          "detalle": "Primer equipo — sin carga esta semana",
+          "gndvi": 0.041,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave"
         },
         "2fp": {
           "archivo": "heatmaps/heatmap_2fp.png",
-          "ndvi": 0.72,
+          "ndvi": 0.044,
           "ipos": 0,
           "semaforo": "verde",
           "texto": "Cancha descansada",
-          "detalle": "Primer equipo â€” sin carga esta semana"
+          "detalle": "Primer equipo — sin carga esta semana",
+          "gndvi": 0.048,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave"
         },
         "amalfitani": {
           "archivo": "heatmaps/heatmap_amalfitani.png",
-          "ndvi": 0.61,
-          "detalle": "Campo principal â€” buen estado"
+          "ndvi": 0.048,
+          "detalle": "Campo principal — buen estado",
+          "gndvi": 0.042,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave"
         },
         "poli": {
           "archivo": "heatmaps/heatmap_poli.png",
           "ndvi": null,
           "insar": 0.85,
-          "detalle": "BÃ¡squet â€” estrÃ©s estructural"
+          "detalle": "Básquet — estrés estructural"
+        },
+        "poli_f11": {
+          "archivo": "heatmaps/heatmap_poli_f11.png",
+          "ndvi": 0.068,
+          "detalle": "Futbol 11 — Polideportivo Feijoo",
+          "gndvi": 0.067,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave"
+        },
+        "poli_f8a": {
+          "archivo": "heatmaps/heatmap_poli_f8a.png",
+          "ndvi": 0.048,
+          "detalle": "Futbol 8A — Polideportivo Feijoo",
+          "gndvi": 0.053,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave"
+        },
+        "poli_f8b": {
+          "archivo": "heatmaps/heatmap_poli_f8b.png",
+          "ndvi": 0.044,
+          "detalle": "Futbol 8B — Polideportivo Feijoo",
+          "gndvi": 0.046,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave"
+        },
+        "poli_hockey": {
+          "archivo": "heatmaps/heatmap_poli_hockey.png",
+          "ndvi": 0.038,
+          "detalle": "Hockey — Polideportivo Feijoo",
+          "gndvi": 0.048,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave"
         }
       },
       "heatmaps_meta": {
-        "fuente": "IPOS v2 · Semana C · Faro Protocol",
-        "semana": "2026-05-19"
+        "fuente": "sentinel-2-l2a · Planetary Computer · 2026-05-22 · nub 26%",
+        "semana": "2026-05-22",
+        "updated_at": "2026-06-02T09:00:56Z"
       }
     },
     "juan": {
@@ -961,7 +1131,7 @@
   "shadow_maps": {
     "amalfitani": {
       "generado_en": "2026-05-20T12:52:39Z",
-      "label": "Estadio J. Amalfitani â€” Cancha Principal",
+      "label": "Estadio J. Amalfitani — Cancha Principal",
       "imagenes_analizadas": 23,
       "periodo_analisis": "2024-05-20 / 2026-05-20",
       "resolucion_m": 10,
@@ -969,30 +1139,30 @@
       "sombra_permanente_px": 20,
       "sombra_parcial_px": 40,
       "exposicion_plena_px": 161,
-      "sombra_permanente_pct": 9.0,
+      "sombra_permanente_pct": 9,
       "sombra_parcial_pct": 18.1,
       "png_url": "https://github.com/protocolfaro/faroprotocol/blob/main/velez/heatmaps/heatmap_amalfitani_shadow.png",
       "calibracion_riego": {
         "sombra_permanente": {
           "et0_factor": 0.7,
           "riesgo_hongos": "alto",
-          "accion": "Reducir riego 30% Â· aplicar fungicida preventivo semanal"
+          "accion": "Reducir riego 30% · aplicar fungicida preventivo semanal"
         },
         "sombra_parcial": {
           "et0_factor": 0.85,
           "riesgo_hongos": "medio",
-          "accion": "Reducir riego 15% Â· monitorear humedad foliar"
+          "accion": "Reducir riego 15% · monitorear humedad foliar"
         },
         "exposicion_plena": {
-          "et0_factor": 1.0,
+          "et0_factor": 1,
           "riesgo_hongos": "bajo",
-          "accion": "Riego estÃ¡ndar segÃºn ET0 diario"
+          "accion": "Riego estándar según ET0 diario"
         }
       }
     },
     "1fp": {
       "generado_en": "2026-05-20T12:52:39Z",
-      "label": "Cancha 1FP â€” Primer Equipo",
+      "label": "Cancha 1FP — Primer Equipo",
       "imagenes_analizadas": 23,
       "periodo_analisis": "2024-05-20 / 2026-05-20",
       "resolucion_m": 10,
@@ -1007,23 +1177,23 @@
         "sombra_permanente": {
           "et0_factor": 0.7,
           "riesgo_hongos": "alto",
-          "accion": "Reducir riego 30% Â· aplicar fungicida preventivo semanal"
+          "accion": "Reducir riego 30% · aplicar fungicida preventivo semanal"
         },
         "sombra_parcial": {
           "et0_factor": 0.85,
           "riesgo_hongos": "medio",
-          "accion": "Reducir riego 15% Â· monitorear humedad foliar"
+          "accion": "Reducir riego 15% · monitorear humedad foliar"
         },
         "exposicion_plena": {
-          "et0_factor": 1.0,
+          "et0_factor": 1,
           "riesgo_hongos": "bajo",
-          "accion": "Riego estÃ¡ndar segÃºn ET0 diario"
+          "accion": "Riego estándar según ET0 diario"
         }
       }
     },
     "2fp": {
       "generado_en": "2026-05-20T12:52:39Z",
-      "label": "Cancha 2FP â€” Primer Equipo",
+      "label": "Cancha 2FP — Primer Equipo",
       "imagenes_analizadas": 23,
       "periodo_analisis": "2024-05-20 / 2026-05-20",
       "resolucion_m": 10,
@@ -1038,24 +1208,24 @@
         "sombra_permanente": {
           "et0_factor": 0.7,
           "riesgo_hongos": "alto",
-          "accion": "Reducir riego 30% Â· aplicar fungicida preventivo semanal"
+          "accion": "Reducir riego 30% · aplicar fungicida preventivo semanal"
         },
         "sombra_parcial": {
           "et0_factor": 0.85,
           "riesgo_hongos": "medio",
-          "accion": "Reducir riego 15% Â· monitorear humedad foliar"
+          "accion": "Reducir riego 15% · monitorear humedad foliar"
         },
         "exposicion_plena": {
-          "et0_factor": 1.0,
+          "et0_factor": 1,
           "riesgo_hongos": "bajo",
-          "accion": "Riego estÃ¡ndar segÃºn ET0 diario"
+          "accion": "Riego estándar según ET0 diario"
         }
       }
     }
   },
   "historial_meta": {
     "semana": "2026-05-22",
-    "committed_at": "2026-05-22T22:02:35Z",
+    "committed_at": "2026-06-02T09:00:57Z",
     "fuente": "Faro Protocol · Railway auto-commit"
   }
 }
