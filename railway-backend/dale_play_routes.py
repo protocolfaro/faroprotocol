@@ -320,6 +320,97 @@ def dp_timeseries_status():
         return jsonify(dict(_ts_state))
 
 
+@dale_play_bp.route("/admin/timeseries-diag", methods=["GET"])
+def dp_timeseries_diag():
+    """
+    GET /dale-play/admin/timeseries-diag
+    Diagnóstico completo: busca una imagen S2 y muestra por qué falla el NDVI.
+    Propaga la excepción real sin swallowing.
+    """
+    import traceback as _tb
+    bbox = [-58.5305, -34.6391, -58.5271, -34.6367]
+    out: dict = {}
+
+    # 1. STAC search
+    try:
+        from satellite.field_timeseries import _search_s2_month
+        items = _search_s2_month(2025, 3, bbox, max_cloud=50.0)
+        if not items:
+            return jsonify({"error": "Sin items S2 en STAC para 2025-03"}), 200
+        item, source = items[0]
+        props = item.get("properties", {})
+        assets_keys = list((item.get("assets") or {}).keys())
+        out["stac_ok"]       = True
+        out["source"]        = source
+        out["item_id"]       = item.get("id", "")[:60]
+        out["datetime"]      = props.get("datetime", "")[:10]
+        out["cloud_cover"]   = props.get("eo:cloud_cover")
+        out["assets_keys"]   = assets_keys
+    except Exception as exc:
+        return jsonify({"error": f"STAC search falló: {exc}", "tb": _tb.format_exc()}), 500
+
+    # 2. Token SAS (si PC)
+    if source == "PC":
+        try:
+            import requests as _rq
+            tok_r = _rq.get(
+                "https://planetarycomputer.microsoft.com/api/sas/v1/token/sentinel-2-l2a",
+                timeout=10,
+            )
+            out["token_ok"]     = tok_r.ok
+            out["token_status"] = tok_r.status_code
+            token = tok_r.json().get("token", "") if tok_r.ok else ""
+        except Exception as exc:
+            out["token_error"] = str(exc)
+            token = ""
+    else:
+        import os as _os
+        _os.environ["AWS_NO_SIGN_REQUEST"] = "YES"
+        token = ""
+        out["token_ok"] = "N/A (AWS)"
+
+    # 3. Intentar abrir la banda B04/red
+    assets = item.get("assets", {})
+    red_href = (assets.get("B04") or assets.get("red") or {}).get("href", "")
+    out["red_href_raw"] = red_href[:100] if red_href else "(vacío)"
+    if red_href.startswith("s3://sentinel-cogs/"):
+        red_href = red_href.replace("s3://sentinel-cogs/",
+                                    "https://sentinel-cogs.s3.us-west-2.amazonaws.com/")
+    if token:
+        red_href_signed = f"{red_href}?{token[:20]}..."
+    else:
+        red_href_signed = red_href
+    out["red_href_used"] = red_href_signed[:100]
+
+    try:
+        import rasterio
+        out["rasterio_version"] = rasterio.__version__
+        from rasterio.warp import transform_bounds
+        from rasterio.windows import from_bounds
+        import numpy as np
+        minx, miny, maxx, maxy = bbox
+        with rasterio.open(red_href if not token else f"{red_href}?{token}") as src:
+            out["src_crs"]    = str(src.crs)
+            out["src_shape"]  = list(src.shape)
+            native = transform_bounds("EPSG:4326", src.crs, minx, miny, maxx, maxy)
+            out["native_bounds"] = list(native)
+            win    = from_bounds(*native, transform=src.transform)
+            out["window"] = {"col_off": win.col_off, "row_off": win.row_off,
+                             "width": win.width, "height": win.height}
+            data = src.read(1, window=win).astype("float32") / 10_000.0
+            out["data_shape"]  = list(data.shape)
+            out["data_min"]    = float(data.min())
+            out["data_max"]    = float(data.max())
+            valid = (data > 0) & (data < 1)
+            out["valid_px"]    = int(valid.sum())
+            out["ndvi_possible"] = int(valid.sum()) >= 4
+    except Exception as exc:
+        out["rasterio_error"] = str(exc)
+        out["rasterio_tb"]    = _tb.format_exc()[-800:]
+
+    return jsonify(out)
+
+
 # ── helper ────────────────────────────────────────────────────────────────────
 
 def _load_show(show_id: str) -> dict | None:
