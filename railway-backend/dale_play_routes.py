@@ -599,6 +599,90 @@ def dp_timeseries_test_ndvi():
     return jsonify(out)
 
 
+# ── Lali Espósito 2025 — análisis comparativo Sentinel-2 ─────────────────────
+
+_lali_state: dict = {"status": "idle", "started_at": None, "result": None, "error": None}
+_lali_lock = threading.Lock()
+
+
+@dale_play_bp.route("/lali-analysis", methods=["GET"])
+def dp_lali_analysis():
+    """
+    GET /dale-play/lali-analysis — Análisis comparativo NDVI 5 shows Lali Espósito 2025.
+
+    Query params:
+      force=1      — ignora caché y re-corre el análisis
+      summary=1    — retorna versión compacta (sin listas de escenas completas)
+
+    Primera llamada puede tardar 2-5 min (descarga de imágenes S2).
+    Resultado cacheado 6h automáticamente.
+    """
+    try:
+        from dale_play_lali_analysis import run_lali_analysis, get_lali_summary
+        force   = request.args.get("force", "0") == "1"
+        summary = request.args.get("summary", "0") == "1"
+        if summary:
+            return jsonify(get_lali_summary())
+        return jsonify(run_lali_analysis(force=force))
+    except Exception as e:
+        log.error("dale_play /lali-analysis: %s", e)
+        return jsonify({"error": str(e)}), 500
+
+
+@dale_play_bp.route("/lali-analysis/run", methods=["POST"])
+def dp_lali_run():
+    """
+    POST /dale-play/lali-analysis/run
+    Lanza el análisis en background y retorna inmediatamente.
+    Pollear GET /dale-play/lali-analysis?summary=1 para resultados.
+    """
+    with _lali_lock:
+        if _lali_state["status"] == "running":
+            return jsonify({"status": "running",
+                            "msg": "Análisis ya en progreso — pollear /dale-play/lali-analysis"}), 409
+        _lali_state.update({
+            "status":     "running",
+            "started_at": __import__("datetime").datetime.utcnow().isoformat() + "Z",
+            "result":     None,
+            "error":      None,
+        })
+
+    def _run():
+        try:
+            from dale_play_lali_analysis import run_lali_analysis
+            result = run_lali_analysis(force=True)
+            with _lali_lock:
+                _lali_state.update({"status": "done", "result": result, "error": None})
+            log.info("dp_lali_run: done — %d eventos con datos", result.get("n_eventos_con_datos", 0))
+        except Exception as exc:
+            with _lali_lock:
+                _lali_state.update({"status": "error", "error": str(exc)})
+            log.error("dp_lali_run: %s", exc)
+
+    threading.Thread(target=_run, daemon=True).start()
+    return jsonify({
+        "status":  "started",
+        "msg":     "Análisis Lali 2025 iniciado en background. ~2-5 min. Pollear GET /dale-play/lali-analysis?summary=1",
+    }), 202
+
+
+@dale_play_bp.route("/lali-analysis/status", methods=["GET"])
+def dp_lali_status():
+    """GET /dale-play/lali-analysis/status — estado del análisis en background."""
+    with _lali_lock:
+        state = dict(_lali_state)
+    # Retornar solo el resumen en el status (sin listas largas)
+    if state.get("result"):
+        r = state["result"]
+        state["result"] = {
+            "n_eventos_con_datos": r.get("n_eventos_con_datos"),
+            "delta_ndvi_promedio": r.get("delta_ndvi_promedio"),
+            "evento_mayor_impacto": r.get("evento_mayor_impacto"),
+            "escenas_totales_2025": r.get("escenas_totales_2025"),
+        }
+    return jsonify(state)
+
+
 # ── helper ────────────────────────────────────────────────────────────────────
 
 def _load_show(show_id: str) -> dict | None:
