@@ -154,6 +154,17 @@ def run_show_audit(show_config: dict, mode: str = "full") -> dict:
 
         result[module.RESULT_KEY] = output
 
+        # Auto-corrección: registrar resultado del módulo en module_health
+        try:
+            from dale_play_autocorrect import record_module_result
+            record_module_result(
+                module_id = module.RESULT_KEY,
+                success   = not bool(output.get("error")),
+                error     = str(output.get("error", "")),
+            )
+        except Exception:
+            pass
+
     # ── Post-satellite: persistir baseline ───────────────────────────────────
     if result.get("satellite") and not result["satellite"].get("error"):
         try:
@@ -355,6 +366,19 @@ def run_show_audit(show_config: dict, mode: str = "full") -> dict:
         )
     except Exception as _mem_e:
         log.warning("dale_play_pipeline: show_memory: %s", _mem_e)
+
+    # ── Auto-calibración FII (cada 3 shows) ──────────────────────────────────
+    try:
+        from dale_play_fii_calibration import check_and_recalibrate
+        _cal = check_and_recalibrate()
+        if _cal.get("recalibrado"):
+            log.info(
+                "dale_play_pipeline: FII recalibrado — ndvi=%.3f egms=%.3f layout=%.3f (%s)",
+                _cal["pesos"]["ndvi"], _cal["pesos"]["egms"], _cal["pesos"]["layout"],
+                _cal.get("motivo", ""),
+            )
+    except Exception as _cal_e:
+        log.warning("dale_play_pipeline: fii_calibration: %s", _cal_e)
 
     log.info("=== dale_play_pipeline OK — %s · %s ===", artist, show_date)
     return result

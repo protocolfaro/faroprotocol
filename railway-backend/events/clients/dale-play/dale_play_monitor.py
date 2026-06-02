@@ -11,8 +11,8 @@ Anomalías detectadas:
   - sar_baja_conf: último run SAR con confianza < 0.25 (sensores sin cobertura)
 
 Variables de entorno:
-  ROGER_EMAIL    — email de Roger (alerta enviada si configurado)
-  JUAN_EMAIL     — email de Juan  (alerta enviada si configurado)
+  VELEZ_EMAIL_CANCHERO    — email de Roger (ya configurado en Railway para Vélez)
+  VELEZ_EMAIL_INTENDENTE  — email de Juan  (ya configurado en Railway para Vélez)
   GMAIL_USER     — remitente SMTP
   EMAIL_APP_PASS — App Password Gmail (16 chars)
   SUPABASE_URL / SUPABASE_KEY — para consultar show_memory y show_baselines
@@ -319,11 +319,11 @@ def _send_alert_email(alertas: list[dict], timestamp: str) -> None:
         log.info("dale_play_monitor: EMAIL_APP_PASS no configurado — email omitido")
         return
 
-    roger = os.environ.get("ROGER_EMAIL", "")
-    juan  = os.environ.get("JUAN_EMAIL", "")
+    roger = os.environ.get("VELEZ_EMAIL_CANCHERO", "")
+    juan  = os.environ.get("VELEZ_EMAIL_INTENDENTE", "")
     recipients = [e for e in [roger, juan] if e]
     if not recipients:
-        log.warning("dale_play_monitor: ROGER_EMAIL y JUAN_EMAIL no configurados")
+        log.warning("dale_play_monitor: VELEZ_EMAIL_CANCHERO y VELEZ_EMAIL_INTENDENTE no configurados")
         return
 
     ts_str  = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")

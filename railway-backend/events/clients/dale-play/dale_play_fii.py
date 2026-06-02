@@ -1,12 +1,23 @@
 """
 dale_play_fii.py — Índice Faro de Integridad (FII).
 
-FII = 40% NDVI + 35% EGMS + 25% Layout compliance
+FII = w_ndvi*NDVI + w_egms*EGMS + w_layout*Layout compliance
 Escala 0-100. 100 = configuración perfecta.
+Pesos default: 40% NDVI + 35% EGMS + 25% Layout.
+Pesos dinámicos leídos de fii_weights (Supabase) via dale_play_fii_calibration.
 """
 from __future__ import annotations
 from datetime import date as _date
 from dale_play_config import CAMPO_LARGO_M, CAMPO_ANCHO_M
+
+
+def _get_weights() -> dict:
+    """Lee pesos dinámicos de fii_weights. Fallback silencioso a defaults."""
+    try:
+        from dale_play_fii_calibration import get_fii_weights
+        return get_fii_weights()
+    except Exception:
+        return {"ndvi": 0.40, "egms": 0.35, "layout": 0.25}
 
 
 def compute_fii(
@@ -125,8 +136,9 @@ def compute_fii(
         else:
             layout_label = "Sin colisiones"
 
-    # ── FII global ────────────────────────────────────────────────────────────
-    fii = round(0.40 * ndvi_score + 0.35 * egms_score + 0.25 * layout_score, 1)
+    # ── FII global (pesos dinámicos) ─────────────────────────────────────────
+    w   = _get_weights()
+    fii = round(w["ndvi"] * ndvi_score + w["egms"] * egms_score + w["layout"] * layout_score, 1)
 
     semaforo = ("critico"  if fii < 40
                 else "atencion" if fii < 65
@@ -140,8 +152,9 @@ def compute_fii(
         "semaforo":    semaforo,
         "sello":       sello,
         "componentes": {
-            "ndvi":   {"score": round(ndvi_score, 1),   "peso": 40, "label": ndvi_label},
-            "egms":   {"score": round(egms_score, 1),   "peso": 35, "label": egms_label},
-            "layout": {"score": round(layout_score, 1), "peso": 25, "label": layout_label},
+            "ndvi":   {"score": round(ndvi_score, 1),   "peso": round(w["ndvi"] * 100), "label": ndvi_label},
+            "egms":   {"score": round(egms_score, 1),   "peso": round(w["egms"] * 100), "label": egms_label},
+            "layout": {"score": round(layout_score, 1), "peso": round(w["layout"] * 100), "label": layout_label},
         },
+        "pesos_activos": w,
     }

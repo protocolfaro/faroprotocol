@@ -286,6 +286,43 @@ def dp_monitor_run():
         return jsonify({"error": str(e)}), 500
 
 
+@dale_play_bp.route("/health", methods=["GET"])
+def dp_health_modules():
+    """
+    GET /dale-play/health — Salud de módulos (auto-corrección).
+    Muestra consecutive_fails, status, degraded_since por módulo.
+    """
+    try:
+        from dale_play_autocorrect import get_module_health
+        return jsonify(get_module_health())
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@dale_play_bp.route("/fii-weights", methods=["GET"])
+def dp_fii_weights():
+    """GET /dale-play/fii-weights — Pesos FII actuales y historial de calibración."""
+    try:
+        from dale_play_fii_calibration import get_fii_weights
+        import os, requests as _req
+        supa_url = os.environ.get("SUPABASE_URL", "")
+        supa_key = os.environ.get("SUPABASE_KEY", "")
+        current  = get_fii_weights()
+        history  = []
+        if supa_url and supa_key:
+            r = _req.get(
+                f"{supa_url}/rest/v1/fii_weights",
+                params={"order": "calibrado_at.desc", "limit": "10"},
+                headers={"apikey": supa_key, "Authorization": f"Bearer {supa_key}", "Accept": "application/json"},
+                timeout=5,
+            )
+            if r.status_code == 200:
+                history = r.json()
+        return jsonify({"current": current, "history": history})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @dale_play_bp.route("/dashboard/<show_id>", methods=["GET"])
 def dp_dashboard(show_id: str):
     """GET /dale-play/dashboard/{show_id} — Panel de validación interactivo."""
