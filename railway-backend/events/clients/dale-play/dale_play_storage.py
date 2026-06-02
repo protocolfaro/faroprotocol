@@ -35,7 +35,7 @@ Estrategia de resiliencia:
   4. Nunca crashear — loguear todo error en stderr para auditoría.
 """
 from __future__ import annotations
-import json, logging, os, sys, time
+import json, logging, os, re, sys, time
 import pathlib as _pathlib
 
 import requests as _requests
@@ -447,6 +447,7 @@ def sync_pending_to_supabase() -> dict:
 def save_source_discovery(data: dict) -> bool:
     """Guarda un descubrimiento de nueva fuente en source_discoveries."""
     nombre = data.get("fuente_nombre", "unknown")
+    nombre_safe = re.sub(r"[/\\:*?\"<>|]", "_", nombre)  # safe for filenames
     row = {
         "fuente_nombre": nombre,
         "fuente_url":    data.get("fuente_url", ""),
@@ -459,10 +460,10 @@ def save_source_discovery(data: dict) -> bool:
         "recomendacion": data.get("recomendacion", ""),
         "datos_raw":     data.get("datos_raw", {}),
     }
-    _cache_save("source_discovery", nombre, row)
+    _cache_save("source_discovery", nombre_safe, row)
     ok = _insert("source_discoveries", row)
     if not ok:
-        _local_save("source_discovery", nombre, row)
+        _local_save("source_discovery", nombre_safe, row)
     else:
         log.info("Supabase: source_discovery guardada: %s (%s)", nombre, row.get("recomendacion"))
     return ok
