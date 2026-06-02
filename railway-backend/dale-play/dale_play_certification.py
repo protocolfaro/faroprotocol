@@ -383,6 +383,35 @@ def _build_pdf(cert_data: dict, out_path: pathlib.Path) -> None:
     doc.build(story)
 
 
+# ── Certifier — clase pública ─────────────────────────────────────────────────
+
+class Certifier:
+    """
+    Genera el certificado PDF post-evento.
+    Uso: Certifier().generate(data) → {hash, pdf_path, qr_url}
+    data debe contener cert_hash, show_id y todos los campos de cert_data.
+    """
+
+    VERIFY_BASE_URL = (
+        "https://faroprotocol-production-45fd.up.railway.app/dale-play/verify"
+    )
+
+    def generate(self, data: dict) -> dict:
+        cert_hash = data["cert_hash"]
+        show_id   = data["show_id"]
+        qr_url    = f"{self.VERIFY_BASE_URL}/{cert_hash}"
+
+        CERT_DIR.mkdir(exist_ok=True)
+        out_path = CERT_DIR / f"{show_id}_certificado.pdf"
+        _build_pdf(data, out_path)
+
+        return {
+            "hash":     cert_hash,
+            "pdf_path": str(out_path),
+            "qr_url":   qr_url,
+        }
+
+
 # ── Orquestador público ───────────────────────────────────────────────────────
 
 def run_certification(show_id: str, mode: str = "post_show") -> dict:
@@ -477,13 +506,10 @@ def run_certification(show_id: str, mode: str = "post_show") -> dict:
     except Exception as _fii_e:
         log.warning("FII compute error: %s", _fii_e)
 
-    # Generar PDF
-    CERT_DIR.mkdir(exist_ok=True)
-    out_path = CERT_DIR / f"{show_id}_certificado.pdf"
-    _build_pdf(cert_data, out_path)
-
-    cert_data["pdf_path"] = str(out_path)
-    log.info("Certificado generado → %s", out_path)
+    # Generar PDF via Certifier
+    _cert_result = Certifier().generate(cert_data)
+    cert_data["pdf_path"] = _cert_result["pdf_path"]
+    log.info("Certificado generado → %s", _cert_result["pdf_path"])
 
     # Persistir en Supabase
     try:

@@ -13,9 +13,18 @@
       "altura_m": 6
     },
     "estructuras": [
-      {"tipo": "torre_sonido", "cantidad": 2},
-      {"tipo": "pantalla_led", "cantidad": 2},
-      {"tipo": "barrera_pit", "cantidad": 1}
+      {
+        "tipo": "torre_sonido",
+        "cantidad": 2
+      },
+      {
+        "tipo": "pantalla_led",
+        "cantidad": 2
+      },
+      {
+        "tipo": "barrera_pit",
+        "cantidad": 1
+      }
     ],
     "produccion": {
       "generadores": 4,
@@ -23,5 +32,7 @@
       "backstage_carpas": 3
     }
   },
-  "notas": "Segundo show de la serie 3 fechas Airbag Amalfitani (sábado). Dale Play x Faro Protocol."
+  "notas": "Segundo show de la serie 3 fechas Airbag Amalfitani (sábado). Dale Play x Faro Protocol.",
+  "lat": -34.6379,
+  "lon": -58.5288
 }

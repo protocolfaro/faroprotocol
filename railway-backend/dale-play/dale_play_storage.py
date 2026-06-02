@@ -165,11 +165,16 @@ def _cache_save(kind: str, show_id: str, data: dict) -> None:
         print(f"cache_save error ({kind}/{show_id}): {e}", file=sys.stderr, flush=True)
 
 
-def _cache_load(kind: str, show_id: str) -> dict | None:
+def _cache_load(kind: str, show_id: str, max_age_h: float = 24) -> dict | None:
+    """Carga desde cache solo si existe y tiene menos de max_age_h horas."""
     p = _CACHE_DIR / f"{kind}_{show_id}.json"
     if not p.exists():
         return None
     try:
+        age_h = (time.time() - p.stat().st_mtime) / 3600
+        if age_h > max_age_h:
+            log.info("cache EXPIRED %s/%s (age=%.1fh > %.0fh)", kind, show_id, age_h, max_age_h)
+            return None
         return json.loads(p.read_text(encoding="utf-8"))
     except Exception:
         return None
@@ -222,11 +227,18 @@ def save_show_baseline(show_id: str, ndvi: float | None,
 
 
 def get_show_baseline(show_id: str) -> dict | None:
+    # Cache primero — si está fresco (< 24h) no llamamos a Supabase
+    cached = _cache_load("baseline", show_id, max_age_h=24)
+    if cached is not None:
+        log.info("cache HIT: baseline/%s", show_id)
+        return cached
+    # Cache miss o expirado — consultar Supabase
     result = _select_one("show_baselines", "show_id", show_id)
     if result is not None:
-        log.info("Supabase: baseline recuperado para %s", show_id)
+        log.info("Supabase: baseline recuperado para %s — refrescando cache", show_id)
+        _cache_save("baseline", show_id, result)
         return result
-    return _cache_load("baseline", show_id) or _local_load("baseline", show_id)
+    return _local_load("baseline", show_id)
 
 
 # ── certifications ────────────────────────────────────────────────────────────
@@ -255,10 +267,16 @@ def save_certification(show_id: str, cert_hash: str,
 
 
 def get_certification(show_id: str) -> dict | None:
+    # Cache primero — certificados no cambian, TTL 24h
+    cached = _cache_load("cert", show_id, max_age_h=24)
+    if cached is not None:
+        log.info("cache HIT: cert/%s", show_id)
+        return cached
     result = _select_one("certifications", "show_id", show_id)
     if result is not None:
+        _cache_save("cert", show_id, result)
         return result
-    return _cache_load("cert", show_id) or _local_load("cert", show_id)
+    return _local_load("cert", show_id)
 
 
 def get_certification_by_hash(cert_hash: str) -> dict | None:

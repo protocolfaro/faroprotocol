@@ -49,13 +49,20 @@ def run_show_audit(show_config: dict, mode: str = "full") -> dict:
     show_config: contenido de dale-play/shows/{show_id}.json
     Retorna show_data dict completo con todos los resultados y metadatos.
     """
-    from dale_play_config import VENUE_LAT, VENUE_LON
     from dale_play_modules import MODULES
 
     show_id   = show_config.get("show_id",   "unknown")
     show_date = show_config.get("show_date", "")
     artist    = show_config.get("artist",    "Artista")
+    venue     = show_config.get("venue",     "N/D")
     rider     = show_config.get("rider",     {})
+
+    # Coordenadas: show JSON primero, fallback a dale_play_config (Amalfitani)
+    _lat = show_config.get("lat")
+    _lon = show_config.get("lon")
+    if _lat is None or _lon is None:
+        from dale_play_config import VENUE_LAT, VENUE_LON
+        _lat, _lon = VENUE_LAT, VENUE_LON
 
     log.info("=== dale_play_pipeline START — %s · %s · mode=%s ===",
              artist, show_date, mode)
@@ -65,7 +72,7 @@ def run_show_audit(show_config: dict, mode: str = "full") -> dict:
         "show_id":   show_id,
         "show_date": show_date,
         "artist":    artist,
-        "venue":     "Estadio José Amalfitani",
+        "venue":     venue,
         "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "mode":      mode,
     }
@@ -92,8 +99,8 @@ def run_show_audit(show_config: dict, mode: str = "full") -> dict:
     ctx = dict(
         show_id   = show_id,
         show_date = show_date,
-        lat       = VENUE_LAT,
-        lon       = VENUE_LON,
+        lat       = _lat,
+        lon       = _lon,
         result    = result,
     )
 
