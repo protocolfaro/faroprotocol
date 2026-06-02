@@ -572,6 +572,37 @@ def fetch_satellite_baseline(
                 "ndvi_status":   {"semaforo": "sin_datos", "label": "Sin escena disponible"},
             })
 
+    # ── 2.5 MODIS MOD09GQ — fallback diario cuando S2/HLS no disponibles ────────
+    # Activa solo en post_show y solo si no llegó ninguna imagen óptica post-show.
+    # 250m integra campo + tribuna → alerta temprana de área, no daño de campo específico.
+    if mode == "post_show" and not result.get("ndvi_fecha"):
+        try:
+            from dale_play_modis import fetch_modis_ndvi
+            modis_px = fetch_modis_ndvi(show_date=show_date, days_back=7)
+            ndvi_m   = modis_px.get("ndvi")
+            if ndvi_m is not None:
+                dt_str = modis_px.get("fecha", "")
+                _ndvi_month = int(dt_str[5:7]) if len(dt_str) >= 7 else None
+                result.update({
+                    "ndvi":           ndvi_m,
+                    "ndvi_fecha":     dt_str,
+                    "ndvi_cloud_pct": None,
+                    "ndvi_status":    _classify_ndvi(ndvi_m, month=_ndvi_month),
+                    "fuente_ndvi":    modis_px.get("fuente", "MODIS_MOD09GQ"),
+                    "fuente_tipo":    "MODIS",
+                    "revisita_dias":  1.0,
+                    "modis_detalle":  modis_px,
+                })
+                log.info(
+                    "dale_play_satellite: MODIS fallback NDVI=%.3f fecha=%s",
+                    ndvi_m, dt_str,
+                )
+            else:
+                result["modis_error"] = modis_px.get("error") or modis_px.get("instruccion")
+                log.warning("dale_play_satellite: MODIS fallback sin NDVI: %s", modis_px.get("error"))
+        except Exception as _mod_exc:
+            log.warning("dale_play_satellite: MODIS fallback: %s", _mod_exc)
+
     # ── 3. Landsat TIRS — temperatura superficial ─────────────────────────────
     try:
         ls = _search_landsat(days_back=days_back_ls)
