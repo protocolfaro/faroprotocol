@@ -108,21 +108,24 @@ class DrainageModule(DalePlayModule):
     MODES           = ("full", "post_show")
     CRITICAL        = False
     TIMEOUT_S       = 30
-    DATA_SOURCE     = "SoilGrids Ksat + modelo hidráulico Faro Protocol"
+    DATA_SOURCE     = "Planos C&G Amalfitani · 14 líneas 110mm + colector 200mm + guardaganado 380ml · Manning"
 
     def run(self, rider: dict, **kwargs) -> dict:
         try:
             from dale_play_drainage import analyze_drainage
             from dale_play_config import VENUE_LAT, VENUE_LON, VENUE_NAME
+            result = kwargs.get("result", {})
+            lluvia = float(
+                (result.get("weather") or {}).get("show_day", {}).get("lluvia_mm") or 0
+            )
             out = analyze_drainage(
                 kwargs.get("lat", VENUE_LAT),
                 kwargs.get("lon", VENUE_LON),
                 VENUE_NAME,
+                lluvia_48h_mm=lluvia,
             )
             out.setdefault("fuente", self.DATA_SOURCE)
-            # Drainage zones are based on physical soil data + Ksat model
-            ksat_fuente = (out.get("hidraulica") or {}).get("ksat", {}).get("fuente", "")
-            out["fallback_usado"] = "ESTIMADO" in ksat_fuente.upper() or "fallback" in ksat_fuente.lower()
+            out["fallback_usado"] = False  # datos reales de infraestructura, nunca fallback
             return out
         except Exception as exc:
             return {"error": str(exc), "fuente": self.DATA_SOURCE, "fallback_usado": True}

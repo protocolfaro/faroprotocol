@@ -721,6 +721,28 @@ def fetch_satellite_baseline(
                             "dale_play_satellite: delta NDVI=%.3f nivel=%s (pre=%.3f post=%.3f)",
                             delta, nivel_dano, ndvi_pre, ndvi_post,
                         )
+                        # Recovery model — días estimados de recuperación
+                        try:
+                            from satellite.recovery_model import estimate_recovery
+                            recovery = estimate_recovery(
+                                ndvi_pre=ndvi_pre,
+                                ndvi_post=ndvi_post,
+                                show_date=show_date,
+                            )
+                            result["recovery"] = {
+                                "dias_recuperacion":  recovery["dias_recuperacion"],
+                                "fecha_recuperacion": recovery["fecha_recuperacion"],
+                                "confianza":          recovery["confianza"],
+                                "nivel_dano":         recovery["nivel_dano"],
+                                "descripcion":        recovery["descripcion"],
+                                "ajuste_estacional":  recovery["ajuste_estacional"],
+                            }
+                            log.info(
+                                "dale_play_satellite: recovery=%dd nivel=%s",
+                                recovery["dias_recuperacion"], recovery["nivel_dano"],
+                            )
+                        except Exception as _rec_exc:
+                            log.warning("dale_play_satellite: recovery_model: %s", _rec_exc)
                     elif ndvi_pre is not None:
                         result["ndvi_pre"]       = ndvi_pre
                         result["baseline_fecha"] = baseline.get("date", "")
