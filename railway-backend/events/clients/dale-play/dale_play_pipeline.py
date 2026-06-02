@@ -342,6 +342,20 @@ def run_show_audit(show_config: dict, mode: str = "full") -> dict:
     _guardar_run_log(show_id, result, _log_ejecutados, _log_fallidos,
                      _fuentes, ts_inicio, smoke=smoke_result)
 
+    # ── Memoria del sistema (show_memory) ────────────────────────────────────
+    try:
+        from dale_play_memory import save_show_memory
+        save_show_memory(
+            show_id        = show_id,
+            result         = result,
+            log_ejecutados = _log_ejecutados,
+            log_fallidos   = _log_fallidos,
+            fuentes        = _fuentes,
+            duracion_s     = round(time.time() - ts_inicio, 1),
+        )
+    except Exception as _mem_e:
+        log.warning("dale_play_pipeline: show_memory: %s", _mem_e)
+
     log.info("=== dale_play_pipeline OK — %s · %s ===", artist, show_date)
     return result
 

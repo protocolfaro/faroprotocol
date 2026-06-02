@@ -247,6 +247,45 @@ def dp_scheduler_status():
         return jsonify({"error": str(e)}), 500
 
 
+@dale_play_bp.route("/memory", methods=["GET"])
+def dp_memory():
+    """
+    GET /dale-play/memory — Memoria del sistema: últimos N runs del pipeline.
+
+    Query params:
+      venue_id  — filtrar por venue (default: todos)
+      limit     — número de registros (default: 20, max: 100)
+    """
+    try:
+        from dale_play_memory import memory_summary
+        venue_id = request.args.get("venue_id")
+        limit    = min(int(request.args.get("limit", 20)), 100)
+        return jsonify(memory_summary(venue_id=venue_id, last_n=limit))
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@dale_play_bp.route("/monitor-status", methods=["GET"])
+def dp_monitor_status():
+    """GET /dale-play/monitor-status — Configuración del agente de monitoreo."""
+    try:
+        from dale_play_monitor import get_monitor_status
+        return jsonify(get_monitor_status())
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@dale_play_bp.route("/monitor-run", methods=["POST"])
+def dp_monitor_run():
+    """POST /dale-play/monitor-run — Dispara el chequeo de monitoreo manualmente."""
+    try:
+        from dale_play_monitor import run_monitoring_check
+        result = run_monitoring_check()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @dale_play_bp.route("/dashboard/<show_id>", methods=["GET"])
 def dp_dashboard(show_id: str):
     """GET /dale-play/dashboard/{show_id} — Panel de validación interactivo."""

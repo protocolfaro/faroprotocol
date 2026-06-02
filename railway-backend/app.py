@@ -736,6 +736,12 @@ try:
         log.info("Dale Play post-show scheduler + source scout semanal inicializados")
     except Exception as _dp_sched2_err:
         log.warning("Dale Play post-show scheduler: %s", _dp_sched2_err)
+    # Dale Play — agente de monitoreo (chequeo cada 6h: clima/NDVI/SAR)
+    try:
+        from dale_play_monitor import register_monitoring_job as _dp_monitor_reg
+        _dp_monitor_reg(_scheduler)
+    except Exception as _dp_mon_err:
+        log.warning("Dale Play monitor scheduler: %s", _dp_mon_err)
     # Dale Play — time series fenológica Amalfitani (actualización mensual)
     try:
         from satellite.field_timeseries import register_timeseries_job as _ft_register
