@@ -173,7 +173,7 @@ def _ndvi_from_s2_item(item: dict, bbox: list[float], source: str = "PC") -> Opt
         return float(round(float(np.mean((n_v - r_v) / (n_v + r_v + 1e-9))), 3))
 
     except Exception as exc:
-        log.debug("field_timeseries: NDVI read: %s", exc)
+        log.warning("field_timeseries: NDVI read error (%s): %s", source, exc)
         return None
 
 

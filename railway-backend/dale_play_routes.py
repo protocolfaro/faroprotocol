@@ -411,6 +411,108 @@ def dp_timeseries_diag():
     return jsonify(out)
 
 
+@dale_play_bp.route("/admin/timeseries-test-ndvi", methods=["GET"])
+def dp_timeseries_test_ndvi():
+    """
+    GET /dale-play/admin/timeseries-test-ndvi?year=2020&month=3
+    Llama _ndvi_from_s2_item SIN try/except para ver el error real.
+    """
+    import traceback as _tb
+    bbox  = [-58.5305, -34.6391, -58.5271, -34.6367]
+    year  = int(request.args.get("year",  2020))
+    month = int(request.args.get("month", 3))
+    out: dict = {"year": year, "month": month}
+
+    try:
+        from satellite.field_timeseries import _search_s2_month
+        import rasterio, numpy as np, os as _os
+        from rasterio.warp import transform_bounds
+        from rasterio.windows import from_bounds
+        import requests as _req
+
+        items = _search_s2_month(year, month, bbox, max_cloud=50.0)
+        if not items:
+            return jsonify({"error": f"Sin items STAC para {year}-{month:02d}"}), 200
+
+        item, source = items[0]
+        props = item.get("properties", {})
+        assets = item.get("assets", {})
+        out["source"]       = source
+        out["item_id"]      = item.get("id", "")[:60]
+        out["datetime"]     = props.get("datetime", "")[:10]
+        out["cloud_cover"]  = props.get("eo:cloud_cover")
+        out["assets_keys"]  = list(assets.keys())
+
+        # Resolver HREFs
+        def _resolve_href(key, fallback=""):
+            a = assets.get(key) or assets.get(fallback) or {}
+            return a.get("href", "")
+
+        red_href = _resolve_href("B04", "red")
+        nir_href = _resolve_href("B08", "nir")
+        out["red_key_found"] = "B04" if assets.get("B04") else ("red" if assets.get("red") else "NONE")
+        out["nir_key_found"] = "B08" if assets.get("B08") else ("nir" if assets.get("nir") else "NONE")
+        out["red_href"] = red_href[:80] if red_href else "(vacío)"
+        out["nir_href"] = nir_href[:80] if nir_href else "(vacío)"
+
+        if not red_href or not nir_href:
+            return jsonify({**out, "error": "Href vacío — asset key no encontrado"}), 200
+
+        # Token
+        if source == "PC":
+            tok_r = _req.get(
+                "https://planetarycomputer.microsoft.com/api/sas/v1/token/sentinel-2-l2a",
+                timeout=10,
+            )
+            token = tok_r.json().get("token", "") if tok_r.ok else ""
+        else:
+            _os.environ["AWS_NO_SIGN_REQUEST"] = "YES"
+            token = ""
+
+        def _open_band(href: str) -> np.ndarray:
+            if href.startswith("s3://sentinel-cogs/"):
+                href = href.replace("s3://sentinel-cogs/",
+                                    "https://sentinel-cogs.s3.us-west-2.amazonaws.com/")
+            if token:
+                href = f"{href}?{token}"
+            minx, miny, maxx, maxy = bbox
+            with rasterio.open(href) as src:
+                native = transform_bounds("EPSG:4326", src.crs, minx, miny, maxx, maxy)
+                win    = from_bounds(*native, transform=src.transform)
+                return src.read(1, window=win).astype("float32") / 10_000.0
+
+        # Leer RED — sin try/except para ver el error real
+        red = _open_band(red_href)
+        out["red_shape"]     = list(red.shape)
+        out["red_min"]       = float(red.min())
+        out["red_max"]       = float(red.max())
+
+        # Leer NIR
+        nir = _open_band(nir_href)
+        out["nir_shape"]     = list(nir.shape)
+        out["nir_min"]       = float(nir.min())
+        out["nir_max"]       = float(nir.max())
+
+        valid = (red > 0) & (nir > 0) & (red < 1) & (nir < 1)
+        out["valid_px"] = int(valid.sum())
+        if valid.sum() >= 4:
+            r_v, n_v = red[valid], nir[valid]
+            ndvi = float(round(float(np.mean((n_v - r_v) / (n_v + r_v + 1e-9))), 3))
+            out["ndvi"] = ndvi
+            out["ok"] = True
+        else:
+            out["ndvi"] = None
+            out["ok"] = False
+            out["error"] = f"Solo {int(valid.sum())} pixels válidos"
+
+    except Exception as exc:
+        out["ok"]    = False
+        out["error"] = str(exc)
+        out["tb"]    = _tb.format_exc()[-1200:]
+
+    return jsonify(out)
+
+
 # ── helper ────────────────────────────────────────────────────────────────────
 
 def _load_show(show_id: str) -> dict | None:
