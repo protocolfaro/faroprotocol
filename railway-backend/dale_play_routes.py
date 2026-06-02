@@ -258,6 +258,68 @@ def dp_dashboard(show_id: str):
     return html, 200, {"Content-Type": "text/html; charset=utf-8"}
 
 
+# ── Time series fenológica — trigger manual ───────────────────────────────────
+
+_ts_state: dict = {"status": "idle", "started_at": None, "result": None, "error": None}
+_ts_lock = threading.Lock()
+
+
+@dale_play_bp.route("/admin/timeseries-build", methods=["POST"])
+def dp_timeseries_build():
+    """
+    POST /dale-play/admin/timeseries-build
+    Body (opcional): {"venue_id": "amalfitani", "start_year": 2020, "max_new": 24}
+    Lanza build_venue_timeseries + compute_fenology en background.
+    Retorna 202 inmediatamente. Pollear /admin/timeseries-status para resultados.
+    """
+    with _ts_lock:
+        if _ts_state["status"] == "running":
+            return jsonify({"status": "running",
+                            "msg": "Build ya en progreso — pollear /admin/timeseries-status"}), 409
+        _ts_state.update({"status": "running", "started_at": __import__("datetime")
+                          .datetime.utcnow().isoformat() + "Z",
+                          "result": None, "error": None})
+
+    body      = request.get_json(force=True, silent=True) or {}
+    venue_id  = body.get("venue_id", "amalfitani")
+    start_yr  = int(body.get("start_year", 2020))
+    max_new   = int(body.get("max_new", 24))
+    bbox      = body.get("bbox") or [-58.5305, -34.6391, -58.5271, -34.6367]
+
+    def _run():
+        try:
+            from satellite.field_timeseries import build_venue_timeseries, compute_fenology
+            build_result = build_venue_timeseries(
+                venue_id, bbox, start_year=start_yr, max_new_per_run=max_new
+            )
+            fenol_result = compute_fenology(venue_id)
+            with _ts_lock:
+                _ts_state.update({
+                    "status":   "done",
+                    "result":   {"build": build_result, "fenologia": fenol_result},
+                    "error":    None,
+                })
+            log.info("dp_timeseries_build: done — %s", build_result)
+        except Exception as exc:
+            with _ts_lock:
+                _ts_state.update({"status": "error", "error": str(exc)})
+            log.error("dp_timeseries_build: %s", exc)
+
+    threading.Thread(target=_run, daemon=True).start()
+    return jsonify({
+        "status":   "started",
+        "venue_id": venue_id,
+        "msg":      f"Build iniciado — {max_new} imágenes máx. Pollear /dale-play/admin/timeseries-status",
+    }), 202
+
+
+@dale_play_bp.route("/admin/timeseries-status", methods=["GET"])
+def dp_timeseries_status():
+    """GET /dale-play/admin/timeseries-status — estado actual del build de time series."""
+    with _ts_lock:
+        return jsonify(dict(_ts_state))
+
+
 # ── helper ────────────────────────────────────────────────────────────────────
 
 def _load_show(show_id: str) -> dict | None:
