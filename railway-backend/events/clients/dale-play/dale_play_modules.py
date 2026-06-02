@@ -108,7 +108,7 @@ class DrainageModule(DalePlayModule):
     MODES           = ("full", "post_show")
     CRITICAL        = False
     TIMEOUT_S       = 30
-    DATA_SOURCE     = "Planos C&G Amalfitani · 14 líneas 110mm + colector 200mm + guardaganado 380ml · Manning"
+    DATA_SOURCE     = "Planos C&G Amalfitani · 14 líneas DRENAFLEX AWACOR 118mm + 2 colectores AWACOR 218mm + 4 cámaras + guardaganado 380ml/15cm · Manning"
 
     def run(self, rider: dict, **kwargs) -> dict:
         try:
