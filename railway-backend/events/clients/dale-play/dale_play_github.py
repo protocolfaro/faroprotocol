@@ -75,6 +75,48 @@ def push_show_snapshot(show_id: str, show_data: dict) -> dict:
     return {"action": action, "path": path, "url": commit_url}
 
 
+def push_show_data(path: str, content: str, message: str = "") -> dict:
+    """
+    Upsert genérico de cualquier archivo de texto en el repo GitHub.
+    Usado por dale_play_source_log para commitear SOURCE_LOG.md.
+
+    Args:
+        path:    Ruta relativa en el repo (ej: "SOURCE_LOG.md", "dale-play/data/x.json")
+        content: Contenido UTF-8 del archivo
+        message: Mensaje de commit (generado automáticamente si no se pasa)
+
+    Returns:
+        {"action": "created"|"updated", "path": str, "url": str}
+    """
+    import requests
+
+    api_url = f"https://api.github.com/repos/{GH_OWNER}/{GH_REPO}/contents/{path}"
+    ts      = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    if not message:
+        message = f"[Faro Protocol] {path} actualizado [{ts}]"
+
+    sha = None
+    try:
+        r = requests.get(api_url, headers=_hdrs(), params={"ref": GH_BRANCH}, timeout=10)
+        if r.status_code == 200:
+            sha = r.json().get("sha")
+    except Exception as e:
+        log.warning("dale_play_github push_show_data: GET check failed: %s", e)
+
+    encoded = base64.b64encode(content.encode("utf-8")).decode()
+    body: dict = {"message": message, "content": encoded, "branch": GH_BRANCH}
+    if sha:
+        body["sha"] = sha
+
+    r = requests.put(api_url, headers=_hdrs(), json=body, timeout=30)
+    r.raise_for_status()
+
+    commit_url = r.json().get("commit", {}).get("html_url", "")
+    action     = "updated" if sha else "created"
+    log.info("dale_play_github: push_show_data %s %s → %s", action, path, commit_url[-60:])
+    return {"action": action, "path": path, "url": commit_url}
+
+
 def push_png_to_github(show_id: str, png_local_path: str) -> str:
     """
     Sube el PNG del reporte a GitHub en dale-play/reportes/.

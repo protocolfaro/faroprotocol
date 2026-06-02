@@ -416,5 +416,77 @@ def sync_pending_to_supabase() -> dict:
     return {"synced": synced, "skipped": skipped, "failed": failed}
 
 
+# ── source_discoveries (job semanal de auto-mejora) ──────────────────────────
+#
+#   CREATE TABLE IF NOT EXISTS source_discoveries (
+#     id             BIGSERIAL PRIMARY KEY,
+#     discovered_at  TIMESTAMPTZ DEFAULT NOW(),
+#     fuente_nombre  TEXT,
+#     fuente_url     TEXT,
+#     fuente_tipo    TEXT,
+#     cobertura      TEXT,
+#     resolucion     TEXT,
+#     frecuencia     TEXT,
+#     costo          TEXT,
+#     evaluacion     TEXT,
+#     recomendacion  TEXT,
+#     datos_raw      JSONB
+#   );
+#
+#   CREATE TABLE IF NOT EXISTS scout_reports (
+#     id             BIGSERIAL PRIMARY KEY,
+#     created_at     TIMESTAMPTZ DEFAULT NOW(),
+#     timestamp      TEXT,
+#     modelo         TEXT,
+#     n_fuentes      INT,
+#     resumen        TEXT,
+#     prioridad      JSONB,
+#     datos_raw      JSONB
+#   );
+
+def save_source_discovery(data: dict) -> bool:
+    """Guarda un descubrimiento de nueva fuente en source_discoveries."""
+    nombre = data.get("fuente_nombre", "unknown")
+    row = {
+        "fuente_nombre": nombre,
+        "fuente_url":    data.get("fuente_url", ""),
+        "fuente_tipo":   data.get("fuente_tipo", ""),
+        "cobertura":     data.get("cobertura", ""),
+        "resolucion":    data.get("resolucion", ""),
+        "frecuencia":    data.get("frecuencia", ""),
+        "costo":         data.get("costo", ""),
+        "evaluacion":    data.get("evaluacion", ""),
+        "recomendacion": data.get("recomendacion", ""),
+        "datos_raw":     data.get("datos_raw", {}),
+    }
+    _cache_save("source_discovery", nombre, row)
+    ok = _insert("source_discoveries", row)
+    if not ok:
+        _local_save("source_discovery", nombre, row)
+    else:
+        log.info("Supabase: source_discovery guardada: %s (%s)", nombre, row.get("recomendacion"))
+    return ok
+
+
+def save_scout_report(report: dict) -> bool:
+    """Guarda el reporte completo del scout semanal en scout_reports."""
+    ts = report.get("timestamp", "")
+    row = {
+        "timestamp":  ts,
+        "modelo":     report.get("modelo", ""),
+        "n_fuentes":  len(report.get("fuentes_nuevas", [])),
+        "resumen":    report.get("resumen_ejecutivo", ""),
+        "prioridad":  report.get("prioridad", []),
+        "datos_raw":  report,
+    }
+    _cache_save("scout_report", ts[:10] or "unknown", row)
+    ok = _insert("scout_reports", row)
+    if not ok:
+        _local_save("scout_report", ts[:10] or "unknown", row)
+    else:
+        log.info("Supabase: scout_report guardado %s — %d fuentes", ts[:10], row["n_fuentes"])
+    return ok
+
+
 # ── aliases para imports legacy ───────────────────────────────────────────────
 import json as _json, sys as _sys

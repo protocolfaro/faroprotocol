@@ -25,6 +25,22 @@ class SatelliteModule(DalePlayModule):
             out = fetch_satellite_baseline(mode=mode, show_date=show_date, show_id=show_id)
             out.setdefault("fuente", self.DATA_SOURCE)
             out.setdefault("fallback_usado", out.get("ndvi") is None)
+
+            try:
+                from dale_play_source_log import log_source_event
+                fuente_tipo = out.get("fuente_tipo", "sin_dato")
+                fuente_ndvi = out.get("fuente_ndvi", fuente_tipo)
+                confianza   = 0.90 if fuente_tipo in ("HLS", "S2") else 0.60 if fuente_tipo == "S2_openEO" else 0.10
+                log_source_event(
+                    modulo="Satellite_NDVI",
+                    fuente_usada=fuente_tipo,
+                    confianza=confianza,
+                    venue_cubierto=out.get("ndvi") is not None,
+                    motivo_fallback="" if not out.get("fallback_usado") else f"NDVI={out.get('ndvi')} via {fuente_ndvi}",
+                )
+            except Exception:
+                pass
+
             return out
         except Exception as exc:
             return {"error": str(exc), "fuente": self.DATA_SOURCE, "fallback_usado": False}
@@ -244,33 +260,72 @@ class RiderComplianceModule(DalePlayModule):
             return {"error": str(exc), "fuente": self.DATA_SOURCE, "fallback_usado": False}
 
 
-class UmbraModule(DalePlayModule):
+class SARModule(DalePlayModule):
+    """
+    Módulo SAR con cascada de aviación: Umbra → S1 RTC → Capella → ALOS-2 meta → EGMS proxy.
+    Nunca retorna null. Siempre incluye sar_nivel_confianza y sar_cascade_log.
+    Mantiene RESULT_KEY = "umbra_sar" para compatibilidad con report/certification.
+    """
     RESULT_KEY      = "umbra_sar"
-    REQUIRED_FIELDS = ["umbra_cobre_venue", "escena_datetime"]
+    REQUIRED_FIELDS = ["umbra_cobre_venue", "escena_datetime", "sar_nivel_confianza"]
     MODES           = ("full", "post_show")
     CRITICAL        = False
-    TIMEOUT_S       = 90
-    DATA_SOURCE     = "Umbra Open Data Catalog CC-BY-4.0 · X-band VV Spotlight · ~25cm · COG HTTP range"
+    TIMEOUT_S       = 120
+    DATA_SOURCE     = (
+        "Cascada SAR: Umbra X-band 0.26m CC-BY-4.0 "
+        "→ Sentinel-1 RTC C-band 20m PC "
+        "→ Capella X-band 0.5m CC-BY-4.0 "
+        "→ ALOS-2 L-band meta (ASF) "
+        "→ EGMS proxy Copernicus 2015-2022"
+    )
 
     def run(self, rider: dict, **kwargs) -> dict:
         try:
-            from dale_play_umbra import fetch_umbra_sar
+            from dale_play_sar import fetch_sar
             from dale_play_config import VENUE_LAT, VENUE_LON
-            out = fetch_umbra_sar(
+            out = fetch_sar(
                 venue_lat=kwargs.get("lat", VENUE_LAT),
                 venue_lon=kwargs.get("lon", VENUE_LON),
                 show_id=kwargs.get("show_id", "unknown"),
                 window_m=500,
             )
             out.setdefault("fuente", self.DATA_SOURCE)
+
+            # Registrar en SOURCE_LOG.md
+            try:
+                from dale_play_source_log import log_source_event
+                log_source_event(
+                    modulo="SAR",
+                    fuente_usada=out.get("sar_fuente_usada", "UNKNOWN"),
+                    confianza=out.get("sar_nivel_confianza", 0.0),
+                    venue_cubierto=out.get("venue_cubierto"),
+                    cascade_log=out.get("sar_cascade_log"),
+                )
+            except Exception:
+                pass
+
             return out
+
         except Exception as exc:
+            try:
+                from dale_play_source_log import log_source_event
+                log_source_event(
+                    modulo="SAR",
+                    fuente_usada="EXCEPCION",
+                    confianza=0.0,
+                    motivo_fallback=str(exc)[:100],
+                )
+            except Exception:
+                pass
             return {
-                "error":             str(exc),
-                "fuente":            self.DATA_SOURCE,
-                "fallback_usado":    True,
-                "umbra_cobre_venue": False,
-                "escena_datetime":   None,
+                "error":               str(exc),
+                "fuente":              self.DATA_SOURCE,
+                "fallback_usado":      True,
+                "umbra_cobre_venue":   False,
+                "escena_datetime":     None,
+                "sar_fuente_usada":    "EXCEPCION",
+                "sar_nivel_confianza": 0.0,
+                "sar_cascade_log":     [{"fuente": "EXCEPCION", "razon": str(exc)[:200]}],
             }
 
 
@@ -287,7 +342,7 @@ MODULES: list[DalePlayModule] = [
     SPLComplianceModule(),
     StructuralTwinModule(),
     RiderComplianceModule(),
-    UmbraModule(),
+    SARModule(),
 ]
 
 MODULES_BY_KEY: dict[str, DalePlayModule] = {m.RESULT_KEY: m for m in MODULES}

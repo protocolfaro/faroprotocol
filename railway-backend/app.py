@@ -730,9 +730,10 @@ try:
         log.warning("Dale Play check_new_sources scheduler: %s", _dp_sched_err)
     # Dale Play — scheduler post-show (auto-actualización cada 6h)
     try:
-        from dale_play_scheduler import init_scheduler as _dp_sched_init
+        from dale_play_scheduler import init_scheduler as _dp_sched_init, schedule_source_scout as _dp_scout
         _dp_sched_init(_scheduler)
-        log.info("Dale Play post-show scheduler inicializado (compartiendo APScheduler)")
+        _dp_scout(_scheduler)   # source scout semanal: lunes 11:00 UTC
+        log.info("Dale Play post-show scheduler + source scout semanal inicializados")
     except Exception as _dp_sched2_err:
         log.warning("Dale Play post-show scheduler: %s", _dp_sched2_err)
     # Dale Play — time series fenológica Amalfitani (actualización mensual)

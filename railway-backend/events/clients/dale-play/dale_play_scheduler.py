@@ -78,6 +78,44 @@ def _get_scheduler():
 # Registro de show en monitoreo
 # ─────────────────────────────────────────────────────────────────────────────
 
+def schedule_source_scout(external_scheduler=None) -> None:
+    """
+    Registra el job semanal de auto-mejora de fuentes satelitales.
+    Corre los lunes a las 11:00 UTC (después del weekly_insar_refresh de las 10:00).
+    Llamar desde app.py al iniciar, junto con init_scheduler().
+    """
+    sched = external_scheduler or _get_scheduler()
+    if sched is None:
+        log.warning("dale_play_scheduler: schedule_source_scout — scheduler no disponible")
+        return
+
+    try:
+        sched.add_job(
+            _run_source_scout_job,
+            "cron",
+            day_of_week="mon",
+            hour=11,
+            minute=0,
+            id="dp_source_scout_semanal",
+            replace_existing=True,
+            max_instances=1,
+            misfire_grace_time=7200,   # 2h de gracia
+        )
+        log.info("dale_play_scheduler: source_scout semanal registrado (lunes 11:00 UTC)")
+    except Exception as exc:
+        log.warning("dale_play_scheduler: schedule_source_scout add_job: %s", exc)
+
+
+def _run_source_scout_job() -> None:
+    """Wrapper para APScheduler — captura cualquier excepción y loguea."""
+    log.info("dale_play_scheduler: _run_source_scout_job — inicio")
+    try:
+        from dale_play_source_scout import weekly_source_scout_job
+        weekly_source_scout_job()
+    except Exception as exc:
+        log.error("dale_play_scheduler: _run_source_scout_job error: %s", exc, exc_info=True)
+
+
 def schedule_post_show_updates(
     show_id:    str,
     show_date:  str,
