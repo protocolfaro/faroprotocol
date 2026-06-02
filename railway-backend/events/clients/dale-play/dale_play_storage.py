@@ -280,10 +280,12 @@ def get_certification(show_id: str) -> dict | None:
 
 
 def get_certification_by_hash(cert_hash: str) -> dict | None:
+    # Local scan first — certificados son inmutables, no hay stale risk
+    cached = _scan_by_hash(cert_hash)
+    if cached is not None:
+        return cached
     result = _select_one("certifications", "cert_hash", cert_hash)
-    if result is not None:
-        return result
-    return _scan_by_hash(cert_hash)
+    return result
 
 
 # ── audit_log (inmutable — solo INSERT, nunca UPDATE) ─────────────────────────

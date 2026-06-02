@@ -10,8 +10,11 @@ from datetime import datetime, timezone
 # ── Path setup (ARCHITECTURE.md) ─────────────────────────────────────────────
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _VELEZ_PATH = os.path.join(_HERE, "sports", "clients", "velez")
+_CORE_PATH  = os.path.join(_HERE, "core")
 if _VELEZ_PATH not in sys.path:
     sys.path.insert(0, _VELEZ_PATH)
+if _CORE_PATH not in sys.path:
+    sys.path.insert(0, _CORE_PATH)
 # ─────────────────────────────────────────────────────────────────────────────
 
 from apscheduler.schedulers.background import BackgroundScheduler

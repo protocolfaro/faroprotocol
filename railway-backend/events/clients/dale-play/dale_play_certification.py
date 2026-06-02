@@ -514,7 +514,7 @@ def run_certification(show_id: str, mode: str = "post_show") -> dict:
     # Persistir en Supabase
     try:
         from dale_play_storage import save_certification
-        save_certification(show_id, cert_hash, str(out_path), cert_data)
+        save_certification(show_id, cert_hash, _cert_result["pdf_path"], cert_data)
     except Exception as _se:
         log.warning("certification: Supabase save error: %s", _se)
 
