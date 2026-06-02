@@ -3,83 +3,87 @@
   "show_date": "2026-05-31",
   "artist": "Airbag",
   "venue": "Estadio José Amalfitani",
-  "timestamp": "2026-05-31T00:23:20Z",
+  "timestamp": "2026-06-02T20:06:12Z",
   "mode": "full",
   "layout": null,
   "satellite": {
-    "ndvi": 0.099,
-    "ndvi_fecha": "2026-05-02",
-    "ndvi_cloud_pct": 0.9,
+    "ndvi": 0.086,
+    "ndvi_fecha": "2026-05-17",
+    "ndvi_cloud_pct": 5.0,
     "ndvi_status": {
       "semaforo": "amarillo",
       "label": "Dormancia estacional (Bermuda — invierno BsAs)"
     },
+    "fuente_ndvi": "Sentinel-2 L2A · Planetary Computer",
     "fuente_s2": "Sentinel-2 L2A · Planetary Computer",
+    "fuente_tipo": "S2",
+    "s2_fuente_backend": "PC",
+    "revisita_dias": 5.0,
     "tirs_celsius": null,
     "tirs_fecha": null,
-    "fuente": "ESA Sentinel-2 / NASA Landsat (STAC API)",
+    "fuente": "HLS / Sentinel-2 L2A / Landsat C2L2 · Planetary Computer + NASA CMR MODIS",
     "fallback_usado": false
   },
   "weather": {
     "show_date": "2026-05-31",
     "dias": [
       {
-        "fecha": "2026-05-30",
-        "tmax": 15.6,
-        "tmin": 6.5,
-        "lluvia_mm": 0.0,
-        "prob_lluvia_pct": 0,
-        "viento_max_kmh": 6.3,
-        "rachas_max_kmh": 15.1,
-        "riesgo_viento": "ok",
-        "riesgo_lluvia": "ok",
-        "riesgo_dia": "ok"
-      },
-      {
-        "fecha": "2026-05-31",
-        "tmax": 16.6,
-        "tmin": 5.0,
-        "lluvia_mm": 0.0,
-        "prob_lluvia_pct": 0,
-        "viento_max_kmh": 6.7,
-        "rachas_max_kmh": 17.3,
-        "riesgo_viento": "ok",
-        "riesgo_lluvia": "ok",
-        "riesgo_dia": "ok"
-      },
-      {
-        "fecha": "2026-06-01",
-        "tmax": 14.1,
-        "tmin": 10.2,
-        "lluvia_mm": 0.1,
-        "prob_lluvia_pct": 10,
-        "viento_max_kmh": 11.1,
-        "rachas_max_kmh": 26.6,
-        "riesgo_viento": "ok",
-        "riesgo_lluvia": "ok",
-        "riesgo_dia": "ok"
-      },
-      {
         "fecha": "2026-06-02",
-        "tmax": 14.7,
-        "tmin": 9.5,
+        "tmax": 14.6,
+        "tmin": 9.6,
         "lluvia_mm": 0.0,
         "prob_lluvia_pct": 0,
-        "viento_max_kmh": 13.5,
-        "rachas_max_kmh": 33.5,
+        "viento_max_kmh": 8.9,
+        "rachas_max_kmh": 24.8,
+        "riesgo_viento": "ok",
+        "riesgo_lluvia": "ok",
+        "riesgo_dia": "ok"
+      },
+      {
+        "fecha": "2026-06-03",
+        "tmax": 17.4,
+        "tmin": 13.1,
+        "lluvia_mm": 0.0,
+        "prob_lluvia_pct": 0,
+        "viento_max_kmh": 11.2,
+        "rachas_max_kmh": 32.0,
+        "riesgo_viento": "ok",
+        "riesgo_lluvia": "ok",
+        "riesgo_dia": "ok"
+      },
+      {
+        "fecha": "2026-06-04",
+        "tmax": 16.4,
+        "tmin": 12.9,
+        "lluvia_mm": 0.1,
+        "prob_lluvia_pct": 2,
+        "viento_max_kmh": 10.2,
+        "rachas_max_kmh": 22.3,
+        "riesgo_viento": "ok",
+        "riesgo_lluvia": "ok",
+        "riesgo_dia": "ok"
+      },
+      {
+        "fecha": "2026-06-05",
+        "tmax": 20.9,
+        "tmin": 13.6,
+        "lluvia_mm": 3.3,
+        "prob_lluvia_pct": 8,
+        "viento_max_kmh": 10.2,
+        "rachas_max_kmh": 25.6,
         "riesgo_viento": "ok",
         "riesgo_lluvia": "ok",
         "riesgo_dia": "ok"
       }
     ],
     "show_day": {
-      "fecha": "2026-05-31",
-      "tmax": 16.6,
-      "tmin": 5.0,
+      "fecha": "2026-06-02",
+      "tmax": 14.6,
+      "tmin": 9.6,
       "lluvia_mm": 0.0,
       "prob_lluvia_pct": 0,
-      "viento_max_kmh": 6.7,
-      "rachas_max_kmh": 17.3,
+      "viento_max_kmh": 8.9,
+      "rachas_max_kmh": 24.8,
       "riesgo_viento": "ok",
       "riesgo_lluvia": "ok",
       "riesgo_dia": "ok"
@@ -93,7 +97,7 @@
     "show_id": "airbag_2026-05-31",
     "lat": -34.6379,
     "lon": -58.5288,
-    "fecha_analisis": "2026-05-31",
+    "fecha_analisis": "2026-06-02",
     "estimado": true,
     "fuente": "[ESTIMADO] Perfil edafológico BHCP · Franco-arcilloso típico Liniers",
     "soilgrids": {
@@ -164,201 +168,223 @@
     "hay_exclusiones": false,
     "n_exclusiones": 0,
     "fuente": "[ESTIMADO] Perfil edafológico BHCP · Franco-arcilloso típico Liniers · Modelo carga Faro Protocol",
-    "soil_real_json": "/app/dale-play/models/soil_real_airbag_2026-05-31.json",
+    "soil_real_json": "/app/events/clients/dale-play/models/soil_real_airbag_2026-05-31.json",
     "fallback_usado": true
   },
   "drainage": {
     "venue": "Estadio José Amalfitani",
     "lat": -34.6379,
     "lon": -58.5288,
-    "fecha_analisis": "2026-05-31",
-    "metodo": "Sentinel-2 B11/B12 SWIR · Landsat TIRS · SAR C-band VV/VH · Ksat HiHydroSoil v2.0 (pedotransfer Rawls & Brakensiek sobre SoilGrids)",
+    "fecha_analisis": "2026-06-02",
+    "metodo": "Infraestructura real C&G — 14 líneas DRENAFLEX AWACOR 118mm + 2 colectores AWACOR 218mm (Norte+Sur) + 4 cámaras vértices + guardaganado 380ml/15cm · Manning Q=AR^(2/3)S^(1/2)/n",
     "campo": {
       "largo_m": 105,
       "ancho_m": 68,
+      "area_m2": 7140,
       "orientacion": "N-S"
     },
-    "firma_satelital": {
-      "swir_b11_mean": 0.18,
-      "swir_b12_mean": 0.12,
-      "ndwi": -0.21,
-      "tirs_celsius": 22.5,
-      "sar_vv_db": -12.4,
-      "sar_vh_db": -19.8,
-      "sar_vvvh_ratio": 7.4,
-      "anomalia_termica_ns": true
+    "infraestructura": {
+      "n_lineas_internas": 14,
+      "paso_lineas_m": 5.0,
+      "diametro_interno_mm": 118,
+      "diametro_principal_mm": 218,
+      "n_colectores_principales": 2,
+      "perimetral_ml": 380,
+      "ancho_canaleta_perimetral_cm": 15,
+      "camaras_vertices": 4,
+      "profundidad_min_m": 0.4,
+      "profundidad_max_m": 0.6,
+      "fosa_descarga_pos": "Norte",
+      "orientacion_lineas": "E-O",
+      "pendiente_hidraulica_pct": 0.5,
+      "reutilizacion_riego": true
     },
     "hidraulica": {
-      "textura": {
-        "clay_pct": 35.0,
-        "sand_pct": 25.0,
-        "silt_pct": 40.0,
-        "fuente": "[ESTIMADO] Perfil edafológico BHCP"
-      },
-      "ksat": {
-        "ksat_mm_h": 1.2,
-        "textura_usda": "Clay loam / Clay",
-        "riesgo_hidrico": "alto",
-        "fuente": "Pedotransfer Rawls & Brakensiek 1985 / HiHydroSoil v2.0 equivalent"
-      },
-      "nota": "Ksat estimado via función de pedotransferencia Rawls & Brakensiek (1985) aplicada a textura SoilGrids v2.0. HiHydroSoil v2.0 (FutureWater) no tiene API REST pública — acceso requiere descarga de TIF via FTP registrado."
+      "q_por_linea_ls": 6.71,
+      "q_total_lineas_ls": 93.94,
+      "q_colector_uno_ls": 34.49,
+      "q_colectores_total_ls": 68.98,
+      "n_colectores": 2,
+      "q_efectivo_ls": 68.98,
+      "q_lluvia_diseno_ls": 99.17,
+      "superavit_ls": -30.19,
+      "sistema_suficiente": false,
+      "tiempo_vac_10mm_min": 17.3,
+      "lluvia_diseno_mm_h": 50.0,
+      "manning_n": 0.011,
+      "nota": "Sistema INSUFICIENTE para lluvia de diseño 50.0mm/h. 2 colectores 218mm en paralelo: 68.98L/s total. Tiempo vaciado 10mm lluvia: ~17.3 min."
     },
+    "lluvia_48h_mm": 0.0,
     "zonas": [
       {
-        "id": "canal_central",
-        "nombre": "Canal N-S",
+        "id": "fosa_descarga",
+        "nombre": "Fosa de Descarga (Norte / Platea Sur Baja)",
         "tipo": "exclusion",
-        "descripcion": "Canal principal N-S. No apoyar estructuras > 2 t sobre esta franja.",
+        "descripcion": "Punto de descarga final de toda la red de drenaje. Agua reutilizada para riego. Suelo excavado con diferente compactación. Prohibido apoyar estructuras. Radio de exclusión: 3m desde borde fosa.",
         "x_pct": [
-          44,
-          56
+          5,
+          22
         ],
         "y_pct": [
-          0,
-          100
+          78,
+          98
         ],
-        "capacidad_kpa": 27,
+        "capacidad_kpa": 25,
         "riesgo": "alto",
         "color": "rojo",
-        "capacidad_orig_kpa": 32,
-        "ksat_factor": 0.85,
-        "nota_ksat": "Ksat=1.2 mm/h → factor capacidad 1.0"
+        "infraestructura": "Fosa descarga · recibe 2 colectores 218mm · plano 02 C&G"
       },
       {
-        "id": "colector_sur",
-        "nombre": "Colector Sur",
+        "id": "colector_cabecera_norte",
+        "nombre": "Colector 218mm — Cabecera Norte",
         "tipo": "exclusion",
-        "descripcion": "Cañería colectora 1.2 m prof. Escenario: usar tarimas distribuidoras (mín. 2.5 m²/punto).",
+        "descripcion": "Cañería colectora 218mm AWACOR detrás del arco Norte. Recibe las 7 líneas 118mm del sector Norte. Franja de 1m a cada lado: sin cargas puntuales. Tarimas distribuidoras obligatorias.",
         "x_pct": [
-          15,
-          85
-        ],
-        "y_pct": [
-          0,
-          18
-        ],
-        "capacidad_kpa": 24,
-        "riesgo": "alto",
-        "color": "rojo",
-        "capacidad_orig_kpa": 28,
-        "ksat_factor": 0.85,
-        "nota_ksat": "Ksat=1.2 mm/h → factor capacidad 1.0"
-      },
-      {
-        "id": "lateral_este",
-        "nombre": "Lateral E",
-        "tipo": "precaucion",
-        "descripcion": "Canal lateral este. Torres de sonido: plataformas distribuidoras de carga.",
-        "x_pct": [
-          72,
-          85
-        ],
-        "y_pct": [
-          18,
-          82
-        ],
-        "capacidad_kpa": 49,
-        "riesgo": "medio",
-        "color": "amarillo",
-        "capacidad_orig_kpa": 58,
-        "ksat_factor": 0.85,
-        "nota_ksat": "Ksat=1.2 mm/h → factor capacidad 1.0"
-      },
-      {
-        "id": "lateral_oeste",
-        "nombre": "Lateral O",
-        "tipo": "precaucion",
-        "descripcion": "Canal lateral oeste. Igual que Lateral Este — usar plataformas.",
-        "x_pct": [
-          15,
-          28
-        ],
-        "y_pct": [
-          18,
-          82
-        ],
-        "capacidad_kpa": 49,
-        "riesgo": "medio",
-        "color": "amarillo",
-        "capacidad_orig_kpa": 58,
-        "ksat_factor": 0.85,
-        "nota_ksat": "Ksat=1.2 mm/h → factor capacidad 1.0"
-      },
-      {
-        "id": "area_norte",
-        "nombre": "Área Norte",
-        "tipo": "seguro",
-        "descripcion": "Suelo firme. Barricada y consola FOH aptos sin restricciones.",
-        "x_pct": [
-          20,
-          80
+          5,
+          95
         ],
         "y_pct": [
           82,
+          98
+        ],
+        "capacidad_kpa": 38,
+        "riesgo": "alto",
+        "color": "rojo",
+        "infraestructura": "Colector 218mm AWACOR · pendiente 0.5% → vértices → fosa Norte"
+      },
+      {
+        "id": "colector_cabecera_sur",
+        "nombre": "Colector 218mm — Cabecera Sur",
+        "tipo": "exclusion",
+        "descripcion": "Cañería colectora 218mm AWACOR detrás del arco Sur. Recibe las 7 líneas 118mm del sector Sur. Franja de 1m a cada lado: sin cargas puntuales. Tarimas distribuidoras obligatorias.",
+        "x_pct": [
+          5,
+          95
+        ],
+        "y_pct": [
+          2,
+          18
+        ],
+        "capacidad_kpa": 38,
+        "riesgo": "alto",
+        "color": "rojo",
+        "infraestructura": "Colector 218mm AWACOR · pendiente 0.5% → vértices → fosa Norte"
+      },
+      {
+        "id": "perimetral_guardaganado",
+        "nombre": "Perímetro — Drenaje Guardaganado (380ml, 15cm)",
+        "tipo": "precaucion",
+        "descripcion": "Canaleta tipo guardaganado, 15cm de ancho, 380 metros lineales. Montado sobre camino de césped sintético perimetral (no sobre el campo). Agua fluye del centro hacia los vértices → cámaras → fosa. Estructuras en borde de campo: calzar con plataformas distribuidoras.",
+        "x_pct": [
+          0,
           100
         ],
-        "capacidad_kpa": 100,
+        "y_pct": [
+          0,
+          5
+        ],
+        "capacidad_kpa": 52,
         "riesgo": "medio",
         "color": "amarillo",
-        "capacidad_orig_kpa": 118,
-        "ksat_factor": 0.85,
-        "nota_ksat": "Riesgo escalado: Ksat=1.2 mm/h indica drenaje lento"
+        "infraestructura": "Guardaganado 380ml · 15cm ancho · camino sintético perimetral"
       },
       {
-        "id": "cuadrante_este",
-        "nombre": "Centro E",
-        "tipo": "seguro",
-        "descripcion": "Cuadrante este del centro. Capacidad nominal.",
+        "id": "camaras_vertices",
+        "nombre": "Cámaras Vértices (×4)",
+        "tipo": "exclusion",
+        "descripcion": "4 cámaras colectoras en los vértices del campo. Reciben agua de las 14 líneas internas + perimetral guardaganado. Punto de máxima concentración de flujo. Radio de exclusión 2m desde cada cámara.",
         "x_pct": [
-          56,
-          85
+          0,
+          12
+        ],
+        "y_pct": [
+          0,
+          12
+        ],
+        "capacidad_kpa": 30,
+        "riesgo": "alto",
+        "color": "rojo",
+        "infraestructura": "4 cámaras en esquinas · confluencia líneas internas + perimetral"
+      },
+      {
+        "id": "franjas_drenaje_norte",
+        "nombre": "Franjas Drenaje — Sector Norte (líneas 1-7)",
+        "tipo": "precaucion",
+        "descripcion": "Franjas de excavación líneas 1-7, sector Norte. DRENAFLEX AWACOR 118mm a 0.40-0.60m de profundidad. Líneas parten desde mediocampo hacia cabecera Norte. Evitar cargas puntuales alineadas E-O sobre la franja. OK transversal.",
+        "x_pct": [
+          5,
+          95
+        ],
+        "y_pct": [
+          52,
+          80
+        ],
+        "capacidad_kpa": 65,
+        "riesgo": "medio",
+        "color": "amarillo",
+        "infraestructura": "7 líneas 118mm · paso 5m · orientación E-O → colector Norte"
+      },
+      {
+        "id": "franjas_drenaje_sur",
+        "nombre": "Franjas Drenaje — Sector Sur (líneas 8-14)",
+        "tipo": "precaucion",
+        "descripcion": "Franjas de excavación líneas 8-14, sector Sur. DRENAFLEX AWACOR 118mm a 0.40-0.60m de profundidad. Líneas parten desde mediocampo hacia cabecera Sur. Evitar cargas puntuales alineadas E-O sobre la franja.",
+        "x_pct": [
+          5,
+          95
         ],
         "y_pct": [
           20,
-          80
+          48
         ],
-        "capacidad_kpa": 89,
+        "capacidad_kpa": 62,
         "riesgo": "medio",
         "color": "amarillo",
-        "capacidad_orig_kpa": 105,
-        "ksat_factor": 0.85,
-        "nota_ksat": "Riesgo escalado: Ksat=1.2 mm/h indica drenaje lento"
+        "infraestructura": "7 líneas 118mm · paso 5m · orientación E-O → colector Sur"
       },
       {
-        "id": "cuadrante_oeste",
-        "nombre": "Centro O",
+        "id": "mediocampo",
+        "nombre": "Mediocampo",
         "tipo": "seguro",
-        "descripcion": "Cuadrante oeste del centro. Capacidad nominal.",
+        "descripcion": "Punto de partida de las 14 líneas de drenaje. Menor flujo acumulado que las cabeceras. Zona óptima para FOH, consola de sonido y estructuras livianas.",
         "x_pct": [
-          15,
-          44
+          8,
+          92
         ],
         "y_pct": [
-          20,
-          80
+          44,
+          56
         ],
-        "capacidad_kpa": 89,
-        "riesgo": "medio",
-        "color": "amarillo",
-        "capacidad_orig_kpa": 105,
-        "ksat_factor": 0.85,
-        "nota_ksat": "Riesgo escalado: Ksat=1.2 mm/h indica drenaje lento"
+        "capacidad_kpa": 115,
+        "riesgo": "bajo",
+        "color": "verde",
+        "infraestructura": "Punto de partida drenes — mínimo flujo acumulado"
       }
     ],
     "exclusiones": [
-      "Escenario: tarimas distribuidoras (mín. 2.5 m²/punto de carga) sobre toda la zona Colector Sur",
-      "Torres L/R: verificar que pie de torre no caiga sobre Canal N-S — desplazar 0.5 m si es necesario"
+      "Fosa descarga Norte: radio mínimo de exclusión 3m desde borde",
+      "Colectores 218mm (Norte+Sur): franja 1m a cada lado — tarimas distribuidoras obligatorias",
+      "4 cámaras en vértices: radio de exclusión 2m desde cada cámara",
+      "Líneas 118mm: evitar cargas puntuales alineadas E-O sobre la franja de la cañería",
+      "Perímetro guardaganado (canaleta 15cm): estructuras en borde deben calzarse (plataformas mín. 2m²)"
     ],
     "resumen": {
-      "zonas_exclusion": 2,
-      "zonas_precaucion": 2,
-      "zonas_seguras": 3,
-      "capacidad_min_kpa": 24,
-      "capacidad_max_kpa": 100,
+      "zonas_exclusion": 4,
+      "zonas_precaucion": 3,
+      "zonas_seguras": 1,
+      "capacidad_min_kpa": 25,
+      "capacidad_max_kpa": 115,
       "riesgo_global": "alto",
-      "ksat_mm_h": 1.2
+      "q_efectivo_ls": 68.98,
+      "sistema_suficiente": false,
+      "n_lineas_drenaje": 14,
+      "n_colectores": 2,
+      "perimetral_ml": 380,
+      "ancho_canaleta_cm": 15,
+      "camaras_vertices": 4
     },
-    "fuente": "SoilGrids Ksat + modelo hidráulico Faro Protocol",
+    "fuente_datos": "Planos constructivos C&G · Estadio José Amalfitani · DRENAFLEX AWACOR 118mm + AWACOR CL Y PL 218mm",
+    "fuente": "Planos C&G Amalfitani · 14 líneas DRENAFLEX AWACOR 118mm + 2 colectores AWACOR 218mm + 4 cámaras + guardaganado 380ml/15cm · Manning",
     "fallback_usado": false
   },
   "acoustic": {
@@ -368,7 +394,7 @@
       {
         "id": "campo_central",
         "name": "Campo Central",
-        "spl_db": 100.0,
+        "spl_db": 103.9,
         "sightline": "optima",
         "cobertura": "optima",
         "dist_m": 80,
@@ -379,7 +405,7 @@
       {
         "id": "tribuna_norte",
         "name": "Tribuna Norte",
-        "spl_db": 98.4,
+        "spl_db": 101.0,
         "sightline": "optima",
         "cobertura": "optima",
         "dist_m": 120,
@@ -390,68 +416,62 @@
       {
         "id": "tribuna_sur",
         "name": "Tribuna Sur",
-        "spl_db": 97.1,
+        "spl_db": 99.6,
         "sightline": "optima",
-        "cobertura": "buena",
+        "cobertura": "optima",
         "dist_m": 140,
         "height_m": 8,
-        "alertas": [
-          "Incorporar delay tower lateral sur para compensar 0.9 dB de déficit respecto umb",
-          "Apuntar cluster de delay con ángulo de incidencia ≤15° sobre plano de asientos"
-        ],
-        "c_value_db": 0.5
+        "alertas": [],
+        "c_value_db": 0.3
       },
       {
         "id": "tribuna_este",
         "name": "Tribuna Este",
-        "spl_db": 97.7,
+        "spl_db": 100.7,
         "sightline": "optima",
-        "cobertura": "buena",
+        "cobertura": "optima",
         "dist_m": 130,
         "height_m": 8,
-        "alertas": [
-          "Instalar delay tower central este para refuerzo de 2–3 dB y reducción de tiempo ",
-          "Verificar coherencia de fase con main PA mediante retardo de 12–15 ms"
-        ],
-        "c_value_db": 1.0
+        "alertas": [],
+        "c_value_db": 0.8
       },
       {
         "id": "platea_alta_norte",
         "name": "Platea Alta Norte",
-        "spl_db": 96.5,
+        "spl_db": 97.9,
         "sightline": "atencion",
         "cobertura": "buena",
         "dist_m": 150,
         "height_m": 15,
         "alertas": [
-          "Agregar delay tower elevada norte con throw dirigido al plano de asientos altos",
-          "Considerar line array vertical de al menos 8 elementos para cobertura uniforme d"
+          "Incorporar delay towers secundarias apuntadas a platea alta norte para recuperar",
+          "Ajustar ángulo de cobertura vertical del main hang para mejorar directividad hac"
         ],
-        "c_value_db": -1.0
+        "c_value_db": -1.5
       },
       {
         "id": "platea_alta_sur",
         "name": "Platea Alta Sur",
-        "spl_db": 95.0,
+        "spl_db": 96.3,
         "sightline": "atencion",
         "cobertura": "buena",
         "dist_m": 170,
         "height_m": 15,
         "alertas": [
-          "Prioridad alta: instalar delay tower sur-alta; déficit de 3 dB respecto umbral d",
-          "Evaluar subwoofer cardioid en delay tower para refuerzo de graves sin incremento"
+          "Instalar delay towers con throw dedicado hacia platea alta sur para compensar dé",
+          "Evaluar uso de line array adicional con EQ de proximidad para cobertura uniforme"
         ],
-        "c_value_db": -1.5
+        "c_value_db": -2.0
       }
     ],
     "alertas_globales": [
-      "Platea Alta Sur presenta SPL 95.0 dB, por debajo del umbral mínimo de 98 dB para conciertos; delay t",
-      "RT60 estimado de 2.1 s en recinto semi-abierto puede degradar C80/C50; recomendar procesado de predi",
-      "Verificar nivel máximo de escenario frente a límites municipales de emisión acústica (Resolución 51/"
+      "Platea Alta Sur registra SPL de 96.3 dB, por debajo del umbral mínimo de 98 dB: requiere refuerzo ur",
+      "Platea Alta Norte en límite crítico (97.9 dB): monitorear y priorizar ajuste de cobertura vertical d",
+      "RT60 de 2.3 s es elevado para recinto con apertura cenital; considerar aumento de tiempo de pre-dela"
     ],
-    "spl_promedio_db": 97.5,
-    "cobertura_optima_pct": 33.3,
-    "rt60_s": 2.1,
+    "spl_promedio_db": 99.9,
+    "cobertura_optima_pct": 66.7,
+    "rt60_s": 2.3,
     "modelo_acustico": "Claude API acústico geométrico",
     "fuente": "Claude API (claude-sonnet-4-6) · análisis acústico geométrico real",
     "sala": {
@@ -463,64 +483,59 @@
       "sectores": [
         {
           "id": "campo_central",
-          "spl_db": 100.0,
+          "spl_db": 103.9,
           "c_value": 2.5,
           "sightline": "DIRECTA",
           "recomendaciones": []
         },
         {
           "id": "tribuna_norte",
-          "spl_db": 98.4,
+          "spl_db": 101.0,
           "c_value": 0.5,
           "sightline": "DIRECTA",
           "recomendaciones": []
         },
         {
           "id": "tribuna_sur",
-          "spl_db": 97.1,
-          "c_value": 0.5,
+          "spl_db": 99.6,
+          "c_value": 0.3,
           "sightline": "DIRECTA",
-          "recomendaciones": [
-            "Incorporar delay tower lateral sur para compensar 0.9 dB de déficit respecto umbral de referencia",
-            "Apuntar cluster de delay con ángulo de incidencia ≤15° sobre plano de asientos"
-          ]
+          "recomendaciones": []
         },
         {
           "id": "tribuna_este",
-          "spl_db": 97.7,
-          "c_value": 1.0,
+          "spl_db": 100.7,
+          "c_value": 0.8,
           "sightline": "DIRECTA",
-          "recomendaciones": [
-            "Instalar delay tower central este para refuerzo de 2–3 dB y reducción de tiempo de llegada",
-            "Verificar coherencia de fase con main PA mediante retardo de 12–15 ms"
-          ]
+          "recomendaciones": []
         },
         {
           "id": "platea_alta_norte",
-          "spl_db": 96.5,
-          "c_value": -1.0,
+          "spl_db": 97.9,
+          "c_value": -1.5,
           "sightline": "DIRECTA",
           "recomendaciones": [
-            "Agregar delay tower elevada norte con throw dirigido al plano de asientos altos",
-            "Considerar line array vertical de al menos 8 elementos para cobertura uniforme del gradiente de altura"
+            "Incorporar delay towers secundarias apuntadas a platea alta norte para recuperar al menos 3 dB de SPL",
+            "Ajustar ángulo de cobertura vertical del main hang para mejorar directividad hacia sector elevado"
           ]
         },
         {
           "id": "platea_alta_sur",
-          "spl_db": 95.0,
-          "c_value": -1.5,
+          "spl_db": 96.3,
+          "c_value": -2.0,
           "sightline": "DIRECTA",
           "recomendaciones": [
-            "Prioridad alta: instalar delay tower sur-alta; déficit de 3 dB respecto umbral de referencia",
-            "Evaluar subwoofer cardioid en delay tower para refuerzo de graves sin incremento de RT60"
+            "Instalar delay towers con throw dedicado hacia platea alta sur para compensar déficit de ~2 dB",
+            "Evaluar uso de line array adicional con EQ de proximidad para cobertura uniforme en sector elevado"
           ]
         }
       ],
-      "rt60_estimado_s": 2.1,
+      "rt60_estimado_s": 2.3,
       "alertas_globales": [
-        "Platea Alta Sur presenta SPL 95.0 dB, por debajo del umbral mínimo de 98 dB para conciertos; delay towers obligatorias",
-        "RT60 estimado de 2.1 s en recinto semi-abierto puede degradar C80/C50; recomendar procesado de predicción FIR en procesadores de delay",
-        "Verificar nivel máximo de escenario frente a límites municipales de emisión acústica (Resolución 51/2015 GCABA)"
+        "Platea Alta Sur registra SPL de 96.3 dB, por debajo del umbral mínimo de 98 dB: requiere refuerzo urgente con delay towers",
+        "Platea Alta Norte en límite crítico (97.9 dB): monitorear y priorizar ajuste de cobertura vertical del sistema main",
+        "RT60 de 2.3 s es elevado para recinto con apertura cenital; considerar aumento de tiempo de pre-delay en delay towers (>25 ms) para preservar claridad C > 0 dB en sectores laterales",
+        "Campo Central con 25000 asistentes: verificar que front fill cubra las primeras 15 m frente al escenario para evitar zona muerta acústica"
       ],
       "modelo": "Claude API acústico geométrico"
     },
@@ -530,7 +545,7 @@
     "venue": "Estadio José Amalfitani",
     "lat": -34.6379,
     "lon": -58.5288,
-    "fecha_analisis": "2026-05-31",
+    "fecha_analisis": "2026-06-02",
     "periodo": "2015-01 / 2022-12",
     "satelite": "Sentinel-1 C-band (5.6 cm) · órbita ascendente + descendente",
     "producto": "EGMS L3 — Copernicus Land Monitoring Service",
@@ -1256,66 +1271,68 @@
       "sectores_atencion": 3,
       "sectores_ok": 1
     },
-    "fuente": "EGMS Copernicus 2015-2022 [ESTIMADO — datos históricos]",
     "fallback_usado": true,
-    "estimado": true
+    "estimado": true,
+    "fuente": "EGMS Copernicus 2015-2022 [ESTIMADO — datos históricos]",
+    "nota_metodologia": "Datos de velocidad de deformación derivados del producto EGMS L3 (Copernicus Land Monitoring Service) para el período 2015-2022. No hay API pública en tiempo real. Fuente: Bejar-Pizarro et al. 2023."
   },
   "spl_compliance": {
     "estado_global": "NO CONFORME",
     "periodo": "NOCTURNO (22h-8h)",
-    "spl_max_interior_db": 100.0,
+    "spl_max_interior_db": 103.9,
     "spl_predial_db": 65.9,
     "limite_exterior_dba": 55.0,
     "margen_exterior_db": -10.9,
     "excede_exterior": true,
-    "sectores_sobre_oms": 0,
-    "sectores_sobre_niosh": 0,
+    "sectores_sobre_oms": 3,
+    "sectores_sobre_niosh": 1,
     "sectores": [
       {
         "id": "campo_central",
-        "spl_db": 100.0,
-        "sobre_oms": false,
-        "sobre_niosh": false,
-        "estado": "OK"
+        "spl_db": 103.9,
+        "sobre_oms": true,
+        "sobre_niosh": true,
+        "estado": "EXCEDE NIOSH"
       },
       {
         "id": "tribuna_norte",
-        "spl_db": 98.4,
-        "sobre_oms": false,
+        "spl_db": 101.0,
+        "sobre_oms": true,
         "sobre_niosh": false,
-        "estado": "OK"
+        "estado": "EXCEDE OMS"
       },
       {
         "id": "tribuna_sur",
-        "spl_db": 97.1,
+        "spl_db": 99.6,
         "sobre_oms": false,
         "sobre_niosh": false,
         "estado": "OK"
       },
       {
         "id": "tribuna_este",
-        "spl_db": 97.7,
-        "sobre_oms": false,
+        "spl_db": 100.7,
+        "sobre_oms": true,
         "sobre_niosh": false,
-        "estado": "OK"
+        "estado": "EXCEDE OMS"
       },
       {
         "id": "platea_alta_norte",
-        "spl_db": 96.5,
+        "spl_db": 97.9,
         "sobre_oms": false,
         "sobre_niosh": false,
         "estado": "OK"
       },
       {
         "id": "platea_alta_sur",
-        "spl_db": 95.0,
+        "spl_db": 96.3,
         "sobre_oms": false,
         "sobre_niosh": false,
         "estado": "OK"
       }
     ],
     "alertas": [
-      "SPL exterior estimado (65.9 dB) excede límite NOCTURNO (22h-8h) (55 dB) en 10.9 dB — requiere permiso especial GCBA"
+      "SPL exterior estimado (65.9 dB) excede límite NOCTURNO (22h-8h) (55 dB) en 10.9 dB — requiere permiso especial GCBA",
+      "1 sector(es) superan umbral NIOSH (103 dB) — requiere aviso de riesgo auditivo y EPP para staff"
     ],
     "limites_aplicados": {
       "exterior": "Ordenanza GCBA 11.554/1994 — 55.0 dB(A) NOCTURNO (22h-8h)",
@@ -1329,13 +1346,13 @@
   "structural": {
     "estado_global": "ATENCIÓN",
     "margen_seguridad_pct": 87.7,
-    "vel_viento_kmh": 17.3,
+    "vel_viento_kmh": 24.8,
     "factores": {
       "viento": {
-        "fuerza_lateral_kn": 7.4,
-        "momento_volcador_knm": 29.4,
+        "fuerza_lateral_kn": 15.1,
+        "momento_volcador_knm": 60.5,
         "momento_estabilizador": 24525.0,
-        "factor_seguridad": 833.59,
+        "factor_seguridad": 405.64,
         "estado": "OK"
       },
       "egms": {
@@ -1367,25 +1384,9 @@
     "incumplimientos": [
       {
         "categoria": "acustica",
-        "sector": "tribuna_sur",
-        "estado": "INCUMPLIMIENTO",
-        "detalle": "SPL real 97.1 dB vs mínimo 98 dB (déficit 0.9 dB)",
-        "severidad": "leve",
-        "accion": "Instalar delay tower o ajustar hang del main array"
-      },
-      {
-        "categoria": "acustica",
-        "sector": "tribuna_este",
-        "estado": "INCUMPLIMIENTO",
-        "detalle": "SPL real 97.7 dB vs mínimo 98 dB (déficit 0.3 dB)",
-        "severidad": "leve",
-        "accion": "Instalar delay tower o ajustar hang del main array"
-      },
-      {
-        "categoria": "acustica",
         "sector": "platea_alta_norte",
         "estado": "INCUMPLIMIENTO",
-        "detalle": "SPL real 96.5 dB vs mínimo 98 dB (déficit 1.5 dB)",
+        "detalle": "SPL real 97.9 dB vs mínimo 98 dB (déficit 0.1 dB)",
         "severidad": "leve",
         "accion": "Instalar delay tower o ajustar hang del main array"
       },
@@ -1393,23 +1394,30 @@
         "categoria": "acustica",
         "sector": "platea_alta_sur",
         "estado": "INCUMPLIMIENTO",
-        "detalle": "SPL real 95.0 dB vs mínimo 98 dB (déficit 3.0 dB)",
-        "severidad": "advertencia",
+        "detalle": "SPL real 96.3 dB vs mínimo 98 dB (déficit 1.7 dB)",
+        "severidad": "leve",
         "accion": "Instalar delay tower o ajustar hang del main array"
       },
       {
         "categoria": "drenaje",
         "estado": "INCUMPLIMIENTO",
-        "detalle": "2 zona(s) de exclusión hídrica activas: Escenario: tarimas distribuidoras (mín. 2.5 m²/punto de carga) sobre toda la zona Colector Sur, Torres L/R: verificar que pie de torre no caiga sobre Canal N-S — desplazar 0.5 m si es necesario",
+        "detalle": "4 zona(s) de exclusión hídrica activas: Fosa descarga Norte: radio mínimo de exclusión 3m desde borde, Colectores 218mm (Norte+Sur): franja 1m a cada lado — tarimas distribuidoras obligatorias, 4 cámaras en vértices: radio de exclusión 2m desde cada cámara",
         "severidad": "critico",
         "accion": "No instalar escenario ni estructuras pesadas en zonas de exclusión hídrica"
       },
       {
         "categoria": "drenaje",
         "estado": "ATENCIÓN",
-        "detalle": "2 zona(s) de precaución hídrica — verificar drenaje 48h post-lluvia",
+        "detalle": "3 zona(s) de precaución hídrica — verificar drenaje 48h post-lluvia",
         "severidad": "advertencia",
         "accion": "Programar inspección de suelo 24h antes del show si llueve"
+      },
+      {
+        "categoria": "suelo",
+        "estado": "ADVERTENCIA DE INCERTIDUMBRE",
+        "detalle": "Análisis de suelo basado en estimación — fuente: [ESTIMADO] Perfil edafológico BHCP · Franco-arcilloso típico Liniers · Modelo carga Faro Protocol. Verificar con dato real antes del show.",
+        "severidad": "advertencia",
+        "accion": "Confirmar capacidad portante del suelo con medición in-situ"
       }
     ],
     "indeterminados": [],
@@ -1418,13 +1426,25 @@
         "categoria": "acustica",
         "sector": "campo_central",
         "estado": "CONFORME",
-        "detalle": "SPL 100.0 dB ≥ mínimo 98 dB (+2.0 dB margen)"
+        "detalle": "SPL 103.9 dB ≥ mínimo 98 dB (+5.9 dB margen)"
       },
       {
         "categoria": "acustica",
         "sector": "tribuna_norte",
         "estado": "CONFORME",
-        "detalle": "SPL 98.4 dB ≥ mínimo 98 dB (+0.4 dB margen)"
+        "detalle": "SPL 101.0 dB ≥ mínimo 98 dB (+3.0 dB margen)"
+      },
+      {
+        "categoria": "acustica",
+        "sector": "tribuna_sur",
+        "estado": "CONFORME",
+        "detalle": "SPL 99.6 dB ≥ mínimo 98 dB (+1.6 dB margen)"
+      },
+      {
+        "categoria": "acustica",
+        "sector": "tribuna_este",
+        "estado": "CONFORME",
+        "detalle": "SPL 100.7 dB ≥ mínimo 98 dB (+2.7 dB margen)"
       },
       {
         "categoria": "suelo",
@@ -1459,14 +1479,49 @@
     ],
     "n_criticos": 1,
     "n_advertencias": 2,
-    "n_conformes": 7,
+    "n_conformes": 9,
     "fuente": "Rider técnico + datos acústicos/suelo/drenaje",
     "fallback_usado": false,
     "estimado": false
   },
+  "umbra_sar": {
+    "umbra_cobre_venue": false,
+    "escena_id": "eadb4e53-c7fc-4f10-8da6-2cdf2995b37d",
+    "escena_datetime": "2024-07-15",
+    "escena_platform": "UMBRA-05",
+    "escena_bbox": [
+      -58.41833,
+      -34.63345,
+      -58.34628,
+      -34.57387
+    ],
+    "escena_res_m": 0.267,
+    "escena_polarization": "VV",
+    "escena_banda": "X",
+    "escena_incidencia": 32.63,
+    "escena_licencia": "CC-BY-4.0",
+    "cobertura_nota": "Escena BA 2024-07-15 no cubre Amalfitani (9.4 km al oeste del bbox). Cubre aprox: Flores / Caballito / Palermo / Retiro.",
+    "fallback_usado": true,
+    "backscatter_n_px": 16858688,
+    "backscatter_amp_mean_u8": 24.02,
+    "backscatter_amp_std_u8": 23.96,
+    "backscatter_db_mean": -24.66,
+    "backscatter_db_std": 9.05,
+    "backscatter_db_p10": -36.09,
+    "backscatter_db_p50": -24.05,
+    "backscatter_db_p90": -13.17,
+    "backscatter_ventana_deg": 0.04,
+    "backscatter_ventana_m_aprox": 4000.0,
+    "backscatter_pixel_size_m": 0.769,
+    "fuente": "Umbra Open Data Catalog CC-BY-4.0 · X-band VV Spotlight · 0.267m resolución · COG HTTP range",
+    "fuente_tipo": "UMBRA_SAR_X",
+    "pixel_size_m": 0.769,
+    "polarizacion": "VV",
+    "banda": "X"
+  },
   "comparativa": {
     "show_id": "airbag_2026-05-31",
-    "fecha_analisis": "2026-05-31 00:23",
+    "fecha_analisis": "2026-06-02 20:06",
     "fotos_analizadas": 5,
     "fuente_extraccion": "Claude Vision (análisis visual manual) + modelos Faro Protocol",
     "config_real": {
@@ -1577,12 +1632,12 @@
     ]
   },
   "fii": {
-    "fii": 42.9,
-    "semaforo": "atencion",
-    "sello": "REQUIERE INTERVENCIÓN",
+    "fii": 30.0,
+    "semaforo": "critico",
+    "sello": "RIESGO OPERATIVO",
     "componentes": {
       "ndvi": {
-        "score": 36.7,
+        "score": 35.5,
         "peso": 40,
         "label": "Dormancia estacional (Bermuda)"
       },
@@ -1592,12 +1647,12 @@
         "label": "Atención"
       },
       "layout": {
-        "score": 50.0,
+        "score": 0.0,
         "peso": 25,
-        "label": "Sin layout"
+        "label": "SIN DATOS DE LAYOUT"
       }
     }
   },
   "report_png_url": "https://raw.githubusercontent.com/protocolfaro/faroprotocol/main/dale-play/reportes/reporte_airbag_2026-05-31.png",
-  "updated_at": "2026-05-31T00:23:44Z"
+  "updated_at": "2026-06-02T20:06:45Z"
 }
