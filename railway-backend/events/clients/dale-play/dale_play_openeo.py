@@ -1,258 +1,202 @@
 """
-dale_play_openeo.py — S2 NDVI via openEO CDSE (Copernicus Data Space Ecosystem).
+dale_play_openeo.py — S2 NDVI via Element84 Earth Search + AWS sentinel-cogs COG.
 
-Reemplaza MODIS HDF4 como fallback post-show. Sin dependencias nativas.
-Todo HTTP puro: requests (auth + proceso) + rasterio (lee GeoTIFF en memoria).
+Alternativa sin credenciales al fallback post-show. Funciona en Railway hoy.
 
 Flujo:
-  1. POST token endpoint CDSE (Keycloak password-grant, cliente público)
-  2. POST /openeo/1.1/result — proceso sincrónico, retorna GeoTIFF en body
-  3. rasterio.open(BytesIO) → NDVI medio en bbox Amalfitani
+  1. POST Element84 STAC /search — S2 L2A, bbox Amalfitani, sin auth
+  2. Obtener href de B04 (red) y B08 (nir08) — COG en s3://sentinel-cogs (público)
+  3. rasterio.open(url) — HTTP range request, sin descarga completa
+  4. NDVI = (B08 - B04) / (B08 + B04) sobre bbox
 
-Sentinel-2 L2A: 10m resolución, 5 días revisita → mejor que MODIS 250m.
-
-Variables Railway requeridas (Settings → Variables):
-  CDSE_USER = tu_email          # cuenta dataspace.copernicus.eu (gratuita)
-  CDSE_PASS = tu_password       # mismo sitio
-
-Registro gratuito: https://dataspace.copernicus.eu/
+Sin credenciales requeridas — datos públicos AWS Open Data S2 L2A.
+Misma resolución S2 10m que CDSE openEO, sin OIDC/device-code.
 """
 from __future__ import annotations
 
-import io
 import logging
-import os
 from datetime import date, timedelta
 from typing import Optional
 
 log = logging.getLogger(__name__)
 
-_CDSE_TOKEN_URL = (
-    "https://identity.dataspace.copernicus.eu"
-    "/auth/realms/CDSE/protocol/openid-connect/token"
-)
-_OPENEO_RESULT_URL = "https://openeo.dataspace.copernicus.eu/openeo/1.1/result"
-
-# 1km × 1km centrado en Amalfitani — ≥100 píxeles a 10m (S2)
-_BBOX = {"west": -58.456, "south": -34.640, "east": -58.444, "north": -34.628}
+_E84_STAC  = "https://earth-search.aws.element84.com/v1/search"
+# Bbox 1km×1km centrado en Amalfitani — ≥100 px a 10m S2
+_BBOX_LIST = [-58.456, -34.640, -58.444, -34.628]   # [W, S, E, N]
 
 
-def _is_configured() -> bool:
-    return bool(os.environ.get("CDSE_USER") and os.environ.get("CDSE_PASS"))
+def _s3_to_https(url: str) -> str:
+    """Convierte s3://sentinel-cogs/... a URL HTTPS pública."""
+    if url.startswith("s3://sentinel-cogs/"):
+        return url.replace(
+            "s3://sentinel-cogs/",
+            "https://sentinel-cogs.s3.us-west-2.amazonaws.com/",
+        )
+    return url
 
 
-def _get_token() -> str:
-    """Obtiene bearer token via Keycloak password-grant (cliente público cdse-public)."""
+def _search_s2(start_date: str, end_date: str, max_cloud: float = 80.0) -> Optional[dict]:
+    """Busca el item S2 L2A más reciente sobre Amalfitani en Element84."""
     import requests
 
-    r = requests.post(
-        _CDSE_TOKEN_URL,
-        data={
-            "client_id":  "cdse-public",
-            "grant_type": "password",
-            "username":   os.environ["CDSE_USER"].strip(),
-            "password":   os.environ["CDSE_PASS"].strip(),
-        },
-        timeout=20,
-    )
-    r.raise_for_status()
-    return r.json()["access_token"]
+    try:
+        r = requests.post(
+            _E84_STAC,
+            json={
+                "collections": ["sentinel-2-l2a"],
+                "bbox":        _BBOX_LIST,
+                "datetime":    f"{start_date}T00:00:00Z/{end_date}T23:59:59Z",
+                "limit":       10,
+                "sortby":      [{"field": "properties.datetime", "direction": "desc"}],
+            },
+            timeout=20,
+        )
+        r.raise_for_status()
+        features = r.json().get("features", [])
+        # Filtrar por nubosidad en Python (E84 v1 no soporta query filter sin extensión)
+        features = [f for f in features
+                    if (f.get("properties", {}).get("eo:cloud_cover") or 100) < max_cloud]
+        return features[0] if features else None
+    except Exception as exc:
+        log.warning("openeo: E84 search: %s", exc)
+        return None
 
 
-def _build_process_graph(start_date: str, end_date: str) -> dict:
+def _read_band_cog(url: str, bbox_wsen: list) -> Optional["numpy.ndarray"]:
     """
-    Proceso openEO: SENTINEL2_L2A → NDVI (B08-B04)/(B08+B04) → media temporal → GTiff.
-
-    El proceso usa la banda SCL implícita de S2_L2A para enmascarar nubes
-    (max_cloud_cover filtra escenas con >80% nubosidad).
+    Lee una banda S2 desde COG público AWS via HTTP range request.
+    Extrae solo el subset sobre bbox — sin descarga completa (~10KB vs ~100MB).
     """
-    return {
-        "process": {
-            "process_graph": {
-                "load1": {
-                    "process_id": "load_collection",
-                    "arguments": {
-                        "id":               "SENTINEL2_L2A",
-                        "spatial_extent":   _BBOX,
-                        "temporal_extent":  [start_date, end_date],
-                        "bands":            ["B04", "B08"],
-                        "properties": {
-                            "eo:cloud_cover": {"process_graph": {
-                                "lte1": {
-                                    "process_id": "lte",
-                                    "arguments": {
-                                        "x": {"from_parameter": "value"},
-                                        "y": 80
-                                    },
-                                    "result": True
-                                }
-                            }}
-                        },
-                    },
-                },
-                "ndvi1": {
-                    "process_id": "ndvi",
-                    "arguments": {
-                        "data": {"from_node": "load1"},
-                        "nir":  "B08",
-                        "red":  "B04",
-                    },
-                },
-                "reduce_t": {
-                    "process_id": "reduce_dimension",
-                    "arguments": {
-                        "data":      {"from_node": "ndvi1"},
-                        "dimension": "t",
-                        "reducer": {
-                            "process_graph": {
-                                "mean_t": {
-                                    "process_id": "mean",
-                                    "arguments":  {"data": {"from_parameter": "data"}},
-                                    "result":     True,
-                                }
-                            }
-                        },
-                    },
-                },
-                "save1": {
-                    "process_id": "save_result",
-                    "arguments": {
-                        "data":   {"from_node": "reduce_t"},
-                        "format": "GTiff",
-                    },
-                    "result": True,
-                },
-            }
-        }
-    }
+    try:
+        import numpy as np
+        import rasterio
+        from rasterio.warp import transform_bounds
+        from rasterio.windows import from_bounds
 
-
-def _ndvi_from_geotiff(content: bytes) -> Optional[float]:
-    """Lee NDVI medio desde GeoTIFF en memoria con rasterio."""
-    import numpy as np
-    import rasterio
-
-    with rasterio.open(io.BytesIO(content)) as src:
-        data    = src.read(1).astype("float32")
-        nodata  = src.nodata
-        mask    = np.isfinite(data)
-        if nodata is not None:
-            mask &= data != nodata
-        # NDVI válido: [-1, 1]
-        mask &= (data >= -1.0) & (data <= 1.0)
-        if not mask.any():
-            log.warning("openeo: sin píxeles NDVI válidos en bbox")
-            return None
-        ndvi = float(np.mean(data[mask]))
-        log.info("openeo: NDVI=%.3f píxeles_válidos=%d", ndvi, int(mask.sum()))
-        return round(ndvi, 3)
+        w, s, e, n = bbox_wsen
+        with rasterio.open(url) as src:
+            native = transform_bounds("EPSG:4326", src.crs, w, s, e, n)
+            win    = from_bounds(*native, transform=src.transform)
+            # out_shape fijo para evitar mismatch entre bandas de distintos COGs
+            data   = src.read(1, window=win, out_shape=(64, 64),
+                               resampling=rasterio.enums.Resampling.bilinear).astype("float32")
+        return data
+    except Exception as exc:
+        log.warning("openeo: COG read %s: %s", url[:60], exc)
+        return None
 
 
 def fetch_openeo_ndvi(show_date: str = "", days_back: int = 14) -> dict:
     """
-    NDVI Sentinel-2 L2A via openEO CDSE para el Amalfitani.
+    NDVI Sentinel-2 L2A via Element84 Earth Search + AWS sentinel-cogs COG.
+
+    Sin credenciales — datos públicos AWS Open Data.
+    Usa rasterio HTTP range request (no descarga completa).
 
     Args:
-        show_date:  YYYY-MM-DD del show. Busca desde show_date - days_back hasta hoy.
-        days_back:  días de ventana hacia atrás desde show_date.
+        show_date:  YYYY-MM-DD del show. Busca desde show_date-days_back hasta hoy.
+        days_back:  ventana de búsqueda hacia atrás desde show_date.
 
     Returns:
-        {"ndvi": float, "fecha": str, "fuente": "S2_CDSE_openEO", ...}  — éxito
-        {"ndvi": None,  "error": str, "fuente": "S2_CDSE_openEO", ...}  — fallo
-
-    Requiere Railway Variables:
-        CDSE_USER = email           # dataspace.copernicus.eu
-        CDSE_PASS = password        # mismo — registro gratuito
+        {"ndvi": float, "fecha": str, "fuente": "S2_AWS_E84", ...}
     """
-    import requests
+    import numpy as np
 
-    if not _is_configured():
-        return {
-            "ndvi":        None,
-            "fuente":      "S2_CDSE_openEO",
-            "error":       "CDSE_USER/CDSE_PASS no configurados",
-            "instruccion": (
-                "Railway → Settings → Variables → Add Variable:\n"
-                "  CDSE_USER = tu_email\n"
-                "  CDSE_PASS = tu_password\n"
-                "Registro gratuito: https://dataspace.copernicus.eu/"
-            ),
-        }
-
-    # Ventana temporal
-    end_dt = date.today()
+    end_dt   = date.today()
+    show_dt  = None
     if show_date:
         try:
-            start_dt = date.fromisoformat(show_date) - timedelta(days=days_back)
+            show_dt  = date.fromisoformat(show_date)
+            start_dt = show_dt - timedelta(days=days_back)
         except ValueError:
             start_dt = end_dt - timedelta(days=days_back)
     else:
         start_dt = end_dt - timedelta(days=days_back)
 
-    # 1. Auth
-    try:
-        token = _get_token()
-    except Exception as exc:
-        return {"ndvi": None, "fuente": "S2_CDSE_openEO", "error": f"Auth CDSE: {exc}"}
+    # Primer intento: solo post-show (cloud < 80%)
+    item = _search_s2(show_date or start_dt.isoformat(), end_dt.isoformat())
+    # Segundo intento: ampliar ventana completa si no hay post-show
+    if item is None:
+        item = _search_s2(start_dt.isoformat(), end_dt.isoformat(), max_cloud=90.0)
 
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type":  "application/json",
-    }
-
-    # 2. Proceso sincrónico → GeoTIFF
-    process = _build_process_graph(start_dt.isoformat(), end_dt.isoformat())
-    log.info("openeo: ejecutando proceso S2 NDVI %s → %s …", start_dt, end_dt)
-    try:
-        r = requests.post(
-            _OPENEO_RESULT_URL,
-            headers=headers,
-            json=process,
-            timeout=180,
-        )
-        if r.status_code == 200 and r.headers.get("Content-Type", "").startswith("image/"):
-            pass  # OK
-        elif r.status_code != 200:
-            return {
-                "ndvi":   None,
-                "fuente": "S2_CDSE_openEO",
-                "error":  f"openEO HTTP {r.status_code}: {r.text[:300]}",
-            }
-    except requests.Timeout:
-        return {
-            "ndvi":   None,
-            "fuente": "S2_CDSE_openEO",
-            "error":  "Timeout 180s en openEO CDSE — ventana temporal muy amplia o CDSE lento",
-        }
-    except Exception as exc:
-        return {"ndvi": None, "fuente": "S2_CDSE_openEO", "error": f"openEO request: {exc}"}
-
-    # 3. Parse GeoTIFF
-    try:
-        ndvi = _ndvi_from_geotiff(r.content)
-    except Exception as exc:
-        return {"ndvi": None, "fuente": "S2_CDSE_openEO", "error": f"Parse GeoTIFF: {exc}"}
-
-    if ndvi is None:
+    if item is None:
         return {
             "ndvi":    None,
-            "fuente":  "S2_CDSE_openEO",
-            "error":   "Sin píxeles válidos — posible nubosidad total en la ventana",
-            "periodo": f"{start_dt} → {end_dt}",
+            "fuente":  "S2_AWS_E84",
+            "error":   (
+                f"Sin escenas S2 en Element84 para {start_dt} → {end_dt} "
+                f"sobre bbox Amalfitani (cloud < 90%)"
+            ),
         }
 
+    props  = item.get("properties", {})
+    assets = item.get("assets", {})
+    fecha  = (props.get("datetime") or "")[:10]
+    cloud  = props.get("eo:cloud_cover")
+
+    # Asset name mapping: Element84 usa "red"/"nir08", otros usan "B04"/"B08"
+    b04_asset = (assets.get("red") or assets.get("B04") or assets.get("b04") or {})
+    b08_asset = (assets.get("nir08") or assets.get("nir") or assets.get("B08") or assets.get("b08") or {})
+    b04_url   = _s3_to_https(b04_asset.get("href", ""))
+    b08_url   = _s3_to_https(b08_asset.get("href", ""))
+
+    if not b04_url or not b08_url:
+        return {
+            "ndvi":   None,
+            "fuente": "S2_AWS_E84",
+            "fecha":  fecha,
+            "error":  f"Assets B04/B08 no encontrados. Keys: {list(assets.keys())}",
+        }
+
+    log.info("openeo: S2 item %s fecha=%s cloud=%.0f%%", item.get("id", "")[:30], fecha, cloud or 0)
+    log.info("openeo: B04=%s…", b04_url[:60])
+
+    # Leer bandas via COG HTTP range request
+    b04 = _read_band_cog(b04_url, _BBOX_LIST)
+    b08 = _read_band_cog(b08_url, _BBOX_LIST)
+
+    if b04 is None or b08 is None:
+        return {
+            "ndvi":   None,
+            "fuente": "S2_AWS_E84",
+            "fecha":  fecha,
+            "error":  "Error leyendo COG S2 via HTTP",
+        }
+
+    # NDVI — DN o reflectancia escalan igual (ratio, el factor cancela)
+    # Filtramos fill-value (0) y saturación (>15000 DN)
+    valid = (b04 > 0) & (b08 > 0) & (b04 < 15000) & (b08 < 15000)
+    if not valid.any():
+        return {
+            "ndvi":   None,
+            "fuente": "S2_AWS_E84",
+            "fecha":  fecha,
+            "error":  "Sin píxeles válidos (posible nubosidad total o máscara NoData)",
+        }
+
+    r_v = b04[valid].astype("float64")
+    n_v = b08[valid].astype("float64")
+    ndvi = float(np.mean((n_v - r_v) / (n_v + r_v + 1e-9)))
+    ndvi = round(ndvi, 3)
+
+    log.info("openeo: NDVI=%.3f px_válidos=%d cloud=%.0f%%", ndvi, int(valid.sum()), cloud or 0)
+
+    es_post_show = (show_dt is not None and fecha >= show_date) if show_date and fecha else None
+
     return {
-        "ndvi":       ndvi,
-        "fecha":      end_dt.isoformat(),
-        "periodo":    f"{start_dt} → {end_dt}",
-        "fuente":     "S2_CDSE_openEO",
-        "post_show":  (
-            date.fromisoformat(show_date) <= end_dt if show_date else None
-        ),
-        "resolucion": "10m — Sentinel-2 L2A",
-        "coleccion":  "SENTINEL2_L2A",
-        "nota":       (
-            "S2 10m — resolución de campo (≥100 píxeles en bbox). "
-            "Media temporal ventana · Copernicus CDSE gratuito."
+        "ndvi":        ndvi,
+        "fecha":       fecha,
+        "fuente":      "S2_AWS_E84",
+        "post_show":   es_post_show,
+        "cloud_pct":   cloud,
+        "px_validos":  int(valid.sum()),
+        "resolucion":  "10m — Sentinel-2 L2A",
+        "coleccion":   "sentinel-2-l2a",
+        "fuente_stac": "Element84 Earth Search / AWS Open Data",
+        "nota":        (
+            "S2 10m público — sin credenciales. "
+            "HTTP range request COG (~10KB subset vs ~100MB descarga completa)."
+            + ("" if es_post_show else
+               " [imagen PRE-show — datos post-show aún no disponibles en E84]")
         ),
     }
