@@ -194,37 +194,52 @@ def run_show_audit(show_config: dict, mode: str = "full") -> dict:
             result["insar"] = {"error": str(e)}
 
     # ── ESTARFM — NDVI sintético post-show ──────────────────────────────────
+    # Solo cuando no hay imagen óptica real post-show (ndvi_post_disponible=False)
     if mode == "post_show":
-        try:
-            from dale_play_starfm import compute_starfm_ndvi
-            sat      = result.get("satellite") or {}
-            result["starfm"] = compute_starfm_ndvi(
-                show_id       = show_id,
-                show_date     = show_date,
-                baseline_ndvi = sat.get("ndvi"),
-                baseline_date = sat.get("ndvi_fecha"),
-            )
-            log.info("dale_play_pipeline: STARFM → NDVI=%.3f conf=%.0f%%",
-                     result["starfm"].get("ndvi_sintetico") or 0,
-                     result["starfm"].get("confianza_pct") or 0)
-        except Exception as e:
-            log.warning("dale_play_pipeline: STARFM failed: %s", e)
-            result["starfm"] = {"error": str(e)}
+        _sat_tmp = result.get("satellite") or {}
+        if _sat_tmp.get("ndvi_post_disponible"):
+            log.info("dale_play_pipeline: STARFM skip — imagen S2 real post-show disponible (%s)",
+                     _sat_tmp.get("ndvi_fecha", "?"))
+            result["starfm"] = {"ndvi_sintetico": None, "estado": "skip_imagen_real",
+                                "confianza_pct": 0, "fuente": "n/a — imagen S2 real usada"}
+        else:
+            try:
+                from dale_play_starfm import compute_starfm_ndvi
+                result["starfm"] = compute_starfm_ndvi(
+                    show_id       = show_id,
+                    show_date     = show_date,
+                    baseline_ndvi = _sat_tmp.get("ndvi"),
+                    baseline_date = _sat_tmp.get("ndvi_fecha"),
+                )
+                log.info("dale_play_pipeline: STARFM → NDVI=%.3f conf=%.0f%%",
+                         result["starfm"].get("ndvi_sintetico") or 0,
+                         result["starfm"].get("confianza_pct") or 0)
+            except Exception as e:
+                log.warning("dale_play_pipeline: STARFM failed: %s", e)
+                result["starfm"] = {"error": str(e)}
 
     # ── Cloud Removal — NDVI post-show con s2cloudless ───────────────────────
+    # Solo cuando no hay imagen óptica real post-show
     if mode == "post_show":
-        try:
-            from dale_play_cloudremoval import compute_cloud_removed_ndvi
-            result["cloudremoval"] = compute_cloud_removed_ndvi(
-                show_id   = show_id,
-                show_date = show_date,
-            )
-            log.info("dale_play_pipeline: cloudremoval → %s cobertura=%.0f%%",
-                     result["cloudremoval"].get("estado"),
-                     result["cloudremoval"].get("cobertura_limpia_pct") or 0)
-        except Exception as e:
-            log.warning("dale_play_pipeline: cloudremoval failed: %s", e)
-            result["cloudremoval"] = {"error": str(e)}
+        _sat_tmp = result.get("satellite") or {}
+        if _sat_tmp.get("ndvi_post_disponible"):
+            log.info("dale_play_pipeline: cloudremoval skip — imagen S2 real post-show disponible")
+            result["cloudremoval"] = {"estado": "skip_imagen_real",
+                                      "cobertura_limpia_pct": 100,
+                                      "fuente": "n/a — imagen S2 real usada"}
+        else:
+            try:
+                from dale_play_cloudremoval import compute_cloud_removed_ndvi
+                result["cloudremoval"] = compute_cloud_removed_ndvi(
+                    show_id   = show_id,
+                    show_date = show_date,
+                )
+                log.info("dale_play_pipeline: cloudremoval → %s cobertura=%.0f%%",
+                         result["cloudremoval"].get("estado"),
+                         result["cloudremoval"].get("cobertura_limpia_pct") or 0)
+            except Exception as e:
+                log.warning("dale_play_pipeline: cloudremoval failed: %s", e)
+                result["cloudremoval"] = {"error": str(e)}
 
     # ── Chain of Custody ─────────────────────────────────────────────────────
     if mode == "post_show":
@@ -337,9 +352,10 @@ def _compute_chain_of_custody(result: dict) -> dict:
     """
     Evalúa el nivel de evidencia del reporte post-show.
 
-    GOLD       (95%): SAR disponible + S2 limpia (cloud_pct < 15%)
-    SILVER     (88%): SAR disponible + s2cloudless limpio > 30% del campo
-    BRONZE     (80%): SAR disponible + ESTARFM sintético (confianza >= 60%)
+    GOLD         (95%): SAR disponible + S2 post-show limpia (cloud_pct < 15%)
+    OPTICAL_ONLY (82%): Sin SAR, pero S2 post-show real disponible (cloud < 15%)
+    SILVER       (88%): SAR disponible + s2cloudless limpio > 30% del campo
+    BRONZE       (80%): SAR disponible + ESTARFM sintético (confianza >= 60%)
     RADAR_PURO (75%): Solo SAR, sin dato óptico disponible
     SIN_DATOS   (0%): Sin SAR ni óptico
     """
@@ -364,10 +380,11 @@ def _compute_chain_of_custody(result: dict) -> dict:
     if sar_s1:
         sar_fuentes.append("Sentinel-1 GRD SAR compaction")
 
-    # Calidad óptica S2
-    ndvi_cloud   = float(sat.get("ndvi_cloud_pct") or 100)
-    ndvi_ok      = sat.get("ndvi") is not None and not sat.get("error")
-    s2_clean     = ndvi_ok and ndvi_cloud < 15.0 and not sat.get("fallback_usado")
+    # Calidad óptica S2 — solo cuenta si la imagen es posterior al show
+    ndvi_cloud        = float(sat.get("ndvi_cloud_pct") or 100)
+    ndvi_ok           = sat.get("ndvi") is not None and not sat.get("error")
+    ndvi_post_real    = sat.get("ndvi_post_disponible", False)
+    s2_clean          = ndvi_ok and ndvi_cloud < 15.0 and not sat.get("fallback_usado") and ndvi_post_real
 
     # s2cloudless coverage
     cloud_pct    = float(cloud_rem.get("cobertura_limpia_pct") or 0)
@@ -398,6 +415,11 @@ def _compute_chain_of_custody(result: dict) -> dict:
         confianza    = 80
         optico_desc  = f"ESTARFM sintético (conf={sf_conf:.0f}%) — ESTIMACIÓN PROYECTADA"
         estimado     = True
+    elif not sar_ok and s2_clean:
+        nivel        = "OPTICAL_ONLY"
+        confianza    = 82
+        optico_desc  = f"S2 post-show real (nub={ndvi_cloud:.0f}%) — SAR pendiente revisita"
+        estimado     = False
     elif sar_ok:
         nivel        = "RADAR_PURO"
         confianza    = 75

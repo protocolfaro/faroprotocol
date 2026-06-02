@@ -26,7 +26,7 @@ _MODELS_DIR = pathlib.Path(__file__).parent / "models"
 _SHOWS_DIR  = pathlib.Path(__file__).parent / "shows"
 
 # Orden de niveles (mayor = mejor)
-_NIVEL_RANK = {"SIN_DATOS": 0, "RADAR_PURO": 1, "BRONZE": 2, "SILVER": 3, "GOLD": 4}
+_NIVEL_RANK = {"SIN_DATOS": 0, "RADAR_PURO": 1, "BRONZE": 2, "OPTICAL_ONLY": 3, "SILVER": 4, "GOLD": 5}
 
 # Intervalo de verificación
 _INTERVAL_H   = 6
