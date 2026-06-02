@@ -7,8 +7,8 @@ import json, logging, os, sys, threading
 
 from flask import Blueprint, jsonify, request, send_file, render_template_string
 
-# dale-play/ está un nivel arriba de railway-backend/
-_DP_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "dale-play"))
+# dale-play movido a events/clients/dale-play/ (ARCHITECTURE.md)
+_DP_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "events", "clients", "dale-play"))
 if _DP_PATH not in sys.path:
     sys.path.insert(0, _DP_PATH)
 

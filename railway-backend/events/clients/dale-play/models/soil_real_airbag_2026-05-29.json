@@ -1,0 +1,19 @@
+{
+  "show_id": "airbag_2026-05-29",
+  "lat": -34.6379,
+  "lon": -58.5288,
+  "fecha_analisis": "2026-06-01",
+  "estimado": true,
+  "fuente": "[ESTIMADO] Perfil edafológico BHCP · Franco-arcilloso típico Liniers",
+  "soilgrids": {
+    "bulk_density_g_cm3": 1.45,
+    "clay_pct": 35.0,
+    "sand_pct": 25.0,
+    "silt_pct": 40.0,
+    "ph": 6.5
+  },
+  "terzaghi": {
+    "nota": "Valor estimado — SoilGrids no disponible"
+  },
+  "capacidad_portante_kpa": 120.0
+}

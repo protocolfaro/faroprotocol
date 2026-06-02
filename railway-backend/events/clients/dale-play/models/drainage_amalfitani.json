@@ -1,0 +1,192 @@
+{
+  "venue": "Estadio José Amalfitani",
+  "lat": -34.6379,
+  "lon": -58.5288,
+  "fecha_analisis": "2026-06-01",
+  "metodo": "Sentinel-2 B11/B12 SWIR · Landsat TIRS · SAR C-band VV/VH · Ksat HiHydroSoil v2.0 (pedotransfer Rawls & Brakensiek sobre SoilGrids)",
+  "campo": {
+    "largo_m": 105,
+    "ancho_m": 68,
+    "orientacion": "N-S"
+  },
+  "firma_satelital": {
+    "swir_b11_mean": 0.18,
+    "swir_b12_mean": 0.12,
+    "ndwi": -0.21,
+    "tirs_celsius": 22.5,
+    "sar_vv_db": -12.4,
+    "sar_vh_db": -19.8,
+    "sar_vvvh_ratio": 7.4,
+    "anomalia_termica_ns": true
+  },
+  "hidraulica": {
+    "textura": {
+      "clay_pct": 35.0,
+      "sand_pct": 25.0,
+      "silt_pct": 40.0,
+      "fuente": "[ESTIMADO] Perfil edafológico BHCP"
+    },
+    "ksat": {
+      "ksat_mm_h": 1.2,
+      "textura_usda": "Clay loam / Clay",
+      "riesgo_hidrico": "alto",
+      "fuente": "Pedotransfer Rawls & Brakensiek 1985 / HiHydroSoil v2.0 equivalent"
+    },
+    "nota": "Ksat estimado via función de pedotransferencia Rawls & Brakensiek (1985) aplicada a textura SoilGrids v2.0. HiHydroSoil v2.0 (FutureWater) no tiene API REST pública — acceso requiere descarga de TIF via FTP registrado."
+  },
+  "zonas": [
+    {
+      "id": "canal_central",
+      "nombre": "Canal N-S",
+      "tipo": "exclusion",
+      "descripcion": "Canal principal N-S. No apoyar estructuras > 2 t sobre esta franja.",
+      "x_pct": [
+        44,
+        56
+      ],
+      "y_pct": [
+        0,
+        100
+      ],
+      "capacidad_kpa": 27,
+      "riesgo": "alto",
+      "color": "rojo",
+      "capacidad_orig_kpa": 32,
+      "ksat_factor": 0.85,
+      "nota_ksat": "Ksat=1.2 mm/h → factor capacidad 1.0"
+    },
+    {
+      "id": "colector_sur",
+      "nombre": "Colector Sur",
+      "tipo": "exclusion",
+      "descripcion": "Cañería colectora 1.2 m prof. Escenario: usar tarimas distribuidoras (mín. 2.5 m²/punto).",
+      "x_pct": [
+        15,
+        85
+      ],
+      "y_pct": [
+        0,
+        18
+      ],
+      "capacidad_kpa": 24,
+      "riesgo": "alto",
+      "color": "rojo",
+      "capacidad_orig_kpa": 28,
+      "ksat_factor": 0.85,
+      "nota_ksat": "Ksat=1.2 mm/h → factor capacidad 1.0"
+    },
+    {
+      "id": "lateral_este",
+      "nombre": "Lateral E",
+      "tipo": "precaucion",
+      "descripcion": "Canal lateral este. Torres de sonido: plataformas distribuidoras de carga.",
+      "x_pct": [
+        72,
+        85
+      ],
+      "y_pct": [
+        18,
+        82
+      ],
+      "capacidad_kpa": 49,
+      "riesgo": "medio",
+      "color": "amarillo",
+      "capacidad_orig_kpa": 58,
+      "ksat_factor": 0.85,
+      "nota_ksat": "Ksat=1.2 mm/h → factor capacidad 1.0"
+    },
+    {
+      "id": "lateral_oeste",
+      "nombre": "Lateral O",
+      "tipo": "precaucion",
+      "descripcion": "Canal lateral oeste. Igual que Lateral Este — usar plataformas.",
+      "x_pct": [
+        15,
+        28
+      ],
+      "y_pct": [
+        18,
+        82
+      ],
+      "capacidad_kpa": 49,
+      "riesgo": "medio",
+      "color": "amarillo",
+      "capacidad_orig_kpa": 58,
+      "ksat_factor": 0.85,
+      "nota_ksat": "Ksat=1.2 mm/h → factor capacidad 1.0"
+    },
+    {
+      "id": "area_norte",
+      "nombre": "Área Norte",
+      "tipo": "seguro",
+      "descripcion": "Suelo firme. Barricada y consola FOH aptos sin restricciones.",
+      "x_pct": [
+        20,
+        80
+      ],
+      "y_pct": [
+        82,
+        100
+      ],
+      "capacidad_kpa": 100,
+      "riesgo": "medio",
+      "color": "amarillo",
+      "capacidad_orig_kpa": 118,
+      "ksat_factor": 0.85,
+      "nota_ksat": "Riesgo escalado: Ksat=1.2 mm/h indica drenaje lento"
+    },
+    {
+      "id": "cuadrante_este",
+      "nombre": "Centro E",
+      "tipo": "seguro",
+      "descripcion": "Cuadrante este del centro. Capacidad nominal.",
+      "x_pct": [
+        56,
+        85
+      ],
+      "y_pct": [
+        20,
+        80
+      ],
+      "capacidad_kpa": 89,
+      "riesgo": "medio",
+      "color": "amarillo",
+      "capacidad_orig_kpa": 105,
+      "ksat_factor": 0.85,
+      "nota_ksat": "Riesgo escalado: Ksat=1.2 mm/h indica drenaje lento"
+    },
+    {
+      "id": "cuadrante_oeste",
+      "nombre": "Centro O",
+      "tipo": "seguro",
+      "descripcion": "Cuadrante oeste del centro. Capacidad nominal.",
+      "x_pct": [
+        15,
+        44
+      ],
+      "y_pct": [
+        20,
+        80
+      ],
+      "capacidad_kpa": 89,
+      "riesgo": "medio",
+      "color": "amarillo",
+      "capacidad_orig_kpa": 105,
+      "ksat_factor": 0.85,
+      "nota_ksat": "Riesgo escalado: Ksat=1.2 mm/h indica drenaje lento"
+    }
+  ],
+  "exclusiones": [
+    "Escenario: tarimas distribuidoras (mín. 2.5 m²/punto de carga) sobre toda la zona Colector Sur",
+    "Torres L/R: verificar que pie de torre no caiga sobre Canal N-S — desplazar 0.5 m si es necesario"
+  ],
+  "resumen": {
+    "zonas_exclusion": 2,
+    "zonas_precaucion": 2,
+    "zonas_seguras": 3,
+    "capacidad_min_kpa": 24,
+    "capacidad_max_kpa": 100,
+    "riesgo_global": "alto",
+    "ksat_mm_h": 1.2
+  }
+}

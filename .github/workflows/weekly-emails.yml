@@ -33,9 +33,9 @@ jobs:
           RAILWAY_URL:   ${{ secrets.RAILWAY_URL }}
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
-          cd railway-backend
+          cd railway-backend/sports/clients/velez
           python data_refresh.py || echo "[WARN] data_refresh falló — usando velez_data.json existente"
-          cd ..
+          cd ../../..
 
           if [ -z "$RAILWAY_URL" ]; then
             echo "RAILWAY_FAIL: RAILWAY_URL no configurada"
@@ -91,7 +91,7 @@ jobs:
           python -c "
           import sys, json
           from pathlib import Path
-          sys.path.insert(0, '.')
+          sys.path.insert(0, 'sports/clients/velez')
           vd = json.loads((Path('..') / 'velez' / 'velez_data.json').read_text(encoding='utf-8'))
           import historico
           p = historico.write_weekly_snapshot(vd)
@@ -104,9 +104,9 @@ jobs:
         env:
           MPLBACKEND: Agg
         run: |
-          cd railway-backend
+          cd railway-backend/sports/clients/velez
           python render_reports.py || echo "[WARN] render_reports falló — PNGs existentes mantenidos"
-          cd ..
+          cd ../../..
 
       # ── Commit histórico y PNGs actualizados al repo ──────────────────────
       - name: Commit PNG + CSV histórico
@@ -131,7 +131,7 @@ jobs:
           GMAIL_APP_PASS: ${{ secrets.GMAIL_APP_PASS }}
           RAILWAY_URL:   ${{ secrets.RAILWAY_URL }}
           BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
-        run: python railway-backend/velez_scheduler.py
+        run: python railway-backend/sports/clients/velez/velez_scheduler.py
 
       # ── Resumen ───────────────────────────────────────────────────────────
       - name: Resumen del pipeline

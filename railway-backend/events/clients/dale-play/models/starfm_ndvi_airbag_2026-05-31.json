@@ -1,0 +1,10 @@
+{
+  "show_id": "airbag_2026-05-31",
+  "metodo": "tendencia_estacional",
+  "ndvi_sintetico": 0.094,
+  "confianza_pct": 35.0,
+  "fallback_usado": true,
+  "estimado": true,
+  "fuente": "ESTARFM · S2 + MODIS MOD09GQ 250m · modis-09-gq-061",
+  "error": "Sin datos MODIS entre 2026-05-02 y 2026-06-07"
+}

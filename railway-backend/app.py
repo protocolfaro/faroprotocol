@@ -3,9 +3,16 @@ app.py — Flask backend: Vélez IPOS + heatmap pipeline + daily weather refresh
 Faro Protocol · Railway-ready · v2026-05-20
 """
 from __future__ import annotations
-import base64, hashlib, json, logging, os, threading, traceback
+import base64, hashlib, json, logging, os, sys, threading, traceback
 import requests as _requests
 from datetime import datetime, timezone
+
+# ── Path setup (ARCHITECTURE.md) ─────────────────────────────────────────────
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_VELEZ_PATH = os.path.join(_HERE, "sports", "clients", "velez")
+if _VELEZ_PATH not in sys.path:
+    sys.path.insert(0, _VELEZ_PATH)
+# ─────────────────────────────────────────────────────────────────────────────
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -712,7 +719,7 @@ try:
     # Dale Play — check fuentes nuevas cada 3 días
     try:
         import sys as _sys, pathlib as _pathlib
-        _sys.path.insert(0, str(_pathlib.Path(__file__).parent / "dale-play"))
+        _sys.path.insert(0, str(_pathlib.Path(__file__).parent / "events" / "clients" / "dale-play"))
         from check_new_sources import register_scheduler as _dp_register
         _dp_register(_scheduler)
         log.info("Dale Play check_new_sources registrado en APScheduler (cada 3 días)")

@@ -1,0 +1,91 @@
+{
+  "artista": "Airbag",
+  "show_date": "2026-05-29",
+  "sectores": [
+    {
+      "id": "campo_central",
+      "name": "Campo Central",
+      "spl_db": 93.1,
+      "sightline": "optima",
+      "cobertura": "buena",
+      "dist_m": 80,
+      "height_m": 0,
+      "alertas": []
+    },
+    {
+      "id": "tribuna_norte",
+      "name": "Tribuna Norte",
+      "spl_db": 92.8,
+      "sightline": "optima",
+      "cobertura": "aceptable",
+      "dist_m": 120,
+      "height_m": 8,
+      "alertas": [
+        "Tribuna Norte: cobertura parcial sin delay towers declaradas"
+      ]
+    },
+    {
+      "id": "tribuna_sur",
+      "name": "Tribuna Sur",
+      "spl_db": 92.8,
+      "sightline": "optima",
+      "cobertura": "aceptable",
+      "dist_m": 140,
+      "height_m": 8,
+      "alertas": [
+        "Tribuna Sur: cobertura parcial sin delay towers declaradas"
+      ]
+    },
+    {
+      "id": "tribuna_este",
+      "name": "Tribuna Este",
+      "spl_db": 92.8,
+      "sightline": "optima",
+      "cobertura": "aceptable",
+      "dist_m": 130,
+      "height_m": 8,
+      "alertas": [
+        "Tribuna Este: cobertura parcial sin delay towers declaradas"
+      ]
+    },
+    {
+      "id": "platea_alta_norte",
+      "name": "Platea Alta Norte",
+      "spl_db": 92.7,
+      "sightline": "atencion",
+      "cobertura": "aceptable",
+      "dist_m": 150,
+      "height_m": 15,
+      "alertas": [
+        "Platea Alta Norte: cobertura parcial sin delay towers declaradas"
+      ]
+    },
+    {
+      "id": "platea_alta_sur",
+      "name": "Platea Alta Sur",
+      "spl_db": 92.7,
+      "sightline": "atencion",
+      "cobertura": "aceptable",
+      "dist_m": 170,
+      "height_m": 15,
+      "alertas": [
+        "Platea Alta Sur: cobertura parcial sin delay towers declaradas"
+      ]
+    }
+  ],
+  "alertas_globales": [
+    "Sin delay towers declaradas — cobertura acústica parcial en tribunas laterales y Platea Alta"
+  ],
+  "spl_promedio_db": 92.8,
+  "cobertura_optima_pct": 0.0,
+  "rt60_s": 2.3,
+  "modelo_acustico": "Sabine-Eyring geométrico",
+  "fuente": "Modelo acústico Sabine-Eyring · Faro Protocol · Dale Play",
+  "sala": {
+    "dimensiones_m": "68×105×22",
+    "rt60_sabine_s": 2.3,
+    "room_constant_R_m2": 22187.0
+  },
+  "claude_raw": null,
+  "timestamp": "2026-06-01 15:48"
+}

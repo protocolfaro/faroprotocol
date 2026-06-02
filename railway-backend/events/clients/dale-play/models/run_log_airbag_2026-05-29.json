@@ -1,0 +1,94 @@
+{
+  "show_id": "airbag_2026-05-29",
+  "timestamp": "2026-06-01T18:49:15.479061+00:00",
+  "duracion_total_s": 44.75,
+  "modulos_ejecutados": [
+    {
+      "modulo": "satellite",
+      "confianza": "verde",
+      "duracion_s": 7.85,
+      "fuente": "HLS / Sentinel-2 L2A / Landsat C2L2 · Planetary Computer + NASA CMR MODIS"
+    },
+    {
+      "modulo": "weather",
+      "confianza": "verde",
+      "duracion_s": 1.03,
+      "fuente": "Open-Meteo API · Pronóstico 72hs"
+    },
+    {
+      "modulo": "soil_real",
+      "confianza": "amarillo",
+      "duracion_s": 2.77,
+      "fuente": "[ESTIMADO] Perfil edafológico BHCP · Franco-arcilloso típico Liniers"
+    },
+    {
+      "modulo": "soil",
+      "confianza": "amarillo",
+      "duracion_s": 0.01,
+      "fuente": "[ESTIMADO] Perfil edafológico BHCP · Franco-arcilloso típico Liniers · Modelo carga Faro Protocol"
+    },
+    {
+      "modulo": "drainage",
+      "confianza": "verde",
+      "duracion_s": 1.7,
+      "fuente": "SoilGrids Ksat + modelo hidráulico Faro Protocol"
+    },
+    {
+      "modulo": "acoustic",
+      "confianza": "amarillo",
+      "duracion_s": 0.93,
+      "fuente": "Modelo acústico Sabine-Eyring · Faro Protocol · Dale Play"
+    },
+    {
+      "modulo": "egms",
+      "confianza": "amarillo",
+      "duracion_s": 0.0,
+      "fuente": "EGMS Copernicus 2015-2022 [ESTIMADO — datos históricos]"
+    },
+    {
+      "modulo": "spl_compliance",
+      "confianza": "amarillo",
+      "duracion_s": 0.0,
+      "fuente": "Ordenanza GCBA 11.554/1994 + Res. 5613/2016 + OMS + NIOSH"
+    },
+    {
+      "modulo": "structural",
+      "confianza": "amarillo",
+      "duracion_s": 0.0,
+      "fuente": "Open-Meteo viento + EGMS Copernicus + Terzaghi"
+    },
+    {
+      "modulo": "rider_compliance",
+      "confianza": "verde",
+      "duracion_s": 0.0,
+      "fuente": "Rider técnico + datos acústicos/suelo/drenaje"
+    },
+    {
+      "modulo": "umbra_sar",
+      "confianza": "amarillo",
+      "duracion_s": 18.04,
+      "fuente": "Umbra Open Data Catalog CC-BY-4.0 · X-band VV Spotlight · 0.267m resolución · COG HTTP range"
+    }
+  ],
+  "modulos_fallidos": [],
+  "fuentes_usadas": {
+    "satellite": "HLS / Sentinel-2 L2A / Landsat C2L2 · Planetary Computer + NASA CMR MODIS",
+    "weather": "Open-Meteo API · Pronóstico 72hs",
+    "soil_real": "[ESTIMADO] Perfil edafológico BHCP · Franco-arcilloso típico Liniers",
+    "soil": "[ESTIMADO] Perfil edafológico BHCP · Franco-arcilloso típico Liniers · Modelo carga Faro Protocol",
+    "drainage": "SoilGrids Ksat + modelo hidráulico Faro Protocol",
+    "acoustic": "Modelo acústico Sabine-Eyring · Faro Protocol · Dale Play",
+    "egms": "EGMS Copernicus 2015-2022 [ESTIMADO — datos históricos]",
+    "spl_compliance": "Ordenanza GCBA 11.554/1994 + Res. 5613/2016 + OMS + NIOSH",
+    "structural": "Open-Meteo viento + EGMS Copernicus + Terzaghi",
+    "rider_compliance": "Rider técnico + datos acústicos/suelo/drenaje",
+    "umbra_sar": "Umbra Open Data Catalog CC-BY-4.0 · X-band VV Spotlight · 0.267m resolución · COG HTTP range"
+  },
+  "confianza_general": "amarillo",
+  "smoke_tests": {
+    "passed": true,
+    "errors": [],
+    "warnings": []
+  },
+  "pipeline_error": null
+}

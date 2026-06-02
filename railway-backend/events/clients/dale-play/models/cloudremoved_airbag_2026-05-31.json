@@ -1,0 +1,12 @@
+{
+  "show_id": "airbag_2026-05-31",
+  "estado": "sin_imagen",
+  "ndvi_limpio": null,
+  "cobertura_limpia_pct": 0.0,
+  "n_px_total": 0,
+  "n_px_limpio": 0,
+  "ndvi_cloud_pct_original": null,
+  "fallback_usado": true,
+  "fuente": "s2cloudless + Sentinel-2 L2A · Planetary Computer",
+  "error": "Sin escena S2 post-show en D+1 a D+15"
+}
