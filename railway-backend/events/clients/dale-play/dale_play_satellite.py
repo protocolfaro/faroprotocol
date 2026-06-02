@@ -43,15 +43,19 @@ def _classify_ndvi(ndvi: float, month: int | None = None) -> dict:
 # HLS — Harmonized Landsat Sentinel-2 (~1.4 día revisita, 30m)
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _search_hls(days_back: int = 15, max_cloud: float = 30.0) -> Optional[dict]:
+def _search_hls(days_back: int = 15, max_cloud: float = 30.0,
+                min_date: str = "") -> Optional[dict]:
     """
     Busca la imagen HLS más reciente sobre el Amalfitani en Planetary Computer.
     HLS fusiona Landsat 8/9 + Sentinel-2A/B/C → ~1.4 días de revisita promedio.
+    min_date: si se pasa (YYYY-MM-DD), solo acepta imágenes posteriores a esa fecha.
     """
     try:
         import requests
         end_dt   = date.today()
-        start_dt = end_dt - timedelta(days=days_back)
+        start_dt = date.fromisoformat(min_date) if min_date else end_dt - timedelta(days=days_back)
+        if start_dt > end_dt:
+            return None
         minx, miny, maxx, maxy = VENUE_BBOX
         payload = {
             "collections": ["hls"],
@@ -126,16 +130,20 @@ def _ndvi_from_hls_item(item: dict) -> Optional[float]:
 # Disponible ~2-4 horas después del pase de satélite
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _search_s2_aws(days_back: int = 30, max_cloud: float = 30.0) -> Optional[dict]:
+def _search_s2_aws(days_back: int = 30, max_cloud: float = 30.0,
+                   min_date: str = "") -> Optional[dict]:
     """
     Busca S2 en AWS Element84 Earth Search.
     Los assets apuntan a s3://sentinel-cogs/ accesibles via HTTPS sin token.
     Ventaja: datos disponibles ~2-4h después del pase (vs ~12-24h en PC).
+    min_date: si se pasa (YYYY-MM-DD), solo acepta imágenes posteriores a esa fecha.
     """
     try:
         import requests
         end_dt   = date.today()
-        start_dt = end_dt - timedelta(days=days_back)
+        start_dt = date.fromisoformat(min_date) if min_date else end_dt - timedelta(days=days_back)
+        if start_dt > end_dt:
+            return None
         minx, miny, maxx, maxy = VENUE_BBOX
         payload = {
             "collections": ["sentinel-2-l2a"],
@@ -202,10 +210,13 @@ def _ndvi_from_item_aws(item: dict) -> Optional[float]:
 # Sentinel-2 — Planetary Computer fallback (10m, ~5 días)
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _search_s2(days_back: int = 30, max_cloud: float = 30.0) -> Optional[dict]:
+def _search_s2(days_back: int = 30, max_cloud: float = 30.0,
+               min_date: str = "") -> Optional[dict]:
     import requests
     end_dt   = date.today()
-    start_dt = end_dt - timedelta(days=days_back)
+    start_dt = date.fromisoformat(min_date) if min_date else end_dt - timedelta(days=days_back)
+    if start_dt > end_dt:
+        return None
     minx, miny, maxx, maxy = VENUE_BBOX
     payload = {
         "collections": ["sentinel-2-l2a"],
@@ -460,10 +471,14 @@ def fetch_satellite_baseline(
     result: dict = {}
     _ndvi_month: Optional[int] = None
 
+    # En modo post_show, solo aceptar imágenes POSTERIORES a la fecha del show.
+    # Sin este filtro, se compara pre-show vs pre-show → delta NDVI = 0 (falso negativo).
+    _min_date = show_date if (mode == "post_show" and show_date) else ""
+
     # ── 1. HLS — primaria en modo post_show ───────────────────────────────────
     if mode == "post_show":
         try:
-            hls_item = _search_hls(days_back=10)
+            hls_item = _search_hls(days_back=10, min_date=_min_date)
             if hls_item:
                 ndvi  = _ndvi_from_hls_item(hls_item)
                 props = hls_item.get("properties", {})
@@ -491,7 +506,7 @@ def fetch_satellite_baseline(
 
         # Intentar AWS Earth Search primero (datos disponibles ~2-4h antes)
         try:
-            s2_item = _search_s2_aws(days_back=days_back_s2)
+            s2_item = _search_s2_aws(days_back=days_back_s2, min_date=_min_date)
             if s2_item:
                 s2_source = "AWS"
                 log.info("dale_play_satellite: S2 encontrada en AWS Earth Search")
@@ -501,7 +516,7 @@ def fetch_satellite_baseline(
         # Fallback a Planetary Computer
         if not s2_item:
             try:
-                s2_item = _search_s2(days_back=days_back_s2)
+                s2_item = _search_s2(days_back=days_back_s2, min_date=_min_date)
                 if s2_item:
                     s2_source = "PC"
             except Exception as exc_pc:
@@ -592,5 +607,18 @@ def fetch_satellite_baseline(
     result.setdefault("fuente_s2", "Sentinel-2 L2A · Planetary Computer")
     result.setdefault("fuente_tipo", "sin_dato")
     result.setdefault("revisita_dias", None)
+
+    # Flag explícito para que el pipeline sepa si hay imagen real post-show
+    # o si tiene que depender de STARFM / SAR como única fuente de daño.
+    if mode == "post_show":
+        ndvi_fecha = result.get("ndvi_fecha", "")
+        tiene_post = bool(ndvi_fecha and _min_date and ndvi_fecha > _min_date)
+        result["ndvi_post_disponible"] = tiene_post
+        if not tiene_post:
+            log.warning(
+                "dale_play_satellite: sin imagen post-show disponible (show=%s) "
+                "— NDVI de daño dependerá de STARFM/SAR",
+                show_date,
+            )
 
     return result
