@@ -5,10 +5,10 @@ Jerarquía de fuentes NDVI (de mayor a menor frecuencia/prioridad):
   1. HLS (Harmonized Landsat Sentinel-2) — 30m, ~1.4 días, modo post_show
   2. Sentinel-2 L2A — 10m, ~5 días, fuente principal modo full
   3. Landsat C2L2 TIRS — temperatura superficial (complementario)
-  + MODIS MOD09GQ — alerta temprana 250m diario (solo post_show)
+  + openEO CDSE — fallback S2 10m vía Copernicus cloud (solo post_show)
   + Sen2SR — super-resolución 10m→2.5m cuando hay S2 limpia (solo post_show)
 
-Fuente NDVI: Microsoft Planetary Computer STAC + NASA CMR (MODIS).
+Fuente NDVI: Microsoft Planetary Computer STAC + openEO CDSE.
 """
 from __future__ import annotations
 import logging
@@ -22,10 +22,6 @@ log = logging.getLogger(__name__)
 _PC_STAC  = "https://planetarycomputer.microsoft.com/api/stac/v1"
 # AWS Earth Search (Element84) — sin autenticación, datos disponibles horas después del pase
 _AWS_STAC = "https://earth-search.aws.element84.com/v1"
-_CMR_API  = "https://cmr.earthdata.nasa.gov/search/granules.json"
-
-# MODIS tile que cubre Buenos Aires (lat -34.6, lon -58.5)
-_MODIS_TILE = "h13v12"
 
 
 def _classify_ndvi(ndvi: float, month: int | None = None) -> dict:
@@ -322,56 +318,6 @@ def _tirs_celsius(item: dict) -> Optional[float]:
         return None
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# MODIS — alerta temprana diaria 250m (solo post_show)
-# ─────────────────────────────────────────────────────────────────────────────
-
-def _check_modis_alert(show_date: str = "", days_back: int = 5) -> dict:
-    """
-    Consulta NASA CMR para granules MODIS MOD09GQ post-show.
-    No descarga píxeles (requeriría NASA Earthdata credentials).
-    Solo señaliza disponibilidad de datos para alerta temprana.
-    Tile h13v12 cubre Buenos Aires.
-    """
-    try:
-        import requests
-        end_dt = date.today()
-        if show_date:
-            try:
-                start_dt = date.fromisoformat(show_date)
-            except Exception:
-                start_dt = end_dt - timedelta(days=days_back)
-        else:
-            start_dt = end_dt - timedelta(days=days_back)
-
-        minx, miny, maxx, maxy = VENUE_BBOX
-        params = {
-            "short_name":   "MOD09GQ",
-            "version":      "061",
-            "temporal":     f"{start_dt.isoformat()}T00:00:00Z,{end_dt.isoformat()}T23:59:59Z",
-            "bounding_box": f"{minx},{miny},{maxx},{maxy}",
-            "page_size":    10,
-            "sort_key":     "-start_date",
-        }
-        r = requests.get(_CMR_API, params=params, timeout=15)
-        if not r.ok:
-            return {"disponible": False, "n_granules": 0, "error": r.status_code}
-
-        granules = r.json().get("feed", {}).get("entry", [])
-        n        = len(granules)
-        fecha_rec = (granules[0].get("time_start") or "")[:10] if granules else ""
-        return {
-            "disponible":          n > 0,
-            "n_granules":          n,
-            "fecha_mas_reciente":  fecha_rec,
-            "tile":                _MODIS_TILE,
-            "producto":            "MOD09GQ v061 · 250m · diario",
-            "fuente":              "NASA CMR · MODIS Terra MOD09GQ",
-        }
-    except Exception as e:
-        log.debug("dale_play_satellite: MODIS CMR: %s", e)
-        return {"disponible": False, "n_granules": 0, "error": str(e)}
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Sen2SR — super-resolución 10m → 2.5m (opcional, solo post_show + S2 limpia)
@@ -461,12 +407,12 @@ def fetch_satellite_baseline(
     Jerarquía NDVI:
       1. HLS (modo post_show, days_back=10) — 30m, ~1.4d revisita
       2. Sentinel-2 L2A (ambos modos) — 10m, ~5d revisita
-    Extras post_show: MODIS alerta temprana + Sen2SR super-resolución.
+    Extras post_show: openEO CDSE fallback + Sen2SR super-resolución.
 
     Campos de salida nuevos:
-      fuente_tipo    → "HLS" | "S2" | "sin_dato" | "error"
+      fuente_tipo    → "HLS" | "S2" | "S2_openEO" | "sin_dato" | "error"
       revisita_dias  → float días de revisita de la fuente usada
-      modis_alerta   → dict (solo post_show)
+      openeo_disponible → bool (solo post_show)
       sen2sr_*       → dict (solo post_show, solo si S2)
     """
     result: dict = {}
@@ -572,36 +518,36 @@ def fetch_satellite_baseline(
                 "ndvi_status":   {"semaforo": "sin_datos", "label": "Sin escena disponible"},
             })
 
-    # ── 2.5 MODIS MOD09GQ — fallback diario cuando S2/HLS no disponibles ────────
-    # Activa solo en post_show y solo si no llegó ninguna imagen óptica post-show.
-    # 250m integra campo + tribuna → alerta temprana de área, no daño de campo específico.
+    # ── 2.5 openEO CDSE — fallback S2 10m cuando Planetary Computer no tiene dato ──
+    # Solo en post_show. Usa Copernicus Data Space Ecosystem vía HTTP puro.
+    # Sin HDF4 ni dependencias nativas. Requiere CDSE_USER + CDSE_PASS en Railway.
     if mode == "post_show" and not result.get("ndvi_fecha"):
         try:
-            from dale_play_modis import fetch_modis_ndvi
-            modis_px = fetch_modis_ndvi(show_date=show_date, days_back=7)
-            ndvi_m   = modis_px.get("ndvi")
-            if ndvi_m is not None:
-                dt_str = modis_px.get("fecha", "")
+            from dale_play_openeo import fetch_openeo_ndvi
+            oeo = fetch_openeo_ndvi(show_date=show_date, days_back=14)
+            ndvi_o = oeo.get("ndvi")
+            if ndvi_o is not None:
+                dt_str = oeo.get("fecha", "")
                 _ndvi_month = int(dt_str[5:7]) if len(dt_str) >= 7 else None
                 result.update({
-                    "ndvi":           ndvi_m,
+                    "ndvi":           ndvi_o,
                     "ndvi_fecha":     dt_str,
                     "ndvi_cloud_pct": None,
-                    "ndvi_status":    _classify_ndvi(ndvi_m, month=_ndvi_month),
-                    "fuente_ndvi":    modis_px.get("fuente", "MODIS_MOD09GQ"),
-                    "fuente_tipo":    "MODIS",
-                    "revisita_dias":  1.0,
-                    "modis_detalle":  modis_px,
+                    "ndvi_status":    _classify_ndvi(ndvi_o, month=_ndvi_month),
+                    "fuente_ndvi":    oeo.get("fuente", "S2_CDSE_openEO"),
+                    "fuente_tipo":    "S2_openEO",
+                    "revisita_dias":  5.0,
+                    "openeo_detalle": oeo,
                 })
                 log.info(
-                    "dale_play_satellite: MODIS fallback NDVI=%.3f fecha=%s",
-                    ndvi_m, dt_str,
+                    "dale_play_satellite: openEO CDSE fallback NDVI=%.3f fecha=%s",
+                    ndvi_o, dt_str,
                 )
             else:
-                result["modis_error"] = modis_px.get("error") or modis_px.get("instruccion")
-                log.warning("dale_play_satellite: MODIS fallback sin NDVI: %s", modis_px.get("error"))
-        except Exception as _mod_exc:
-            log.warning("dale_play_satellite: MODIS fallback: %s", _mod_exc)
+                result["openeo_error"] = oeo.get("error") or oeo.get("instruccion")
+                log.warning("dale_play_satellite: openEO sin NDVI: %s", oeo.get("error"))
+        except Exception as _oeo_exc:
+            log.warning("dale_play_satellite: openEO fallback: %s", _oeo_exc)
 
     # ── 3. Landsat TIRS — temperatura superficial ─────────────────────────────
     try:
@@ -621,19 +567,11 @@ def fetch_satellite_baseline(
         log.warning("dale_play_satellite: Landsat TIRS failed: %s", e)
         result.update({"tirs_celsius": None})
 
-    # ── 4. MODIS alerta temprana — solo post_show ─────────────────────────────
+    # ── 4. openEO CDSE — disponibilidad S2 post-show (solo post_show) ───────────
+    # Solo registra si openEO está configurado; no bloquea el pipeline si no lo está.
     if mode == "post_show":
-        try:
-            modis = _check_modis_alert(show_date=show_date, days_back=5)
-            result["modis_alerta"] = modis
-            if modis.get("disponible"):
-                log.info(
-                    "dale_play_satellite: MODIS %d granules post-show · fecha %s",
-                    modis["n_granules"], modis.get("fecha_mas_reciente", "?")
-                )
-        except Exception as e:
-            log.debug("dale_play_satellite: MODIS alert: %s", e)
-            result["modis_alerta"] = {"disponible": False, "error": str(e)}
+        from dale_play_openeo import _is_configured as _oeo_configured
+        result["openeo_disponible"] = _oeo_configured()
 
     # Compatibilidad con versión anterior
     result.setdefault("fuente_s2", "Sentinel-2 L2A · Planetary Computer")
