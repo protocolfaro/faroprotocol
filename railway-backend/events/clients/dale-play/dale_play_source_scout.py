@@ -49,59 +49,36 @@ _CURRENT_SOURCES = {
     ],
 }
 
-_SCOUT_PROMPT = """Eres un experto en datos satelitales y APIs geoespaciales para eventos masivos en Argentina.
+_SCOUT_PROMPT = """Sistema: Faro Protocol monitorea Estadio Amalfitani, Buenos Aires (-34.638,-58.529).
+Fuentes SAR actuales: Umbra X-band, Sentinel-1 RTC C-band, Capella X-band, ALOS-2 L-band.
+Fuentes ópticas actuales: Sentinel-2 10m, HLS 30m, Landsat-9 100m TIRS.
 
-El sistema Faro Protocol monitorea el Estadio José Amalfitani en Buenos Aires, Argentina
-(lat=-34.638, lon=-58.529, barrio Floresta) para eventos musicales masivos (40.000+ personas).
+Busca en la web (máx 3 búsquedas) novedades 2024-2026 sobre fuentes gratuitas para Argentina:
+- SAR open data (ICEYE, SAOCOM, NovaSAR, Sentinel-1 nuevas colecciones)
+- Óptico alta resolución gratuito (Maxar Open Data, Planet NICFI, Landsat Next)
+- InSAR tiempo real Buenos Aires (COMET LiCSAR, ARIA)
+- APIs suelo/humedad (SMAP, GRACE-FO)
 
-## Fuentes actuales del sistema:
-{current_sources}
+Para cada fuente que supere lo actual, incluirla en el JSON.
 
-## Tarea:
-Busca en la web (usa web_search) las últimas novedades (2024-2026) sobre:
-
-1. **SAR gratuito para Argentina**: ICEYE open data, NovaSAR, PAZ, SAOCOM datos abiertos,
-   Sentinel-1 C-band nuevas colecciones, ASF nuevos productos RTC,
-   cualquier programa open data SAR que cubra Buenos Aires.
-
-2. **Óptico alta resolución gratuito**: Planet NICFI actualización, Maxar Open Data 2025,
-   ESA nuevos productos, Landsat Next (preview), DESIS hyperspectral,
-   nuevas colecciones en Planetary Computer o Element84.
-
-3. **InSAR tiempo real**: COMET LiCSAR updates, ARIA-S1 productos,
-   nuevos datasets de subsidencia Buenos Aires post-2022.
-
-4. **APIs de suelo/hidrología**: SMAP actualizaciones, GRACE-FO datos recientes,
-   SMC (soil moisture) APIs nuevas para Argentina.
-
-5. **Fuentes SAR comerciales con free tier**: ICEye Monitoring free tier,
-   Capella nuevas colecciones open data, Planet Fusion SAR trial.
-
-Para cada fuente nueva que encuentres, evalúa:
-- ¿Cubre Buenos Aires / Argentina?
-- ¿Es gratuita o tiene acceso open data?
-- ¿Mejora lo que ya tenemos?
-- ¿Cómo integrarla con rasterio + HTTP range requests?
-
-Responde SOLO con JSON válido, sin texto adicional:
+IMPORTANTE: Responde ÚNICAMENTE con el JSON. Ningún texto antes ni después. Empieza directamente con {{
 {{
   "fuentes_nuevas": [
     {{
-      "nombre": "nombre de la fuente",
-      "url": "URL principal",
-      "tipo": "SAR|optical|thermal|InSAR|weather|soil",
-      "cobertura": "global|Argentina|BsAs|SudAmerica",
+      "nombre": "str",
+      "url": "str",
+      "tipo": "SAR|optical|InSAR|weather|soil",
+      "cobertura": "global|Argentina|BsAs",
       "resolucion": "Xm",
-      "frecuencia_revisita": "X días",
+      "frecuencia_revisita": "X dias",
       "costo": "gratuito|freemium|pago",
-      "ventaja_vs_actual": "descripción específica de qué mejora",
-      "integrable_http": true,
+      "ventaja_vs_actual": "str corto",
       "recomendacion": "adoptar|investigar|descartar",
-      "pasos_integracion": "descripción técnica de cómo integrar"
+      "url_stac_o_api": "str"
     }}
   ],
-  "resumen_ejecutivo": "2-3 oraciones sobre las mejores oportunidades",
-  "prioridad": ["nombre_fuente_1", "nombre_fuente_2"]
+  "resumen_ejecutivo": "str 2 oraciones max",
+  "prioridad": ["nombre1", "nombre2"]
 }}"""
 
 
@@ -145,12 +122,12 @@ def run_source_scout() -> dict:
 
         response = client.messages.create(
             model="claude-sonnet-4-6",
-            max_tokens=4096,
+            max_tokens=8192,
             tools=[{"type": "web_search_20250305", "name": "web_search"}],
             messages=[{"role": "user", "content": prompt}],
         )
 
-        # Extraer texto de la respuesta (puede haber tool_use bloques antes)
+        # Extraer texto (pueden haber tool_use blocks antes del text final)
         text_parts = []
         for block in response.content:
             if hasattr(block, "text"):
@@ -184,37 +161,98 @@ def run_source_scout() -> dict:
 
 
 def _extract_json(text: str) -> dict:
-    """Extrae el primer JSON válido del texto de respuesta."""
-    # Intentar parsear directo
+    """
+    Extrae JSON válido del texto de respuesta de Claude.
+    Maneja: JSON directo, con prefijo de texto, dentro de ```json...```,
+    y respuestas truncadas por max_tokens.
+    """
+    # 1. Parsear directo (mejor caso: prefill funcionó)
     try:
         return json.loads(text)
     except Exception:
         pass
 
-    # Buscar bloque JSON entre ```json ... ```
-    match = re.search(r"```json\s*([\s\S]*?)\s*```", text)
+    # 2. Bloque ```json...``` con cierre — regex greedy para capturar más contenido
+    match = re.search(r"```json\s*([\s\S]+?)\s*```", text, re.DOTALL)
     if match:
         try:
             return json.loads(match.group(1))
         except Exception:
             pass
 
-    # Buscar primer objeto JSON en el texto
-    match = re.search(r"\{[\s\S]*\}", text)
+    # 3. Bloque ```json sin cierre (respuesta truncada) — tomar todo desde ahí
+    match = re.search(r"```json\s*([\s\S]+)$", text, re.DOTALL)
     if match:
-        try:
-            return json.loads(match.group())
-        except Exception:
-            pass
+        candidate = match.group(1).strip()
+        parsed = _try_recover_json(candidate)
+        if parsed:
+            parsed["_truncated"] = True
+            return parsed
 
-    log.warning("dale_play_source_scout: no se pudo parsear JSON de la respuesta")
+    # 4. Primer { hasta el final — respuesta sin code block
+    match = re.search(r"\{[\s\S]+", text, re.DOTALL)
+    if match:
+        candidate = match.group().strip()
+        parsed = _try_recover_json(candidate)
+        if parsed:
+            return parsed
+
+    log.warning("dale_play_source_scout: no se pudo parsear JSON (len=%d)", len(text))
     return {
-        "fuentes_nuevas":      [],
-        "resumen_ejecutivo":   "Error parseando respuesta de Claude",
-        "prioridad":           [],
-        "raw_response":        text[:500],
-        "error":               "JSON parse failed",
+        "fuentes_nuevas":    [],
+        "resumen_ejecutivo": "Error parseando respuesta — ver raw_response",
+        "prioridad":         [],
+        "raw_response":      text[:2000],
+        "error":             "JSON parse failed",
     }
+
+
+def _try_recover_json(text: str) -> dict | None:
+    """
+    Intenta parsear JSON posiblemente truncado.
+    Estrategia: intentar tal cual, luego cerrar llaves/corchetes faltantes.
+    """
+    # Intento directo
+    try:
+        return json.loads(text)
+    except Exception:
+        pass
+
+    # Contar llaves y corchetes para cerrar lo que falta
+    stack = []
+    in_str = False
+    escape = False
+    last_good = 0
+
+    for i, ch in enumerate(text):
+        if escape:
+            escape = False
+            continue
+        if ch == "\\" and in_str:
+            escape = True
+            continue
+        if ch == '"':
+            in_str = not in_str
+            continue
+        if in_str:
+            continue
+        if ch in ("{", "["):
+            stack.append("}" if ch == "{" else "]")
+        elif ch in ("}", "]"):
+            if stack and stack[-1] == ch:
+                stack.pop()
+                if not stack:
+                    last_good = i + 1
+
+    # Remover trailing comas antes de cerrar
+    partial = text[:last_good if last_good else len(text)].rstrip().rstrip(",")
+    closing = "".join(reversed(stack))
+    candidate = partial + closing
+
+    try:
+        return json.loads(candidate)
+    except Exception:
+        return None
 
 
 # ─────────────────────────────────────────────────────────────────────────────
