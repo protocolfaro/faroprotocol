@@ -50,8 +50,8 @@ def _get_token() -> str:
         data={
             "client_id":  "cdse-public",
             "grant_type": "password",
-            "username":   os.environ["CDSE_USER"],
-            "password":   os.environ["CDSE_PASS"],
+            "username":   os.environ["CDSE_USER"].strip(),
+            "password":   os.environ["CDSE_PASS"].strip(),
         },
         timeout=20,
     )
