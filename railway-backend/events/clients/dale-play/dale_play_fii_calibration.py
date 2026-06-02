@@ -150,9 +150,18 @@ def check_and_recalibrate() -> dict:
         log.warning("dale_play_fii_calibration: count shows: %s", exc)
         return {"recalibrado": False, "motivo": str(exc)}
 
-    if n_nuevos < _MIN_SHOWS_FOR_CALIBRATION:
+    # Con timeseries disponible (76 pts) podemos calibrar NDVI weight inmediatamente.
+    # Sin timeseries, necesitamos suficientes shows en show_memory.
+    ts_disponible = False
+    try:
+        from dale_play_timeseries_baseline import get_timeseries_stats
+        ts_disponible = (get_timeseries_stats().get("n", 0) >= 10)
+    except Exception:
+        pass
+
+    if n_nuevos < _MIN_SHOWS_FOR_CALIBRATION and not ts_disponible:
         log.debug(
-            "dale_play_fii_calibration: %d shows nuevos < %d mínimos — sin recalibración",
+            "dale_play_fii_calibration: %d shows nuevos < %d mínimos y sin timeseries — sin recalibración",
             n_nuevos, _MIN_SHOWS_FOR_CALIBRATION,
         )
         return {"recalibrado": False, "motivo": f"solo {n_nuevos} shows nuevos (mín {_MIN_SHOWS_FOR_CALIBRATION})"}
@@ -164,10 +173,12 @@ def check_and_recalibrate() -> dict:
 
 def recalibrate_fii_weights(last_n: int = 20) -> dict:
     """
-    Recalcula pesos FII basándose en varianza de componentes de los últimos N shows.
-    Guarda resultado en fii_weights. Invalida caché.
+    Recalcula pesos FII combinando dos fuentes de datos:
+      1. field_timeseries (76 puntos 2020-2026): varianza NDVI score — fuente primaria y confiable.
+      2. show_memory (últimos N runs): varianza de scores EGMS y layout.
 
-    Retorna {"recalibrado": bool, "pesos": dict, "varianzas": dict, "n_shows": int}
+    La varianza de NDVI usa el historial completo del campo, no solo los shows auditados.
+    Guarda resultado en fii_weights. Invalida caché.
     """
     global _weights_cache, _cache_ts
 
@@ -175,69 +186,80 @@ def recalibrate_fii_weights(last_n: int = 20) -> dict:
     if not supa_url or not supa_key:
         return {"recalibrado": False, "motivo": "supabase no configurado"}
 
-    # Leer últimos N shows con datos FII
+    # ── 1. NDVI variance desde field_timeseries (76 puntos) ──────────────────
+    v_ndvi_timeseries = 0.0
+    n_timeseries      = 0
+    try:
+        from dale_play_timeseries_baseline import get_timeseries_stats
+        ts = get_timeseries_stats()
+        v_ndvi_timeseries = ts.get("ndvi_score_variance", 0.0)
+        n_timeseries      = ts.get("n", 0)
+        log.info(
+            "dale_play_fii_calibration: timeseries NDVI score_variance=%.2f (n=%d)",
+            v_ndvi_timeseries, n_timeseries,
+        )
+    except Exception as exc:
+        log.warning("dale_play_fii_calibration: timeseries load: %s", exc)
+
+    # ── 2. EGMS y layout variance desde show_memory ───────────────────────────
+    egms_scores, layout_scores, ndvi_scores_memory = [], [], []
+    n_shows_memory = 0
     try:
         resp = requests.get(
             f"{supa_url}/rest/v1/show_memory",
             params={
-                "select":   "datos_raw,fii_value",
-                "order":    "created_at.desc",
-                "limit":    str(last_n),
+                "select":    "datos_raw,fii_value",
+                "order":     "created_at.desc",
+                "limit":     str(last_n),
                 "fii_value": "not.is.null",
             },
             headers=_headers(supa_key),
             timeout=10,
         )
-        if resp.status_code != 200:
-            return {"recalibrado": False, "motivo": f"show_memory HTTP {resp.status_code}"}
-        rows = resp.json()
+        if resp.status_code == 200:
+            rows = resp.json()
+            n_shows_memory = len(rows)
+            for r in rows:
+                datos_raw = r.get("datos_raw") or {}
+                fii_d     = datos_raw.get("fii") or {}
+                comps     = fii_d.get("componentes") or {}
+
+                ns = (comps.get("ndvi") or {}).get("score")
+                es = (comps.get("egms") or {}).get("score")
+                ls = (comps.get("layout") or {}).get("score")
+
+                if ns is not None: ndvi_scores_memory.append(float(ns))
+                if es is not None: egms_scores.append(float(es))
+                if ls is not None: layout_scores.append(float(ls))
     except Exception as exc:
-        return {"recalibrado": False, "motivo": str(exc)}
+        log.warning("dale_play_fii_calibration: show_memory: %s", exc)
 
-    if len(rows) < _MIN_SHOWS_TOTAL:
-        return {
-            "recalibrado": False,
-            "motivo":      f"solo {len(rows)} shows con FII (mín {_MIN_SHOWS_TOTAL})",
-        }
+    # ── 3. Elegir varianza NDVI: timeseries > show_memory ────────────────────
+    # La timeseries tiene 76 puntos con distribución real del campo.
+    # show_memory tiene pocos puntos al inicio — usarla solo si no hay timeseries.
+    if n_timeseries >= 10:
+        v_ndvi  = v_ndvi_timeseries
+        src_ndvi = f"timeseries ({n_timeseries} pts)"
+    elif ndvi_scores_memory:
+        v_ndvi  = _variance(ndvi_scores_memory)
+        src_ndvi = f"show_memory ({len(ndvi_scores_memory)} pts)"
+    else:
+        return {"recalibrado": False, "motivo": "sin datos NDVI (timeseries ni show_memory)"}
 
-    # Extraer scores de componentes de datos_raw.fii.componentes
-    ndvi_scores, egms_scores, layout_scores = [], [], []
-    for r in rows:
-        datos_raw = r.get("datos_raw") or {}
-        fii_d     = datos_raw.get("fii") or {}
-        comps     = fii_d.get("componentes") or {}
-
-        ns = (comps.get("ndvi") or {}).get("score")
-        es = (comps.get("egms") or {}).get("score")
-        ls = (comps.get("layout") or {}).get("score")
-
-        if ns is not None: ndvi_scores.append(float(ns))
-        if es is not None: egms_scores.append(float(es))
-        if ls is not None: layout_scores.append(float(ls))
-
-    if not ndvi_scores:
-        return {"recalibrado": False, "motivo": "sin scores de componentes en datos_raw"}
-
-    # Calcular varianzas
-    v_ndvi   = _variance(ndvi_scores)
-    v_egms   = _variance(egms_scores)
-    v_layout = _variance(layout_scores)
+    v_egms   = _variance(egms_scores)   if egms_scores   else 0.0
+    v_layout = _variance(layout_scores) if layout_scores else 0.0
     total_v  = v_ndvi + v_egms + v_layout
 
     if total_v < 1e-6:
-        new_w = _DEFAULTS.copy()
+        new_w  = _DEFAULTS.copy()
         motivo = "varianza total nula — manteniendo pesos default"
     else:
-        raw_ndvi   = v_ndvi / total_v
-        raw_egms   = v_egms / total_v
-        raw_layout = v_layout / total_v
-
         def clamp(x: float) -> float:
             return max(0.10, min(0.60, x))
 
-        w_ndvi   = clamp(raw_ndvi)
-        w_egms   = clamp(raw_egms)
-        w_layout = clamp(raw_layout)
+        w_ndvi   = clamp(v_ndvi / total_v)
+        w_egms   = clamp(v_egms / total_v)
+        w_layout = clamp(v_layout / total_v)
         total_w  = w_ndvi + w_egms + w_layout
 
         new_w = {
@@ -245,25 +267,37 @@ def recalibrate_fii_weights(last_n: int = 20) -> dict:
             "egms":   round(w_egms / total_w, 3),
             "layout": round(w_layout / total_w, 3),
         }
-        motivo = f"varianza ndvi={v_ndvi:.1f} egms={v_egms:.1f} layout={v_layout:.1f} — {len(rows)} shows"
+        motivo = (
+            f"ndvi_var={v_ndvi:.1f} ({src_ndvi}) "
+            f"egms_var={v_egms:.1f} (show_memory {len(egms_scores)}pts) "
+            f"layout_var={v_layout:.1f} (show_memory {len(layout_scores)}pts)"
+        )
 
     log.info(
-        "dale_play_fii_calibration: nuevos pesos ndvi=%.3f egms=%.3f layout=%.3f (%s)",
+        "dale_play_fii_calibration: nuevos pesos ndvi=%.3f egms=%.3f layout=%.3f | %s",
         new_w["ndvi"], new_w["egms"], new_w["layout"], motivo,
     )
 
-    # Guardar en Supabase
+    # ── 4. Guardar en Supabase ────────────────────────────────────────────────
     row = {
         "w_ndvi":            new_w["ndvi"],
         "w_egms":            new_w["egms"],
         "w_layout":          new_w["layout"],
-        "n_shows_calibrado": len(rows),
+        "n_shows_calibrado": n_shows_memory,
         "motivo":            motivo,
         "datos_raw": {
-            "varianzas": {"ndvi": round(v_ndvi, 2), "egms": round(v_egms, 2), "layout": round(v_layout, 2)},
-            "n_ndvi":    len(ndvi_scores),
-            "n_egms":    len(egms_scores),
-            "n_layout":  len(layout_scores),
+            "varianzas": {
+                "ndvi":   round(v_ndvi, 2),
+                "egms":   round(v_egms, 2),
+                "layout": round(v_layout, 2),
+            },
+            "fuentes": {
+                "ndvi":   src_ndvi if total_v >= 1e-6 else "default",
+                "egms":   f"show_memory ({len(egms_scores)}pts)",
+                "layout": f"show_memory ({len(layout_scores)}pts)",
+            },
+            "n_timeseries": n_timeseries,
+            "n_shows":      n_shows_memory,
             "pesos_anteriores": get_fii_weights(),
         },
     }
@@ -280,15 +314,15 @@ def recalibrate_fii_weights(last_n: int = 20) -> dict:
         log.warning("dale_play_fii_calibration: save weights: %s", exc)
         saved = False
 
-    # Invalidar caché
     _weights_cache = {}
-    _cache_ts = 0.0
+    _cache_ts      = 0.0
 
     return {
         "recalibrado":  saved,
         "pesos":        new_w,
         "varianzas":    {"ndvi": round(v_ndvi, 2), "egms": round(v_egms, 2), "layout": round(v_layout, 2)},
-        "n_shows":      len(rows),
+        "n_timeseries": n_timeseries,
+        "n_shows":      n_shows_memory,
         "motivo":       motivo,
     }
 

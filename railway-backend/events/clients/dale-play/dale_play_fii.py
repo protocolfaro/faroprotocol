@@ -31,33 +31,48 @@ def compute_fii(
     Retorna dict con fii, componentes y semáforo.
     """
 
-    # ── Componente NDVI (40%) ─────────────────────────────────────────────────
-    # 0.45+ → 100, 0.30-0.45 → 70-100, 0.20-0.30 → 40-70, <0.20 → 0-40
-    # Dormancia estacional Bermuda: NDVI 0.08-0.25 en meses 4-8 (BsAs otoño/invierno)
+    # ── Componente NDVI ───────────────────────────────────────────────────────
+    # Prioridad 1: score vs baseline estacional de 6 años (field_timeseries).
+    #   50 = media histórica del mes, 75 = +1σ, 25 = -1σ.
+    # Prioridad 2 (fallback): umbrales absolutos (dormancia Bermuda meses 4-8).
     _month = _date.today().month
-    _dormancia = (ndvi is not None and 0.08 <= ndvi <= 0.25 and 4 <= _month <= 8)
 
     if ndvi is None:
         ndvi_score = 50.0
         ndvi_label = "N/D"
-    elif _dormancia:
-        ndvi_score = 35.0 + (ndvi - 0.08) / (0.25 - 0.08) * 15.0
-        ndvi_label = "Dormancia estacional (Bermuda)"
-    elif ndvi >= 0.45:
-        ndvi_score = 100.0
-        ndvi_label = "Excelente"
-    elif ndvi >= 0.30:
-        ndvi_score = 70.0 + (ndvi - 0.30) / 0.15 * 30.0
-        ndvi_label = "Bueno"
-    elif ndvi >= 0.20:
-        ndvi_score = 40.0 + (ndvi - 0.20) / 0.10 * 30.0
-        ndvi_label = "Regular"
-    elif ndvi >= 0.10:
-        ndvi_score = 10.0 + (ndvi - 0.10) / 0.10 * 30.0
-        ndvi_label = "Malo"
     else:
-        ndvi_score = 0.0
-        ndvi_label = "Crítico"
+        # Intentar scoring estacional con timeseries
+        _ts_score, _ts_label = None, None
+        try:
+            from dale_play_timeseries_baseline import score_ndvi_vs_seasonal
+            _ts_score, _ts_label = score_ndvi_vs_seasonal(ndvi, _month)
+        except Exception:
+            pass
+
+        if _ts_score is not None:
+            ndvi_score = _ts_score
+            ndvi_label = _ts_label
+        else:
+            # Fallback: umbrales absolutos con corrección dormancia
+            _dormancia = (0.08 <= ndvi <= 0.25 and 4 <= _month <= 8)
+            if _dormancia:
+                ndvi_score = 35.0 + (ndvi - 0.08) / (0.25 - 0.08) * 15.0
+                ndvi_label = "Dormancia estacional (Bermuda)"
+            elif ndvi >= 0.45:
+                ndvi_score = 100.0
+                ndvi_label = "Excelente"
+            elif ndvi >= 0.30:
+                ndvi_score = 70.0 + (ndvi - 0.30) / 0.15 * 30.0
+                ndvi_label = "Bueno"
+            elif ndvi >= 0.20:
+                ndvi_score = 40.0 + (ndvi - 0.20) / 0.10 * 30.0
+                ndvi_label = "Regular"
+            elif ndvi >= 0.10:
+                ndvi_score = 10.0 + (ndvi - 0.10) / 0.10 * 30.0
+                ndvi_label = "Malo"
+            else:
+                ndvi_score = 0.0
+                ndvi_label = "Crítico"
 
     # ── Componente EGMS (35%) ─────────────────────────────────────────────────
     # Sin datos → neutral 50. Sectores críticos (>3.5 mm/yr) = -25 c/u.

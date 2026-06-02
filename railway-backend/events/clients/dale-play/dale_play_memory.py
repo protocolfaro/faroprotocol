@@ -89,14 +89,19 @@ def save_show_memory(
     sar_dict = result.get("umbra_sar") or {}
     wea_dict = result.get("weather") or {}
 
+    # Contexto histórico del campo (field_timeseries 6 años)
+    ndvi_value  = sat_dict.get("ndvi")
+    show_date   = result.get("show_date", "")
+    ts_context  = _build_timeseries_context(ndvi_value, show_date)
+
     row = {
         "show_id":        show_id,
-        "show_date":      result.get("show_date", ""),
+        "show_date":      show_date,
         "venue_id":       str(result.get("venue", "amalfitani")),
         "sar_fuente":     sar_dict.get("sar_fuente_usada") or sar_dict.get("fuente", ""),
         "sat_fuente":     sat_dict.get("fuente", ""),
         "weather_ok":     not bool(wea_dict.get("error")),
-        "ndvi_value":     sat_dict.get("ndvi"),
+        "ndvi_value":     ndvi_value,
         "fii_value":      fii_dict.get("fii"),
         "coc_nivel":      coc_dict.get("nivel", "SIN_DATOS"),
         "modules_ok":     log_ejecutados,
@@ -104,10 +109,11 @@ def save_show_memory(
         "fuentes_usadas": fuentes,
         "duracion_s":     duracion_s,
         "datos_raw": {
-            "fii":       fii_dict,
-            "coc":       coc_dict,
-            "mode":      result.get("mode"),
-            "timestamp": result.get("timestamp"),
+            "fii":                fii_dict,
+            "coc":                coc_dict,
+            "mode":               result.get("mode"),
+            "timestamp":          result.get("timestamp"),
+            "timeseries_context": ts_context,
         },
     }
 
@@ -216,3 +222,42 @@ def _count_field(rows: list[dict], field: str) -> dict[str, int]:
         v = str(r.get(field) or "N/D")
         counts[v] = counts.get(v, 0) + 1
     return counts
+
+
+def _build_timeseries_context(ndvi: Optional[float], show_date: str) -> dict:
+    """
+    Construye contexto histórico del campo usando field_timeseries (76 puntos).
+    Incluye: baseline estacional, percentil, recovery estimate.
+    """
+    try:
+        from dale_play_timeseries_baseline import (
+            get_timeseries_stats,
+            get_seasonal_context,
+            get_ndvi_percentile,
+            get_recovery_estimate,
+        )
+
+        month = int(show_date[5:7]) if show_date and len(show_date) >= 7 else 0
+        if not month:
+            from datetime import date
+            month = date.today().month
+
+        stats      = get_timeseries_stats()
+        seasonal   = get_seasonal_context(month) if month else {}
+        percentil  = get_ndvi_percentile(ndvi) if ndvi is not None else None
+        recovery   = get_recovery_estimate(ndvi, month) if ndvi is not None and month else {}
+
+        return {
+            "n_puntos_historicos": stats.get("n", 0),
+            "rango_fechas":        stats.get("rango_fechas", ""),
+            "ndvi_historico_mean": stats.get("ndvi_mean"),
+            "ndvi_historico_std":  stats.get("ndvi_std"),
+            "ndvi_mes_mean":       seasonal.get("mean"),
+            "ndvi_mes_std":        seasonal.get("std"),
+            "ndvi_mes_n":          seasonal.get("n"),
+            "ndvi_percentil":      percentil,
+            "recovery":            recovery,
+        }
+    except Exception as exc:
+        log.debug("dale_play_memory: timeseries_context: %s", exc)
+        return {}

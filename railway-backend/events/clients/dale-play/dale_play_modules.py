@@ -270,7 +270,7 @@ class SARModule(DalePlayModule):
     REQUIRED_FIELDS = ["umbra_cobre_venue", "escena_datetime", "sar_nivel_confianza"]
     MODES           = ("full", "post_show")
     CRITICAL        = False
-    TIMEOUT_S       = 120
+    TIMEOUT_S       = 200
     DATA_SOURCE     = (
         "Cascada SAR: Umbra X-band 0.26m CC-BY-4.0 "
         "→ Sentinel-1 RTC C-band 20m PC "
