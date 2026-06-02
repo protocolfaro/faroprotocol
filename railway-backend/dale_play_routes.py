@@ -505,6 +505,16 @@ def dp_timeseries_test_ndvi():
             out["ok"] = False
             out["error"] = f"Solo {int(valid.sum())} pixels válidos"
 
+        # Comparación: llamar _ndvi_from_s2_item directamente con el mismo item
+        try:
+            from satellite.field_timeseries import _ndvi_from_s2_item
+            ndvi_fn = _ndvi_from_s2_item(item, bbox, source)
+            out["ndvi_via_fn"] = ndvi_fn
+            out["fn_matches"]  = (ndvi_fn == out.get("ndvi"))
+        except Exception as exc2:
+            out["fn_error"] = str(exc2)
+            out["fn_tb"]    = _tb.format_exc()[-600:]
+
     except Exception as exc:
         out["ok"]    = False
         out["error"] = str(exc)
