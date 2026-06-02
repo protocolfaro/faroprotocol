@@ -622,6 +622,33 @@ def fetch_satellite_baseline(
                 show_date,
             )
 
+    # ── detect_anomaly — comparación fenológica histórica (post_show) ────────
+    if mode == "post_show":
+        ndvi_post       = result.get("ndvi")
+        ndvi_fecha_post = result.get("ndvi_fecha") or ""
+        if ndvi_post is not None and ndvi_fecha_post:
+            try:
+                from satellite.field_timeseries import detect_anomaly
+                anomalia = detect_anomaly("amalfitani", ndvi_fecha_post, ndvi_post)
+                result["anomalia_fenologica"] = anomalia
+                log.info(
+                    "dale_play_satellite: anomalia=%s delta=%.3f confianza=%.2f semana=%s",
+                    anomalia.get("clasificacion"),
+                    anomalia.get("delta") or 0.0,
+                    anomalia.get("confianza") or 0.0,
+                    anomalia.get("semana_iso"),
+                )
+            except Exception as _anom_exc:
+                log.warning("dale_play_satellite: detect_anomaly: %s", _anom_exc)
+                result["anomalia_fenologica"] = {"error": str(_anom_exc)}
+        else:
+            result["anomalia_fenologica"] = {
+                "clasificacion": None,
+                "delta":         None,
+                "confianza":     None,
+                "nota":          "Sin imagen post-show disponible — esperando Sentinel-2 limpio (~3-5/06)",
+            }
+
     # ── Persistencia baseline y delta NDVI ───────────────────────────────────
     _sid = show_id or (f"amalfitani_{show_date}" if show_date else "")
     if _sid:
