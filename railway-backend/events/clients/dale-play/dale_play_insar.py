@@ -141,6 +141,21 @@ def fetch_post_show_vibration() -> Optional[dict]:
         log.warning("dale_play_insar: insar_hyp3 not importable: %s", e)
         return None
 
+    # HyP3 requiere credenciales NASA Earthdata para autenticar el job.
+    # Sin ellas el job fallará silenciosamente tras ~30 min de espera.
+    if not os.environ.get("NASA_EARTHDATA_USER") or not os.environ.get("NASA_EARTHDATA_PASS"):
+        log.warning("dale_play_insar: NASA_EARTHDATA no configurado — usando EGMS histórico como fallback")
+        return {
+            "error":          "NASA_EARTHDATA no configurado",
+            "fallback_usado": True,
+            "dato":           "EGMS histórico",
+            "fuente":         "EGMS L3 Copernicus 2015-2022 [fallback — sin creds NASA Earthdata]",
+            "nota": (
+                "Configurar NASA_EARTHDATA_USER y NASA_EARTHDATA_PASS en Railway "
+                "para activar InSAR diferencial HyP3 en tiempo real."
+            ),
+        }
+
     try:
         granules = insar_hyp3._search_slc_granules(days_back=26)
     except Exception as e:

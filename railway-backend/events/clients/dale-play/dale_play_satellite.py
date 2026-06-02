@@ -453,6 +453,7 @@ def fetch_satellite_baseline(
     days_back_ls: int = 45,
     mode: str = "full",
     show_date: str = "",
+    show_id: str = "",
 ) -> dict:
     """
     Baseline satelital completo para el Amalfitani.
@@ -620,5 +621,58 @@ def fetch_satellite_baseline(
                 "— NDVI de daño dependerá de STARFM/SAR",
                 show_date,
             )
+
+    # ── Persistencia baseline y delta NDVI ───────────────────────────────────
+    _sid = show_id or (f"amalfitani_{show_date}" if show_date else "")
+    if _sid:
+        try:
+            from dale_play_storage import save_show_baseline, get_show_baseline
+            if mode == "full":
+                # Guardar baseline pre-show para comparación futura
+                ndvi_val = result.get("ndvi")
+                if ndvi_val is not None:
+                    save_show_baseline(_sid, ndvi_val, result.get("ndvi_fecha", ""), result)
+                    log.info(
+                        "dale_play_satellite: baseline guardado show=%s ndvi=%.3f",
+                        _sid, ndvi_val,
+                    )
+            elif mode == "post_show":
+                # Cargar baseline pre-show y calcular delta NDVI
+                baseline = get_show_baseline(_sid)
+                if baseline:
+                    ndvi_pre  = baseline.get("ndvi")
+                    ndvi_post = result.get("ndvi")
+                    if ndvi_pre is not None and ndvi_post is not None:
+                        delta = round(ndvi_post - ndvi_pre, 3)
+                        if delta >= -0.03:
+                            nivel_dano = "sin_daño"
+                        elif delta >= -0.08:
+                            nivel_dano = "leve"
+                        elif delta >= -0.15:
+                            nivel_dano = "moderado"
+                        else:
+                            nivel_dano = "severo"
+                        result.update({
+                            "ndvi_pre":        ndvi_pre,
+                            "delta_ndvi":      delta,
+                            "nivel_dano":      nivel_dano,
+                            "baseline_fecha":  baseline.get("date", ""),
+                            "baseline_fuente": "dale_play_storage",
+                        })
+                        log.info(
+                            "dale_play_satellite: delta NDVI=%.3f nivel=%s (pre=%.3f post=%.3f)",
+                            delta, nivel_dano, ndvi_pre, ndvi_post,
+                        )
+                    elif ndvi_pre is not None:
+                        result["ndvi_pre"]       = ndvi_pre
+                        result["baseline_fecha"] = baseline.get("date", "")
+                else:
+                    log.warning(
+                        "dale_play_satellite: sin baseline en storage para show=%s "
+                        "— delta NDVI no calculado",
+                        _sid,
+                    )
+        except Exception as _st_exc:
+            log.warning("dale_play_satellite: storage integration: %s", _st_exc)
 
     return result

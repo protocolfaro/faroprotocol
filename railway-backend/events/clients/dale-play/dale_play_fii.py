@@ -6,6 +6,7 @@ Escala 0-100. 100 = configuración perfecta.
 """
 from __future__ import annotations
 from datetime import date as _date
+from dale_play_config import CAMPO_LARGO_M, CAMPO_ANCHO_M
 
 
 def compute_fii(
@@ -66,10 +67,11 @@ def compute_fii(
             egms_label = "Estable"
 
     # ── Componente Layout compliance (25%) ────────────────────────────────────
-    # Sin layout → neutral 50. Colisión zona roja = -40. Zona amarilla = -15.
+    # Sin layout → 0 (no hay datos reales — el sistema nunca miente).
+    # Colisión zona roja = -40. Zona amarilla = -15.
     if not layout or not drainage_data:
-        layout_score = 50.0
-        layout_label = "Sin layout"
+        layout_score = 0.0
+        layout_label = "SIN DATOS DE LAYOUT"
     else:
         struct  = layout.get("estructuras") or {}
         zonas   = drainage_data.get("zonas") or []
@@ -81,15 +83,19 @@ def compute_fii(
         colisiones_roja = 0
         colisiones_amarilla = 0
 
+        # Dimensiones del campo desde venue config — nunca hardcodeadas
+        _half_w = CAMPO_ANCHO_M / 2.0   # 34.0 m para Amalfitani
+        _half_l = CAMPO_LARGO_M / 2.0   # 52.5 m para Amalfitani
+
         esc = struct.get("escenario") or {}
         ex, ey = esc.get("x_m"), esc.get("y_m")
         ew = esc.get("ancho_m") or 28
         ed = esc.get("profundidad_m") or 20
         if ex is not None and ey is not None:
-            ex0p = (ex - ew/2 + 34.0) / 68.0 * 100
-            ex1p = (ex + ew/2 + 34.0) / 68.0 * 100
-            ey0p = (ey - ed/2 + 52.5) / 105.0 * 100
-            ey1p = (ey + ed/2 + 52.5) / 105.0 * 100
+            ex0p = (ex - ew/2 + _half_w) / CAMPO_ANCHO_M * 100
+            ex1p = (ex + ew/2 + _half_w) / CAMPO_ANCHO_M * 100
+            ey0p = (ey - ed/2 + _half_l) / CAMPO_LARGO_M * 100
+            ey1p = (ey + ed/2 + _half_l) / CAMPO_LARGO_M * 100
             for z in zonas:
                 if _overlaps(ex0p, ex1p, ey0p, ey1p, z):
                     if z.get("riesgo") == "alto":
@@ -100,8 +106,8 @@ def compute_fii(
         for t in (struct.get("torres_lr") or []):
             tx, ty = t.get("x_m"), t.get("y_m")
             if tx is not None and ty is not None:
-                txp = (tx + 34.0) / 68.0 * 100
-                typ = (ty + 52.5) / 105.0 * 100
+                txp = (tx + _half_w) / CAMPO_ANCHO_M * 100
+                typ = (ty + _half_l) / CAMPO_LARGO_M * 100
                 for z in zonas:
                     if _overlaps(txp - 2, txp + 2, typ - 2, typ + 2, z):
                         if z.get("riesgo") == "alto":

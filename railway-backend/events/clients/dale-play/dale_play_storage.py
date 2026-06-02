@@ -344,5 +344,77 @@ def save_audit_log(show_id: str, modulos_ejecutados: list, modulos_fallidos: lis
     return ok
 
 
+# ── Supabase sync al arrancar ─────────────────────────────────────────────────
+
+def sync_pending_to_supabase() -> dict:
+    """
+    Sube a Supabase los registros de models/storage/ que no existen allí todavía.
+    Llamar desde app.py al iniciar Railway (non-blocking — errors son logueados).
+    Retorna {"synced": int, "skipped": int, "failed": int}.
+    """
+    if not _is_configured():
+        log.info("sync_pending: Supabase no configurado — saltear")
+        return {"synced": 0, "skipped": 0, "failed": 0, "nota": "Supabase no configurado"}
+
+    if not _LOCAL_DIR.exists():
+        return {"synced": 0, "skipped": 0, "failed": 0}
+
+    synced = skipped = failed = 0
+    for p in sorted(_LOCAL_DIR.glob("*.json")):
+        stem = p.stem   # e.g. "baseline_airbag_2026-05-31"
+        try:
+            data = json.loads(p.read_text(encoding="utf-8"))
+        except Exception as exc:
+            log.warning("sync_pending: no se pudo leer %s: %s", p.name, exc)
+            failed += 1
+            continue
+
+        try:
+            if stem.startswith("baseline_"):
+                show_id = data.get("show_id") or stem[len("baseline_"):]
+                if _select_one("show_baselines", "show_id", show_id):
+                    skipped += 1
+                    continue
+                ok = _upsert("show_baselines", {
+                    "show_id":   show_id,
+                    "ndvi":      data.get("ndvi"),
+                    "date":      data.get("date"),
+                    "satellite": data.get("satellite", {}),
+                })
+            elif stem.startswith("cert_"):
+                show_id = data.get("show_id") or stem[len("cert_"):]
+                if _select_one("certifications", "show_id", show_id):
+                    skipped += 1
+                    continue
+                ok = _upsert("certifications", {
+                    "show_id":    show_id,
+                    "cert_hash":  data.get("cert_hash", ""),
+                    "pdf_path":   data.get("pdf_path", ""),
+                    "ndvi_pre":   data.get("ndvi_pre"),
+                    "ndvi_post":  data.get("ndvi_post"),
+                    "delta_ndvi": data.get("delta_ndvi"),
+                    "nivel_dano": data.get("nivel_dano", "sin_datos"),
+                    "data":       data.get("data", {}),
+                })
+            else:
+                skipped += 1
+                continue
+
+            if ok:
+                synced += 1
+                log.info("sync_pending: %s → Supabase OK", stem)
+            else:
+                failed += 1
+                log.warning("sync_pending: %s → Supabase FAILED", stem)
+
+        except Exception as exc:
+            failed += 1
+            log.warning("sync_pending: %s error: %s", p.name, exc)
+
+    log.info("sync_pending_to_supabase: synced=%d skipped=%d failed=%d",
+             synced, skipped, failed)
+    return {"synced": synced, "skipped": skipped, "failed": failed}
+
+
 # ── aliases para imports legacy ───────────────────────────────────────────────
 import json as _json, sys as _sys

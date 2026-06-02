@@ -1,0 +1,64 @@
+{
+  "venue_id":   "amalfitani",
+  "nombre":     "Estadio José Amalfitani",
+  "nombre_corto": "Amalfitani",
+  "direccion":  "Juan B. Justo 9200, Liniers, Buenos Aires",
+  "capacidad":  49540,
+  "lat":        -34.6379,
+  "lon":        -58.5288,
+  "bbox":       [-58.5305, -34.6391, -58.5271, -34.6367],
+
+  "campo": {
+    "largo_m": 105,
+    "ancho_m": 68,
+    "superficie": "Césped natural híbrido (Bermuda) + sintético perimetral"
+  },
+
+  "tribunas": [
+    {"id": "norte",  "nombre": "Tribuna Norte",         "lat": -34.6370, "lon": -58.5288},
+    {"id": "sur",    "nombre": "Tribuna Sur",            "lat": -34.6388, "lon": -58.5288},
+    {"id": "este",   "nombre": "Tribuna Este",           "lat": -34.6379, "lon": -58.5277},
+    {"id": "oeste",  "nombre": "Tribuna Oeste (Principal)", "lat": -34.6379, "lon": -58.5299}
+  ],
+
+  "sectores_acusticos": [
+    {"id": "campo_central",     "nombre": "Campo Central",     "dist_m": 80,  "height_m": 0,  "angulo_deg": 0,   "capacidad": 25000},
+    {"id": "tribuna_norte",     "nombre": "Tribuna Norte",     "dist_m": 120, "height_m": 8,  "angulo_deg": 30,  "capacidad": 8000},
+    {"id": "tribuna_sur",       "nombre": "Tribuna Sur",       "dist_m": 140, "height_m": 8,  "angulo_deg": 330, "capacidad": 8000},
+    {"id": "tribuna_este",      "nombre": "Tribuna Este",      "dist_m": 130, "height_m": 8,  "angulo_deg": 0,   "capacidad": 4000},
+    {"id": "platea_alta_norte", "nombre": "Platea Alta Norte", "dist_m": 150, "height_m": 15, "angulo_deg": 25,  "capacidad": 5000},
+    {"id": "platea_alta_sur",   "nombre": "Platea Alta Sur",   "dist_m": 170, "height_m": 15, "angulo_deg": 335, "capacidad": 5000}
+  ],
+
+  "zonas_drenaje": [
+    {"id": "canal_central", "nombre": "Canal N-S",     "tipo": "exclusion",  "riesgo": "alto",   "capacidad_kpa": 32, "x_pct": [44, 56], "y_pct": [0,  100], "descripcion": "Canal principal N-S. No apoyar estructuras > 2 t sobre esta franja."},
+    {"id": "colector_sur",  "nombre": "Colector Sur",  "tipo": "exclusion",  "riesgo": "alto",   "capacidad_kpa": 28, "x_pct": [15, 85], "y_pct": [0,  18],  "descripcion": "Cañería colectora 1.2 m prof. Escenario: usar tarimas distribuidoras."},
+    {"id": "lateral_este",  "nombre": "Lateral E",     "tipo": "precaucion", "riesgo": "medio",  "capacidad_kpa": 58, "x_pct": [72, 85], "y_pct": [18, 82],  "descripcion": "Canal lateral este. Torres de sonido: plataformas distribuidoras de carga."},
+    {"id": "lateral_oeste", "nombre": "Lateral O",     "tipo": "precaucion", "riesgo": "medio",  "capacidad_kpa": 58, "x_pct": [15, 28], "y_pct": [18, 82],  "descripcion": "Canal lateral oeste."},
+    {"id": "area_norte",    "nombre": "Área Norte",    "tipo": "seguro",     "riesgo": "medio",  "capacidad_kpa": 118,"x_pct": [20, 80], "y_pct": [82, 100], "descripcion": "Suelo firme. Barricada y consola FOH aptos."},
+    {"id": "cuadrante_este","nombre": "Centro E",      "tipo": "seguro",     "riesgo": "medio",  "capacidad_kpa": 105,"x_pct": [56, 85], "y_pct": [20, 80],  "descripcion": "Cuadrante este del centro."},
+    {"id": "cuadrante_oeste","nombre": "Centro O",     "tipo": "seguro",     "riesgo": "medio",  "capacidad_kpa": 105,"x_pct": [15, 44], "y_pct": [20, 80],  "descripcion": "Cuadrante oeste del centro."}
+  ],
+
+  "suelo": {
+    "tipo":                   "Franco-arcilloso",
+    "capacidad_portante_kpa": 120,
+    "capacidad_saturada_kpa": 65,
+    "clay_pct":               35,
+    "silt_pct":               40,
+    "sand_pct":               25,
+    "ph":                     6.5,
+    "bulk_density_g_cm3":     1.45
+  },
+
+  "spl_compliance": {
+    "limite_diurno_dba":   65,
+    "limite_nocturno_dba": 55,
+    "hora_nocturno":       20,
+    "dist_predial_m":      180,
+    "atenuacion_estructura_db": 12,
+    "normativa": "Ordenanza GCBA 11.554/1994 + Res. 5613/2016"
+  },
+
+  "modis_tile": "h13v12"
+}

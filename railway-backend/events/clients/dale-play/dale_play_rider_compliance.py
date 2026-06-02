@@ -150,10 +150,36 @@ def _check_drainage_compliance(rider: dict, drainage: dict) -> tuple[list, list]
     return incs, aprs
 
 
+def _check_source_uncertainty(soil: dict, drainage: dict) -> list:
+    """
+    Si suelo o drenaje usaron fallback/estimación, agrega advertencia explícita.
+    El compliance no debe presentarse como definitivo si los datos base son estimados.
+    """
+    warnings = []
+    for modulo, data in [("suelo", soil), ("drenaje", drainage)]:
+        if not data:
+            continue
+        if data.get("fallback_usado") or data.get("estimado"):
+            fuente = data.get("fuente", "desconocida")
+            warnings.append({
+                "categoria": modulo,
+                "estado":    "ADVERTENCIA DE INCERTIDUMBRE",
+                "detalle":   (
+                    f"Análisis de {modulo} basado en estimación — "
+                    f"fuente: {fuente}. "
+                    "Verificar con dato real antes del show."
+                ),
+                "severidad": "advertencia",
+                "accion":    f"Confirmar capacidad portante del {modulo} con medición in-situ",
+            })
+    return warnings
+
+
 def analyze_rider_compliance(rider: dict, acoustic: dict, soil: dict, drainage: dict) -> dict:
     """
     Evalúa compliance del rider contra condiciones reales.
     INDETERMINADO si el módulo no está disponible — nunca inventa datos.
+    Si suelo o drenaje son estimados, agrega advertencia de incertidumbre.
     """
     incs, aprs = [], []
 
@@ -164,6 +190,10 @@ def analyze_rider_compliance(rider: dict, acoustic: dict, soil: dict, drainage: 
     incs.extend(ac_i); aprs.extend(ac_a)
     incs.extend(so_i); aprs.extend(so_a)
     incs.extend(dr_i); aprs.extend(dr_a)
+
+    # Advertencias de incertidumbre por datos estimados
+    uncertainty_warnings = _check_source_uncertainty(soil, drainage)
+    incs.extend(uncertainty_warnings)
 
     criticos     = [i for i in incs if i.get("severidad") == "critico"]
     advertencias = [i for i in incs if i.get("severidad") == "advertencia"]

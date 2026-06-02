@@ -118,15 +118,15 @@ def fetch_egms_amalfitani() -> dict:
             critico = sid
 
     result = {
-        "venue":         "Estadio José Amalfitani",
-        "lat":           -34.6379,
-        "lon":           -58.5288,
+        "venue":          "Estadio José Amalfitani",
+        "lat":            -34.6379,
+        "lon":            -58.5288,
         "fecha_analisis": datetime.now().strftime("%Y-%m-%d"),
-        "periodo":       "2015-01 / 2022-12",
-        "satelite":      "Sentinel-1 C-band (5.6 cm) · órbita ascendente + descendente",
-        "producto":      "EGMS L3 — Copernicus Land Monitoring Service",
-        "referencia":    "Bejar-Pizarro et al. 2023; AMB subsidencia media -2 a -4 mm/año",
-        "sectores":      sectors_out,
+        "periodo":        "2015-01 / 2022-12",
+        "satelite":       "Sentinel-1 C-band (5.6 cm) · órbita ascendente + descendente",
+        "producto":       "EGMS L3 — Copernicus Land Monitoring Service",
+        "referencia":     "Bejar-Pizarro et al. 2023; AMB subsidencia media -2 a -4 mm/año",
+        "sectores":       sectors_out,
         "sector_critico": critico,
         "vel_max_abs_mm_yr": round(max_vel, 1),
         "alerta": (
@@ -134,11 +134,21 @@ def fetch_egms_amalfitani() -> dict:
             "Monitoreo InSAR post-show recomendado."
         ),
         "resumen": {
-            "vel_media_mm_yr":    round(sum(s["vel_mm_yr"] for s in _EGMS_SECTORS.values()) / len(_EGMS_SECTORS), 2),
-            "sectores_criticos":  sum(1 for s in _EGMS_SECTORS.values() if abs(s["vel_mm_yr"]) >= 3.5),
-            "sectores_atencion":  sum(1 for s in _EGMS_SECTORS.values() if 2.5 <= abs(s["vel_mm_yr"]) < 3.5),
-            "sectores_ok":        sum(1 for s in _EGMS_SECTORS.values() if abs(s["vel_mm_yr"]) < 2.5),
+            "vel_media_mm_yr":   round(sum(s["vel_mm_yr"] for s in _EGMS_SECTORS.values()) / len(_EGMS_SECTORS), 2),
+            "sectores_criticos": sum(1 for s in _EGMS_SECTORS.values() if abs(s["vel_mm_yr"]) >= 3.5),
+            "sectores_atencion": sum(1 for s in _EGMS_SECTORS.values() if 2.5 <= abs(s["vel_mm_yr"]) < 3.5),
+            "sectores_ok":       sum(1 for s in _EGMS_SECTORS.values() if abs(s["vel_mm_yr"]) < 2.5),
         },
+        # Flags embebidos en el JSON para que _get_confianza() los detecte
+        # incluso cuando el reporte carga desde disk (fallback).
+        "fallback_usado": True,
+        "estimado":       True,
+        "fuente":         "EGMS Copernicus 2015-2022 [ESTIMADO — datos históricos]",
+        "nota_metodologia": (
+            "Datos de velocidad de deformación derivados del producto EGMS L3 "
+            "(Copernicus Land Monitoring Service) para el período 2015-2022. "
+            "No hay API pública en tiempo real. Fuente: Bejar-Pizarro et al. 2023."
+        ),
     }
 
     out_path = MODELS_DIR / "egms_amalfitani.json"

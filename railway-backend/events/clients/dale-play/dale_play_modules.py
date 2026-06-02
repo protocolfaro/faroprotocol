@@ -21,7 +21,8 @@ class SatelliteModule(DalePlayModule):
             from dale_play_satellite import fetch_satellite_baseline
             mode      = kwargs.get("mode", "full")
             show_date = kwargs.get("show_date", "")
-            out = fetch_satellite_baseline(mode=mode, show_date=show_date)
+            show_id   = kwargs.get("show_id", "")
+            out = fetch_satellite_baseline(mode=mode, show_date=show_date, show_id=show_id)
             out.setdefault("fuente", self.DATA_SOURCE)
             out.setdefault("fallback_usado", out.get("ndvi") is None)
             return out

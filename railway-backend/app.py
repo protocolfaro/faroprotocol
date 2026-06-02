@@ -735,6 +735,26 @@ try:
         log.info("Dale Play post-show scheduler inicializado (compartiendo APScheduler)")
     except Exception as _dp_sched2_err:
         log.warning("Dale Play post-show scheduler: %s", _dp_sched2_err)
+    # Dale Play — time series fenológica Amalfitani (actualización mensual)
+    try:
+        from satellite.field_timeseries import register_timeseries_job as _ft_register
+        _ft_register(
+            _scheduler,
+            venue_id="amalfitani",
+            bbox=[-58.5305, -34.6391, -58.5271, -34.6367],
+            start_year=2020,
+        )
+    except Exception as _ft_err:
+        log.warning("field_timeseries scheduler: %s", _ft_err)
+    # Dale Play — sync local storage → Supabase (archivos generados offline o durante outage)
+    try:
+        def _dp_sync():
+            from dale_play_storage import sync_pending_to_supabase
+            result = sync_pending_to_supabase()
+            log.info("Dale Play sync_pending_to_supabase: %s", result)
+        threading.Thread(target=_dp_sync, daemon=True).start()
+    except Exception as _dp_sync_err:
+        log.warning("Dale Play sync_pending: %s", _dp_sync_err)
     log.info("Schedulers registered: daily weather + weekly reports + dale_play sources + dale_play post-show")
 except Exception as _sched_err:
     _scheduler = None
