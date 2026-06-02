@@ -1,0 +1,9 @@
+[phases.setup]
+nixPkgs = ["hdf4"]
+
+[phases.install]
+cmds = [
+  "pip install --upgrade pip",
+  "pip install pyhdf",
+  "pip install -r requirements.txt"
+]

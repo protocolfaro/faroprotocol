@@ -136,58 +136,130 @@ def _download_granule(granule: dict) -> Optional[str]:
         return None
 
 
+def _bbox_to_tile_pixels(ul_x: float, ul_y: float, lr_x: float, lr_y: float,
+                          n_pixels: int = 2400) -> tuple[int, int, int, int]:
+    """
+    Convierte _MODIS_BBOX (lon/lat WGS84) a índices de pixel en el tile MODIS sinusoidal.
+
+    MODIS sinusoidal: x = R × lon × cos(lat), y = R × lat  (R = 6371007.181 m)
+    ul_x/ul_y, lr_x/lr_y: esquinas del tile en metros sinusoidales (de StructMetadata).
+    Retorna (row_start, row_end, col_start, col_end) dentro del tile n_pixels×n_pixels.
+    """
+    import math
+    R = 6371007.181
+
+    w, s, e, n = _MODIS_BBOX  # grados
+
+    def to_sinu(lon_deg: float, lat_deg: float) -> tuple[float, float]:
+        lat_r = math.radians(lat_deg)
+        lon_r = math.radians(lon_deg)
+        return R * lon_r * math.cos(lat_r), R * lat_r
+
+    nw_x, nw_y = to_sinu(w, n)
+    se_x, se_y = to_sinu(e, s)
+
+    tile_w = lr_x - ul_x
+    tile_h = ul_y - lr_y   # positivo porque ul_y > lr_y
+
+    col0 = max(0, int((nw_x - ul_x) / tile_w * n_pixels) - 2)
+    col1 = min(n_pixels - 1, int((se_x - ul_x) / tile_w * n_pixels) + 2)
+    row0 = max(0, int((ul_y - nw_y) / tile_h * n_pixels) - 2)
+    row1 = min(n_pixels - 1, int((ul_y - se_y) / tile_h * n_pixels) + 2)
+    return row0, row1, col0, col1
+
+
+def _read_ndvi_pyhdf(hdf_path: str) -> Optional[float]:
+    """
+    Lee NDVI de MOD09GQ con pyhdf + math sinusoidal MODIS.
+    No requiere GDAL/rasterio — solo libhdf4 (instalado via nixpacks.toml).
+    """
+    import re
+    import numpy as np
+    try:
+        from pyhdf.SD import SD, SDC
+    except ImportError:
+        return None
+
+    try:
+        hdf     = SD(hdf_path, SDC.READ)
+        attrs   = hdf.attributes()
+
+        # Extraer extent del tile desde StructMetadata.0
+        struct  = attrs.get("StructMetadata.0", "")
+        ul_m    = re.search(r"UpperLeftPointMtrs=\(([^,]+),([^)]+)\)", struct)
+        lr_m    = re.search(r"LowerRightMtrs=\(([^,]+),([^)]+)\)", struct)
+
+        if ul_m and lr_m:
+            ul_x = float(ul_m.group(1)); ul_y = float(ul_m.group(2))
+            lr_x = float(lr_m.group(1)); lr_y = float(lr_m.group(2))
+            r0, r1, c0, c1 = _bbox_to_tile_pixels(ul_x, ul_y, lr_x, lr_y)
+        else:
+            # Fallback: use approximate center of tile (less accurate)
+            r0, r1, c0, c1 = 1100, 1120, 490, 510
+            log.warning("modis: StructMetadata no encontrado — usando centro de tile como fallback")
+
+        b01 = hdf.select("sur_refl_b01")[r0:r1+1, c0:c1+1].astype("float32") * 0.0001
+        b02 = hdf.select("sur_refl_b02")[r0:r1+1, c0:c1+1].astype("float32") * 0.0001
+        hdf.end()
+
+        valid = (b01 > -0.01) & (b02 > -0.01) & (b01 < 1.5) & (b02 < 1.5)
+        if valid.sum() < 1:
+            log.warning("modis pyhdf: sin píxeles válidos (shape=%s)", b01.shape)
+            return None
+
+        r_v, n_v = b01[valid], b02[valid]
+        ndvi = float(np.mean((n_v - r_v) / (n_v + r_v + 1e-9)))
+        log.info("modis pyhdf: NDVI=%.3f píxeles=%d", ndvi, int(valid.sum()))
+        return round(ndvi, 3)
+
+    except Exception as exc:
+        log.warning("modis pyhdf: error: %s", exc)
+        return None
+
+
 def _read_ndvi_hdf4(hdf_path: str) -> Optional[float]:
     """
-    Lee B01 (Red 620-670nm) y B02 (NIR 841-876nm) de MOD09GQ via rasterio HDF4.
-    Requiere GDAL compilado con HDF4 support (libhdf4).
-
-    MODIS scale factor: 0.0001 | Fill value: -28672 | Valid range: -100 a 16000
+    Lee B01/B02 de MOD09GQ → NDVI.
+    Intenta pyhdf primero (no requiere GDAL HDF4 driver).
+    Fallback a rasterio HDF4_EOS (requiere GDAL con libhdf4).
     """
+    # Intento 1: pyhdf (funciona con nixpacks hdf4, sin GDAL)
+    ndvi = _read_ndvi_pyhdf(hdf_path)
+    if ndvi is not None:
+        return ndvi
+
+    # Intento 2: rasterio HDF4_EOS (GDAL compilado con libhdf4)
     try:
         import rasterio
         import numpy as np
         from rasterio.warp import transform_bounds
         from rasterio.windows import from_bounds
 
-        b01_path = (
-            f"HDF4_EOS:EOS_GRID:{hdf_path}:MOD_Grid_250m_Surface_Refl:sur_refl_b01"
-        )
-        b02_path = (
-            f"HDF4_EOS:EOS_GRID:{hdf_path}:MOD_Grid_250m_Surface_Refl:sur_refl_b02"
-        )
-
-        def _read_band(path: str) -> Optional[np.ndarray]:
-            with rasterio.open(path) as src:
+        def _read_band(subdataset: str) -> Optional["np.ndarray"]:
+            with rasterio.open(subdataset) as src:
                 w, s, e, n = _MODIS_BBOX
                 native = transform_bounds("EPSG:4326", src.crs, w, s, e, n)
                 win    = from_bounds(*native, transform=src.transform)
-                data   = src.read(1, window=win).astype("float32")
-                return data * 0.0001   # scale factor MOD09GQ
+                return src.read(1, window=win).astype("float32") * 0.0001
 
-        b01 = _read_band(b01_path)
-        b02 = _read_band(b02_path)
+        b01 = _read_band(f"HDF4_EOS:EOS_GRID:{hdf_path}:MOD_Grid_250m_Surface_Refl:sur_refl_b01")
+        b02 = _read_band(f"HDF4_EOS:EOS_GRID:{hdf_path}:MOD_Grid_250m_Surface_Refl:sur_refl_b02")
 
-        # Filtrar fill values y fuera de rango físico (reflectancia 0-1.5)
         valid = (b01 > -0.01) & (b02 > -0.01) & (b01 < 1.5) & (b02 < 1.5)
         if valid.sum() < 1:
-            log.warning("modis: sin píxeles válidos en bbox (pixeles=%d)", int(valid.sum()))
             return None
 
         r_v, n_v = b01[valid], b02[valid]
         ndvi = float(np.mean((n_v - r_v) / (n_v + r_v + 1e-9)))
-        log.info("modis: NDVI=%.3f píxeles_válidos=%d", ndvi, int(valid.sum()))
+        log.info("modis rasterio: NDVI=%.3f píxeles=%d", ndvi, int(valid.sum()))
         return round(ndvi, 3)
 
     except Exception as exc:
         hdf4_missing = "HDF4" in str(exc).upper() or "HDF4_EOS" in str(exc)
         if hdf4_missing:
-            log.warning(
-                "modis: GDAL HDF4 driver no disponible — "
-                "Railway usa rasterio sin libhdf4. "
-                "Ver nota en dale_play_modis.py sobre openEO como alternativa."
-            )
+            log.warning("modis: GDAL HDF4 + pyhdf no disponibles en este entorno")
         else:
-            log.warning("modis: rasterio HDF4 read error: %s", exc)
+            log.warning("modis rasterio: error: %s", exc)
         return None
 
 
@@ -220,11 +292,16 @@ def fetch_modis_ndvi(show_date: str = "", days_back: int = 7) -> dict:
             ),
         }
 
-    # Ventana temporal: solo post-show
-    end_dt = date.today()
+    # Ventana temporal: show_date - days_back → hoy
+    # MODIS (Terra) tiene latencia de 1-3 días en CMR. Buscamos desde days_back
+    # antes del show para garantizar un granule disponible aunque el post-show
+    # aún no esté ingestado. El granule se etiqueta como pre/post show según fecha.
+    end_dt   = date.today()
+    show_dt  = None
     if show_date:
         try:
-            start_dt = date.fromisoformat(show_date)
+            show_dt  = date.fromisoformat(show_date)
+            start_dt = show_dt - timedelta(days=days_back)
         except ValueError:
             start_dt = end_dt - timedelta(days=days_back)
     else:
@@ -234,7 +311,7 @@ def fetch_modis_ndvi(show_date: str = "", days_back: int = 7) -> dict:
         return {
             "ndvi":  None,
             "fuente": "MODIS_MOD09GQ",
-            "error": f"show_date {show_date} es futuro — sin datos MODIS disponibles",
+            "error": f"show_date {show_date} es muy futuro — sin datos MODIS disponibles",
         }
 
     # 1. Auth
@@ -276,21 +353,28 @@ def fetch_modis_ndvi(show_date: str = "", days_back: int = 7) -> dict:
             "fuente": "MODIS_MOD09GQ",
             "fecha":  fecha_granule,
             "error":  (
-                "GDAL HDF4 driver no disponible en Railway. "
-                "Próximo paso: openEO CDSE como alternativa cloud-native sin descarga."
+                "pyhdf y GDAL HDF4 driver no disponibles en este entorno. "
+                "Railway: verificar nixpacks.toml con hdf4 + pip install pyhdf."
             ),
         }
 
+    es_post_show = (show_dt is not None) and (
+        date.fromisoformat(fecha_granule) >= show_dt
+    ) if fecha_granule else None
+
     return {
-        "ndvi":       ndvi,
-        "fecha":      fecha_granule,
-        "fuente":     "MODIS_MOD09GQ",
-        "resolucion": "250m — 1km² entorno stadium",
-        "tile":       _MODIS_TILE,
-        "producto":   "MOD09GQ v061 · Terra Surface Reflectance Daily",
-        "nota":       (
+        "ndvi":         ndvi,
+        "fecha":        fecha_granule,
+        "fuente":       "MODIS_MOD09GQ",
+        "post_show":    es_post_show,           # True=imagen post-show, False=pre-show (latencia)
+        "resolucion":   "250m — 1km² entorno stadium",
+        "tile":         _MODIS_TILE,
+        "producto":     "MOD09GQ v061 · Terra Surface Reflectance Daily",
+        "nota":         (
             "250m integra campo + tribuna + entorno — "
             "alerta temprana de área, no daño específico del campo. "
             "Confirmar con S2/HLS cuando disponibles."
+            + ("" if es_post_show else
+               " [imagen PRE-show — datos post-show con latencia 1-3 días en CMR]")
         ),
     }
