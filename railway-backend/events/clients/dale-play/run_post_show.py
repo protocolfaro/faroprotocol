@@ -155,10 +155,12 @@ def _fetch_s2_ndvi_e84(date_str: str) -> dict:
     }
 
 
-def _find_s2_dates(date_from: str, date_to: str, max_dates: int = 3) -> list:
+def _find_s2_dates(date_from: str, date_to: str, max_dates: int = 3,
+                   sort_by: str = "date") -> list:
     """
     Busca en Element84 STAC las mejores fechas S2 en el rango [date_from, date_to].
-    Retorna hasta max_dates fechas (ISO) ordenadas por fecha descendente (más reciente primero).
+    sort_by="date"  → más reciente primero (default, post-show).
+    sort_by="cloud" → menor nubosidad primero (pre-show: busca imagen más limpia).
     """
     import requests
     payload = {
@@ -185,9 +187,14 @@ def _find_s2_dates(date_from: str, date_to: str, max_dates: int = 3) -> list:
         if dt and (dt not in seen or cc < seen[dt]):
             seen[dt] = cc
 
-    sorted_dates = sorted(seen.keys(), reverse=True)
-    log.info("_find_s2_dates [%s,%s]: %d fechas — %s",
-             date_from, date_to, len(sorted_dates), sorted_dates[:5])
+    if sort_by == "cloud":
+        sorted_dates = sorted(seen.keys(), key=lambda d: seen[d])   # limpia primero
+    else:
+        sorted_dates = sorted(seen.keys(), reverse=True)             # reciente primero
+
+    log.info("_find_s2_dates [%s,%s] sort=%s: %d fechas — %s",
+             date_from, date_to, sort_by, len(sorted_dates),
+             [(d, f"{seen[d]:.1f}%") for d in sorted_dates[:5]])
     return sorted_dates[:max_dates]
 
 
@@ -704,7 +711,7 @@ def run_post_show(show_id: str) -> dict:
     pre_from = (show_dt - timedelta(days=45)).isoformat()
     pre_to   = (show_dt - timedelta(days=1)).isoformat()
     log.info("--- Buscando S2 pre-show en [%s, %s] ---", pre_from, pre_to)
-    pre_candidates = _find_s2_dates(pre_from, pre_to, max_dates=1)
+    pre_candidates = _find_s2_dates(pre_from, pre_to, max_dates=1, sort_by="cloud")
     if pre_candidates:
         pre_date_str = pre_candidates[0]
         log.info("S2 pre-show: encontrada %s", pre_date_str)
