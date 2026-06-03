@@ -281,12 +281,14 @@ def _build_pdf(cert_data: dict, out_path: pathlib.Path) -> None:
         return TableStyle(cmds + list(extra))
 
     # ── Gauge FII como Drawing ─────────────────────────────────────────────
-    def _gauge(val, w=13.4 * cm, h=8 * mm, fill=GOLD):
+    def _gauge(val, w=13.4 * cm, h=8 * mm, fill=GOLD, marker=None):
         d = Drawing(w, h)
         d.add(Rect(0, 0, w, h, fillColor=BG2, strokeColor=WDIM, strokeWidth=0.5))
         if val is not None:
             fw = max(1 * mm, w * (float(val) / 100.0))
             d.add(Rect(0, 0, fw, h, fillColor=fill, strokeColor=None, strokeWidth=0))
+            if marker:
+                d.add(Line(fw, 0, fw, h, strokeColor=marker, strokeWidth=2.5))
         for tick in (0.25, 0.50, 0.75):
             tx = w * tick
             d.add(Line(tx, 0, tx, h * 0.35, strokeColor=BG, strokeWidth=1.2))
@@ -445,12 +447,14 @@ def _build_pdf(cert_data: dict, out_path: pathlib.Path) -> None:
     # ═══════════════════════════════════════════════════════════════════════
     # FII — Índice Faro de Integridad (gauge visual)
     # ═══════════════════════════════════════════════════════════════════════
-    _fii_r    = cert_data.get("fii") or {}
-    _fii_val  = _fii_r.get("fii")
-    _fii_sell = _fii_r.get("sello", "N/D")
-    _fii_sem  = _fii_r.get("semaforo", "sin_datos")
-    _fii_fill = GREEN if _fii_sem == "ok" else (AMBER if _fii_sem == "atencion" else RED)
-    _fii_comp = _fii_r.get("componentes") or {}
+    _fii_r       = cert_data.get("fii") or {}
+    _fii_val     = _fii_r.get("fii")
+    _fii_sell    = _fii_r.get("sello", "N/D")
+    _fii_sem     = _fii_r.get("semaforo", "sin_datos")
+    _fii_sem_col = GREEN if _fii_sem == "ok" else (AMBER if _fii_sem == "atencion" else RED)
+    _fii_fill    = GOLD   # número y barra siempre dorado — acento de marca
+    _fii_marker  = RED if _fii_sem not in ("ok", "atencion") else None
+    _fii_comp    = _fii_r.get("componentes") or {}
 
     _fii_str  = f"{_fii_val:.1f}" if _fii_val is not None else "N/D"
 
@@ -459,7 +463,7 @@ def _build_pdf(cert_data: dict, out_path: pathlib.Path) -> None:
         [[Paragraph(_fii_str, _P("fsn", fn=_FT, fs=34, tc=_fii_fill, sa=0, align=1)),
           Paragraph("/ 100", _P("f100", fn=_FB, fs=13, tc=WDIM, sa=0, align=0)),
           Paragraph(f"[ {_fii_sell} ]",
-                    _P("fsl", fn=_FT, fs=10, tc=_fii_fill, sa=0, align=2))]],
+                    _P("fsl", fn=_FT, fs=10, tc=_fii_sem_col, sa=0, align=2))]],
         colWidths=[3.6 * cm, 2.0 * cm, 10.8 * cm],
         rowHeights=[1.4 * cm],
     )
@@ -475,7 +479,7 @@ def _build_pdf(cert_data: dict, out_path: pathlib.Path) -> None:
         Paragraph("ÍNDICE FARO DE INTEGRIDAD (FII)", P_sec),
         _score_tbl,
         Spacer(1, 0.2 * cm),
-        _gauge(_fii_val, fill=_fii_fill),
+        _gauge(_fii_val, fill=_fii_fill, marker=_fii_marker),
         Spacer(1, 2),
         Paragraph(
             "0 ·················· 25 ·················· 50 ·················· 75 ···················· 100",
@@ -589,8 +593,10 @@ def _build_pdf(cert_data: dict, out_path: pathlib.Path) -> None:
         "Óptico: Copernicus / Sentinel-2 L2A (ESA) via AWS Earth Search (Element84).",
         P_mono))
     story.append(Spacer(1, 0.1 * cm))
-    story.append(Paragraph(f"CERT-SHA256: {cert_data['cert_hash']}", P_hash))
-    story.append(Paragraph(f"Verificar: {_verify_url}", P_hash))
+    _hash_short = cert_data['cert_hash'][:32] + "…" + cert_data['cert_hash'][-8:]
+    _url_display = (_verify_url[:65] + "…") if len(_verify_url) > 65 else _verify_url
+    story.append(Paragraph(f"CERT-SHA256: {_hash_short}", P_hash))
+    story.append(Paragraph(f"Verificar:   {_url_display}", P_hash))
 
     doc.build(story, onFirstPage=_bg, onLaterPages=_bg)
 
