@@ -155,340 +155,444 @@ def _compute_sar_damage(vv_baseline: "float | None", vv_show: "float | None") ->
 # ── Generador PDF ─────────────────────────────────────────────────────────────
 
 def _build_pdf(cert_data: dict, out_path: pathlib.Path) -> None:
-    """Genera el PDF de certificación con layout bifásico: SAR primario + NDVI secundario."""
+    """Genera PDF certificado premium Faro Protocol — diseño oscuro con acento dorado."""
     import io as _io
     from reportlab.lib.pagesizes import A4
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.lib.units import cm
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.units import cm, mm
     from reportlab.lib import colors
     from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
-                                    Table, TableStyle, HRFlowable, Image as RLImage)
+                                    Table, TableStyle, HRFlowable,
+                                    Image as RLImage, KeepTogether)
+    from reportlab.graphics.shapes import Drawing, Rect, Line
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
 
+    # ── Paleta ───────────────────────────────────────────────────────────────
+    GOLD  = colors.HexColor("#c9a84c")
+    BG    = colors.HexColor("#0a0a0a")
+    BG2   = colors.HexColor("#111318")
+    BG3   = colors.HexColor("#161b22")
+    WHITE = colors.HexColor("#f2ede4")
+    WDIM  = colors.HexColor("#6e7681")
+    GREEN = colors.HexColor("#2ecc71")
+    AMBER = colors.HexColor("#f39c12")
+    RED   = colors.HexColor("#e74c3c")
+    PAGE_W, PAGE_H = A4
+
+    # ── Fonts — Georgia serif (sistema Windows/Linux) ─────────────────────
+    _FT = "Helvetica-Bold"   # título
+    _FB = "Helvetica"        # cuerpo
+    _FM = "Courier"          # mono hash
+
+    _reg: set = set()
+    for _fname, _paths in [
+        ("Georgia",   [r"C:\Windows\Fonts\georgia.ttf",
+                       "/usr/share/fonts/truetype/msttcorefonts/Georgia.ttf"]),
+        ("GeorgiaBd", [r"C:\Windows\Fonts\georgiab.ttf",
+                       "/usr/share/fonts/truetype/msttcorefonts/Georgia_Bold.ttf"]),
+        ("Calibri",   [r"C:\Windows\Fonts\calibri.ttf"]),
+        ("CalibriBd", [r"C:\Windows\Fonts\calibrib.ttf"]),
+    ]:
+        for _p in _paths:
+            if pathlib.Path(_p).exists():
+                try:
+                    pdfmetrics.registerFont(TTFont(_fname, _p))
+                    _reg.add(_fname)
+                    break
+                except Exception:
+                    pass
+
+    if "GeorgiaBd" in _reg:
+        _FT = "GeorgiaBd"
+    elif "Georgia" in _reg:
+        _FT = "Georgia"
+    if "Calibri" in _reg:
+        _FB = "Calibri"
+    _FB_BD = "CalibriBd" if "CalibriBd" in _reg else _FT
+
+    # ── QR dorado sobre fondo negro ───────────────────────────────────────
     _verify_url = (
-        f"https://faroprotocol-production-45fd.up.railway.app"
+        "https://faroprotocol-production-45fd.up.railway.app"
         f"/dale-play/verify/{cert_data['cert_hash']}"
     )
-    _qr_img_data = None
+    _qr_buf = None
     try:
         import qrcode
-        qr = qrcode.QRCode(version=1, box_size=4, border=2)
+        qr = qrcode.QRCode(version=2, box_size=7, border=2,
+                           error_correction=qrcode.constants.ERROR_CORRECT_M)
         qr.add_data(_verify_url)
         qr.make(fit=True)
-        _qr_pil = qr.make_image(fill_color="black", back_color="white")
+        _pil = qr.make_image(fill_color="#c9a84c", back_color="#0a0a0a")
         _qr_buf = _io.BytesIO()
-        _qr_pil.save(_qr_buf, format="PNG")
+        _pil.save(_qr_buf, format="PNG")
         _qr_buf.seek(0)
-        _qr_img_data = _qr_buf
     except Exception as _qe:
-        log.warning("QR generation failed: %s", _qe)
+        log.warning("QR gen failed: %s", _qe)
 
-    GOLD  = colors.HexColor("#c9a84c")
-    BG    = colors.HexColor("#0d1117")
-    BG2   = colors.HexColor("#141c24")
-    WHITE = colors.HexColor("#f2ede4")
-    WDIM  = colors.HexColor("#9aa0a8")
-    REDL  = colors.HexColor("#e74c3c")
-    GRNL  = colors.HexColor("#27ae60")
-    YELL  = colors.HexColor("#f0b429")
-    CYAN  = colors.HexColor("#00b4d8")
+    # ── Callback fondo oscuro — se pasa a doc.build() ─────────────────────
+    def _bg(canvas, doc):
+        canvas.saveState()
+        canvas.setFillColor(BG)
+        canvas.rect(0, 0, PAGE_W, PAGE_H, fill=1, stroke=0)
+        canvas.setFillColor(GOLD)
+        canvas.rect(0, PAGE_H - 4 * mm, PAGE_W, 4 * mm, fill=1, stroke=0)
+        canvas.rect(0, 0, PAGE_W, 2 * mm, fill=1, stroke=0)
+        canvas.restoreState()
 
+    # ── Fábrica de estilos ────────────────────────────────────────────────
+    def _P(name, fn=None, fs=9, tc=WHITE, sa=3, sb=0, align=0):
+        return ParagraphStyle(name, fontName=fn or _FB, fontSize=fs,
+                               textColor=tc, spaceAfter=sa, spaceBefore=sb,
+                               alignment=align, leading=max(fs * 1.35, fs + 3))
+
+    P_brand  = _P("brand",  fn=_FT,   fs=20, tc=GOLD,  sa=1,  align=1)
+    P_subbr  = _P("subbr",  fn=_FB,   fs=8,  tc=WHITE, sa=6,  align=1)
+    P_sec    = _P("sec",    fn=_FT,   fs=10, tc=GOLD,  sa=5,  sb=8)
+    P_body   = _P("body",   fn=_FB,   fs=8.5,tc=WHITE, sa=3)
+    P_dim    = _P("dim",    fn=_FB,   fs=7.5,tc=WDIM,  sa=2)
+    P_mono   = _P("mono",   fn=_FM,   fs=7,  tc=WDIM,  sa=1,  align=1)
+    P_hash   = _P("phash",  fn=_FM,   fs=6,  tc=WDIM,  sa=1,  align=1)
+    P_pend   = _P("pend",   fn=_FB_BD,fs=8,  tc=AMBER, sa=3)
+    P_ok     = _P("pok",    fn=_FB_BD,fs=8,  tc=GREEN, sa=3)
+    P_alert  = _P("palert", fn=_FB_BD,fs=8,  tc=RED,   sa=3)
+
+    # ── Estilo base para tablas ───────────────────────────────────────────
+    def _TS(*extra):
+        cmds = [
+            ("BACKGROUND",    (0, 0), (-1, 0),  BG2),
+            ("TEXTCOLOR",     (0, 0), (-1, 0),  GOLD),
+            ("FONTNAME",      (0, 0), (-1, 0),  _FT),
+            ("FONTSIZE",      (0, 0), (-1, -1), 8),
+            ("TOPPADDING",    (0, 0), (-1, 0),  8),
+            ("BOTTOMPADDING", (0, 0), (-1, 0),  8),
+            ("FONTNAME",      (0, 1), (-1, -1), _FB),
+            ("TEXTCOLOR",     (0, 1), (-1, -1), WHITE),
+            ("TOPPADDING",    (0, 1), (-1, -1), 6),
+            ("BOTTOMPADDING", (0, 1), (-1, -1), 6),
+            ("LEFTPADDING",   (0, 0), (-1, -1), 8),
+            ("RIGHTPADDING",  (0, 0), (-1, -1), 8),
+            ("ROWBACKGROUNDS",(0, 1), (-1, -1), [BG3, BG2]),
+            ("BOX",           (0, 0), (-1, -1), 1,   GOLD),
+            ("LINEBELOW",     (0, 0), (-1, 0),  1,   GOLD),
+            ("INNERGRID",     (0, 0), (-1, -1), 0.3, WDIM),
+            ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
+        ]
+        return TableStyle(cmds + list(extra))
+
+    # ── Gauge FII como Drawing ─────────────────────────────────────────────
+    def _gauge(val, w=13.4 * cm, h=8 * mm, fill=GOLD):
+        d = Drawing(w, h)
+        d.add(Rect(0, 0, w, h, fillColor=BG2, strokeColor=WDIM, strokeWidth=0.5))
+        if val is not None:
+            fw = max(1 * mm, w * (float(val) / 100.0))
+            d.add(Rect(0, 0, fw, h, fillColor=fill, strokeColor=None, strokeWidth=0))
+        for tick in (0.25, 0.50, 0.75):
+            tx = w * tick
+            d.add(Line(tx, 0, tx, h * 0.35, strokeColor=BG, strokeWidth=1.2))
+        return d
+
+    # ── Document ──────────────────────────────────────────────────────────
     doc = SimpleDocTemplate(
-        str(out_path),
-        pagesize=A4,
-        leftMargin=2*cm, rightMargin=2*cm,
-        topMargin=2*cm, bottomMargin=2*cm,
+        str(out_path), pagesize=A4,
+        leftMargin=1.8 * cm, rightMargin=1.8 * cm,
+        topMargin=2.4 * cm, bottomMargin=2 * cm,
     )
-
-    styles = getSampleStyleSheet()
-
-    def _style(name, base="Normal", **kw):
-        return ParagraphStyle(name, parent=styles[base], **kw)
-
-    title_s   = _style("title",   fontName="Courier-Bold", fontSize=18, textColor=GOLD, spaceAfter=4, alignment=1)
-    sub_s     = _style("sub",     fontName="Courier",      fontSize=10, textColor=WHITE, spaceAfter=2, alignment=1)
-    section_s = _style("section", fontName="Courier-Bold", fontSize=11, textColor=GOLD, spaceBefore=12, spaceAfter=4)
-    body_s    = _style("body",    fontName="Courier",      fontSize=9,  textColor=WHITE, spaceAfter=3)
-    alert_s   = _style("alert",   fontName="Courier-Bold", fontSize=9,  textColor=REDL,  spaceAfter=3)
-    ok_s      = _style("ok",      fontName="Courier-Bold", fontSize=9,  textColor=GRNL,  spaceAfter=3)
-    hash_s    = _style("hash",    fontName="Courier",      fontSize=7,  textColor=WDIM,  spaceAfter=2, alignment=1)
-    pend_s    = _style("pend",    fontName="Courier-Bold", fontSize=9,  textColor=YELL,  spaceAfter=3)
-    cyan_s    = _style("cyan",    fontName="Courier-Bold", fontSize=14, textColor=CYAN,  spaceAfter=3, alignment=1)
-
     story = []
 
-    # ── Header ───────────────────────────────────────────────────────────────
-    story.append(Paragraph("FARO PROTOCOL", title_s))
-    story.append(Paragraph("CERTIFICADO DE AUDITORÍA POST-EVENTO", title_s))
-    story.append(Spacer(1, 0.3*cm))
-    story.append(HRFlowable(width="100%", thickness=1, color=GOLD))
-    story.append(Spacer(1, 0.2*cm))
-    story.append(Paragraph(f"Artista: {cert_data['artist']}", sub_s))
-    story.append(Paragraph(f"Show: {cert_data['show_id']}  ·  {cert_data['show_date']}", sub_s))
-    story.append(Paragraph(f"Venue: {cert_data['venue']}", sub_s))
-    story.append(Paragraph(f"Generado: {cert_data['fecha_emision']}", sub_s))
-    story.append(Spacer(1, 0.25*cm))
-    story.append(Paragraph(f"CERT-SHA256: {cert_data['cert_hash']}", hash_s))
-    story.append(Paragraph(f"Verificar en: {_verify_url}", hash_s))
-    if _qr_img_data:
-        story.append(Spacer(1, 0.1*cm))
-        story.append(RLImage(_qr_img_data, width=2.8*cm, height=2.8*cm))
-    story.append(HRFlowable(width="100%", thickness=0.5, color=WDIM))
-    story.append(Spacer(1, 0.3*cm))
-
-    # ── Estado del certificado (bifásico) ─────────────────────────────────────
-    cert_estado  = cert_data.get("cert_estado", "SAR_CONFIRMADO+NDVI_PENDIENTE")
-    sar_ok       = "SAR_CONFIRMADO"  in cert_estado
-    ndvi_ok      = "NDVI_CONFIRMADO" in cert_estado
-
-    sar_lbl      = "SAR_CONFIRMADO"  if sar_ok  else "SAR_PENDIENTE"
-    ndvi_lbl     = "NDVI_CONFIRMADO" if ndvi_ok else "NDVI_PENDIENTE"
-    sar_badge_c  = GRNL if sar_ok  else YELL
-    ndvi_badge_c = GRNL if ndvi_ok else YELL
-
-    story.append(Paragraph("ESTADO DEL CERTIFICADO", section_s))
-    estado_tbl = Table(
-        [
-            ["MÉTRICA",            "ESTADO",      "DISPONIBILIDAD",              "DESCRIPCIÓN"],
-            ["SAR Sentinel-1 GRD", sar_lbl,       "48 h post-evento · siempre",  "Compactación por backscatter VV (métrica primaria)"],
-            ["NDVI Sentinel-2",    ndvi_lbl,       "SLA 30 días · libre de nubes","Daño al césped por reflectancia óptica (métrica secundaria)"],
-        ],
-        colWidths=[3.8*cm, 3.8*cm, 4.2*cm, 5.2*cm],
-    )
-    estado_tbl.setStyle(TableStyle([
-        ("BACKGROUND",    (0, 0), (-1, 0),  BG),
-        ("TEXTCOLOR",     (0, 0), (-1, 0),  GOLD),
-        ("FONTNAME",      (0, 0), (-1, 0),  "Courier-Bold"),
-        ("FONTSIZE",      (0, 0), (-1, -1), 8),
-        ("FONTNAME",      (0, 1), (-1, -1), "Courier"),
-        ("TEXTCOLOR",     (0, 1), (-1, 1),  WHITE),
-        ("TEXTCOLOR",     (1, 1), (1, 1),   sar_badge_c),
-        ("TEXTCOLOR",     (1, 2), (1, 2),   ndvi_badge_c),
-        ("FONTNAME",      (1, 1), (1, 2),   "Courier-Bold"),
-        ("BACKGROUND",    (0, 1), (-1, -1), BG2),
-        ("GRID",          (0, 0), (-1, -1), 0.4, WDIM),
-        ("TOPPADDING",    (0, 0), (-1, -1), 5),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-        ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
-    ]))
-    story.append(estado_tbl)
-    if not ndvi_ok:
-        story.append(Spacer(1, 0.1*cm))
-        story.append(Paragraph(
-            "NDVI optico pendiente de observacion libre de nubes. "
-            "El certificado se actualiza automaticamente cuando Sentinel-2 registre "
-            "una escena valida sobre el estadio (SLA: 30 dias).",
-            pend_s,
-        ))
-    story.append(Spacer(1, 0.2*cm))
-    story.append(HRFlowable(width="100%", thickness=0.5, color=WDIM))
-    story.append(Spacer(1, 0.2*cm))
-
-    # ── 1. SAR — Métrica primaria ─────────────────────────────────────────────
-    story.append(Paragraph("1. SAR SENTINEL-1 GRD — COMPACTACION DE SUELO (METRICA PRIMARIA)", section_s))
-
-    sar_dmg      = cert_data.get("sar_damage") or {}
-    delta_vv     = sar_dmg.get("delta_vv_db")
-    sar_nivel    = sar_dmg.get("nivel", "sin_datos")
-    sar_interp   = sar_dmg.get("interpretacion", "N/D")
-    sar_pre_d    = cert_data.get("sar_pre")  or {}
-    sar_post_d   = cert_data.get("sar_post") or {}
-    sar_base_d   = cert_data.get("sar_baseline") or {}
-
-    vv_base_val  = sar_base_d.get("vv_db")
-    vv_show_val  = sar_pre_d.get("vv_db")   # sar_pre = show-night SAR
-
-    sar_tbl_data = [
-        ["Parámetro", "Valor", "Fecha", "Fuente"],
-        [
-            "VV Baseline (pre-show)",
-            f"{vv_base_val:+.2f} dB" if vv_base_val is not None else "N/D",
-            sar_base_d.get("fecha", "—"),
-            f"Sentinel-1 GRD · {sar_base_d.get('item_id', 'N/D')[:20] if sar_base_d.get('item_id') else 'N/D'}",
-        ],
-        [
-            "VV Durante show",
-            f"{vv_show_val:+.2f} dB" if vv_show_val is not None else "N/D",
-            sar_pre_d.get("fecha", "—"),
-            f"Sentinel-1 GRD · {sar_pre_d.get('item_id', 'N/D')[:20] if sar_pre_d.get('item_id') else 'N/D'}",
-        ],
-        [
-            "Delta VV (show - baseline)",
-            f"{delta_vv:+.2f} dB" if delta_vv is not None else "N/D",
-            "—",
-            "Diferencia de backscatter radar",
-        ],
-        [
-            "Nivel de impacto SAR",
-            sar_nivel.upper().replace("_", " "),
-            "—",
-            "Clasificacion Faro Protocol (umbral 1.5 dB)",
-        ],
+    # ═══════════════════════════════════════════════════════════════════════
+    # HEADER: info izq | QR der
+    # ═══════════════════════════════════════════════════════════════════════
+    left_cell = [
+        Paragraph("FARO PROTOCOL", P_brand),
+        Paragraph("CERTIFICADO DE AUDITORÍA POST-EVENTO", P_subbr),
+        Paragraph(f"Artista:  {cert_data['artist']}", P_body),
+        Paragraph(f"Show:     {cert_data['show_id']}  ·  {cert_data['show_date']}", P_body),
+        Paragraph(f"Venue:    {cert_data['venue']}", P_body),
+        Paragraph(f"Emitido:  {cert_data['fecha_emision']}", P_dim),
     ]
-    sar_tbl = Table(sar_tbl_data, colWidths=[4.5*cm, 3*cm, 2.5*cm, 7*cm])
-    _nivel_col = (REDL if sar_nivel in ("severo", "moderado")
-                  else YELL if sar_nivel == "leve" else GRNL)
-    sar_tbl.setStyle(TableStyle([
-        ("BACKGROUND",    (0, 0), (-1, 0),  BG),
-        ("TEXTCOLOR",     (0, 0), (-1, 0),  GOLD),
-        ("FONTNAME",      (0, 0), (-1, 0),  "Courier-Bold"),
-        ("FONTSIZE",      (0, 0), (-1, -1), 8),
-        ("FONTNAME",      (0, 1), (-1, -1), "Courier"),
-        ("TEXTCOLOR",     (0, 1), (-1, -1), WHITE),
-        ("TEXTCOLOR",     (1, 4), (1, 4),   _nivel_col),
-        ("FONTNAME",      (1, 4), (1, 4),   "Courier-Bold"),
-        ("BACKGROUND",    (0, 1), (-1, -1), BG2),
-        ("ROWBACKGROUNDS",(0, 1), (-1, -1), [BG2, BG]),
-        ("GRID",          (0, 0), (-1, -1), 0.4, WDIM),
+
+    if _qr_buf:
+        right_cell = [
+            RLImage(_qr_buf, width=3.6 * cm, height=3.6 * cm),
+            Paragraph("VERIFICAR", _P("qrl", fn=_FM, fs=6, tc=GOLD, sa=0, align=1)),
+        ]
+    else:
+        right_cell = [Paragraph("QR N/D", P_dim)]
+
+    hdr = Table([[left_cell, right_cell]], colWidths=[12 * cm, 4.4 * cm])
+    hdr.setStyle(TableStyle([
         ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
-        ("TOPPADDING",    (0, 0), (-1, -1), 4),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ("ALIGN",         (1, 0), (1, 0),   "CENTER"),
+        ("BOX",           (1, 0), (1, 0),   1.2, GOLD),
+        ("BACKGROUND",    (1, 0), (1, 0),   BG2),
+        ("TOPPADDING",    (1, 0), (1, 0),   8),
+        ("BOTTOMPADDING", (1, 0), (1, 0),   8),
+        ("LEFTPADDING",   (0, 0), (0, 0),   0),
+        ("RIGHTPADDING",  (0, 0), (0, 0),   0),
     ]))
-    story.append(sar_tbl)
-    story.append(Spacer(1, 0.15*cm))
-    _sar_i_style = (alert_s if sar_nivel in ("severo","moderado")
-                    else ok_s if sar_nivel == "sin_impacto" else body_s)
-    story.append(Paragraph(f"Interpretacion: {sar_interp}", _sar_i_style))
-    story.append(Spacer(1, 0.2*cm))
+    story.append(hdr)
+    story.append(Spacer(1, 0.3 * cm))
+    story.append(HRFlowable(width="100%", thickness=1, color=GOLD))
+    story.append(Spacer(1, 0.35 * cm))
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # ESTADO BIFÁSICO — banners de color
+    # ═══════════════════════════════════════════════════════════════════════
+    cert_estado = cert_data.get("cert_estado", "SAR_CONFIRMADO+NDVI_PENDIENTE")
+    sar_ok      = "SAR_CONFIRMADO"  in cert_estado
+    ndvi_ok     = "NDVI_CONFIRMADO" in cert_estado
+
+    sar_lbl  = "SAR_CONFIRMADO"  if sar_ok  else "SAR_PENDIENTE"
+    ndvi_lbl = "NDVI_CONFIRMADO" if ndvi_ok else "NDVI_PENDIENTE"
+    sar_bc   = GREEN if sar_ok  else AMBER
+    ndvi_bc  = GREEN if ndvi_ok else AMBER
+
+    badge_tbl = Table(
+        [[Paragraph(sar_lbl,  _P("sl", fn=_FT, fs=11, tc=BG, sa=0, align=1)),
+          Paragraph(ndvi_lbl, _P("nl", fn=_FT, fs=11, tc=BG, sa=0, align=1))]],
+        colWidths=[8.1 * cm, 8.3 * cm],
+        rowHeights=[1.05 * cm],
+    )
+    badge_tbl.setStyle(TableStyle([
+        ("BACKGROUND",    (0, 0), (0, 0), sar_bc),
+        ("BACKGROUND",    (1, 0), (1, 0), ndvi_bc),
+        ("ALIGN",         (0, 0), (-1, -1), "CENTER"),
+        ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING",    (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+        ("LEFTPADDING",   (0, 0), (-1, -1), 4),
+        ("RIGHTPADDING",  (0, 0), (-1, -1), 4),
+        ("BOX",           (0, 0), (-1, -1), 1.5, GOLD),
+        ("LINEAFTER",     (0, 0), (0, 0),   1,   BG),
+    ]))
+
+    story.append(KeepTogether([
+        Paragraph("ESTADO DEL CERTIFICADO", P_sec),
+        badge_tbl,
+        Spacer(1, 0.15 * cm),
+        (Paragraph(
+            "NDVI óptico pendiente de observación libre de nubes. "
+            "El certificado se actualiza automáticamente cuando Sentinel-2 registre "
+            "una escena válida sobre el estadio (SLA: 30 días).", P_pend)
+         if not ndvi_ok else Spacer(1, 1)),
+    ]))
+    story.append(Spacer(1, 0.25 * cm))
     story.append(HRFlowable(width="100%", thickness=0.5, color=WDIM))
-    story.append(Spacer(1, 0.2*cm))
+    story.append(Spacer(1, 0.3 * cm))
 
-    # ── FII — Índice Faro de Integridad ──────────────────────────────────────
-    _fii_result = cert_data.get("fii") or {}
-    _fii_val    = _fii_result.get("fii")
-    _fii_sello  = _fii_result.get("sello", "N/D")
-    _fii_sem    = _fii_result.get("semaforo", "sin_datos")
-    _fii_col    = GRNL if _fii_sem == "ok" else YELL if _fii_sem == "atencion" else REDL
-    _fii_comps  = _fii_result.get("componentes") or {}
+    # ═══════════════════════════════════════════════════════════════════════
+    # SECCIÓN 1 — SAR (métrica primaria)
+    # ═══════════════════════════════════════════════════════════════════════
+    sar_dmg   = cert_data.get("sar_damage") or {}
+    delta_vv  = sar_dmg.get("delta_vv_db")
+    sar_nivel = sar_dmg.get("nivel", "sin_datos")
+    sar_interp= sar_dmg.get("interpretacion", "N/D")
+    sar_base_d= cert_data.get("sar_baseline") or {}
+    sar_pre_d = cert_data.get("sar_pre")      or {}
+    sar_post_d= cert_data.get("sar_post")     or {}
 
-    story.append(Paragraph("INDICE FARO DE INTEGRIDAD (FII)", section_s))
-    _fii_display = f"{_fii_val:.1f} / 100" if _fii_val is not None else "N/D"
-    story.append(Paragraph(_fii_display, _style("fii_v", fontName="Courier-Bold", fontSize=22, textColor=_fii_col, spaceAfter=3, alignment=1)))
-    story.append(Paragraph(f"[ {_fii_sello} ]", _style("sello", fontName="Courier-Bold", fontSize=10, textColor=_fii_col, spaceAfter=6, alignment=1)))
-    if _fii_comps:
-        fii_tbl_data = [["COMPONENTE", "PESO", "SCORE", "ESTADO"]]
-        for k, lbl in {"ndvi": "NDVI campo (40%)", "egms": "EGMS estructural (35%)", "layout": "Compliance layout (25%)"}.items():
-            c = _fii_comps.get(k) or {}
-            fii_tbl_data.append([lbl, f"{c.get('peso',0)}%", f"{c.get('score',0):.1f}", c.get("label","N/D")])
-        ft = Table(fii_tbl_data, colWidths=[6.5*cm, 2*cm, 2.5*cm, 5*cm])
-        ft.setStyle(TableStyle([
-            ("BACKGROUND",    (0,0),(-1,0),  BG),  ("TEXTCOLOR",(0,0),(-1,0), GOLD),
-            ("FONTNAME",      (0,0),(-1,0),  "Courier-Bold"), ("FONTSIZE",(0,0),(-1,-1),8),
-            ("FONTNAME",      (0,1),(-1,-1), "Courier"),      ("TEXTCOLOR",(0,1),(-1,-1),WHITE),
-            ("BACKGROUND",    (0,1),(-1,-1), BG),  ("GRID",(0,0),(-1,-1),0.4,WDIM),
-            ("TOPPADDING",    (0,0),(-1,-1), 4),   ("BOTTOMPADDING",(0,0),(-1,-1),4),
-        ]))
-        story.append(ft)
-    story.append(Spacer(1, 0.3*cm))
+    vv_base = sar_base_d.get("vv_db")
+    vv_show = sar_pre_d.get("vv_db")
+    vv_post = sar_post_d.get("vv_db")
+
+    _snc = (RED   if sar_nivel in ("severo", "moderado")
+            else AMBER if sar_nivel == "leve"
+            else GREEN)
+
+    def _iid(d):
+        s = d.get("item_id") or "—"
+        return (s[:26] + "…") if len(s) > 26 else s
+
+    sar_rows = [
+        ["Medición", "Valor dB", "Fecha", "Escena Sentinel-1 GRD"],
+        ["Baseline (−45d a −16d)",
+         f"{vv_base:+.2f} dB" if vv_base is not None else "N/D",
+         sar_base_d.get("fecha", "—"), _iid(sar_base_d)],
+        ["Durante show (−3d a show)",
+         f"{vv_show:+.2f} dB" if vv_show is not None else "N/D",
+         sar_pre_d.get("fecha", "—"),  _iid(sar_pre_d)],
+        ["Post-show",
+         f"{vv_post:+.2f} dB" if vv_post is not None else "PENDIENTE",
+         sar_post_d.get("fecha", "—"), _iid(sar_post_d)],
+        ["ΔVV (durante − baseline)",
+         f"{delta_vv:+.2f} dB" if delta_vv is not None else "N/D",
+         "—", "Diferencia backscatter radar"],
+        ["Nivel de impacto",
+         sar_nivel.upper().replace("_", " "),
+         "—", "Faro: |ΔVV| ≥ 1.5 dB = moderado  ≥ 3.0 dB = severo"],
+    ]
+    sar_tbl = Table(sar_rows, colWidths=[4.6 * cm, 2.8 * cm, 2.4 * cm, 6.6 * cm])
+    sar_tbl.setStyle(_TS(
+        ("TEXTCOLOR", (1, 4), (1, 4), _snc),
+        ("TEXTCOLOR", (1, 5), (1, 5), _snc),
+        ("FONTNAME",  (1, 5), (1, 5), _FT),
+    ))
+
+    _sar_is = (P_alert if sar_nivel in ("severo", "moderado")
+               else P_ok if sar_nivel == "sin_impacto" else P_body)
+
+    story.append(KeepTogether([
+        Paragraph("1.  SAR SENTINEL-1 GRD — COMPACTACIÓN DE SUELO  (MÉTRICA PRIMARIA)", P_sec),
+        sar_tbl,
+        Spacer(1, 0.15 * cm),
+        Paragraph(f"Interpretación: {sar_interp}", _sar_is),
+    ]))
+    story.append(Spacer(1, 0.3 * cm))
     story.append(HRFlowable(width="100%", thickness=0.5, color=WDIM))
-    story.append(Spacer(1, 0.2*cm))
+    story.append(Spacer(1, 0.3 * cm))
 
-    # ── 2. NDVI — Métrica secundaria ──────────────────────────────────────────
-    story.append(Paragraph("2. NDVI SENTINEL-2 — DANO AL CESPED (METRICA SECUNDARIA)", section_s))
+    # ═══════════════════════════════════════════════════════════════════════
+    # FII — Índice Faro de Integridad (gauge visual)
+    # ═══════════════════════════════════════════════════════════════════════
+    _fii_r    = cert_data.get("fii") or {}
+    _fii_val  = _fii_r.get("fii")
+    _fii_sell = _fii_r.get("sello", "N/D")
+    _fii_sem  = _fii_r.get("semaforo", "sin_datos")
+    _fii_fill = GREEN if _fii_sem == "ok" else (AMBER if _fii_sem == "atencion" else RED)
+    _fii_comp = _fii_r.get("componentes") or {}
 
+    _fii_str  = f"{_fii_val:.1f}" if _fii_val is not None else "N/D"
+
+    # Score + sello en tabla para evitar superposición
+    _score_tbl = Table(
+        [[Paragraph(_fii_str, _P("fsn", fn=_FT, fs=34, tc=_fii_fill, sa=0, align=1)),
+          Paragraph("/ 100", _P("f100", fn=_FB, fs=13, tc=WDIM, sa=0, align=0)),
+          Paragraph(f"[ {_fii_sell} ]",
+                    _P("fsl", fn=_FT, fs=10, tc=_fii_fill, sa=0, align=2))]],
+        colWidths=[3.6 * cm, 2.0 * cm, 10.8 * cm],
+        rowHeights=[1.4 * cm],
+    )
+    _score_tbl.setStyle(TableStyle([
+        ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING",   (0, 0), (-1, -1), 4),
+        ("RIGHTPADDING",  (0, 0), (-1, -1), 4),
+        ("TOPPADDING",    (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ]))
+
+    fii_block = [
+        Paragraph("ÍNDICE FARO DE INTEGRIDAD (FII)", P_sec),
+        _score_tbl,
+        Spacer(1, 0.2 * cm),
+        _gauge(_fii_val, fill=_fii_fill),
+        Spacer(1, 2),
+        Paragraph(
+            "0 ·················· 25 ·················· 50 ·················· 75 ···················· 100",
+            _P("gt", fn=_FM, fs=6, tc=WDIM, sa=0)),
+    ]
+
+    if _fii_comp:
+        fc_rows = [["Componente", "Peso", "Score", "Estado"]]
+        for k, lbl in [("ndvi", "NDVI campo"),
+                        ("egms", "EGMS estructural"),
+                        ("layout", "Layout compliance")]:
+            c = _fii_comp.get(k) or {}
+            fc_rows.append([lbl, f"{c.get('peso',0)}%",
+                            f"{c.get('score',0):.1f}", c.get("label","N/D")])
+        fc_tbl = Table(fc_rows, colWidths=[5.5 * cm, 2 * cm, 2.5 * cm, 6.4 * cm])
+        fc_tbl.setStyle(_TS())
+        fii_block += [Spacer(1, 0.2 * cm), fc_tbl]
+
+    story.append(KeepTogether(fii_block))
+    story.append(Spacer(1, 0.3 * cm))
+    story.append(HRFlowable(width="100%", thickness=0.5, color=WDIM))
+    story.append(Spacer(1, 0.3 * cm))
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # SECCIÓN 2 — NDVI (métrica secundaria)
+    # ═══════════════════════════════════════════════════════════════════════
     ndvi_pre  = cert_data.get("ndvi_pre")
     ndvi_post = cert_data.get("ndvi_post")
-    delta_ndvi = cert_data["damage"]["delta_ndvi"]
+    dmg       = cert_data.get("damage") or {}
+    delta_nd  = dmg.get("delta_ndvi")
+    ndvi_nvl  = dmg.get("nivel_dano", "sin_datos")
+    ndvi_int  = dmg.get("interpretacion", "N/D")
 
-    ndvi_tbl_data = [
-        ["Parámetro", "Valor", "Fuente"],
+    _np_c = AMBER if ndvi_post is None else WHITE
+    _nd_c = AMBER if delta_nd  is None else WHITE
+
+    def _src_short(s: str) -> str:
+        return s[:70] + "…" if len(s) > 70 else s
+
+    ndvi_rows = [
+        ["Medición",        "Valor",                                              "Fuente"],
         ["NDVI Pre-Show",
-         f"{ndvi_pre:.3f}" if ndvi_pre is not None else "N/D",
-         cert_data.get("ndvi_pre_fuente", "N/D")],
+         f"{ndvi_pre:.3f}"  if ndvi_pre  is not None else "N/D",
+         _src_short(cert_data.get("ndvi_pre_fuente","N/D"))],
         ["NDVI Post-Show",
          f"{ndvi_post:.3f}" if ndvi_post is not None else "PENDIENTE",
-         cert_data.get("ndvi_post_fuente", "Pendiente — nubosidad post-show")],
+         _src_short(cert_data.get("ndvi_post_fuente","Pendiente — nubosidad post-show"))],
         ["Delta NDVI",
-         f"{delta_ndvi:+.3f}" if delta_ndvi is not None else "PENDIENTE",
-         "Diferencia satelital"],
-        ["Nivel de daño optico",
-         cert_data["damage"]["nivel_dano"].upper(),
-         "Clasificacion Faro Protocol"],
+         f"{delta_nd:+.3f}" if delta_nd is not None else "PENDIENTE",
+         "Diferencia reflectancia óptica"],
+        ["Nivel daño óptico",
+         ndvi_nvl.upper().replace("_", " "),
+         "Clasificación Faro Protocol"],
     ]
-    _ndvi_post_col = YELL if ndvi_post is None else WHITE
-    ndvi_tbl = Table(ndvi_tbl_data, colWidths=[5*cm, 4*cm, 7*cm])
-    ndvi_tbl.setStyle(TableStyle([
-        ("BACKGROUND",    (0,0),(-1,0),  BG),  ("TEXTCOLOR",(0,0),(-1,0),GOLD),
-        ("FONTNAME",      (0,0),(-1,0),  "Courier-Bold"), ("FONTSIZE",(0,0),(-1,-1),8),
-        ("FONTNAME",      (0,1),(-1,-1), "Courier"),      ("TEXTCOLOR",(0,1),(-1,-1),WHITE),
-        ("TEXTCOLOR",     (1,2),(1,2),   _ndvi_post_col), ("FONTNAME",(1,2),(1,2),"Courier-Bold"),
-        ("TEXTCOLOR",     (1,3),(1,3),   _ndvi_post_col),
-        ("BACKGROUND",    (0,1),(-1,-1), BG2), ("ROWBACKGROUNDS",(0,1),(-1,-1),[BG2,BG]),
-        ("GRID",          (0,0),(-1,-1), 0.4,WDIM), ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
-        ("TOPPADDING",    (0,0),(-1,-1), 4),   ("BOTTOMPADDING",(0,0),(-1,-1),4),
+    ndvi_tbl = Table(ndvi_rows, colWidths=[3.8 * cm, 2.8 * cm, 9.8 * cm])
+    ndvi_tbl.setStyle(_TS(
+        ("TEXTCOLOR", (1, 2), (1, 2), _np_c),
+        ("TEXTCOLOR", (1, 3), (1, 3), _nd_c),
+        ("FONTNAME",  (1, 2), (1, 2), _FT if ndvi_post is None else _FB),
+        ("FONTNAME",  (1, 3), (1, 3), _FT if delta_nd  is None else _FB),
+    ))
+
+    _ndvi_is = (P_ok    if ndvi_nvl == "sin_dano"           else
+                P_alert if ndvi_nvl in ("severo","moderado") else P_pend)
+    ndvi_note = (
+        Paragraph(
+            "NDVI post-show PENDIENTE. Sin imagen óptica limpia disponible sobre el estadio. "
+            "El delta de daño se calculará automáticamente al recibir la próxima "
+            "escena válida de Sentinel-2.", P_pend)
+        if not ndvi_ok
+        else Paragraph(f"Interpretación: {ndvi_int}", _ndvi_is)
+    )
+
+    story.append(KeepTogether([
+        Paragraph("2.  NDVI SENTINEL-2 — DAÑO AL CÉSPED  (MÉTRICA SECUNDARIA)", P_sec),
+        ndvi_tbl,
+        Spacer(1, 0.15 * cm),
+        ndvi_note,
     ]))
-    story.append(ndvi_tbl)
-    story.append(Spacer(1, 0.15*cm))
+    story.append(Spacer(1, 0.25 * cm))
 
-    ndvi_interp = cert_data["damage"]["interpretacion"]
-    if not ndvi_ok:
-        story.append(Paragraph(
-            "Estado: NDVI post-show PENDIENTE. Sin imagen optica limpia disponible "
-            "sobre el estadio desde el evento. El delta de dano se calculara y "
-            "actualizara automaticamente al recibir la proxima escena valida de Sentinel-2.",
-            pend_s,
-        ))
-    else:
-        _ndvi_i_s = ok_s if "sin_dano" in cert_data["damage"]["nivel_dano"] else (
-            alert_s if cert_data["damage"]["nivel_dano"] in ("severo","moderado") else body_s)
-        story.append(Paragraph(f"Interpretacion: {ndvi_interp}", _ndvi_i_s))
-    story.append(Spacer(1, 0.2*cm))
-
-    # ── 3. Zonas afectadas / Layout ───────────────────────────────────────────
-    zonas = cert_data["damage"].get("sectores_afectados", [])
+    # ═══════════════════════════════════════════════════════════════════════
+    # SECCIÓN 3 — Zonas afectadas (opcional)
+    # ═══════════════════════════════════════════════════════════════════════
+    zonas = dmg.get("sectores_afectados", [])
     if zonas:
-        story.append(Paragraph("3. ZONAS AFECTADAS (desde layout subido)", section_s))
-        zona_data = [["Zona", "Posicion (m)", "Area (m2)", "Delta NDVI"]]
+        z_rows = [["Zona", "Posición (m)", "Área m²", "Delta NDVI"]]
         for z in zonas:
-            zona_data.append([
-                z.get("zona","N/D"),
-                f"x={z.get('x_m','N/D')}  y={z.get('y_m','N/D')}",
+            z_rows.append([
+                z.get("zona", "N/D"),
+                f"x={z.get('x_m','?')}  y={z.get('y_m','?')}",
                 f"{z.get('area_m2',0):.0f}",
                 f"{z.get('ndvi_delta',0):+.3f}" if z.get("ndvi_delta") is not None else "N/D",
             ])
-        tz = Table(zona_data, colWidths=[4*cm,5*cm,3*cm,4*cm])
-        tz.setStyle(TableStyle([
-            ("BACKGROUND",(0,0),(-1,0),BG), ("TEXTCOLOR",(0,0),(-1,0),GOLD),
-            ("FONTNAME",(0,0),(-1,0),"Courier-Bold"), ("FONTSIZE",(0,0),(-1,-1),8),
-            ("FONTNAME",(0,1),(-1,-1),"Courier"), ("TEXTCOLOR",(0,1),(-1,-1),WHITE),
-            ("BACKGROUND",(0,1),(-1,-1),BG2), ("GRID",(0,0),(-1,-1),0.4,WDIM),
-            ("TOPPADDING",(0,0),(-1,-1),4), ("BOTTOMPADDING",(0,0),(-1,-1),4),
+        zt = Table(z_rows, colWidths=[4 * cm, 5 * cm, 2.8 * cm, 4.6 * cm])
+        zt.setStyle(_TS())
+        story.append(KeepTogether([
+            Paragraph("3.  ZONAS AFECTADAS", P_sec),
+            zt,
         ]))
-        story.append(tz)
-        story.append(Spacer(1, 0.2*cm))
+        story.append(Spacer(1, 0.25 * cm))
 
-    layout = cert_data.get("layout")
-    if layout:
-        story.append(Paragraph("4. LAYOUT PLANIFICADO vs IMPACTO REAL", section_s))
-        story.append(Paragraph(
-            f"Archivo: {layout.get('filename','N/D')}  ·  Fuente: {layout.get('fuente','N/D')}",
-            body_s))
-        struct = layout.get("estructuras") or {}
-        esc    = struct.get("escenario") or {}
-        if esc:
-            story.append(Paragraph(
-                f"Escenario: ancho={esc.get('ancho_m','N/D')}m  "
-                f"prof={esc.get('profundidad_m','N/D')}m  alto={esc.get('alto_m','N/D')}m",
-                body_s))
-        area = (struct.get("area_total_m2")
-                or ((esc.get("ancho_m") or 0) * (esc.get("profundidad_m") or 0)) or 0)
-        story.append(Paragraph(f"Area total planificada: {area:.0f} m2", body_s))
-        story.append(Spacer(1, 0.2*cm))
+    # ═══════════════════════════════════════════════════════════════════════
+    # FOOTER — hash + fuentes
+    # ═══════════════════════════════════════════════════════════════════════
+    story.append(HRFlowable(width="100%", thickness=1, color=GOLD))
+    story.append(Spacer(1, 0.2 * cm))
+    story.append(Paragraph(
+        "Certificado generado automáticamente por Faro Protocol · Dale Play. "
+        "SAR: Copernicus / Sentinel-1 GRD (ESA) via Microsoft Planetary Computer. "
+        "Óptico: Copernicus / Sentinel-2 L2A (ESA) via AWS Earth Search (Element84).",
+        P_mono))
+    story.append(Spacer(1, 0.1 * cm))
+    story.append(Paragraph(f"CERT-SHA256: {cert_data['cert_hash']}", P_hash))
+    story.append(Paragraph(f"Verificar: {_verify_url}", P_hash))
 
-    # ── Footer ────────────────────────────────────────────────────────────────
-    story.append(HRFlowable(width="100%", thickness=0.5, color=WDIM))
-    story.append(Spacer(1, 0.2*cm))
-    story.append(Paragraph(
-        "Este certificado fue generado automaticamente por Faro Protocol · Dale Play.",
-        hash_s))
-    story.append(Paragraph(
-        "Datos SAR: Copernicus/Sentinel-1 GRD (ESA) via Microsoft Planetary Computer.",
-        hash_s))
-    story.append(Paragraph(
-        "Datos opticos: Copernicus/Sentinel-2 L2A (ESA) via AWS Earth Search (Element84).",
-        hash_s))
-    story.append(Paragraph(f"Hash de integridad: {cert_data['cert_hash']}", hash_s))
-
-    doc.build(story)
+    doc.build(story, onFirstPage=_bg, onLaterPages=_bg)
 
 
 # ── Certifier — clase pública ─────────────────────────────────────────────────
