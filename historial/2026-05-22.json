@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "4.0",
-    "fecha": "2026-06-01",
+    "fecha": "2026-06-02",
     "cliente": "Club Atletico Velez Sarsfield",
     "coords": {
       "lat": -34.6375,
@@ -41,141 +41,189 @@
     ],
     "semana": "2026-06-01"
   },
-  "updated_at": "2026-06-02T09:00:56Z",
+  "updated_at": "2026-06-03T09:00:55Z",
   "weather_live": {
-    "timestamp": "2026-06-01T09:00:13",
+    "timestamp": "2026-06-02T09:00:14",
     "fuentes": [
       "nasa-power",
       "soilgrids",
       "open-meteo-hourly"
     ],
-    "et0_mm_dia": 1.22,
+    "et0_mm_dia": 1.1,
     "et0_fuente": "nasa+penman-monteith",
-    "et0_semana_mm": 8.5,
+    "et0_semana_mm": 7.7,
     "precipitacion_semana_mm": 0.9,
-    "deficit_hidrico_mm": 7.6,
+    "deficit_hidrico_mm": 6.8,
     "deficit_hidrico": true,
-    "litros_m2_semana": 7.6,
-    "riego_min_sector": 23,
+    "litros_m2_semana": 6.8,
+    "riego_min_sector": 20,
     "riego_min_fuente": "estimado",
     "hora_riego_optima": "05:00",
     "dia_riego_offset": 0,
     "hora_riego_alternativa": "17:00",
     "hora_corte_optima": "06:00",
-    "humedad_suelo_pct": 41.1,
+    "humedad_suelo_pct": 40.5,
     "humedad_suelo_estado": "humedo",
-    "humedad_subsuperficial_pct": 41.2,
+    "humedad_subsuperficial_pct": 40.6,
     "suelo_tipo": "Suelo pesado",
     "suelo_clay_pct": 32,
     "suelo_sand_pct": 28,
     "suelo_whc_mm": 42,
-    "gdd_acumulado_7d": 15.6,
-    "gdd_rate_diario": 3.1,
-    "dias_proximo_corte": 13,
+    "gdd_acumulado_7d": 14.0,
+    "gdd_rate_diario": 2.8,
+    "dias_proximo_corte": 14,
     "gndvi_por_cancha": {
-      "fuente": "estimado-ndvi",
+      "fuente": "sentinel-2-l2a · Planetary Computer · 2026-05-22 · nub 26%",
+      "fecha_imagen": "2026-05-22",
+      "nubosidad_pct": 26.5,
       "canchas": {
         "1fa": {
-          "gndvi": 0.43,
-          "n_status": "borderline",
-          "n_rec": "Fertilización preventiva recomendable"
+          "ndvi": 0.043,
+          "gndvi": 0.044,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave",
+          "coverage_pct": 100.0
         },
         "2fa": {
-          "gndvi": 0.47,
-          "n_status": "ok",
-          "n_rec": "Nitrógeno adecuado"
-        },
-        "3fa": {
-          "gndvi": 0.32,
-          "n_status": "bajo",
-          "n_rec": "Fertilizar esta semana — déficit N moderado"
-        },
-        "4fa": {
-          "gndvi": 0.25,
+          "ndvi": 0.047,
+          "gndvi": 0.044,
           "n_status": "grave",
-          "n_rec": "Fertilizar URGENTE — deficiencia N grave"
-        },
-        "5fa": {
-          "gndvi": 0.35,
-          "n_status": "bajo",
-          "n_rec": "Fertilizar esta semana — déficit N moderado"
-        },
-        "6fa": {
-          "gndvi": 0.29,
-          "n_status": "grave",
-          "n_rec": "Fertilizar URGENTE — deficiencia N grave"
-        },
-        "7fa": {
-          "gndvi": 0.32,
-          "n_status": "bajo",
-          "n_rec": "Fertilizar esta semana — déficit N moderado"
-        },
-        "8fa": {
-          "gndvi": 0.3,
-          "n_status": "bajo",
-          "n_rec": "Fertilizar esta semana — déficit N moderado"
-        },
-        "9fa": {
-          "gndvi": 0.27,
-          "n_status": "grave",
-          "n_rec": "Fertilizar URGENTE — deficiencia N grave"
-        },
-        "10fa": {
-          "gndvi": 0.4,
-          "n_status": "borderline",
-          "n_rec": "Fertilización preventiva recomendable"
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave",
+          "coverage_pct": 100.0
         },
         "1fp": {
-          "gndvi": 0.5,
-          "n_status": "ok",
-          "n_rec": "Nitrógeno adecuado"
+          "ndvi": 0.034,
+          "gndvi": 0.041,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave",
+          "coverage_pct": 100.0
         },
         "2fp": {
-          "gndvi": 0.46,
-          "n_status": "ok",
-          "n_rec": "Nitrógeno adecuado"
+          "ndvi": 0.044,
+          "gndvi": 0.048,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave",
+          "coverage_pct": 100.0
+        },
+        "4fa": {
+          "ndvi": 0.086,
+          "gndvi": 0.08,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave",
+          "coverage_pct": 99.4
+        },
+        "3fa": {
+          "ndvi": 0.071,
+          "gndvi": 0.07,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave",
+          "coverage_pct": 100.0
+        },
+        "5fa": {
+          "ndvi": 0.074,
+          "gndvi": 0.078,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave",
+          "coverage_pct": 100.0
+        },
+        "6fa": {
+          "ndvi": 0.077,
+          "gndvi": 0.08,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave",
+          "coverage_pct": 100.0
+        },
+        "7fa": {
+          "ndvi": 0.083,
+          "gndvi": 0.087,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave",
+          "coverage_pct": 99.1
+        },
+        "8fa": {
+          "ndvi": 0.079,
+          "gndvi": 0.086,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave",
+          "coverage_pct": 98.3
+        },
+        "9fa": {
+          "ndvi": 0.061,
+          "gndvi": 0.064,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave",
+          "coverage_pct": 98.3
+        },
+        "10fa": {
+          "ndvi": 0.117,
+          "gndvi": 0.104,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave",
+          "coverage_pct": 96.6
         },
         "amalfitani": {
-          "gndvi": 0.54,
-          "n_status": "ok",
-          "n_rec": "Nitrógeno adecuado"
+          "ndvi": 0.048,
+          "gndvi": 0.042,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave",
+          "coverage_pct": 100.0
         },
         "poli_f11": {
-          "gndvi": 0.4,
-          "n_status": "borderline",
-          "n_rec": "Fertilización preventiva recomendable"
+          "ndvi": 0.068,
+          "gndvi": 0.067,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave",
+          "coverage_pct": 99.1
         },
         "poli_f8a": {
-          "gndvi": 0.36,
-          "n_status": "bajo",
-          "n_rec": "Fertilizar esta semana — déficit N moderado"
+          "ndvi": 0.048,
+          "gndvi": 0.053,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave",
+          "coverage_pct": 98.4
         },
         "poli_f8b": {
-          "gndvi": 0.36,
-          "n_status": "bajo",
-          "n_rec": "Fertilizar esta semana — déficit N moderado"
+          "ndvi": 0.044,
+          "gndvi": 0.046,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave",
+          "coverage_pct": 100.0
         },
         "poli_hockey": {
-          "gndvi": 0.32,
-          "n_status": "bajo",
-          "n_rec": "Fertilizar esta semana — déficit N moderado"
+          "ndvi": 0.038,
+          "gndvi": 0.048,
+          "n_status": "grave",
+          "n_rec": "Fertilizar URGENTE — deficiencia N grave",
+          "coverage_pct": 100.0
         }
       }
     },
     "riesgo_fungosis": {
-      "nivel": "medio",
-      "horas_favorables_48h": 6,
+      "nivel": "alto",
+      "horas_favorables_48h": 19,
       "horas_brown_patch_48h": 0,
-      "descripcion": "MEDIO: 6h favorables Dollar Spot en últimas 48h",
-      "accion_recomendada": "Monitorear canchas afectadas — aplicar fungicida si aparecen manchas",
+      "descripcion": "ALTO: 19h Dollar Spot · 0h Brown Patch (48h)",
+      "accion_recomendada": "Aplicar fungicida preventivo HOY",
       "canchas_en_riesgo": [
         "1fa",
         "2fa",
         "3fa",
+        "4fa",
+        "5fa",
+        "6fa",
+        "7fa",
+        "8fa",
+        "9fa",
+        "10fa",
+        "1fp",
+        "2fp",
         "amalfitani",
-        "poli_f11"
+        "poli_f11",
+        "poli_f8a",
+        "poli_f8b",
+        "poli_hockey"
       ],
-      "enfermedad": "Dollar Spot"
+      "enfermedad": "Dollar Spot + Brown Patch"
     },
     "ecostress": {
       "disponible": false,
@@ -185,13 +233,13 @@
     "smap": {
       "disponible": true,
       "producto": "SPL3SMP_E",
-      "fecha": "2026-05-29",
-      "mensaje": "SMAP SPL3SMP_E disponible: 2026-05-29",
+      "fecha": "2026-05-30",
+      "mensaje": "SMAP SPL3SMP_E disponible: 2026-05-30",
       "nota": "Valor exacto requiere Earthdata auth — Open-Meteo como proxy"
     },
     "sar_disponible": false,
     "sar_mensaje": "Sin integración SAR activa",
-    "costo_agua_ars": 42500
+    "costo_agua_ars": 38000
   },
   "sectores": {
     "estadio": {
@@ -226,7 +274,7 @@
           "id": "1fa",
           "nombre": "1FA",
           "score": 16,
-          "score_prev": 28,
+          "score_prev": 16,
           "sem": "rojo",
           "ndvi": 0.043,
           "ndvi_prev": 0.52,
@@ -236,7 +284,7 @@
           "id": "2fa",
           "nombre": "2FA",
           "score": 44,
-          "score_prev": 82,
+          "score_prev": 44,
           "sem": "rojo",
           "ndvi": 0.047,
           "ndvi_prev": 0.48,
@@ -246,7 +294,7 @@
           "id": "3fa",
           "nombre": "3FA",
           "score": 37,
-          "score_prev": 46,
+          "score_prev": 37,
           "sem": "rojo",
           "ndvi": 0.071,
           "ndvi_prev": 0.44,
@@ -256,7 +304,7 @@
           "id": "4fa",
           "nombre": "4FA",
           "score": 47,
-          "score_prev": 53,
+          "score_prev": 47,
           "sem": "rojo",
           "ndvi": 0.086,
           "ndvi_prev": 0.38,
@@ -266,7 +314,7 @@
           "id": "5fa",
           "nombre": "5FA",
           "score": 36,
-          "score_prev": 45,
+          "score_prev": 36,
           "sem": "rojo",
           "ndvi": 0.074,
           "ndvi_prev": 0.38,
@@ -276,7 +324,7 @@
           "id": "6fa",
           "nombre": "6FA",
           "score": 46,
-          "score_prev": 53,
+          "score_prev": 46,
           "sem": "rojo",
           "ndvi": 0.077,
           "ndvi_prev": 0.7,
@@ -286,7 +334,7 @@
           "id": "7fa",
           "nombre": "7FA",
           "score": 47,
-          "score_prev": 53,
+          "score_prev": 47,
           "sem": "rojo",
           "ndvi": 0.083,
           "ndvi_prev": 0.68,
@@ -296,7 +344,7 @@
           "id": "8fa",
           "nombre": "8FA",
           "score": 36,
-          "score_prev": 42,
+          "score_prev": 36,
           "sem": "rojo",
           "ndvi": 0.079,
           "ndvi_prev": 0.42,
@@ -306,7 +354,7 @@
           "id": "9fa",
           "nombre": "9FA",
           "score": 41,
-          "score_prev": 47,
+          "score_prev": 41,
           "sem": "rojo",
           "ndvi": 0.061,
           "ndvi_prev": 0.3,
@@ -316,7 +364,7 @@
           "id": "10fa",
           "nombre": "10FA",
           "score": 50,
-          "score_prev": 57,
+          "score_prev": 50,
           "sem": "amarillo",
           "ndvi": 0.117,
           "ndvi_prev": 0.65,
@@ -326,7 +374,7 @@
           "id": "1fp",
           "nombre": "1FP",
           "score": 35,
-          "score_prev": 38,
+          "score_prev": 35,
           "sem": "rojo",
           "ndvi": 0.034,
           "ndvi_prev": 0.61,
@@ -336,7 +384,7 @@
           "id": "2fp",
           "nombre": "2FP",
           "score": 44,
-          "score_prev": 48,
+          "score_prev": 44,
           "sem": "rojo",
           "ndvi": 0.044,
           "ndvi_prev": 0.59,
@@ -669,7 +717,7 @@
       "heatmaps_meta": {
         "fuente": "sentinel-2-l2a · Planetary Computer · 2026-05-22 · nub 26%",
         "semana": "2026-05-22",
-        "updated_at": "2026-06-02T09:00:56Z"
+        "updated_at": "2026-06-03T09:00:55Z"
       }
     },
     "juan": {
@@ -1225,7 +1273,7 @@
   },
   "historial_meta": {
     "semana": "2026-05-22",
-    "committed_at": "2026-06-02T09:00:57Z",
+    "committed_at": "2026-06-03T09:00:57Z",
     "fuente": "Faro Protocol · Railway auto-commit"
   }
 }
