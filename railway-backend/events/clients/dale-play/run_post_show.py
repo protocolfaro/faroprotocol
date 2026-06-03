@@ -614,25 +614,31 @@ def _run_certification_real(show_id: str, ndvi_pre: "float | None",
                              ndvi_post: "float | None",
                              ndvi_post_fuente: str,
                              layout: "dict | None",
-                             sar_pre: dict, sar_post: dict) -> dict:
+                             sar_baseline: dict, sar_pre: dict, sar_post: dict,
+                             cert_estado: str = "SAR_CONFIRMADO+NDVI_PENDIENTE") -> dict:
     """
-    Genera certificado PDF con los datos reales ya verificados.
-    Llama directamente _build_pdf() en lugar de run_certification()
-    para no re-fetchear NDVI post-show.
+    Genera certificado PDF bifásico.
+    sar_baseline = SAR previo al evento (referencia limpia, -45d a -16d).
+    sar_pre      = SAR durante el show (pasadas de la semana del evento).
+    cert_estado  = "SAR_CONFIRMADO+NDVI_PENDIENTE" o "SAR_CONFIRMADO+NDVI_CONFIRMADO".
     """
-    from dale_play_certification import _build_pdf, _compute_damage
+    from dale_play_certification import _build_pdf, _compute_damage, _compute_sar_damage
     import json as _json
 
     show_path = SHOWS_DIR / f"{show_id}.json"
     show_cfg  = _json.loads(show_path.read_text(encoding="utf-8"))
 
-    damage = _compute_damage(ndvi_pre, ndvi_post, layout)
+    damage     = _compute_damage(ndvi_pre, ndvi_post, layout)
+    sar_damage = _compute_sar_damage(sar_baseline.get("vv_db"), sar_pre.get("vv_db"))
 
-    ts        = datetime.now(timezone.utc)
-    content   = (f"FARO-CERT-{show_id}-"
-                 f"{ndvi_pre}-{ndvi_post}-"
-                 f"{damage['delta_ndvi']}-"
-                 f"{ts.isoformat()}")
+    ts = datetime.now(timezone.utc)
+    # Hash incluye SAR como fuente primaria; NDVI se suma cuando está disponible.
+    content = (
+        f"FARO-CERT-{show_id}-"
+        f"SAR:{sar_baseline.get('vv_db')}-{sar_pre.get('vv_db')}-"
+        f"NDVI:{ndvi_pre}-{ndvi_post}-"
+        f"{ts.isoformat()}"
+    )
     cert_hash = hashlib.sha256(content.encode()).hexdigest().upper()
 
     fii_data = {}
@@ -654,14 +660,17 @@ def _run_certification_real(show_id: str, ndvi_pre: "float | None",
         "venue":            "Estadio José Amalfitani",
         "fecha_emision":    ts.strftime("%Y-%m-%d %H:%M UTC"),
         "cert_hash":        cert_hash,
+        "cert_estado":      cert_estado,
         "ndvi_pre":         ndvi_pre,
         "ndvi_pre_fuente":  ndvi_pre_fuente,
         "ndvi_post":        ndvi_post,
         "ndvi_post_fuente": ndvi_post_fuente,
         "damage":           damage,
+        "sar_damage":       sar_damage,
         "layout":           layout,
         "mode":             "post_show",
         "fii":              fii_data,
+        "sar_baseline":     sar_baseline,
         "sar_pre":          sar_pre,
         "sar_post":         sar_post,
     }
@@ -670,7 +679,7 @@ def _run_certification_real(show_id: str, ndvi_pre: "float | None",
     out_path = CERT_DIR / f"{show_id}_certificado.pdf"
     _build_pdf(cert_data, out_path)
     cert_data["pdf_path"] = str(out_path)
-    log.info("Certificado → %s  hash=%s…", out_path, cert_hash[:16])
+    log.info("Certificado [%s] → %s  hash=%s…", cert_estado, out_path, cert_hash[:16])
     return cert_data
 
 
@@ -747,24 +756,32 @@ def run_post_show(show_id: str) -> dict:
         )
     )
 
-    # ── 5.4 SAR pre-show [show_date-14d, show_date] ───────────────────────────
-    sar_pre_from = (show_dt - timedelta(days=14)).isoformat()
-    log.info("--- Verificando SAR pre-show [%s, %s] ---", sar_pre_from, show_date)
-    sar_pre = _fetch_sar_vv(sar_pre_from, show_date, label="SAR_PRE")
-    log.info("SAR PRE: VV=%s dB  n_px=%d  fecha=%s  estado=%s",
+    # ── 5.4 SAR baseline: ventana anterior al show [-45d, -16d] ──────────────
+    # Evita capturar pasadas de show (≤14d antes) como baseline.
+    sar_base_from = (show_dt - timedelta(days=45)).isoformat()
+    sar_base_to   = (show_dt - timedelta(days=16)).isoformat()
+    log.info("--- SAR baseline [%s, %s] ---", sar_base_from, sar_base_to)
+    sar_baseline = _fetch_sar_vv(sar_base_from, sar_base_to, label="SAR_BASELINE")
+    log.info("SAR BASELINE: VV=%s dB  n_px=%d  fecha=%s  estado=%s",
+             sar_baseline.get("vv_db"), sar_baseline.get("n_px", 0),
+             sar_baseline.get("fecha", "—"), sar_baseline.get("estado"))
+
+    # ── 5.5 SAR durante show: [-3d, show_date] — captura noches del recital ──
+    sar_pre_from = (show_dt - timedelta(days=3)).isoformat()
+    log.info("--- SAR durante show [%s, %s] ---", sar_pre_from, show_date)
+    sar_pre = _fetch_sar_vv(sar_pre_from, show_date, label="SAR_DURANTE")
+    log.info("SAR DURANTE: VV=%s dB  n_px=%d  fecha=%s  estado=%s",
              sar_pre.get("vv_db"), sar_pre.get("n_px", 0),
              sar_pre.get("fecha", "—"), sar_pre.get("estado"))
 
-    # ── 5.5 SAR post-show [show_date+1d, hoy] ────────────────────────────────
+    # ── 5.6 SAR post-show [show_date+1d, hoy] ────────────────────────────────
     post_sar_start = (show_dt + timedelta(days=1)).isoformat()
-    log.info("--- Verificando SAR post-show [%s, %s] ---", post_sar_start, today_str)
+    log.info("--- SAR post-show [%s, %s] ---", post_sar_start, today_str)
     if post_sar_start > today_str:
-        log.info("SAR_POST: fechas post-show no disponibles (show=%s, hoy=%s)",
-                 show_date, today_str)
         sar_post = {
             "vv_db": None, "n_px": 0, "item_id": None, "fecha": None,
             "estado": "pendiente_revisita",
-            "nota": f"Show {show_date} — proxima revisita S1 ~{(show_dt + timedelta(days=3)).isoformat()}",
+            "nota": f"Proxima revisita S1 ~{(show_dt + timedelta(days=5)).isoformat()}",
         }
     else:
         sar_post = _fetch_sar_vv(post_sar_start, today_str, label="SAR_POST")
@@ -772,13 +789,13 @@ def run_post_show(show_id: str) -> dict:
              sar_post.get("vv_db"), sar_post.get("n_px", 0),
              sar_post.get("fecha", "—"), sar_post.get("estado"))
 
-    # ── 5.6 Pipeline completo en modo post_show ───────────────────────────────
+    # ── 5.7 Pipeline completo en modo post_show ───────────────────────────────
     log.info("--- Ejecutando pipeline completo modo=post_show ---")
     from dale_play_pipeline import run_show_audit
     result = run_show_audit(show_cfg, mode="post_show")
     log.info("Pipeline OK  report_png=%s", result.get("report_png"))
 
-    # ── 5.7 PNG post_show comparativa pre vs post ─────────────────────────────
+    # ── 5.8 PNG post_show comparativa pre vs post ─────────────────────────────
     log.info("--- Generando PNG comparativa pre/post show ---")
     satellite_data = {
         "pre_show":        pre_data,
@@ -787,8 +804,16 @@ def run_post_show(show_id: str) -> dict:
     sar_bundle = {"pre_show": sar_pre, "post_show": sar_post}
     png_comp = _generate_post_show_png(satellite_data, sar_bundle, show_id)
 
-    # ── 5.8 Certificado PDF con datos reales ─────────────────────────────────
+    # ── 5.9 Certificado PDF bifásico ──────────────────────────────────────────
     log.info("--- Generando certificado PDF ---")
+    sar_ok   = sar_baseline.get("vv_db") is not None and sar_pre.get("vv_db") is not None
+    ndvi_ok  = ndvi_post is not None
+    cert_estado = (
+        ("SAR_CONFIRMADO" if sar_ok  else "SAR_PENDIENTE") + "+" +
+        ("NDVI_CONFIRMADO" if ndvi_ok else "NDVI_PENDIENTE")
+    )
+    log.info("cert_estado: %s", cert_estado)
+
     layout = result.get("layout")
     cert   = _run_certification_real(
         show_id          = show_id,
@@ -797,17 +822,19 @@ def run_post_show(show_id: str) -> dict:
         ndvi_post        = ndvi_post,
         ndvi_post_fuente = ndvi_post_fuente,
         layout           = layout,
+        sar_baseline     = sar_baseline,
         sar_pre          = sar_pre,
         sar_post         = sar_post,
+        cert_estado      = cert_estado,
     )
 
     # ── Resumen final ─────────────────────────────────────────────────────────
     delta_ndvi = cert["damage"]["delta_ndvi"]
     nivel_dano = cert["damage"]["nivel_dano"]
     fii        = cert.get("fii") or {}
-    delta_sar  = None
-    if sar_pre.get("vv_db") is not None and sar_post.get("vv_db") is not None:
-        delta_sar = round(sar_post["vv_db"] - sar_pre["vv_db"], 2)
+    sar_dmg    = cert.get("sar_damage") or {}
+    delta_vv   = sar_dmg.get("delta_vv_db")
+    sar_nivel  = sar_dmg.get("nivel", "sin_datos")
 
     lines = [
         "",
@@ -818,8 +845,19 @@ def run_post_show(show_id: str) -> dict:
         f"Artista:       {show_cfg['artist']}",
         f"Venue:         {show_cfg.get('venue', 'Estadio Jose Amalfitani')}",
         f"Fecha show:    {show_date}",
+        f"Cert estado:   {cert_estado}",
         "",
-        "-- NDVI SENTINEL-2 " + "-" * 41,
+        "-- SAR SENTINEL-1 GRD (METRICA PRIMARIA) " + "-" * 19,
+        f"  Baseline   {sar_baseline.get('fecha','?')}:  VV = {sar_baseline.get('vv_db')} dB"
+        f"  ({sar_baseline.get('n_px',0)} px)  [{sar_baseline.get('estado')}]",
+        f"  Durante    {sar_pre.get('fecha','?')}:  VV = {sar_pre.get('vv_db')} dB"
+        f"  ({sar_pre.get('n_px',0)} px)  [{sar_pre.get('estado')}]",
+        f"  Post-show  {sar_post.get('fecha','?')}:  VV = {sar_post.get('vv_db')} dB"
+        f"  [{sar_post.get('estado')}]",
+        f"  Delta VV:  {f'{delta_vv:+.2f} dB' if delta_vv is not None else 'N/D'}"
+        f"  -> nivel: {sar_nivel.upper()}",
+        "",
+        "-- NDVI SENTINEL-2 (METRICA SECUNDARIA) " + "-" * 20,
         f"  Pre-show  {pre_data.get('fecha','?')}:  NDVI = {ndvi_pre}  "
         f"({pre_data.get('n_valid',0)}/{pre_data.get('n_total',0)} px, "
         f"SCL={pre_data.get('scl_unique','?')})",
@@ -827,24 +865,10 @@ def run_post_show(show_id: str) -> dict:
     for p in post_list:
         lines.append(
             f"  Post-show {p.get('fecha','?')} (D{p.get('label','+?')}):  NDVI = {p.get('ndvi')}  "
-            f"({p.get('n_valid',0)}/{p.get('n_total',0)} px, "
-            f"cloud={p.get('tile_cloud_pct','?')}%)"
+            f"({p.get('n_valid',0)}/{p.get('n_total',0)} px, cloud={p.get('tile_cloud_pct','?')}%)"
         )
     lines += [
-        f"  Delta NDVI:       {delta_ndvi}  -> nivel dano: {nivel_dano}",
-        "",
-        "-- SAR SENTINEL-1 GRD VV " + "-" * 35,
-        f"  Pre-show  {sar_pre.get('fecha','?')}:  VV = {sar_pre.get('vv_db')} dB  "
-        f"({sar_pre.get('n_px',0)} px)  [{sar_pre.get('estado')}]",
-        f"  Post-show {sar_post.get('fecha','?')}:  VV = {sar_post.get('vv_db')} dB  "
-        f"({sar_post.get('n_px',0)} px)  [{sar_post.get('estado')}]",
-    ]
-    if delta_sar is not None:
-        alerta = "COMPACTACION DETECTADA" if delta_sar > 1.5 else "Sin compactacion"
-        lines.append(f"  Delta SAR:        {delta_sar:+.2f} dB  -> {alerta}")
-    else:
-        lines.append("  Delta SAR:        N/D -- SAR post-show pendiente (revisita ~3-4 dias)")
-    lines += [
+        f"  Delta NDVI: {delta_ndvi}  -> nivel: {nivel_dano}",
         "",
         "-- FII " + "-" * 53,
         f"  FII = {fii.get('fii','N/D')}  sello = {fii.get('sello','N/D')}  "
@@ -864,13 +888,16 @@ def run_post_show(show_id: str) -> dict:
         "result":          result,
         "pre_data":        pre_data,
         "post_list":       post_list,
+        "sar_baseline":    sar_baseline,
         "sar_pre":         sar_pre,
         "sar_post":        sar_post,
         "ndvi_pre":        ndvi_pre,
         "ndvi_post":       ndvi_post,
         "delta_ndvi":      delta_ndvi,
-        "delta_sar":       delta_sar,
+        "delta_vv":        delta_vv,
+        "sar_nivel":       sar_nivel,
         "nivel_dano":      nivel_dano,
+        "cert_estado":     cert_estado,
         "fii":             fii,
         "png_comparativa": png_comp,
         "pdf_path":        cert.get("pdf_path"),
