@@ -196,6 +196,7 @@ def push_velez_data(ipos: dict, ts: str) -> str:
             ctx_note = (" · Recuperación activa ↗" if recovering
                         else (" · Dormancia estacional" if _winter else ""))
             cancha["score_prev"]    = cancha.get("score", score)
+            cancha["ndvi_prev"]     = cancha.get("ndvi", ndvi)
             cancha["score"]         = score
             cancha["sem"]           = sem
             cancha["ndvi"]          = ndvi
@@ -217,6 +218,7 @@ def push_velez_data(ipos: dict, ts: str) -> str:
             ctx_note = (" · Recuperación activa ↗" if recovering
                         else (" · Dormancia estacional" if _winter else ""))
             cancha["score_prev"]    = cancha.get("score", score)
+            cancha["ndvi_prev"]     = cancha.get("ndvi", ndvi)
             cancha["score"]         = score
             cancha["sem"]           = sem
             cancha["ndvi"]          = ndvi

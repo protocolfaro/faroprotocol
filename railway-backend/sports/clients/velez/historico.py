@@ -163,6 +163,12 @@ def _push_csv_to_github(row: dict) -> str:
         writer.writeheader()
         writer.writerow(row)
     else:
+        fecha_to_check = row.get("fecha_local", "")
+        if fecha_to_check:
+            reader = csv.DictReader(io.StringIO(existing_content))
+            if any(r.get("fecha_local") == fecha_to_check for r in reader):
+                log.info("historico: fecha_local %s ya existe en GitHub CSV — duplicado omitido", fecha_to_check)
+                return ""
         buf.write(existing_content.rstrip("\n") + "\n")
         writer.writerow(row)
 
@@ -202,6 +208,12 @@ def write_weekly_snapshot(vd: dict) -> Path:
     # Secondary: local filesystem (dev / CI)
     file_exists = HIST_PATH.exists()
     try:
+        fecha_to_check = row.get("fecha_local", "")
+        if file_exists and fecha_to_check:
+            with open(HIST_PATH, newline="", encoding="utf-8") as fh:
+                if any(r.get("fecha_local") == fecha_to_check for r in csv.DictReader(fh)):
+                    log.info("historico: local fecha_local %s ya existe — duplicado omitido", fecha_to_check)
+                    return HIST_PATH
         with open(HIST_PATH, "a", newline="", encoding="utf-8") as fh:
             writer = csv.DictWriter(fh, fieldnames=FIELDS, extrasaction="ignore")
             if not file_exists:
