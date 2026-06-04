@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "4.0",
-    "fecha": "2026-06-02",
+    "fecha": "2026-06-03",
     "cliente": "Club Atletico Velez Sarsfield",
     "coords": {
       "lat": -34.6375,
@@ -41,35 +41,35 @@
     ],
     "semana": "2026-06-01"
   },
-  "updated_at": "2026-06-03T09:00:55Z",
+  "updated_at": "2026-06-04T09:00:56Z",
   "weather_live": {
-    "timestamp": "2026-06-02T09:00:14",
+    "timestamp": "2026-06-03T09:00:14",
     "fuentes": [
       "nasa-power",
       "soilgrids",
       "open-meteo-hourly"
     ],
-    "et0_mm_dia": 1.1,
+    "et0_mm_dia": 0.92,
     "et0_fuente": "nasa+penman-monteith",
-    "et0_semana_mm": 7.7,
-    "precipitacion_semana_mm": 0.9,
-    "deficit_hidrico_mm": 6.8,
+    "et0_semana_mm": 6.4,
+    "precipitacion_semana_mm": 1.0,
+    "deficit_hidrico_mm": 5.4,
     "deficit_hidrico": true,
-    "litros_m2_semana": 6.8,
-    "riego_min_sector": 20,
+    "litros_m2_semana": 5.4,
+    "riego_min_sector": 16,
     "riego_min_fuente": "estimado",
     "hora_riego_optima": "05:00",
     "dia_riego_offset": 0,
     "hora_riego_alternativa": "17:00",
     "hora_corte_optima": "06:00",
-    "humedad_suelo_pct": 40.5,
+    "humedad_suelo_pct": 40.2,
     "humedad_suelo_estado": "humedo",
-    "humedad_subsuperficial_pct": 40.6,
+    "humedad_subsuperficial_pct": 40.3,
     "suelo_tipo": "Suelo pesado",
     "suelo_clay_pct": 32,
     "suelo_sand_pct": 28,
     "suelo_whc_mm": 42,
-    "gdd_acumulado_7d": 14.0,
+    "gdd_acumulado_7d": 13.9,
     "gdd_rate_diario": 2.8,
     "dias_proximo_corte": 14,
     "gndvi_por_cancha": {
@@ -200,9 +200,9 @@
     },
     "riesgo_fungosis": {
       "nivel": "alto",
-      "horas_favorables_48h": 19,
+      "horas_favorables_48h": 28,
       "horas_brown_patch_48h": 0,
-      "descripcion": "ALTO: 19h Dollar Spot · 0h Brown Patch (48h)",
+      "descripcion": "ALTO: 28h Dollar Spot · 0h Brown Patch (48h)",
       "accion_recomendada": "Aplicar fungicida preventivo HOY",
       "canchas_en_riesgo": [
         "1fa",
@@ -233,13 +233,13 @@
     "smap": {
       "disponible": true,
       "producto": "SPL3SMP_E",
-      "fecha": "2026-05-30",
-      "mensaje": "SMAP SPL3SMP_E disponible: 2026-05-30",
+      "fecha": "2026-06-01",
+      "mensaje": "SMAP SPL3SMP_E disponible: 2026-06-01",
       "nota": "Valor exacto requiere Earthdata auth — Open-Meteo como proxy"
     },
     "sar_disponible": false,
     "sar_mensaje": "Sin integración SAR activa",
-    "costo_agua_ars": 38000
+    "costo_agua_ars": 30000
   },
   "sectores": {
     "estadio": {
@@ -717,7 +717,7 @@
       "heatmaps_meta": {
         "fuente": "sentinel-2-l2a · Planetary Computer · 2026-05-22 · nub 26%",
         "semana": "2026-05-22",
-        "updated_at": "2026-06-03T09:00:55Z"
+        "updated_at": "2026-06-04T09:00:56Z"
       }
     },
     "juan": {
@@ -1273,7 +1273,7 @@
   },
   "historial_meta": {
     "semana": "2026-05-22",
-    "committed_at": "2026-06-03T09:00:57Z",
+    "committed_at": "2026-06-04T09:00:57Z",
     "fuente": "Faro Protocol · Railway auto-commit"
   }
 }
