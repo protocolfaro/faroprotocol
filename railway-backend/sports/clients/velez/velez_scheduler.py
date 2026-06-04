@@ -6,8 +6,10 @@ no `schedule` library (uses APScheduler from app.py).
 Config is fetched from GitHub raw URL so it works in stateless Railway containers.
 """
 import base64, json, logging, math, os, smtplib, threading
-from datetime import datetime, date
+from datetime import datetime, date, timezone, timedelta
 from pathlib import Path
+
+_ART = timezone(timedelta(hours=-3))  # America/Argentina/Buenos_Aires (no DST)
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
@@ -153,7 +155,7 @@ def _build_wa_message(user: dict, sectores: dict, fecha: str, vd: dict = None) -
             try:
                 from datetime import date as _date
                 img_d = datetime.strptime(semana, "%Y-%m-%d").date()
-                age = (datetime.now().date() - img_d).days
+                age = (datetime.now(_ART).date() - img_d).days
                 if age > 7:
                     lines.append(f"⚠ _Imagen satelital de hace {age} días ({img_d.strftime('%d/%m')}) — sin imagen nueva disponible_")
                     lines.append("")
@@ -168,7 +170,7 @@ def send_whatsapp_alerts(vd: dict = None) -> dict:
     if vd is None:
         vd = _get_velez_data()
     sectores  = vd.get("sectores", {})
-    fecha_str = datetime.now().strftime("%d/%m/%Y")
+    fecha_str = datetime.now(_ART).strftime("%d/%m/%Y")
     results   = {}
     for user in _WA_ALERT_USERS:
         api_key = _env(user["env_key"])
@@ -317,7 +319,7 @@ def _html_wrap(title: str, body: str, panel_url: str = "") -> str:
 <hr style="border-color:#c9a84c44;margin-top:20px">
 <p style="color:#9aa0a8;font-size:12px">
 Faro Protocol · Fortín Inteligente · protocolfaro@gmail.com<br>
-Generado automáticamente · {datetime.now().strftime('%d/%m/%Y %H:%M')} UTC-3
+Generado automáticamente · {datetime.now(_ART).strftime('%d/%m/%Y %H:%M')} UTC-3
 </p>
 </div></body></html>"""
 
@@ -534,7 +536,7 @@ def _satellite_age_warning(vd: dict) -> str:
         return ""
     try:
         img_date = datetime.strptime(semana, "%Y-%m-%d")
-        age_days = (datetime.now() - img_date).days
+        age_days = (datetime.now(_ART).replace(tzinfo=None) - img_date).days
     except Exception:
         return ""
     if age_days <= 7:
@@ -558,7 +560,7 @@ def _body_roger(vd: dict, panel_url: str = "") -> str:
     agro       = sectores.get("agro", {})
     acciones   = u.get("acciones", [])
     tareas_sem = u.get("tareas_semana", [])
-    fecha      = datetime.now().strftime("%d/%m/%Y")
+    fecha      = datetime.now(_ART).strftime("%d/%m/%Y")
 
     criticas = [c for c in canchas if c.get("sem") == "rojo"]
     atencion = [c for c in canchas if c.get("sem") == "amarillo"]
@@ -620,7 +622,7 @@ def _body_roger(vd: dict, panel_url: str = "") -> str:
     sunset_str, needs_light, senter_rec = _senter_lighting()
     senter_color = "#f0b429" if needs_light else "#27ae60"
     senter_html = (
-        f'<h3 style="color:{senter_color}">Carros de Luces Senter — Semana {datetime.now().strftime("%d/%m")}</h3>'
+        f'<h3 style="color:{senter_color}">Carros de Luces Senter — Semana {datetime.now(_ART).strftime("%d/%m")}</h3>'
         f'<ul style="font-size:14px;line-height:1.8">{senter_rec}</ul>'
     )
 
@@ -740,7 +742,7 @@ def _body_banchero(vd: dict, panel_url: str = "") -> str:
     sectores = vd.get("sectores", {})
     u        = vd.get("usuarios", {}).get("banchero", {})
     acciones = u.get("acciones", [])
-    fecha    = datetime.now().strftime("%d/%m/%Y")
+    fecha    = datetime.now(_ART).strftime("%d/%m/%Y")
 
     SECTOR_ORDER = ["canchero", "poli", "sede", "estadio", "agro", "solar", "piletas"]
     rows = ""
@@ -788,7 +790,7 @@ def _body_pait(vd: dict, panel_url: str = "") -> str:
     sectores = vd.get("sectores", {})
     canchas  = sectores.get("canchero", {}).get("canchas", [])
     poli     = sectores.get("poli", {})
-    fecha    = datetime.now().strftime("%d/%m/%Y")
+    fecha    = datetime.now(_ART).strftime("%d/%m/%Y")
 
     # Traction risk per surface based on NDVI + field score (FIFA/NFL thresholds)
     # NDVI < 0.30 → bare/stressed → HIGH rotational traction → injury risk HIGH
@@ -878,7 +880,7 @@ def _body_berlanga(vd: dict, panel_url: str = "") -> str:
     u        = vd.get("usuarios", {}).get("berlanga", {})
     kpis     = u.get("kpis", [])
     acciones = u.get("acciones", [])
-    fecha    = datetime.now().strftime("%d/%m/%Y")
+    fecha    = datetime.now(_ART).strftime("%d/%m/%Y")
 
     SECTOR_ORDER = ["estadio", "solar", "poli", "piletas", "sede", "canchero"]
     rows = ""
@@ -942,7 +944,7 @@ def _body_nelson(vd: dict, panel_url: str = "") -> str:
     u        = vd.get("usuarios", {}).get("nelson", {})
     kpis     = u.get("kpis", [])
     acciones = u.get("acciones", [])
-    fecha    = datetime.now().strftime("%d/%m/%Y")
+    fecha    = datetime.now(_ART).strftime("%d/%m/%Y")
 
     SECTOR_ORDER = ["canchero", "solar", "poli", "piletas", "sede", "estadio"]
     bullets = ""
@@ -994,7 +996,7 @@ def _body_aveleyra(vd: dict, panel_url: str = "") -> str:
     u        = vd.get("usuarios", {}).get("aveleyra", {})
     kpis     = u.get("kpis", [])
     acciones = u.get("acciones", [])
-    fecha    = datetime.now().strftime("%d/%m/%Y")
+    fecha    = datetime.now(_ART).strftime("%d/%m/%Y")
 
     rows = ""
     for k in kpis:
@@ -1118,7 +1120,7 @@ def send_all_reports(config: dict = None, vd: dict = None) -> dict:
         except Exception:
             pass
 
-    date_str     = datetime.now().strftime("%d/%m/%Y")
+    date_str     = datetime.now(_ART).strftime("%d/%m/%Y")
     report_paths = _get_report_paths(config)   # {key → Path} from config.zonas
     results      = {}
     for d in config.get("destinatarios", []):
@@ -1261,7 +1263,7 @@ def route_test_whatsapp():
     results = {}
     for u in users:
         api_key = _env(u["env_key"])
-        msg = f"Faro Protocol · TEST desde Railway · {datetime.now().strftime('%d/%m %H:%M')}"
+        msg = f"Faro Protocol · TEST desde Railway · {datetime.now(_ART).strftime('%d/%m %H:%M')}"
         results[u["nombre"]] = send_whatsapp(u["phone"], msg, api_key) if api_key else None
     return jsonify({"status": "ok", "results": results})
 
@@ -1326,7 +1328,7 @@ def route_test_email():
     from flask import request, jsonify
     data    = request.get_json(silent=True, force=True) or {}
     config  = load_config()
-    now_str = datetime.now().strftime("%d/%m/%Y %H:%M")
+    now_str = datetime.now(_ART).strftime("%d/%m/%Y %H:%M")
     results = {}
     target_email  = data.get("email")
     target_nombre = data.get("nombre")

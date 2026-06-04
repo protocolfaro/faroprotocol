@@ -175,9 +175,12 @@ def push_velez_data(ipos: dict, ts: str) -> str:
         sm_data     = shadow_maps.get(cid, {})
         sombra_pct  = sm_data.get("sombra_permanente_pct", 0) if isinstance(sm_data, dict) else 0
 
-        # Rolling NDVI history (last 5 readings) — persisted in velez_data.json
+        # Rolling NDVI history (last 5 distinct readings) — persisted in velez_data.json.
+        # Only append when value changes by ≥0.01 to avoid filling 5 slots within one week
+        # (push_velez_data is called both from IPOS sync and satellite pipeline).
         ndvi_hist = list(cancha.get("ndvi_historial") or [])
-        ndvi_hist.append(ndvi)
+        if not ndvi_hist or abs(ndvi - ndvi_hist[-1]) >= 0.01:
+            ndvi_hist.append(ndvi)
         ndvi_hist = ndvi_hist[-5:]
         recovering = _positive_trend(ndvi_hist)
 
