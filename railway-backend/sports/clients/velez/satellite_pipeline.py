@@ -182,16 +182,36 @@ def run_satellite_cycle(ndvi_data: dict = None, force: bool = False) -> dict:
 
     img_date = ndvi_data.get("fecha_imagen", "?")
 
-    # 2. Verificar si esta imagen ya fue procesada
+    # 2. Sanity check: rechazar imagen con NDVI mediano < 0.12 (artefacto probable)
+    # Valores 0.03–0.10 son suelo desnudo, no pasto — indican niebla/sombra no detectada.
+    _ndvi_vals = sorted(
+        v["ndvi"] for v in ndvi_data.get("canchas", {}).values()
+        if isinstance(v.get("ndvi"), (int, float))
+    )
+    if len(_ndvi_vals) >= 8:
+        _median_ndvi = _ndvi_vals[len(_ndvi_vals) // 2]
+        if _median_ndvi < 0.12:
+            log.warning(
+                "satellite_pipeline: imagen %s RECHAZADA — NDVI mediano %.3f < 0.12 "
+                "(artefacto probable: niebla/sombra de nube no detectada) — "
+                "manteniendo último ciclo válido",
+                img_date, _median_ndvi,
+            )
+            return {
+                "ok": True, "skipped": True, "reason": "ndvi_anomaly",
+                "fecha_imagen": img_date, "median_ndvi": _median_ndvi,
+            }
+
+    # 3. Verificar si esta imagen ya fue procesada (usar >= para no re-procesar misma fecha)
     if not force:
         last = _last_processed_date()
-        if last and last > img_date:
+        if last and last >= img_date:
             log.info("satellite_pipeline: imagen %s ya procesada (última: %s) — omitido", img_date, last)
             return {"ok": True, "skipped": True, "reason": "already_processed", "fecha_imagen": img_date}
 
     log.info("=== satellite_pipeline START — imagen %s ===", img_date)
 
-    # 3. Construir ndvi_map y ipos_results
+    # 4. Construir ndvi_map y ipos_results
     ndvi_map = {cid: v["ndvi"] for cid, v in ndvi_data.get("canchas", {}).items()
                 if v.get("ndvi") is not None}
     last_ipos   = _load_last_ipos()

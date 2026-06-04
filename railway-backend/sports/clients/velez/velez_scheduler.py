@@ -117,7 +117,7 @@ def send_whatsapp(phone: str, message: str, api_key: str) -> bool:
         return False
 
 
-def _build_wa_message(user: dict, sectores: dict, fecha: str) -> str:
+def _build_wa_message(user: dict, sectores: dict, fecha: str, vd: dict = None) -> str:
     nombre_short = user["nombre"].split()[0]
     user_sects   = [sectores[k] for k in user["sectores"] if k in sectores]
     scores       = [s["score"] for s in user_sects if isinstance(s.get("score"), (int, float))]
@@ -144,6 +144,21 @@ def _build_wa_message(user: dict, sectores: dict, fecha: str) -> str:
         for s in atencion[:2]:
             lines.append(f"  • {s.get('nombre','?')} ({s.get('score','?')}/100)")
         lines.append("")
+    # Satellite data age warning
+    if vd:
+        meta = (vd.get("usuarios", {}).get("roger", {})
+                   .get("heatmaps_meta", {}))
+        semana = meta.get("semana", "")
+        if semana:
+            try:
+                from datetime import date as _date
+                img_d = datetime.strptime(semana, "%Y-%m-%d").date()
+                age = (datetime.now().date() - img_d).days
+                if age > 7:
+                    lines.append(f"⚠ _Imagen satelital de hace {age} días ({img_d.strftime('%d/%m')}) — sin imagen nueva disponible_")
+                    lines.append("")
+            except Exception:
+                pass
     lines.append(f"📱 {PANEL_BASE_URL}#{user['slug']}")
     return "\n".join(lines)
 
@@ -162,7 +177,7 @@ def send_whatsapp_alerts(vd: dict = None) -> dict:
                      user["nombre"], user["env_key"])
             results[user["nombre"]] = None
             continue
-        msg = _build_wa_message(user, sectores, fecha_str)
+        msg = _build_wa_message(user, sectores, fecha_str, vd=vd)
         results[user["nombre"]] = send_whatsapp(user["phone"], msg, api_key)
 
     sent = sum(1 for v in results.values() if v is True)
@@ -511,6 +526,30 @@ def _fetch_aspersores_summary(railway_url: str, pin: str = "") -> str:
 
 # ── Email bodies — leen datos reales de velez_data.json ───────────────────────
 
+def _satellite_age_warning(vd: dict) -> str:
+    """Returns an HTML warning block if satellite data is older than 7 days. Empty string otherwise."""
+    meta = vd.get("usuarios", {}).get("roger", {}).get("heatmaps_meta", {})
+    semana = meta.get("semana", "")
+    if not semana:
+        return ""
+    try:
+        img_date = datetime.strptime(semana, "%Y-%m-%d")
+        age_days = (datetime.now() - img_date).days
+    except Exception:
+        return ""
+    if age_days <= 7:
+        return ""
+    return (
+        f'<div style="background:rgba(231,76,60,.15);border-left:4px solid #e74c3c;'
+        f'padding:10px 14px;margin-bottom:16px;border-radius:0 6px 6px 0">'
+        f'<b style="color:#e74c3c">⚠ Datos satelitales de hace {age_days} días</b><br>'
+        f'<span style="font-size:13px;color:#ccc">Última imagen Sentinel-2: {img_date.strftime("%d/%m/%Y")}. '
+        f'No hay imagen limpia más reciente disponible (nubosidad o cobertura insuficiente). '
+        f'Las alertas de NDVI reflejan esa fecha, no el estado actual del campo.</span>'
+        f'</div>'
+    )
+
+
 def _body_roger(vd: dict, panel_url: str = "") -> str:
     sectores   = vd.get("sectores", {})
     u          = vd.get("usuarios", {}).get("roger", {})
@@ -617,7 +656,10 @@ def _body_roger(vd: dict, panel_url: str = "") -> str:
             'ingresalas desde Mediciones en el panel web.</p>'
         )
 
+    age_warn = _satellite_age_warning(vd)
+
     body = f"""
+        {age_warn}
         <p style="font-size:16px;font-weight:bold">Roger, informe agronómico de la semana del {fecha}.</p>
         <p style="font-size:14px">Análisis satelital Sentinel-2 + prescripciones por superficie.</p>
         {sections}
