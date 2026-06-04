@@ -389,7 +389,7 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
 .mc-toggle input:checked+.mc-toggle-slider:before{transform:translateX(18px)}
 .mc-toggle input:not(:checked)+.mc-toggle-slider{background:rgba(224,82,82,.45)}
 /* Sombras — correcciones interactivas */
-.sombra-hm-wrap{position:relative;cursor:crosshair;border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,.06);user-select:none}
+.sombra-hm-wrap{position:relative;cursor:crosshair;border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,.06);user-select:none;touch-action:none}
 .sombra-img{width:100%;display:block}
 .sombra-overlay{position:absolute;inset:0;pointer-events:none}
 .sombra-marker{position:absolute;transform:translate(-50%,-50%);pointer-events:auto;cursor:default}
@@ -2242,9 +2242,9 @@ function aspSave(){
   var RAILWAY=typeof RAILWAY_URL!=='undefined'?RAILWAY_URL:null;
   var PIN=typeof _pinValue!=='undefined'?_pinValue:null;
   var asp=_aspState[_mcCurrentCancha]||[];
-  if(RAILWAY&&PIN&&asp.length){
+  if(RAILWAY&&asp.length){
     fetch(RAILWAY+'/velez/aspersores',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({pin:PIN,cancha:_mcCurrentCancha,aspersores:asp})})
+      body:JSON.stringify({cancha:_mcCurrentCancha,aspersores:asp})})
       .then(function(r){return r.json();})
       .then(function(d){
         var h3=document.getElementById('asp-hint');
@@ -2270,9 +2270,9 @@ function aspBorrarCancha(){
   if(h) h.textContent='Aspersores borrados.';
   var RAILWAY=typeof RAILWAY_URL!=='undefined'?RAILWAY_URL:null;
   var PIN=typeof _pinValue!=='undefined'?_pinValue:null;
-  if(RAILWAY&&PIN&&cid){
+  if(RAILWAY&&cid){
     fetch(RAILWAY+'/velez/aspersores/'+cid,{method:'DELETE',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({pin:PIN})}).catch(function(){});
+      body:JSON.stringify({})}).catch(function(){});
   }
 }
 
@@ -2280,10 +2280,9 @@ function aspSetupEvents(){
   var svg=document.getElementById('asp-svg'); if(!svg) return;
   function svgPt(e){
     var rect=svg.getBoundingClientRect();
-    var cx=e.touches?e.touches[0].clientX:e.clientX;
-    var cy=e.touches?e.touches[0].clientY:e.clientY;
-    return {x:Math.round(((cx-rect.left)/rect.width)*FIELD_W*10)/10,
-            y:Math.round(((cy-rect.top)/rect.height)*FIELD_H*10)/10};
+    var src=(e.changedTouches&&e.changedTouches[0])||(e.touches&&e.touches[0])||e;
+    return {x:Math.round(((src.clientX-rect.left)/rect.width)*FIELD_W*10)/10,
+            y:Math.round(((src.clientY-rect.top)/rect.height)*FIELD_H*10)/10};
   }
   var ASP_STATES=['cubierto','solapado','sin_cobertura'];
   function onTap(e){
@@ -2304,8 +2303,7 @@ function aspSetupEvents(){
     _aspState[_mcCurrentCancha]=asps;
     aspRender(_mcCurrentCancha);
   }
-  svg.addEventListener('click',onTap);
-  svg.addEventListener('touchend',onTap,{passive:false});
+  svg.addEventListener('pointerdown',function(e){e.preventDefault();onTap(e);});
 }
 
 function aspRender(cid){
@@ -2411,7 +2409,7 @@ function buildSombrasModule(shadowMaps, cancha){
     +'<div style="font-size:18px;font-weight:700;color:'+solCol+'">'+solUtil+'%</div>'
     +'<div style="font-size:9px;color:var(--wdim);margin-left:2px">'+sm.sombra_permanente_pct+'% perm · '+sm.sombra_parcial_pct+'% parcial · '+(sm.imagenes_analizadas||'—')+' imgs Sentinel-2</div>'
     +'</div>'
-    +'<div id="sombra-wrap" class="sombra-hm-wrap" onclick="sombraClickHeatmap(event,this)">'
+    +'<div id="sombra-wrap" class="sombra-hm-wrap" onpointerdown="sombraClickHeatmap(event,this)">'
     +'<img id="sombra-img" class="sombra-img" src="heatmaps/heatmap_'+cid+'_shadow.png" alt="Sombras '+_esc(cid.toUpperCase())+'" onerror="this.style.opacity=\'0.15\'">'
     +'<div id="sombra-overlay" class="sombra-overlay"></div>'
     +'</div>'
@@ -2428,12 +2426,14 @@ function buildSombrasModule(shadowMaps, cancha){
 }
 
 function sombraClickHeatmap(e,wrap){
+  e.preventDefault();
   if(e.target.closest&&e.target.closest('.sombra-marker')) return;
   var img=document.getElementById('sombra-img');
   if(!img) return;
   var rect=img.getBoundingClientRect();
-  var x=parseFloat(((e.clientX-rect.left)/rect.width*100).toFixed(1));
-  var y=parseFloat(((e.clientY-rect.top)/rect.height*100).toFixed(1));
+  var src=(e.changedTouches&&e.changedTouches[0])||(e.touches&&e.touches[0])||e;
+  var x=parseFloat(((src.clientX-rect.left)/rect.width*100).toFixed(1));
+  var y=parseFloat(((src.clientY-rect.top)/rect.height*100).toFixed(1));
   if(x<0||x>100||y<0||y>100) return;
   var cid=_mcCurrentCancha;
   if(!_sombraMarkers[cid]) _sombraMarkers[cid]=[];

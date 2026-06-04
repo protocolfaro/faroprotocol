@@ -408,8 +408,6 @@ def aspersores():
     body = request.get_json(silent=True)
     if not body:
         return jsonify({"status": "error", "error": "JSON body required"}), 400
-    if not _ok_pin(body.get("pin")):
-        return jsonify({"status": "error", "error": "PIN inválido"}), 401
     cid = body.get("cancha", "")
     asp = body.get("aspersores")
     if not cid or not isinstance(asp, list):
@@ -427,11 +425,6 @@ def aspersores():
 
 @app.route("/velez/aspersores/<cancha>", methods=["DELETE"])
 def delete_aspersores_route(cancha):
-    body = request.get_json(silent=True)
-    if not body:
-        return jsonify({"status": "error", "error": "JSON body required"}), 400
-    if not _ok_pin(body.get("pin")):
-        return jsonify({"status": "error", "error": "PIN inválido"}), 401
     try:
         result = github_push.delete_aspersores(cancha)
         log.info("Aspersores %s borrados — %s", cancha.upper(), result)
