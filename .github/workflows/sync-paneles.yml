@@ -6,6 +6,9 @@ on:
       - 'velez/**'
       - 'pasaporte/**'
   workflow_dispatch:
+concurrency:
+  group: sync-paneles
+  cancel-in-progress: true
 jobs:
   sync:
     runs-on: ubuntu-latest
@@ -35,4 +38,4 @@ jobs:
           git add -A
           git diff --cached --quiet && echo "Sin cambios, nada que pushear." && exit 0
           git commit -m "sync: paneles desde faroprotocol [$(date -u +%Y-%m-%dT%H:%M:%SZ)]"
-          git push "https://x-access-token:${TOKEN}@github.com/protocolfaro/faro-paneles.git" main
+          git push --force "https://x-access-token:${TOKEN}@github.com/protocolfaro/faro-paneles.git" main
