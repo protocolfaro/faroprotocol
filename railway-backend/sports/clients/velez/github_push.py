@@ -4,7 +4,7 @@ Faro Protocol · Vélez Sarsfield
 """
 from __future__ import annotations
 import base64, json, logging, os, time
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 import requests
 
 log = logging.getLogger(__name__)
@@ -84,9 +84,44 @@ def _shadow_penalty(sombra_permanente_pct: float) -> float:
     return 1.0
 
 
-def _combined_score(ndvi: float, ipos_score: float, ipos_sem: str) -> tuple:
+# ── Dormancia estacional (invierno austral) ───────────────────────────────────
+# Jun–Ago: el pasto entra en dormancia. NDVI bajo es normal, no urgente.
+# Se reduce la referencia de NDVI máximo esperado (0.75 → 0.55) para que
+# un NDVI de 0.25-0.35 no dispare rojo cuando es solo dormancia invernal.
+_WINTER_MONTHS = frozenset((6, 7, 8))
+
+
+def _ndvi_norm_seasonal(ndvi: float, month: int) -> int:
+    """Normalize NDVI to 0-100 with seasonal reference peak."""
+    ref = 0.55 if month in _WINTER_MONTHS else 0.75
+    return min(100, round((ndvi / ref) * 100))
+
+
+# ── Tendencia NDVI ────────────────────────────────────────────────────────────
+def _positive_trend(ndvi_hist: list) -> bool:
+    """
+    True if the last ≥3 NDVI readings show a positive linear slope (> 0.005/week).
+    Used to suppress false-positive deterioro alerts after reseeding or intervention.
+    """
+    vals = [v for v in (ndvi_hist or []) if isinstance(v, (int, float))]
+    if len(vals) < 3:
+        return False
+    v = vals[-4:]
+    n = len(v)
+    mean_x = (n - 1) / 2
+    mean_y = sum(v) / n
+    num = sum((i - mean_x) * (vi - mean_y) for i, vi in enumerate(v))
+    den = sum((i - mean_x) ** 2 for i in range(n))
+    if not den:
+        return False
+    return (num / den) > 0.005
+
+
+def _combined_score(ndvi: float, ipos_score: float, ipos_sem: str,
+                    month: int = None) -> tuple:
     """Score fusión: NDVI Planetary Computer 60% + IPOS invertido 40%. Returns (score, sem)."""
-    ndvi_norm = min(100, round((ndvi / 0.75) * 100))
+    _month    = month or date.today().month
+    ndvi_norm = _ndvi_norm_seasonal(ndvi, _month)
     ipos_inv  = _ipos_to_health(ipos_score, ipos_sem)
     combined  = round(ndvi_norm * 0.60 + ipos_inv * 0.40)
     sem = "verde" if combined >= 70 else "amarillo" if combined >= 50 else "rojo"
@@ -125,6 +160,9 @@ def push_velez_data(ipos: dict, ts: str) -> str:
         if "semana" in hm:
             roger["heatmaps_meta"]["semana"] = hm.pop("semana")
 
+    _month  = date.today().month
+    _winter = _month in _WINTER_MONTHS
+
     canchas = vd.get("sectores", {}).get("canchero", {}).get("canchas", [])
     for cancha in canchas:
         cid  = cancha.get("id", "")
@@ -137,31 +175,54 @@ def push_velez_data(ipos: dict, ts: str) -> str:
         sm_data     = shadow_maps.get(cid, {})
         sombra_pct  = sm_data.get("sombra_permanente_pct", 0) if isinstance(sm_data, dict) else 0
 
+        # Rolling NDVI history (last 5 readings) — persisted in velez_data.json
+        ndvi_hist = list(cancha.get("ndvi_historial") or [])
+        ndvi_hist.append(ndvi)
+        ndvi_hist = ndvi_hist[-5:]
+        recovering = _positive_trend(ndvi_hist)
+
         if cid in ipos:
             ip       = ipos[cid]
             ipos_sem = ip.get("semaforo", "verde")
-            score, sem = _combined_score(ndvi, float(ip.get("score", 0)), ipos_sem)
+            score, sem = _combined_score(ndvi, float(ip.get("score", 0)), ipos_sem,
+                                         month=_month)
             score, sem = _apply_shadow(score, sem, sombra_pct)
             shadow_note = f" · {sombra_pct:.0f}% sombra perm." if sombra_pct >= 15 else ""
-            cancha["score_prev"] = cancha.get("score", score)
-            cancha["score"]      = score
-            cancha["sem"]        = sem
-            cancha["ndvi"]       = ndvi
-            cancha["detalle"]    = (f"NDVI {ndvi:.2f} · {ip.get('texto', '')} · "
-                                    f"{ip.get('personas', 0)} pers · {ip.get('horas', 0)}h"
-                                    + shadow_note)
+            # Trend suppression: recovering field → not urgent
+            if sem == "rojo" and recovering:
+                sem   = "amarillo"
+                score = max(score, 50)
+            # Context note for detalle
+            ctx_note = (" · Recuperación activa ↗" if recovering
+                        else (" · Dormancia estacional" if _winter else ""))
+            cancha["score_prev"]    = cancha.get("score", score)
+            cancha["score"]         = score
+            cancha["sem"]           = sem
+            cancha["ndvi"]          = ndvi
+            cancha["ndvi_historial"] = ndvi_hist
+            cancha["detalle"]       = (f"NDVI {ndvi:.2f} · {ip.get('texto', '')} · "
+                                       f"{ip.get('personas', 0)} pers · {ip.get('horas', 0)}h"
+                                       + ctx_note + shadow_note)
         else:
             # 0 sessions this week — fully rested, NDVI governs
-            ndvi_norm = min(100, round((ndvi / 0.75) * 100))
+            ndvi_norm = _ndvi_norm_seasonal(ndvi, _month)
             score     = round(ndvi_norm * 0.60 + 100 * 0.40)
             sem       = "verde" if score >= 70 else "amarillo" if score >= 50 else "rojo"
             score, sem = _apply_shadow(score, sem, sombra_pct)
             shadow_note = f" · {sombra_pct:.0f}% sombra perm." if sombra_pct >= 15 else ""
-            cancha["score_prev"] = cancha.get("score", score)
-            cancha["score"]      = score
-            cancha["sem"]        = sem
-            cancha["ndvi"]       = ndvi
-            cancha["detalle"]    = f"NDVI {ndvi:.2f} · Sin uso esta semana — descansada" + shadow_note
+            # Trend suppression: recovering field → not urgent
+            if sem == "rojo" and recovering:
+                sem   = "amarillo"
+                score = max(score, 50)
+            ctx_note = (" · Recuperación activa ↗" if recovering
+                        else (" · Dormancia estacional" if _winter else ""))
+            cancha["score_prev"]    = cancha.get("score", score)
+            cancha["score"]         = score
+            cancha["sem"]           = sem
+            cancha["ndvi"]          = ndvi
+            cancha["ndvi_historial"] = ndvi_hist
+            cancha["detalle"]       = (f"NDVI {ndvi:.2f} · Sin uso esta semana — descansada"
+                                       + ctx_note + shadow_note)
 
     # Aggregate sector-level score from cancha scores (single source of truth)
     cancha_scores = [c.get("score") for c in canchas if isinstance(c.get("score"), (int, float))]
