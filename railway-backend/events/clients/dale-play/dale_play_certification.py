@@ -597,6 +597,9 @@ def _build_pdf(cert_data: dict, out_path: pathlib.Path) -> None:
     _url_display = (_verify_url[:65] + "…") if len(_verify_url) > 65 else _verify_url
     story.append(Paragraph(f"CERT-SHA256: {_hash_short}", P_hash))
     story.append(Paragraph(f"Verificar:   {_url_display}", P_hash))
+    if cert_data.get("ots_proof"):
+        story.append(Paragraph(
+            "Anclado a Bitcoin blockchain — verificable en opentimestamps.org", P_hash))
 
     doc.build(story, onFirstPage=_bg, onLaterPages=_bg)
 
@@ -691,6 +694,17 @@ def run_certification(show_id: str, mode: str = "post_show") -> dict:
                f"{ts.isoformat()}")
     cert_hash = hashlib.sha256(content.encode()).hexdigest().upper()
 
+    # OpenTimestamps — anchor cert hash to Bitcoin blockchain via calendar REST
+    _ots_proof: str | None = None
+    try:
+        from dale_play_opentimestamps import stamp_to_base64
+        _ots_proof = stamp_to_base64(cert_hash)
+        if _ots_proof:
+            log.info("certification: OTS anchored to Bitcoin (%.0f raw bytes)",
+                     len(_ots_proof) * 3 / 4)
+    except Exception as _ots_e:
+        log.warning("certification: OTS stamp failed: %s", _ots_e)
+
     cert_data = {
         "show_id":       show_id,
         "show_date":     show_cfg.get("show_date", ""),
@@ -706,6 +720,7 @@ def run_certification(show_id: str, mode: str = "post_show") -> dict:
         "layout":        layout,
         "mode":          mode,
         "fii":           {},
+        "ots_proof":     _ots_proof,
     }
 
     # FII — Índice Faro de Integridad

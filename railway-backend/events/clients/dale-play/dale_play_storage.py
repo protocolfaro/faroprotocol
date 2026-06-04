@@ -22,6 +22,7 @@ Tablas requeridas (SQL Editor de Supabase):
     ndvi_post  REAL,
     delta_ndvi REAL,
     nivel_dano TEXT,
+    ots_proof  TEXT,
     data       JSONB,
     created_at TIMESTAMPTZ DEFAULT NOW()
   );
@@ -254,6 +255,7 @@ def save_certification(show_id: str, cert_hash: str,
         "ndvi_post":  data.get("ndvi_post"),
         "delta_ndvi": damage.get("delta_ndvi"),
         "nivel_dano": damage.get("nivel_dano", "sin_datos"),
+        "ots_proof":  data.get("ots_proof"),
         "data":       data,
     }
     _cache_save("cert", show_id, row)

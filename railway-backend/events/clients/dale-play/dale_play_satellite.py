@@ -159,8 +159,12 @@ def _search_s2_aws(days_back: int = 30, max_cloud: float = 30.0,
         return None
 
 
-def _ndvi_from_item_aws(item: dict) -> Optional[float]:
-    """NDVI desde S2 via AWS S3 (sin token, HTTPS público)."""
+def _ndvi_from_item_aws(item: dict) -> Optional[dict]:
+    """NDVI+GNDVI+BSI+NDWI desde S2 via AWS S3 (sin token, HTTPS público).
+
+    Returns dict with ndvi plus optional gndvi, bsi, ndwi keys
+    (omitted silently when the required bands are unavailable).
+    """
     try:
         import rasterio, numpy as np, os
         from rasterio.warp import transform_bounds
@@ -172,7 +176,6 @@ def _ndvi_from_item_aws(item: dict) -> Optional[float]:
             href = item.get("assets", {}).get(key, {}).get("href", "")
             if not href:
                 return None
-            # Convertir s3:// a HTTPS si es necesario
             if href.startswith("s3://sentinel-cogs/"):
                 href = href.replace("s3://sentinel-cogs/",
                                     "https://sentinel-cogs.s3.us-west-2.amazonaws.com/")
@@ -182,13 +185,8 @@ def _ndvi_from_item_aws(item: dict) -> Optional[float]:
                 win    = from_bounds(*native, transform=src.transform)
                 return src.read(1, window=win).astype("float32") / 10_000.0
 
-        red = _read("red")   # Earth Search usa "red" / "nir" como keys
-        nir = _read("nir")
-        if red is None:
-            red = _read("B04")
-        if nir is None:
-            nir = _read("B08")
-
+        red = _read("red") or _read("B04")
+        nir = _read("nir") or _read("B08")
         if red is None or nir is None:
             return None
 
@@ -196,7 +194,34 @@ def _ndvi_from_item_aws(item: dict) -> Optional[float]:
         if valid.sum() < 4:
             return None
         r_v, n_v = red[valid], nir[valid]
-        return float(round(float(np.mean((n_v - r_v) / (n_v + r_v + 1e-9))), 3))
+        ndvi = float(round(float(np.mean((n_v - r_v) / (n_v + r_v + 1e-9))), 3))
+        out: dict = {"ndvi": ndvi}
+
+        # GNDVI = (NIR - GREEN) / (NIR + GREEN) — nitrogen proxy
+        grn = _read("green") or _read("B03")
+        if grn is not None:
+            g_v = grn[valid]
+            gv  = float(round(float(np.mean((n_v - g_v) / (n_v + g_v + 1e-9))), 3))
+            out["gndvi"] = max(-1.0, min(1.0, gv))
+
+        # BSI = ((SWIR1+RED)-(NIR+BLUE)) / ((SWIR1+RED)+(NIR+BLUE)) — exposed soil
+        swir1 = _read("swir16") or _read("B11")
+        blue  = _read("blue")   or _read("B02")
+        if swir1 is not None and blue is not None:
+            s_v, b_v = swir1[valid], blue[valid]
+            num = (s_v + r_v) - (n_v + b_v)
+            den = (s_v + r_v) + (n_v + b_v)
+            bsi = float(round(float(np.mean(np.where(np.abs(den) > 1e-9, num / den, 0.0))), 3))
+            out["bsi"] = max(-1.0, min(1.0, bsi))
+
+        # NDWI (Gao) = (NIR - SWIR1) / (NIR + SWIR1) — vegetation water stress
+        if swir1 is not None:
+            num  = n_v - s_v
+            den  = n_v + s_v
+            ndwi = float(round(float(np.mean(np.where(np.abs(den) > 1e-9, num / den, 0.0))), 3))
+            out["ndwi"] = max(-1.0, min(1.0, ndwi))
+
+        return out
     except Exception as exc:
         log.debug("dale_play_satellite: AWS S2 NDVI: %s", exc)
         return None
@@ -471,11 +496,13 @@ def fetch_satellite_baseline(
 
         if s2_item:
             try:
-                # Leer NDVI con el cliente correcto
-                ndvi = _ndvi_from_item_aws(s2_item) if s2_source == "AWS" else None
+                # Leer NDVI (+ índices extra cuando fuente=AWS) con el cliente correcto
+                _aws_result = _ndvi_from_item_aws(s2_item) if s2_source == "AWS" else None
+                ndvi = _aws_result.get("ndvi") if _aws_result else None
                 if ndvi is None:
                     ndvi = _ndvi_from_item(s2_item)
                     s2_source = "PC"
+                    _aws_result = None
 
                 props  = s2_item.get("properties", {})
                 dt_str = (props.get("datetime") or "")[:10]
@@ -497,6 +524,11 @@ def fetch_satellite_baseline(
                     "s2_fuente_backend": s2_source,
                     "revisita_dias":  5.0,
                 })
+                # BSI / NDWI / GNDVI desde AWS extraction
+                if _aws_result:
+                    for _k in ("gndvi", "bsi", "ndwi"):
+                        if _aws_result.get(_k) is not None:
+                            result[_k] = _aws_result[_k]
                 log.info("dale_play_satellite: S2 [%s] NDVI %s fecha %s",
                          s2_source, ndvi, dt_str)
 

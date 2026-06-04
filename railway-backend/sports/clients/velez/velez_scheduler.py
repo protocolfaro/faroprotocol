@@ -566,10 +566,25 @@ def _body_roger(vd: dict, panel_url: str = "") -> str:
     atencion = [c for c in canchas if c.get("sem") == "amarillo"]
     optimas  = [c for c in canchas if c.get("sem") == "verde"]
 
+    _hm = u.get("heatmaps", {}) if isinstance(u.get("heatmaps"), dict) else {}
+
     def _cancha_li(c):
+        cid  = c.get("id", "")
+        hm_e = _hm.get(cid, {}) if isinstance(_hm.get(cid), dict) else {}
+        dat: list[str] = []
+        if isinstance(hm_e.get("gndvi"), (int, float)):
+            dat.append(f'GNDVI {hm_e["gndvi"]:.2f}')
+        if isinstance(hm_e.get("bsi"), (int, float)):
+            dat.append(f'BSI {hm_e["bsi"]:+.2f}')
+        if isinstance(hm_e.get("ndwi"), (int, float)):
+            dat.append(f'NDWI {hm_e["ndwi"]:+.2f}')
+        extra = ""
+        if dat:
+            extra = (f' · {" · ".join(dat)}'
+                     f' <span style="color:#c9a84c;font-size:11px">[DATO REAL]</span>')
         return (
             f'<li><b>{c.get("nombre","?")}: </b>'
-            f'NDVI {c.get("ndvi","—")} · Score {c.get("score","—")}/100<br>'
+            f'NDVI {c.get("ndvi","—")} · Score {c.get("score","—")}/100{extra}<br>'
             f'<span style="font-size:13px;color:#ccc">{c.get("detalle","")}</span></li>'
         )
 

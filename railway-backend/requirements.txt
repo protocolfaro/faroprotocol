@@ -22,3 +22,4 @@ reportlab>=4.2.0
 s2cloudless>=1.6.0
 sen2sr>=0.1.0
 earthaccess>=0.9.0
+spyndex>=0.3.0

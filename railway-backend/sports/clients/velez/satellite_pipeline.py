@@ -112,16 +112,24 @@ def _push_heatmap_ndvi_update(ndvi_data: dict) -> str:
         if hm_key in hm:
             hm[hm_key]["ndvi"] = ndvi
             if cdata.get("gndvi") is not None:
-                hm[hm_key]["gndvi"]     = cdata["gndvi"]
-                hm[hm_key]["n_status"]  = cdata.get("n_status", "")
-                hm[hm_key]["n_rec"]     = cdata.get("n_rec", "")
+                hm[hm_key]["gndvi"]    = cdata["gndvi"]
+                hm[hm_key]["n_status"] = cdata.get("n_status", "")
+                hm[hm_key]["n_rec"]    = cdata.get("n_rec", "")
+            if cdata.get("bsi") is not None:
+                hm[hm_key]["bsi"] = cdata["bsi"]
+            if cdata.get("ndwi") is not None:
+                hm[hm_key]["ndwi"] = cdata["ndwi"]
         else:
-            entry = {"archivo": f"heatmaps/heatmap_{hm_key}.png",
-                     "ndvi": ndvi, "detalle": ""}
+            entry: dict = {"archivo": f"heatmaps/heatmap_{hm_key}.png",
+                           "ndvi": ndvi, "detalle": ""}
             if cdata.get("gndvi") is not None:
                 entry["gndvi"]    = cdata["gndvi"]
                 entry["n_status"] = cdata.get("n_status", "")
                 entry["n_rec"]    = cdata.get("n_rec", "")
+            if cdata.get("bsi") is not None:
+                entry["bsi"] = cdata["bsi"]
+            if cdata.get("ndwi") is not None:
+                entry["ndwi"] = cdata["ndwi"]
             hm[hm_key] = entry
 
     roger.setdefault("heatmaps_meta", {}).update({
