@@ -91,6 +91,9 @@ _STAC_SOURCES = [
         "red":        ["B04"],
         "nir":        ["B08"],
         "green":      ["B03"],
+        "blue":       ["B02"],          # for BSI
+        "swir1":      ["B11"],          # for BSI + NDWI
+        "scl":        ["SCL"],          # Scene Classification Layer — cloud/shadow masking
         "scale":      "s2",
     },
     {
@@ -102,6 +105,9 @@ _STAC_SOURCES = [
         "red":        ["B04", "red"],
         "nir":        ["B08", "nir"],
         "green":      ["B03", "green"],
+        "blue":       ["B02", "blue"],
+        "swir1":      ["B11", "swir16"],
+        "scl":        ["scl", "SCL"],
         "scale":      "s2",
     },
     {
@@ -113,6 +119,9 @@ _STAC_SOURCES = [
         "red":        ["SR_B4", "red"],
         "nir":        ["SR_B5", "nir"],
         "green":      ["SR_B3", "green"],
+        "blue":       ["SR_B2", "blue"],
+        "swir1":      ["SR_B6", "swir16"],
+        # no SCL for Landsat — CLOSDI handles shadows inline
         "scale":      "ls",
     },
 ]
@@ -185,8 +194,15 @@ def _search_source(src: dict, dt_from: str, dt_to: str,
 
 
 def _read_canchas(item, src: dict) -> dict[str, dict]:
-    """Windowed read COG para todas las canchas usando la fuente especificada."""
+    """Windowed COG read for all canchas.
+
+    Applies SCL + CLOSDI pixel-level masking before computing NDVI.
+    Computes NDVI, GNDVI (nitrogen), BSI (bare soil), NDWI (water stress).
+    BSI and NDWI require SWIR1 (B11) — omitted silently if asset unavailable.
+    """
+    import contextlib
     import rasterio
+    from rasterio.enums import Resampling
     from rasterio.env import Env as _RioEnv
     from rasterio.warp import transform_bounds
     from rasterio.windows import from_bounds
@@ -198,67 +214,167 @@ def _read_canchas(item, src: dict) -> dict[str, dict]:
     except ImportError:
         _USE_CLEAN = False
 
+    mode = src["scale"]
+
+    # Required bands
     red_url   = _asset_href(item, src["red"])
     nir_url   = _asset_href(item, src["nir"])
     green_url = _asset_href(item, src["green"])
-    mode      = src["scale"]
+
+    # Optional bands — None if asset not in item
+    def _opt(key: str):
+        cands = src.get(key)
+        if not cands:
+            return None
+        try:
+            return _asset_href(item, cands)
+        except KeyError:
+            return None
+
+    blue_url  = _opt("blue")
+    swir1_url = _opt("swir1")
+    scl_url   = _opt("scl")
+
+    # SCL classes to discard: no_data, defective, cloud shadow, medium cloud, high cloud, cirrus
+    _SCL_BAD = frozenset({0, 1, 3, 8, 9, 10})
 
     results: dict[str, dict] = {}
-    with _RioEnv(GDAL_HTTP_TIMEOUT=30, GDAL_HTTP_CONNECTTIMEOUT=15):
-        with (
-            rasterio.open(red_url)   as src_red,
-            rasterio.open(nir_url)   as src_nir,
-            rasterio.open(green_url) as src_green,
-        ):
-            crs = src_nir.crs
-            for cid, (minx, miny, maxx, maxy) in CANCHA_BBOXES.items():
-                try:
-                    native = transform_bounds("EPSG:4326", crs, minx, miny, maxx, maxy)
-                    win    = from_bounds(*native, transform=src_nir.transform)
 
-                    nir_raw   = src_nir.read(1, window=win).astype("float32")
-                    red_raw   = src_red.read(1, window=win).astype("float32")
-                    green_raw = src_green.read(1, window=win).astype("float32")
+    with contextlib.ExitStack() as stack:
+        stack.enter_context(_RioEnv(GDAL_HTTP_TIMEOUT=30, GDAL_HTTP_CONNECTTIMEOUT=15))
+        s_nir   = stack.enter_context(rasterio.open(nir_url))
+        s_red   = stack.enter_context(rasterio.open(red_url))
+        s_green = stack.enter_context(rasterio.open(green_url))
+        s_blue  = stack.enter_context(rasterio.open(blue_url))  if blue_url  else None
+        s_swir1 = stack.enter_context(rasterio.open(swir1_url)) if swir1_url else None
+        s_scl   = stack.enter_context(rasterio.open(scl_url))   if scl_url   else None
 
-                    nir_r   = _to_refl(nir_raw, mode)
-                    red_r   = _to_refl(red_raw, mode)
-                    green_r = _to_refl(green_raw, mode)
+        crs = s_nir.crs
 
-                    if _USE_CLEAN and mode == "s2":
-                        cleaned = _fnc.clean_ndvi(
-                            nir_raw.astype(np.int32), red_raw.astype(np.int32),
-                            do_unmix=False
+        for cid, (minx, miny, maxx, maxy) in CANCHA_BBOXES.items():
+            try:
+                native = transform_bounds("EPSG:4326", crs, minx, miny, maxx, maxy)
+
+                def _win(s):
+                    return from_bounds(*native, transform=s.transform)
+
+                nir_raw   = s_nir.read(1,   window=_win(s_nir)).astype("float32")
+                red_raw   = s_red.read(1,   window=_win(s_red)).astype("float32")
+                green_raw = s_green.read(1, window=_win(s_green)).astype("float32")
+
+                nir_r   = _to_refl(nir_raw, mode)
+                red_r   = _to_refl(red_raw, mode)
+                green_r = _to_refl(green_raw, mode)
+
+                # SCL mask — upsample to NIR pixel grid (SCL is 20m, NIR is 10m)
+                scl_mask = None
+                if s_scl is not None:
+                    try:
+                        scl_raw  = s_scl.read(
+                            1, window=_win(s_scl),
+                            out_shape=nir_raw.shape,
+                            resampling=Resampling.nearest,
                         )
-                        if cleaned["coverage_pct"] < 20.0:
-                            log.warning("ndvi_real: %s coverage %.0f%% post-clean — skip",
-                                        cid, cleaned["coverage_pct"])
-                            continue
-                        ndvi     = round(max(-1.0, min(1.0, cleaned["mean_ndvi"])), 3)
-                        coverage = round(cleaned["coverage_pct"], 1)
-                    else:
-                        valid = (nir_r + red_r) > 0.02
-                        if valid.sum() < 2:
-                            log.warning("ndvi_real: %s — menos de 2 píxeles válidos", cid)
-                            continue
-                        ndvi     = round(float(((nir_r - red_r) / (nir_r + red_r))[valid].mean()), 3)
-                        ndvi     = max(-1.0, min(1.0, ndvi))
-                        coverage = None
+                        scl_mask = np.isin(scl_raw, list(_SCL_BAD))
+                    except Exception as _se:
+                        log.debug("ndvi_real: %s SCL non-fatal: %s", cid, _se)
 
-                    valid_g = (nir_r + green_r) > 0.02
-                    if valid_g.sum() < 2:
-                        gndvi = round(ndvi * 0.93, 3)
-                    else:
-                        gndvi = round(float(((nir_r - green_r) / (nir_r + green_r))[valid_g].mean()), 3)
-                        gndvi = max(-1.0, min(1.0, gndvi))
+                # NDVI via faro_ndvi_clean (CLOSDI + unmix) for S2; inline CLOSDI fallback otherwise
+                if _USE_CLEAN and mode == "s2":
+                    cleaned = _fnc.clean_ndvi(
+                        nir_raw.astype(np.int32), red_raw.astype(np.int32),
+                        do_unmix=True,
+                        external_mask=scl_mask,
+                    )
+                    if cleaned["coverage_pct"] < 20.0:
+                        log.warning("ndvi_real: %s coverage %.0f%% post-clean — skip",
+                                    cid, cleaned["coverage_pct"])
+                        continue
+                    ndvi     = round(max(-1.0, min(1.0, cleaned["mean_ndvi"])), 3)
+                    coverage = round(cleaned["coverage_pct"], 1)
+                else:
+                    # Fallback: inline CLOSDI + basic signal check
+                    with np.errstate(invalid="ignore", divide="ignore"):
+                        _closdi = 250.0 * (nir_r + red_r) / (nir_r + 2.4 * red_r + 1.0)
+                    valid = (nir_r + red_r) > 0.02
+                    valid &= (_closdi >= 34.0) | ((nir_r + red_r) <= 0.02)  # keep no-signal as-is
+                    valid &= (nir_r >= red_r)                                 # exclude negative NDVI
+                    if scl_mask is not None:
+                        valid &= ~scl_mask
+                    if valid.sum() < 2:
+                        log.warning("ndvi_real: %s — menos de 2 píxeles válidos", cid)
+                        continue
+                    with np.errstate(invalid="ignore", divide="ignore"):
+                        ndvi = round(float(
+                            ((nir_r - red_r) / (nir_r + red_r + 1e-9))[valid].mean()), 3)
+                    ndvi     = max(-1.0, min(1.0, ndvi))
+                    coverage = None
 
-                    nst, nrec = _n_status(gndvi)
-                    entry = {"ndvi": ndvi, "gndvi": gndvi, "n_status": nst, "n_rec": nrec}
-                    if coverage is not None:
-                        entry["coverage_pct"] = coverage
-                    results[cid] = entry
+                # GNDVI — nitrogen proxy
+                valid_g = (nir_r + green_r) > 0.02
+                if scl_mask is not None:
+                    valid_g &= ~scl_mask
+                if valid_g.sum() >= 2:
+                    with np.errstate(invalid="ignore", divide="ignore"):
+                        gndvi = round(float(
+                            ((nir_r - green_r) / (nir_r + green_r + 1e-9))[valid_g].mean()), 3)
+                    gndvi = max(-1.0, min(1.0, gndvi))
+                else:
+                    gndvi = round(ndvi * 0.93, 3)
 
-                except Exception as exc:
-                    log.warning("ndvi_real: %s: %s", cid, exc)
+                nst, nrec = _n_status(gndvi)
+                entry: dict = {"ndvi": ndvi, "gndvi": gndvi, "n_status": nst, "n_rec": nrec}
+                if coverage is not None:
+                    entry["coverage_pct"] = coverage
+
+                # Base valid mask for optional indices
+                valid_base = (nir_r + red_r) > 0.02
+                if scl_mask is not None:
+                    valid_base &= ~scl_mask
+
+                # Optional bands
+                blue_r  = None
+                swir1_r = None
+                if s_blue is not None:
+                    try:
+                        blue_r = _to_refl(
+                            s_blue.read(1, window=_win(s_blue)).astype("float32"), mode)
+                    except Exception:
+                        pass
+                if s_swir1 is not None:
+                    try:
+                        swir1_r = _to_refl(
+                            s_swir1.read(1, window=_win(s_swir1)).astype("float32"), mode)
+                    except Exception:
+                        pass
+
+                # BSI = ((SWIR1+RED)-(NIR+BLUE)) / ((SWIR1+RED)+(NIR+BLUE))
+                # Positive → bare/exposed soil. Key for post-show damage assessment.
+                if swir1_r is not None and blue_r is not None:
+                    v = valid_base & ((swir1_r + red_r + nir_r + blue_r) > 0.04)
+                    if v.sum() >= 2:
+                        with np.errstate(invalid="ignore", divide="ignore"):
+                            num = (swir1_r + red_r) - (nir_r + blue_r)
+                            den = (swir1_r + red_r) + (nir_r + blue_r) + 1e-9
+                            bsi = round(max(-1.0, min(1.0, float((num / den)[v].mean()))), 3)
+                        entry["bsi"] = bsi
+
+                # NDWI (Gao) = (NIR-SWIR1)/(NIR+SWIR1) — vegetation water stress.
+                # Detects hydraulic stress 3-5 days before NDVI shows it.
+                # Positive → high leaf water content; negative → stress / drought.
+                if swir1_r is not None:
+                    v = valid_base & ((nir_r + swir1_r) > 0.02)
+                    if v.sum() >= 2:
+                        with np.errstate(invalid="ignore", divide="ignore"):
+                            ndwi = round(max(-1.0, min(1.0,
+                                float(((nir_r - swir1_r) / (nir_r + swir1_r + 1e-9))[v].mean())
+                            )), 3)
+                        entry["ndwi"] = ndwi
+
+                results[cid] = entry
+
+            except Exception as exc:
+                log.warning("ndvi_real: %s: %s", cid, exc)
 
     return results
 
