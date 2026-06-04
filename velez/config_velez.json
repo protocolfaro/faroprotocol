@@ -814,5 +814,8 @@
         "1fp": 90.0
       }
     }
-  ]
+  ],
+  "aspersores_por_cancha": {
+    "1fa": []
+  }
 }
