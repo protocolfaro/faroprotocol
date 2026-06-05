@@ -10,8 +10,11 @@ Referencia: Bejar-Pizarro et al. 2023, Liotta et al. 2022 (subsidencia AMB).
 """
 from __future__ import annotations
 import json
+import logging
 import pathlib
 from datetime import datetime
+
+log = logging.getLogger(__name__)
 
 MODELS_DIR = pathlib.Path(__file__).parent / "models"
 
@@ -84,7 +87,30 @@ def _time_series(vel: float, start_year: int = 2015, n_years: int = 8) -> list[d
 
 
 def fetch_egms_amalfitani() -> dict:
-    """Procesa datos EGMS para el Amalfitani. Guarda en models/egms_amalfitani.json."""
+    """
+    Datos de deformación del suelo para el Amalfitani.
+
+    Jerarquía:
+      1. S1 InSAR LIVE via openEO CDSE (cache 30d, protocolfaro@gmail.com)
+         → retorna si CDSE_USER/PASS configurados y resultado disponible
+      2. EGMS Copernicus 2015-2022 estático (fallback — siempre disponible)
+    """
+    # ── 1. Intento CDSE InSAR live ────────────────────────────────────────────
+    try:
+        from dale_play_insar_cdse import fetch_insar_cdse
+        live = fetch_insar_cdse()
+        if live:
+            log.info(
+                "egms: usando datos CDSE InSAR live (vel_max=%.2f mm/yr, fecha=%s)",
+                live.get("vel_max_abs_mm_yr", 0),
+                live.get("periodo", ""),
+            )
+            return live
+    except Exception as _cdse_exc:
+        log.debug("egms: CDSE InSAR no disponible (%s) — usando EGMS 2022", _cdse_exc)
+
+    # ── 2. Fallback: EGMS 2015-2022 estático ─────────────────────────────────
+    log.info("egms: usando datos EGMS Copernicus 2015-2022 (estático)")
     sectors_out = {}
     critico = None
     max_vel = 0.0

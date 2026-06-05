@@ -166,7 +166,11 @@ def analyze_structural_twin(rider: dict, weather: dict, egms: dict, soil: dict) 
         "restricciones": alertas,
         "alertas":       alertas,
         "normativa":     "CIRSOC 102-2005 + IRAM 11603 + Faro Protocol v1.0",
-        "fuente":        "Open-Meteo viento + EGMS Copernicus + Terzaghi",
+        "fuente":        (
+            "Open-Meteo viento + " +
+            (egms.get("fuente") or "EGMS Copernicus") +
+            " + Terzaghi"
+        ),
         "fallback_usado": egms.get("estimado", False),
-        "estimado":      False,
+        "estimado":      egms.get("estimado", False),
     }
