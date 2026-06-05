@@ -722,3 +722,28 @@ def _load_show(show_id: str) -> dict | None:
     except Exception as e:
         log.error("dale_play _load_show %s: %s", show_id, e)
         return None
+
+
+@dale_play_bp.route("/admin/supabase-diag", methods=["GET"])
+def dp_supabase_diag():
+    """GET /dale-play/admin/supabase-diag — últimas filas de certifications y paperclip_decisions."""
+    import os, requests as _req
+    supa_url = os.environ.get("SUPABASE_URL", "").rstrip("/")
+    supa_key = os.environ.get("SUPABASE_KEY", "")
+    if not supa_url or not supa_key:
+        return jsonify({"error": "SUPABASE_URL/KEY no configurados"}), 503
+    hdrs = {"apikey": supa_key, "Authorization": f"Bearer {supa_key}", "Accept": "application/json"}
+    out = {}
+    for table, fields in [
+        ("certifications",     "show_id,cert_hash,nivel_dano,created_at"),
+        ("paperclip_decisions","venue_id,alertar,nivel,motivo,created_at"),
+        ("pipeline_runs",      "venue_id,ndvi_median,accepted,skipped_reason,created_at"),
+    ]:
+        try:
+            r = _req.get(f"{supa_url}/rest/v1/{table}",
+                         params={"select": fields, "order": "created_at.desc", "limit": "5"},
+                         headers=hdrs, timeout=8)
+            out[table] = r.json() if r.ok else {"error": r.status_code, "detail": r.text[:200]}
+        except Exception as exc:
+            out[table] = {"error": str(exc)}
+    return jsonify(out)
