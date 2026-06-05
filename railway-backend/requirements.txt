@@ -27,3 +27,5 @@ stackstac>=0.4.0
 dask[array]>=2024.1.0
 pyPhenology>=1.0.0
 SQLAlchemy>=2.0.0
+scikit-image>=0.22.0
+openeo>=0.26.0

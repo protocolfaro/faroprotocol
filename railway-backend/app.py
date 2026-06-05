@@ -38,6 +38,27 @@ log = logging.getLogger(__name__)
 _PIN_HASH = os.environ.get("VELEZ_PIN_HASH", "")
 _DEV = os.environ.get("FLASK_ENV", "production") == "development"
 
+# ── MachinaOS GIS — MCP mock + import ────────────────────────────────────────
+try:
+    from unittest.mock import MagicMock as _MM
+    _fm = _MM(); _fi = _MM(); _fi.tool.return_value = lambda f: f; _fm.FastMCP.return_value = _fi
+    sys.modules.setdefault("mcp", _MM())
+    sys.modules.setdefault("mcp.server", _MM())
+    sys.modules.setdefault("mcp.server.fastmcp", _fm)
+    from machina_gis_server import (
+        AREAS                      as _GIS_AREAS,
+        calcular_indices_espectrales as _gis_indices,
+        analizar_cambio_sar        as _gis_sar_change,
+        generar_mapa_reporte       as _gis_report,
+        computar_coherencia_insar  as _gis_insar,
+    )
+    _GIS_OK = True
+    log.info("MachinaOS GIS loaded — areas: %s", list(_GIS_AREAS.keys()))
+except Exception as _ge:
+    _GIS_OK = False
+    log.warning("MachinaOS GIS not available: %s", _ge)
+# ─────────────────────────────────────────────────────────────────────────────
+
 def _ok_pin(pin):
     if not _PIN_HASH:
         return True  # No PIN configured — open access
@@ -1029,6 +1050,80 @@ en aproximadamente <b>3 minutos</b> después de la confirmación del pago.</p>
         "order_id": order_id,
         "message":  "Solicitud recibida. Revisá tu mail en los próximos minutos.",
     })
+
+
+# ── MachinaOS GIS routes (/gis/*) ─────────────────────────────────────────────
+
+@app.route("/gis/health")
+def gis_health():
+    return jsonify({
+        "status":  "ok" if _GIS_OK else "unavailable",
+        "service": "machina-gis",
+        "areas":   list(_GIS_AREAS.keys()) if _GIS_OK else [],
+    })
+
+
+@app.route("/gis/areas")
+def gis_areas():
+    if not _GIS_OK:
+        return jsonify({"error": "GIS service unavailable"}), 503
+    return jsonify({
+        name: {"label": a["label"], "bounds": a["bounds"]}
+        for name, a in _GIS_AREAS.items()
+    })
+
+
+@app.route("/gis/indices", methods=["POST"])
+def gis_indices():
+    if not _GIS_OK:
+        return jsonify({"error": "GIS service unavailable"}), 503
+    body = request.get_json(force=True) or {}
+    try:
+        return jsonify(_gis_indices(**body))
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/gis/sar-change", methods=["POST"])
+def gis_sar_change():
+    if not _GIS_OK:
+        return jsonify({"error": "GIS service unavailable"}), 503
+    body = request.get_json(force=True) or {}
+    body.setdefault("guardar_tif", False)
+    try:
+        return jsonify(_gis_sar_change(**body))
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/gis/report", methods=["POST"])
+def gis_report():
+    if not _GIS_OK:
+        return jsonify({"error": "GIS service unavailable"}), 503
+    body = request.get_json(force=True) or {}
+    try:
+        return jsonify(_gis_report(**body))
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/gis/insar", methods=["POST"])
+def gis_insar():
+    if not _GIS_OK:
+        return jsonify({"error": "GIS service unavailable"}), 503
+    body = request.get_json(force=True) or {}
+    try:
+        return jsonify(_gis_insar(**body))
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":
