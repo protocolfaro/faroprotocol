@@ -329,6 +329,42 @@ def pipeline_area(area_name: str,
     insight = engine._generar_insight(area, crudos)
     engine._publicar(crudos, insight)
 
+    # ── Hermes: validación físico-estacional antes de emitir SHA-256 ─────────
+    try:
+        import sys as _sys
+        from pathlib import Path as _Path
+        _agents_dir = str(_Path(__file__).parent.parent / 'railway-backend' / 'agents')
+        if _agents_dir not in _sys.path:
+            _sys.path.insert(0, _agents_dir)
+        from hermes import validate_certificate, CertificateBlocked
+        hermes_result = validate_certificate(
+            area_name     = area_name,
+            stats         = stats,
+            insight_score = insight.score_faro,
+            insight_estado= getattr(insight, 'estado', ''),
+            digest        = digest,
+        )
+        if hermes_result.get('fallback'):
+            print(f'  [~] Hermes: {hermes_result.get("motivo", "unavailable")}')
+        else:
+            print(f'  [✓] Hermes aprobado: {hermes_result.get("motivo", "")}')
+    except CertificateBlocked as hb:
+        print(f'  [✗] Hermes BLOQUEÓ el certificado: {hb.motivo}')
+        if hb.anomalias:
+            for a in hb.anomalias:
+                print(f'      → {a.get("campo")}: {a.get("motivo")}')
+        print('  [!] Certificado no emitido. Revisar datos del pipeline.')
+        return {
+            'area':       area_name,
+            'estado':     'HERMES_BLOCKED',
+            'sha256':     digest,
+            'score':      insight.score_faro,
+            'motivo':     hb.motivo,
+            'anomalias':  hb.anomalias,
+        }
+    except Exception as _he:
+        print(f'  [~] Hermes error (fail-open): {_he}')
+
     # Certificado (bloqueado por QualityGate si score < 50)
     try:
         from faro_certificado import generar_certificado

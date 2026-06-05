@@ -2,35 +2,38 @@
 dale_play_monitor.py — Agente de monitoreo autónomo.
 
 Job cada 6h: revisa clima / NDVI / SAR para todos los venues activos.
+Usa Paperclip (Claude API) para decisión contextual; fallback a umbrales fijos.
 Si detecta anomalía → email automático a Roger y Juan.
-
-Anomalías detectadas:
-  - clima_lluvia:  precipitación acumulada > 20mm en próximas 24h
-  - clima_viento:  viento máximo > 70 km/h en próximas 24h
-  - ndvi_caida:    NDVI del último show < (baseline - 0.10)
-  - sar_baja_conf: último run SAR con confianza < 0.25 (sensores sin cobertura)
 
 Variables de entorno:
   VELEZ_EMAIL_CANCHERO    — email de Roger (ya configurado en Railway para Vélez)
   VELEZ_EMAIL_INTENDENTE  — email de Juan  (ya configurado en Railway para Vélez)
   GMAIL_USER     — remitente SMTP
   EMAIL_APP_PASS — App Password Gmail (16 chars)
+  ANTHROPIC_API_KEY — para Paperclip (opcional, fallback a umbrales si falta)
   SUPABASE_URL / SUPABASE_KEY — para consultar show_memory y show_baselines
 """
 from __future__ import annotations
 
 import logging
 import os
+import sys
 import smtplib
 import time
 from datetime import datetime, timezone
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from pathlib import Path
 from typing import Optional
 
 import requests
 
 log = logging.getLogger(__name__)
+
+# Agregar agents/ al path para importar Paperclip
+_AGENTS_DIR = str(Path(__file__).parent.parent.parent.parent / "agents")
+if _AGENTS_DIR not in sys.path:
+    sys.path.insert(0, _AGENTS_DIR)
 
 # ── Venues activos para monitorear ───────────────────────────────────────────
 _ACTIVE_VENUES = [
@@ -92,191 +95,212 @@ def run_monitoring_check() -> dict:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _check_venue(venue: dict) -> list[dict]:
+    """Evalúa venue con Paperclip; fallback a umbrales fijos si Claude no disponible."""
+    # Colectar datos de todas las fuentes
+    weather_ctx = _collect_weather(venue)
+    ndvi_ctx    = _collect_ndvi(venue)
+    sar_ctx     = _collect_sar(venue)
+
+    # Intentar Paperclip
+    try:
+        from paperclip import analyze_venue
+        decision = analyze_venue(
+            venue=venue,
+            weather_ctx=weather_ctx,
+            ndvi_ctx=ndvi_ctx,
+            sar_ctx=sar_ctx,
+        )
+        if not decision.get("fallback"):
+            if decision.get("alertar"):
+                nivel = decision.get("nivel", "medium")
+                return [{
+                    "venue_id":  venue["venue_id"],
+                    "nombre":    venue["nombre"],
+                    "tipo":      "paperclip_alerta",
+                    "mensaje":   decision.get("motivo", ""),
+                    "severidad": "alta" if nivel == "high" else "media",
+                    "nivel":     nivel,
+                    "recomendacion": decision.get("recomendacion", ""),
+                    "confianza": decision.get("confianza", 0.7),
+                    "factores":  decision.get("factores", []),
+                }]
+            else:
+                log.info(
+                    "paperclip [%s] sin alerta: %s",
+                    venue["venue_id"], decision.get("motivo", ""),
+                )
+                return []
+    except Exception as exc:
+        log.warning("paperclip: error — fallback a umbrales fijos [%s]: %s",
+                    venue["venue_id"], exc)
+
+    # Fallback: umbrales fijos
     alertas: list[dict] = []
-    alertas.extend(_check_weather(venue))
-    alertas.extend(_check_ndvi_trend(venue))
-    alertas.extend(_check_sar_confidence(venue))
+    alertas.extend(_threshold_weather(venue, weather_ctx))
+    alertas.extend(_threshold_ndvi(venue, ndvi_ctx))
+    alertas.extend(_threshold_sar(venue, sar_ctx))
     return alertas
 
 
-def _check_weather(venue: dict) -> list[dict]:
-    """Open-Meteo: lluvia / viento próximas 24h."""
-    alertas: list[dict] = []
+def _collect_weather(venue: dict) -> dict:
+    """Colecta datos climáticos de Open-Meteo. Retorna dict con datos brutos."""
     lat, lon = venue["lat"], venue["lon"]
-    nombre   = venue["nombre"]
-    vid      = venue["venue_id"]
-
     try:
         resp = requests.get(
             "https://api.open-meteo.com/v1/forecast",
             params={
-                "latitude":        lat,
-                "longitude":       lon,
-                "hourly":          "precipitation,windspeed_10m",
-                "forecast_days":   2,
-                "timezone":        "America/Argentina/Buenos_Aires",
+                "latitude":      lat,
+                "longitude":     lon,
+                "hourly":        "precipitation,windspeed_10m",
+                "forecast_days": 2,
+                "timezone":      "America/Argentina/Buenos_Aires",
             },
             timeout=15,
         )
         if resp.status_code != 200:
             log.warning("dale_play_monitor: weather HTTP %s", resp.status_code)
-            return []
-
-        hourly     = resp.json().get("hourly", {})
-        precip_24h = sum(p for p in hourly.get("precipitation", [])[:24] if p is not None)
-        wind_max   = max((w for w in hourly.get("windspeed_10m", [])[:24] if w is not None), default=0)
-
-        if precip_24h >= _RAIN_MM_24H:
-            alertas.append({
-                "venue_id":  vid,
-                "nombre":    nombre,
-                "tipo":      "clima_lluvia",
-                "mensaje":   f"Lluvia acumulada próx 24h: {precip_24h:.1f}mm (umbral {_RAIN_MM_24H}mm)",
-                "valor":     round(precip_24h, 1),
-                "umbral":    _RAIN_MM_24H,
-                "severidad": "alta" if precip_24h >= _RAIN_MM_24H * 2 else "media",
-            })
-
-        if wind_max >= _WIND_KMH:
-            alertas.append({
-                "venue_id":  vid,
-                "nombre":    nombre,
-                "tipo":      "clima_viento",
-                "mensaje":   f"Viento máx próx 24h: {wind_max:.0f} km/h (umbral {_WIND_KMH}km/h)",
-                "valor":     round(wind_max, 0),
-                "umbral":    _WIND_KMH,
-                "severidad": "alta" if wind_max >= _WIND_KMH * 1.3 else "media",
-            })
-
+            return {}
+        hourly = resp.json().get("hourly", {})
+        return {
+            "precipitation_24h": sum(
+                p for p in hourly.get("precipitation", [])[:24] if p is not None
+            ),
+            "wind_max": max(
+                (w for w in hourly.get("windspeed_10m", [])[:24] if w is not None),
+                default=0,
+            ),
+        }
     except Exception as exc:
-        log.warning("dale_play_monitor: weather check %s: %s", vid, exc)
+        log.warning("dale_play_monitor: weather collect %s: %s", venue["venue_id"], exc)
+        return {}
 
-    return alertas
 
-
-def _check_ndvi_trend(venue: dict) -> list[dict]:
-    """
-    Compara el NDVI del último show registrado en show_memory
-    contra el baseline histórico de show_baselines.
-    Alerta si la caída supera _NDVI_DROP.
-    """
-    alertas: list[dict] = []
-    vid    = venue["venue_id"]
-    nombre = venue["nombre"]
-
+def _collect_ndvi(venue: dict) -> dict:
+    """Colecta datos de NDVI desde Supabase. Retorna dict con datos brutos."""
+    vid = venue["venue_id"]
     try:
-        baseline = _query_supabase(
-            "show_baselines",
-            params={"order": "date.desc", "limit": "1"},
-        )
+        baseline = _query_supabase("show_baselines", {"order": "date.desc", "limit": "1"})
         if not baseline:
-            return []
+            return {}
         baseline_ndvi = baseline[0].get("ndvi")
         if baseline_ndvi is None:
-            return []
+            return {}
 
-        # Último NDVI conocido desde show_memory
         recent = _query_supabase(
             "show_memory",
-            params={
-                "venue_id": f"eq.{vid}",
-                "order":    "created_at.desc",
-                "limit":    "3",
-            },
+            {"venue_id": f"eq.{vid}", "order": "created_at.desc", "limit": "3"},
         )
         if not recent:
-            return []
+            return {"baseline_ndvi": float(baseline_ndvi)}
 
-        # Promedio de los últimos 3 runs que tengan NDVI
         recent_ndvis = [r["ndvi_value"] for r in recent if r.get("ndvi_value") is not None]
         if not recent_ndvis:
-            return []
+            return {"baseline_ndvi": float(baseline_ndvi)}
 
         current_ndvi = sum(recent_ndvis) / len(recent_ndvis)
         drop = float(baseline_ndvi) - current_ndvi
-
         log.info(
             "dale_play_monitor: %s NDVI baseline=%.3f reciente=%.3f drop=%.3f",
             vid, baseline_ndvi, current_ndvi, drop,
         )
-
-        if drop >= _NDVI_DROP:
-            alertas.append({
-                "venue_id":       vid,
-                "nombre":         nombre,
-                "tipo":           "ndvi_caida",
-                "mensaje":        (
-                    f"NDVI cayó {drop:.3f} desde baseline "
-                    f"(baseline={baseline_ndvi:.3f} → reciente={current_ndvi:.3f})"
-                ),
-                "valor":          round(current_ndvi, 3),
-                "baseline":       round(float(baseline_ndvi), 3),
-                "drop":           round(drop, 3),
-                "umbral":         _NDVI_DROP,
-                "severidad":      "alta" if drop >= _NDVI_DROP * 2 else "media",
-                "n_muestras":     len(recent_ndvis),
-            })
-
+        return {
+            "baseline_ndvi": round(float(baseline_ndvi), 3),
+            "current_ndvi":  round(current_ndvi, 3),
+            "drop":          round(drop, 3),
+            "n_muestras":    len(recent_ndvis),
+        }
     except Exception as exc:
-        log.warning("dale_play_monitor: NDVI trend %s: %s", vid, exc)
+        log.warning("dale_play_monitor: NDVI collect %s: %s", vid, exc)
+        return {}
 
-    return alertas
 
-
-def _check_sar_confidence(venue: dict) -> list[dict]:
-    """
-    Alerta si el último run SAR tuvo confianza < _SAR_CONF_MIN.
-    Señal de que los sensores no cubren el venue.
-    """
-    alertas: list[dict] = []
-    vid    = venue["venue_id"]
-    nombre = venue["nombre"]
-
+def _collect_sar(venue: dict) -> dict:
+    """Colecta datos SAR desde Supabase. Retorna dict con datos brutos."""
+    vid = venue["venue_id"]
     try:
         recent = _query_supabase(
             "show_memory",
-            params={
-                "venue_id":  f"eq.{vid}",
-                "order":     "created_at.desc",
-                "limit":     "1",
-                "sar_fuente": "neq.",   # solo rows con fuente SAR registrada
-            },
+            {"venue_id": f"eq.{vid}", "order": "created_at.desc", "limit": "1",
+             "sar_fuente": "neq."},
         )
         if not recent:
-            return []
-
-        row       = recent[0]
+            return {}
+        row        = recent[0]
         sar_fuente = row.get("sar_fuente", "")
-        modules_ok = row.get("modules_ok") or []
-
-        # Buscar confianza SAR en modules_ok
-        sar_conf = None
-        for m in modules_ok:
-            if "sar" in (m.get("modulo") or "").lower() or "umbra" in (m.get("modulo") or "").lower():
-                sar_conf = m.get("confianza")
-                if isinstance(sar_conf, str):
-                    sar_conf = None  # confianza es label string no float
-                break
-
-        # Detectar EGMS proxy (confianza muy baja) por nombre de fuente
-        is_egms_proxy = "EGMS" in (sar_fuente or "").upper()
-
-        if is_egms_proxy:
-            alertas.append({
-                "venue_id":  vid,
-                "nombre":    nombre,
-                "tipo":      "sar_baja_conf",
-                "mensaje":   f"SAR usando proxy EGMS (sin datos reales de radar) — fuente: {sar_fuente}",
-                "fuente":    sar_fuente,
-                "umbral":    _SAR_CONF_MIN,
-                "severidad": "media",
-                "show_id":   row.get("show_id", ""),
-            })
-
+        return {
+            "sar_fuente":    sar_fuente,
+            "is_egms_proxy": "EGMS" in (sar_fuente or "").upper(),
+            "modules_ok":    row.get("modules_ok") or [],
+            "show_id":       row.get("show_id", ""),
+        }
     except Exception as exc:
-        log.warning("dale_play_monitor: SAR conf %s: %s", vid, exc)
+        log.warning("dale_play_monitor: SAR collect %s: %s", vid, exc)
+        return {}
 
+
+# ── Umbrales fijos (fallback cuando Paperclip no disponible) ─────────────────
+
+def _threshold_weather(venue: dict, ctx: dict) -> list[dict]:
+    """Aplica umbrales fijos a datos climáticos."""
+    alertas: list[dict] = []
+    if not ctx:
+        return alertas
+    vid    = venue["venue_id"]
+    nombre = venue["nombre"]
+    precip_24h = ctx.get("precipitation_24h", 0)
+    wind_max   = ctx.get("wind_max", 0)
+
+    if precip_24h >= _RAIN_MM_24H:
+        alertas.append({
+            "venue_id":  vid, "nombre": nombre, "tipo": "clima_lluvia",
+            "mensaje":   f"Lluvia acumulada próx 24h: {precip_24h:.1f}mm (umbral {_RAIN_MM_24H}mm)",
+            "valor":     round(precip_24h, 1), "umbral": _RAIN_MM_24H,
+            "severidad": "alta" if precip_24h >= _RAIN_MM_24H * 2 else "media",
+        })
+    if wind_max >= _WIND_KMH:
+        alertas.append({
+            "venue_id":  vid, "nombre": nombre, "tipo": "clima_viento",
+            "mensaje":   f"Viento máx próx 24h: {wind_max:.0f} km/h (umbral {_WIND_KMH}km/h)",
+            "valor":     round(wind_max, 0), "umbral": _WIND_KMH,
+            "severidad": "alta" if wind_max >= _WIND_KMH * 1.3 else "media",
+        })
     return alertas
+
+
+def _threshold_ndvi(venue: dict, ctx: dict) -> list[dict]:
+    """Aplica umbral fijo de caída NDVI."""
+    if not ctx or ctx.get("drop") is None:
+        return []
+    drop = ctx["drop"]
+    if drop < _NDVI_DROP:
+        return []
+    vid    = venue["venue_id"]
+    nombre = venue["nombre"]
+    b      = ctx.get("baseline_ndvi", 0)
+    c      = ctx.get("current_ndvi", 0)
+    return [{
+        "venue_id":   vid, "nombre": nombre, "tipo": "ndvi_caida",
+        "mensaje":    f"NDVI cayó {drop:.3f} desde baseline (baseline={b:.3f} → reciente={c:.3f})",
+        "valor":      round(c, 3), "baseline": round(b, 3),
+        "drop":       round(drop, 3), "umbral": _NDVI_DROP,
+        "severidad":  "alta" if drop >= _NDVI_DROP * 2 else "media",
+        "n_muestras": ctx.get("n_muestras", 0),
+    }]
+
+
+def _threshold_sar(venue: dict, ctx: dict) -> list[dict]:
+    """Aplica umbral de confianza SAR (alerta si fuente es EGMS proxy)."""
+    if not ctx or not ctx.get("is_egms_proxy"):
+        return []
+    vid    = venue["venue_id"]
+    nombre = venue["nombre"]
+    sar_f  = ctx.get("sar_fuente", "")
+    return [{
+        "venue_id":  vid, "nombre": nombre, "tipo": "sar_baja_conf",
+        "mensaje":   f"SAR usando proxy EGMS (sin datos reales) — fuente: {sar_f}",
+        "fuente":    sar_f, "umbral": _SAR_CONF_MIN,
+        "severidad": "media", "show_id": ctx.get("show_id", ""),
+    }]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
