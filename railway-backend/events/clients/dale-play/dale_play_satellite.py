@@ -581,6 +581,22 @@ def fetch_satellite_baseline(
         except Exception as _oeo_exc:
             log.warning("dale_play_satellite: openEO fallback: %s", _oeo_exc)
 
+    # ── 2.6 CloudBreaker — NDVI sintético SAR cuando sin imagen óptica ───────
+    # Trigger SECUENCIAL: solo si CLOSDI/catálogo descartó toda opción óptica.
+    # Nunca reemplaza result["ndvi"] — agrega campo "cloudbreaker" separado.
+    if not result.get("ndvi_fecha"):
+        try:
+            from dale_play_cloudbreaker import fetch_cloudbreaker_ndvi
+            _cb = fetch_cloudbreaker_ndvi(show_date=show_date, show_id=show_id)
+            if _cb:
+                result["cloudbreaker"] = _cb
+                log.info(
+                    "dale_play_satellite: CloudBreaker NDVI_syn=%.3f confianza=%.2f [ESTIMADO]",
+                    _cb["ndvi_sintetico"], _cb["confianza"],
+                )
+        except Exception as _cb_exc:
+            log.debug("dale_play_satellite: CloudBreaker: %s", _cb_exc)
+
     # ── 3. Landsat TIRS — temperatura superficial ─────────────────────────────
     try:
         ls = _search_landsat(days_back=days_back_ls)
