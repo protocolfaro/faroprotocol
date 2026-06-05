@@ -737,7 +737,7 @@ def dp_supabase_diag():
     for table, fields in [
         ("certifications",     "show_id,cert_hash,nivel_dano,created_at"),
         ("paperclip_decisions","venue_id,alertar,nivel,motivo,created_at"),
-        ("pipeline_runs",      "venue_id,ndvi_median,accepted,skipped_reason,created_at"),
+        ("pipeline_runs",      "timestamp_utc,ndvi_median,accepted,skipped_reason,error"),
     ]:
         try:
             r = _req.get(f"{supa_url}/rest/v1/{table}",
