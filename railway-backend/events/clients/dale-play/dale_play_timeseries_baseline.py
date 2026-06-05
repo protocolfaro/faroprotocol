@@ -330,3 +330,69 @@ def _variance(xs: list[float]) -> float:
 
 def _std(xs: list[float]) -> float:
     return _variance(xs) ** 0.5
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Forecast fenológico (pyPhenology doble-logístico)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def get_phenology_forecast(
+    weeks:    int = 4,
+    venue_id: str = "amalfitani",
+) -> list[dict]:
+    """
+    Retorna el forecast fenológico de NDVI para las próximas N semanas.
+
+    Lee fenologia_baselines (Supabase) — calculado por compute_fenology()
+    con el modelo doble-logístico ajustado sobre los 76 puntos históricos.
+
+    Cada elemento: {"semana_iso": int, "ndvi_pred": float, "fecha_aprox": str,
+                    "fuente": str}
+    Retorna [] si no hay baseline disponible (falla silenciosa).
+    """
+    import datetime as _dt
+
+    supa_url, supa_key = _supa()
+    if not supa_url or not supa_key:
+        return []
+
+    try:
+        import requests as _req
+        resp = _req.get(
+            f"{supa_url}/rest/v1/fenologia_baselines",
+            headers={
+                "apikey":        supa_key,
+                "Authorization": f"Bearer {supa_key}",
+            },
+            params={"venue_id": f"eq.{venue_id}", "select": "baseline"},
+            timeout=10,
+        )
+        if not resp.ok or not resp.json():
+            return []
+
+        baseline = resp.json()[0].get("baseline") or {}
+        semanas  = baseline.get("semanas") or {}
+        fuente   = baseline.get("fuente", "fenologia")
+        if not semanas:
+            return []
+
+        today        = _dt.date.today()
+        current_week = min(today.isocalendar()[1], 52)
+        forecast: list[dict] = []
+
+        for i in range(1, min(weeks, 52) + 1):
+            fw      = (current_week - 1 + i) % 52 + 1
+            fw_data = semanas.get(str(fw))
+            if fw_data and fw_data.get("ndvi_smooth") is not None:
+                forecast.append({
+                    "semana_iso":  fw,
+                    "ndvi_pred":   fw_data["ndvi_smooth"],
+                    "fecha_aprox": (today + _dt.timedelta(weeks=i)).isoformat(),
+                    "fuente":      fuente,
+                })
+
+        return forecast
+
+    except Exception as exc:
+        log.warning("dale_play_timeseries: get_phenology_forecast error: %s", exc)
+        return []

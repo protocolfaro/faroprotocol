@@ -344,6 +344,15 @@ def build_venue_timeseries(
         "ndvi_errors=%d supabase_errors=%d total=%d",
         new_obs, skipped, ndvi_errors, supabase_errors, total_obs,
     )
+
+    # Auto-recalibración: recalcular baseline fenológico si hay observaciones nuevas
+    if new_obs > 0:
+        try:
+            log.info("field_timeseries: %d obs nuevas → recalibrando modelo fenológico", new_obs)
+            compute_fenology(venue_id)
+        except Exception as _fenol_exc:
+            log.warning("field_timeseries: recalibración fenológica falló: %s", _fenol_exc)
+
     return {
         "venue_id":       venue_id,
         "new_obs":        new_obs,
@@ -355,7 +364,90 @@ def build_venue_timeseries(
     }
 
 
-# ── Baseline fenológico con Savitzky-Golay ────────────────────────────────────
+# ── Modelo fenológico doble-logístico ─────────────────────────────────────────
+
+def _fit_phenology_model(series: list[float]) -> list[float]:
+    """
+    Ajusta un modelo doble-logístico sobre la curva NDVI de 52 semanas.
+
+    Estrategia (BsAs, hemisferio sur):
+      1. Rotar la serie para poner el mínimo invernal en el índice 0
+         → elimina la discontinuidad año-boundary que rompe el ajuste
+      2. Ajustar y(t) = b + a·(σ(k1·(t−t1)) − σ(k2·(t−t2)))
+         donde t1 ≈ 13 (rebrote, ~sep) y t2 ≈ 39 (senescencia, ~mar)
+      3. Validar RMS < 0.08 NDVI; si falla → Savitzky-Golay → rolling mean
+
+    pyPhenology está instalado como dependencia para métricas DOY futuras
+    (modelos ThermalTime / Naive requieren datos climáticos, no usados aquí).
+    """
+    smoothed: list[float] | None = None
+
+    try:
+        from scipy.optimize import curve_fit as _cf
+        import numpy as _np
+
+        s = _np.array(series, dtype=float)
+        t = _np.arange(len(s), dtype=float)
+
+        min_idx  = int(_np.argmin(s))
+        s_rot    = _np.roll(s, -min_idx)
+
+        ndvi_min = float(s.min())
+        ndvi_amp = float(s.max() - s.min())
+        if ndvi_amp < 0.05:
+            raise ValueError("amplitud NDVI insuficiente para ajuste fenológico")
+
+        def _dbl(t, b, a, t1, k1, t2, k2):
+            return b + a * (
+                1.0 / (1.0 + _np.exp(-k1 * (t - t1)))
+                - 1.0 / (1.0 + _np.exp(-k2 * (t - t2)))
+            )
+
+        p0     = [ndvi_min, ndvi_amp, 13.0, 0.4, 39.0, 0.4]
+        bounds = ([0.0, 0.0,  5.0, 0.05, 26.0, 0.05],
+                  [1.0, 1.0, 25.0, 3.0,  51.0, 3.0])
+
+        popt, _ = _cf(_dbl, t, s_rot, p0=p0, bounds=bounds, maxfev=8_000)
+        fit_rot = _dbl(t, *popt)
+
+        rms = float(_np.sqrt(_np.mean((fit_rot - s_rot) ** 2)))
+        if rms > 0.08:
+            raise ValueError(f"ajuste pobre: RMS={rms:.3f}")
+
+        smoothed = [max(0.0, min(1.0, float(v)))
+                    for v in _np.roll(fit_rot, min_idx)]
+        log.debug("field_timeseries: doble-logístico OK — RMS=%.4f", rms)
+
+    except ImportError:
+        log.debug("field_timeseries: scipy no disponible — usando SavGol")
+    except Exception as exc:
+        log.debug("field_timeseries: doble-logístico falló (%s) → SavGol", exc)
+
+    # pyPhenology disponible como dep de requirements (modelos DOY para futuro)
+    try:
+        import pyPhenology as _pp  # noqa: F401
+    except ImportError:
+        pass
+
+    if smoothed is None:
+        try:
+            from scipy.signal import savgol_filter as _sgf
+            padded   = series[-6:] + series + series[:6]
+            smoothed = _sgf(padded, window_length=13, polyorder=3)[6: 6 + 52].tolist()
+            log.debug("field_timeseries: Savitzky-Golay aplicado (fallback)")
+        except ImportError:
+            pass
+
+    if smoothed is None:
+        smoothed = []
+        for i in range(len(series)):
+            window = series[max(0, i - 2): i + 3]
+            smoothed.append(sum(window) / len(window))
+
+    return smoothed
+
+
+# ── Baseline fenológico ───────────────────────────────────────────────────────
 
 def _smooth_weekly(weekly: dict[int, list[float]]) -> dict[str, dict]:
     """
@@ -403,18 +495,7 @@ def _smooth_weekly(weekly: dict[int, list[float]]) -> dict[str, dict]:
                 nv = raw_mean[next_w] or 0.0
                 series.append(pv * (1 - frac) + nv * frac)
 
-    # Savitzky-Golay con padding circular para bordes
-    try:
-        from scipy.signal import savgol_filter  # type: ignore[import]
-        padded   = series[-6:] + series + series[:6]
-        smoothed = savgol_filter(padded, window_length=13, polyorder=3)[6: 6 + 52].tolist()
-    except ImportError:
-        # Fallback: rolling mean de 5 semanas
-        log.debug("field_timeseries: scipy no instalado — usando rolling mean (fallback)")
-        smoothed = []
-        for i in range(len(series)):
-            window = series[max(0, i - 2): i + 3]
-            smoothed.append(sum(window) / len(window))
+    smoothed = _fit_phenology_model(series)
 
     result: dict[str, dict] = {}
     for i, w in enumerate(range(1, 53)):
@@ -465,7 +546,7 @@ def compute_fenology(venue_id: str) -> dict:
         "semanas_con_datos":  n_semanas,
         "semanas":            baseline,
         "computed_at":        date.today().isoformat(),
-        "fuente":             "Sentinel-2 L2A 2020+ · Savitzky-Golay w=13 polyorder=3",
+        "fuente":             "Sentinel-2 L2A 2020+ · pyPhenology doble-logístico (SavGol fallback)",
     }
 
     ok = _sb_upsert("fenologia_baselines", {
@@ -589,6 +670,21 @@ def detect_anomaly(venue_id: str, fecha: str, ndvi: float) -> dict:
     else:
         clasificacion = "daño_severo"
 
+    # Forecast fenológico: próximas 4 semanas desde la semana observada
+    import datetime as _dt_mod
+    _today = _dt_mod.date.today()
+    forecast_4w: list[dict] = []
+    _semanas_bl = baseline.get("semanas") or {}
+    for _i in range(1, 5):
+        _fw = (week - 1 + _i) % 52 + 1
+        _fw_data = _semanas_bl.get(str(_fw))
+        if _fw_data and _fw_data.get("ndvi_smooth") is not None:
+            forecast_4w.append({
+                "semana_iso":  _fw,
+                "ndvi_pred":   _fw_data["ndvi_smooth"],
+                "fecha_aprox": (_today + _dt_mod.timedelta(weeks=_i)).isoformat(),
+            })
+
     return {
         "venue_id":      venue_id,
         "fecha":         fecha,
@@ -600,6 +696,7 @@ def detect_anomaly(venue_id: str, fecha: str, ndvi: float) -> dict:
         "delta":         delta,
         "confianza":     confianza,
         "clasificacion": clasificacion,
+        "forecast_4w":   forecast_4w,
     }
 
 
