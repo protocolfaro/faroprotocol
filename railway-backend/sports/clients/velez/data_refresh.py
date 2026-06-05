@@ -636,3 +636,19 @@ def run_refresh() -> dict:
     except Exception as e:
         log.error("data_refresh FAILED: %s", e)
         return {"ok": False, "error": str(e)}
+
+
+if __name__ == "__main__":
+    import sys
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        handlers=[logging.StreamHandler(sys.stdout)],
+    )
+    result = run_refresh()
+    if result.get("ok"):
+        log.info("data_refresh OK: %s", result.get("ts"))
+        sys.exit(0)
+    else:
+        log.error("data_refresh FAILED: %s", result.get("error"))
+        sys.exit(1)

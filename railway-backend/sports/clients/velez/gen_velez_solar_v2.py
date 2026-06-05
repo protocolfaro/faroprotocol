@@ -13,7 +13,7 @@ from matplotlib.colors import LinearSegmentedColormap
 import matplotlib.ticker as ticker
 import numpy as np
 import hashlib, os
-from datetime import datetime
+from datetime import datetime, timedelta, date as _date_cls
 
 # ─── PALETA ──────────────────────────────────────────────────────────────────
 BG    = '#06080b'
@@ -528,7 +528,12 @@ for i, (clr, lvl, msg) in enumerate(alerts):
 ax9 = fig.add_subplot(gs[9])
 ax9.set_facecolor(BG); ax9.set_xlim(0,1); ax9.set_ylim(0,1); ax9.axis('off')
 ax9.axhline(0.99,color=GOLD,linewidth=1.2)
-ax9.text(0.5,0.88,'Proximo escaneo automatico solar: lunes 25 de mayo 2026',
+_hoy_solar = datetime.now().date()
+_dias_solar = (7 - _hoy_solar.weekday()) % 7 or 7
+_lunes_solar = _hoy_solar + timedelta(days=_dias_solar)
+_meses_solar = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
+_prox_solar = f"lunes {_lunes_solar.day} de {_meses_solar[_lunes_solar.month-1]} {_lunes_solar.year}"
+ax9.text(0.5,0.88,f'Proximo escaneo automatico solar: {_prox_solar}',
     transform=ax9.transAxes,color=GOLD,fontsize=9,fontweight='bold',
     ha='center',va='top',fontfamily='monospace')
 ax9.text(0.5,0.66,'Sistema Fortin Inteligente · Faro Protocol · protocolfaro@gmail.com',

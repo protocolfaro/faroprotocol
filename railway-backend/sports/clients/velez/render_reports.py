@@ -110,8 +110,10 @@ def _render_canchero(vd: dict, out: Path):
     }
     rows_data = []
     for cid in ALL_IDS:
-        ndvi = canchas.get(cid, {}).get("ndvi")
-        n_st = canchas.get(cid, {}).get("n_status", "")
+        cd  = canchas.get(cid, {})
+        # Use ndvi when available; fall back to gndvi (GNDVI correlates well with NDVI)
+        ndvi = cd.get("ndvi") or cd.get("gndvi")
+        n_st = cd.get("n_status", "")
         # Find enriched data from cancha_list
         enr = next((c for c in cancha_list if c.get("id") == cid), {})
         score = enr.get("score", 0)
