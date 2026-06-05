@@ -461,6 +461,16 @@ def _update_tareas_dates(cfg: dict) -> None:
 
 
 def push_weather_update(weather_live: dict) -> str:
+    """Write weather_live to Supabase (primary). Falls back to GitHub if Supabase not configured."""
+    try:
+        import velez_supabase as _vs
+        if _vs._ok():
+            if _vs.upsert_weather_live(weather_live):
+                log.info("push_weather_update: Supabase OK — GitHub write skipped")
+                return "supabase:ok"
+    except Exception as _se:
+        log.warning("push_weather_update Supabase (non-fatal): %s — fallback GitHub", _se)
+    # Fallback: GitHub PUT (used only when SUPABASE_URL/KEY not configured)
     ts = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
     sha, cfg = _gh_get_sha_and_content(_VD_PATH)
     cfg["weather_live"] = weather_live
@@ -469,7 +479,6 @@ def push_weather_update(weather_live: dict) -> str:
     cfg["meta"]["semana"] = (today_d - timedelta(days=today_d.weekday())).isoformat()
     cfg["updated_at"] = ts
     _update_tareas_dates(cfg)
-
     payload = {
         "message": f"data refresh: weather_live [{ts}]",
         "content": base64.b64encode(
@@ -479,7 +488,6 @@ def push_weather_update(weather_live: dict) -> str:
     }
     if sha:
         payload["sha"] = sha
-
     r = _req.put(f"{_GH_API}/repos/{_OWNER}/{_REPO}/contents/{_VD_PATH}",
                  headers=_gh_headers(), json=payload, timeout=35)
     r.raise_for_status()
@@ -499,15 +507,13 @@ _INSAR_SECTOR_MAP: dict[str, tuple[str, str]] = {
 
 
 def push_insar_update(insar_result: dict) -> str:
-    """Update sectores.{key}.insar_mm and .detalle in velez_data.json and push to GitHub."""
-    ts  = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
-    sha, cfg = _gh_get_sha_and_content(_VD_PATH)
-    sectores  = cfg.setdefault("sectores", {})
+    """Update sectores InSAR in Supabase (primary). Falls back to GitHub if not configured."""
+    ts        = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
     sector_mm = insar_result.get("sectores", {})
 
-    # Aggregate poli (may have basquet + playon readings — use mean)
+    # Build sectores update dict (shared by Supabase and GitHub paths)
     poli_vals: list[tuple[float, str]] = []
-
+    sectores_upd: dict = {}
     for insar_id, val_mm in sector_mm.items():
         json_key, label = _INSAR_SECTOR_MAP.get(insar_id, (None, None))
         if json_key is None:
@@ -515,20 +521,32 @@ def push_insar_update(insar_result: dict) -> str:
         if json_key == "poli":
             poli_vals.append((val_mm, label))
             continue
-        sec = sectores.setdefault(json_key, {})
-        sec["insar_mm"] = val_mm
-        sec["detalle"]  = f"{label}: {val_mm:+.2f} mm"
-
+        sectores_upd[json_key] = {"insar_mm": val_mm, "detalle": f"{label}: {val_mm:+.2f} mm"}
     if poli_vals:
-        mean_mm   = round(sum(v for v, _ in poli_vals) / len(poli_vals), 2)
+        mean_mm    = round(sum(v for v, _ in poli_vals) / len(poli_vals), 2)
         poli_label = poli_vals[0][1]
-        poli_sec   = sectores.setdefault("poli", {})
-        poli_sec["insar_mm"] = mean_mm
-        poli_sec["detalle"]  = f"{poli_label}: {mean_mm:+.2f} mm"
+        sectores_upd["poli"] = {"insar_mm": mean_mm, "detalle": f"{poli_label}: {mean_mm:+.2f} mm"}
 
+    # Primary: Supabase UPSERT
+    if sectores_upd:
+        try:
+            import velez_supabase as _vs
+            if _vs._ok():
+                if _vs.upsert_sectores(sectores_upd):
+                    log.info("push_insar_update: Supabase OK — GitHub write skipped")
+                    return "supabase:ok"
+        except Exception as _se:
+            log.warning("push_insar_update Supabase (non-fatal): %s — fallback GitHub", _se)
+
+    # Fallback: GitHub PUT
+    sha, cfg = _gh_get_sha_and_content(_VD_PATH)
+    sectores  = cfg.setdefault("sectores", {})
+    for json_key, data in sectores_upd.items():
+        sec = sectores.setdefault(json_key, {})
+        sec["insar_mm"] = data["insar_mm"]
+        sec["detalle"]  = data["detalle"]
     cfg.setdefault("meta", {})["fecha"] = date.today().isoformat()
     cfg["updated_at"] = ts
-
     ref  = insar_result.get("fecha_ref", "?")
     sec_ = insar_result.get("fecha_sec", "?")
     payload = {
@@ -540,7 +558,6 @@ def push_insar_update(insar_result: dict) -> str:
     }
     if sha:
         payload["sha"] = sha
-
     r = _req.put(f"{_GH_API}/repos/{_OWNER}/{_REPO}/contents/{_VD_PATH}",
                  headers=_gh_headers(), json=payload, timeout=35)
     r.raise_for_status()

@@ -114,51 +114,64 @@ def _build_ipos_results(last_ipos: dict) -> dict:
 
 def _push_heatmap_ndvi_update(ndvi_data: dict) -> str:
     """
-    Actualiza velez_data.json:
-      - usuarios.roger.heatmaps.{cid}.ndvi = NDVI real
-      - usuarios.roger.heatmaps_meta.semana = fecha imagen
-      - usuarios.roger.heatmaps_meta.fuente = fuente Sentinel-2
+    Writes cancha NDVI to Supabase velez_canchas (primary).
+    Always updates heatmaps_meta (semana/fuente) in GitHub velez_data.json so that
+    _last_processed_date() keeps working. Falls back to full GitHub write if Supabase
+    not configured (no SHA conflict risk since only satellite_pipeline calls this).
     """
     ts       = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     img_date = ndvi_data.get("fecha_imagen", date.today().isoformat())
     fuente   = ndvi_data.get("fuente", "sentinel-2-l2a · Planetary Computer")
     canchas  = ndvi_data.get("canchas", {})
 
+    # Primary: Supabase UPSERT for per-cancha spectral data
+    supabase_ok = False
+    try:
+        import velez_supabase as _vs
+        if _vs._ok():
+            supabase_ok = _vs.upsert_canchas(canchas, fuente=fuente)
+            if supabase_ok:
+                log.info("_push_heatmap_ndvi_update: %d canchas → Supabase OK", len(canchas))
+    except Exception as _se:
+        log.warning("_push_heatmap_ndvi_update Supabase (non-fatal): %s", _se)
+
     sha, vd = _gh_get(_VD_PATH)
     if not sha:
         raise RuntimeError("No se pudo leer velez_data.json")
 
     roger = vd.setdefault("usuarios", {}).setdefault("roger", {})
-    hm    = roger.setdefault("heatmaps", {})
 
-    for cid, cdata in canchas.items():
-        ndvi = cdata.get("ndvi")
-        if ndvi is None:
-            continue
-        hm_key = cid  # no remapping needed
-        if hm_key in hm:
-            hm[hm_key]["ndvi"] = ndvi
-            if cdata.get("gndvi") is not None:
-                hm[hm_key]["gndvi"]    = cdata["gndvi"]
-                hm[hm_key]["n_status"] = cdata.get("n_status", "")
-                hm[hm_key]["n_rec"]    = cdata.get("n_rec", "")
-            if cdata.get("bsi") is not None:
-                hm[hm_key]["bsi"] = cdata["bsi"]
-            if cdata.get("ndwi") is not None:
-                hm[hm_key]["ndwi"] = cdata["ndwi"]
-        else:
-            entry: dict = {"archivo": f"heatmaps/heatmap_{hm_key}.png",
-                           "ndvi": ndvi, "detalle": ""}
-            if cdata.get("gndvi") is not None:
-                entry["gndvi"]    = cdata["gndvi"]
-                entry["n_status"] = cdata.get("n_status", "")
-                entry["n_rec"]    = cdata.get("n_rec", "")
-            if cdata.get("bsi") is not None:
-                entry["bsi"] = cdata["bsi"]
-            if cdata.get("ndwi") is not None:
-                entry["ndwi"] = cdata["ndwi"]
-            hm[hm_key] = entry
+    if not supabase_ok:
+        # Supabase not configured — also write per-cancha NDVI to GitHub heatmaps section
+        hm = roger.setdefault("heatmaps", {})
+        for cid, cdata in canchas.items():
+            ndvi = cdata.get("ndvi")
+            if ndvi is None:
+                continue
+            if cid in hm:
+                hm[cid]["ndvi"] = ndvi
+                if cdata.get("gndvi") is not None:
+                    hm[cid]["gndvi"]    = cdata["gndvi"]
+                    hm[cid]["n_status"] = cdata.get("n_status", "")
+                    hm[cid]["n_rec"]    = cdata.get("n_rec", "")
+                if cdata.get("bsi") is not None:
+                    hm[cid]["bsi"] = cdata["bsi"]
+                if cdata.get("ndwi") is not None:
+                    hm[cid]["ndwi"] = cdata["ndwi"]
+            else:
+                entry: dict = {"archivo": f"heatmaps/heatmap_{cid}.png",
+                               "ndvi": ndvi, "detalle": ""}
+                if cdata.get("gndvi") is not None:
+                    entry["gndvi"]    = cdata["gndvi"]
+                    entry["n_status"] = cdata.get("n_status", "")
+                    entry["n_rec"]    = cdata.get("n_rec", "")
+                if cdata.get("bsi") is not None:
+                    entry["bsi"] = cdata["bsi"]
+                if cdata.get("ndwi") is not None:
+                    entry["ndwi"] = cdata["ndwi"]
+                hm[cid] = entry
 
+    # Always write heatmaps_meta (image date + source) to GitHub for _last_processed_date()
     roger.setdefault("heatmaps_meta", {}).update({
         "semana":     img_date,
         "fuente":     fuente,

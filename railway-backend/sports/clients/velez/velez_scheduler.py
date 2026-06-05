@@ -74,20 +74,62 @@ def load_config() -> dict:
 
 
 def _get_velez_data() -> dict:
-    """Load velez_data.json — local file first (CI checkout / dev), then GitHub raw."""
+    """Load velez_data.json (local / GitHub), then overlay live Supabase data on top."""
     local = Path(__file__).parents[4] / "velez" / "velez_data.json"
+    vd: dict = {}
     if local.exists():
         try:
-            return json.loads(local.read_text(encoding="utf-8"))
+            vd = json.loads(local.read_text(encoding="utf-8"))
         except Exception as e:
             log.warning("_get_velez_data local: %s", e)
+    if not vd:
+        try:
+            req = UReq(_VD_RAW_URL, headers={"User-Agent": "FaroProtocol/4.0"})
+            with urlopen(req, timeout=10) as r:
+                vd = json.loads(r.read())
+        except Exception as e:
+            log.warning("_get_velez_data remote: %s", e)
+    # Overlay live data from Supabase on top of static GitHub JSON
     try:
-        req = UReq(_VD_RAW_URL, headers={"User-Agent": "FaroProtocol/4.0"})
-        with urlopen(req, timeout=10) as r:
-            return json.loads(r.read())
-    except Exception as e:
-        log.warning("_get_velez_data remote: %s", e)
-        return {}
+        import velez_supabase as _vs
+        overlay = _vs.get_live_overlay()
+        if overlay:
+            if overlay.get("weather_live"):
+                vd["weather_live"] = overlay["weather_live"]
+            for sid, s in overlay.get("sectores", {}).items():
+                vd.setdefault("sectores", {}).setdefault(sid, {}).update(
+                    {k: v for k, v in s.items() if k not in ("sector_id", "updated_at")})
+            canchas_ov = overlay.get("canchas", {})
+            if canchas_ov:
+                # Update individual cancha entries in sectores.canchero.canchas list
+                for entry in vd.get("sectores", {}).get("canchero", {}).get("canchas", []):
+                    cid = entry.get("id", "")
+                    if cid in canchas_ov:
+                        cd = canchas_ov[cid]
+                        for field in ("ndvi", "gndvi", "bsi", "ndwi", "score", "sem",
+                                      "detalle", "n_status", "n_rec"):
+                            if cd.get(field) is not None:
+                                entry[field] = cd[field]
+                # Update weather_live.gndvi_por_cancha.canchas
+                gn_c = (vd.setdefault("weather_live", {})
+                          .setdefault("gndvi_por_cancha", {})
+                          .setdefault("canchas", {}))
+                for cid, cd in canchas_ov.items():
+                    gn_c.setdefault(cid, {}).update(
+                        {k: v for k, v in cd.items()
+                         if k not in ("cancha_id", "updated_at", "fuente")})
+                # Update usuarios.roger.heatmaps for spectral fields used in email body
+                roger_hm = (vd.setdefault("usuarios", {})
+                              .setdefault("roger", {})
+                              .setdefault("heatmaps", {}))
+                for cid, cd in canchas_ov.items():
+                    roger_hm.setdefault(cid, {}).update(
+                        {k: v for k, v in cd.items()
+                         if k in ("ndvi", "gndvi", "bsi", "ndwi", "n_status", "n_rec")
+                         and cd.get(k) is not None})
+    except Exception as _oe:
+        log.debug("Supabase overlay (non-fatal): %s", _oe)
+    return vd
 
 
 def _get_sectores() -> dict:

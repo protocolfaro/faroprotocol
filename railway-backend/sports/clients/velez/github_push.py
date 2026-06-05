@@ -241,6 +241,20 @@ def push_velez_data(ipos: dict, ts: str) -> str:
     roger.setdefault("heatmaps_meta", {})["updated_at"] = ts
     vd["updated_at"] = ts
 
+    # Parallel write: also push cancha scores + sector score to Supabase
+    try:
+        import velez_supabase as _vs
+        if _vs._ok():
+            sb_canchas = {
+                c["id"]: {k: c.get(k) for k in ("ndvi", "score", "score_prev", "sem", "detalle")}
+                for c in canchas if c.get("id")
+            }
+            _vs.upsert_canchas(sb_canchas)
+            if cancha_scores:
+                _vs.upsert_sectores({"canchero": {"score": sector_score, "sem": sector_sem}})
+    except Exception as _se:
+        log.debug("push_velez_data Supabase sync (non-fatal): %s", _se)
+
     data = json.dumps(vd, ensure_ascii=False, indent=2).encode()
     msg  = f"ipos sync velez_data — score fusión + heatmaps_meta [{ts}]"
     resp = _put(VD_PATH, data, msg, existing_sha)
