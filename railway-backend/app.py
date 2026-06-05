@@ -713,26 +713,65 @@ def _weekly_insar_refresh():
         log.error("=== Cron: weekly InSAR refresh FAILED: %s ===", result.get("error"))
 
 
+def _make_jobstores() -> dict:
+    """
+    Intenta configurar SQLAlchemy jobstore apuntando a Supabase Postgres.
+    Jobs persisten en la tabla apscheduler_jobs — sobreviven reinicios Railway.
+    Fail-open: retorna {} (in-memory) si SUPABASE_DB_URL no está o falla.
+    """
+    db_url = os.environ.get("SUPABASE_DB_URL", "")
+    if not db_url:
+        log.info("APScheduler: SUPABASE_DB_URL no configurada — jobstore in-memory")
+        return {}
+    # SQLAlchemy 2.x requiere postgresql:// no postgres://
+    if db_url.startswith("postgres://"):
+        db_url = db_url.replace("postgres://", "postgresql://", 1)
+    try:
+        from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
+        jobstore = SQLAlchemyJobStore(
+            url=db_url,
+            tablename="apscheduler_jobs",
+        )
+        # Probe connection — falla rápido si la URL es inválida
+        jobstore.get_all_jobs()
+        log.info("APScheduler: SQLAlchemy jobstore OK (Supabase Postgres)")
+        return {"default": jobstore}
+    except Exception as exc:
+        log.warning("APScheduler: jobstore Supabase falló — in-memory: %s", exc)
+        return {}
+
+
 def _start_scheduler():
-    scheduler = BackgroundScheduler(timezone="UTC")
-    # 06:00 ART = 09:00 UTC (ART is UTC-3, no DST in Argentina)
+    jobstores  = _make_jobstores()
+    persistent = bool(jobstores)
+    scheduler  = BackgroundScheduler(
+        jobstores=jobstores,
+        timezone="UTC",
+        job_defaults={
+            "coalesce":            True,   # ejecuta solo una vez si acumula disparos
+            "max_instances":       1,
+            "misfire_grace_time":  3600,
+        },
+    )
+    # 06:00 ART = 09:00 UTC
     scheduler.add_job(
         _daily_refresh,
         CronTrigger(hour=9, minute=0, timezone="UTC"),
         id="daily_weather_refresh",
         replace_existing=True,
-        misfire_grace_time=3600,
     )
-    # Monday 10:00 UTC = Monday 07:00 ART — S1 12-day repeat, post-acquisition processing window
+    # Lunes 10:00 UTC = 07:00 ART
     scheduler.add_job(
         _weekly_insar_refresh,
         CronTrigger(day_of_week="mon", hour=10, minute=0, timezone="UTC"),
         id="weekly_insar_refresh",
         replace_existing=True,
-        misfire_grace_time=7200,
     )
     scheduler.start()
-    log.info("APScheduler started — daily refresh at 09:00 UTC · InSAR Mondays at 10:00 UTC")
+    log.info(
+        "APScheduler started — jobstore=%s · daily 09:00 UTC · InSAR lunes 10:00 UTC",
+        "supabase_postgres" if persistent else "in-memory",
+    )
     return scheduler
 
 
@@ -802,6 +841,36 @@ app.add_url_rule("/velez/weekly_status",  "velez_weekly_status",  velez_schedule
 app.add_url_rule("/velez/test_whatsapp",  "velez_test_whatsapp",  velez_scheduler.route_test_whatsapp,  methods=["POST"])
 app.add_url_rule("/velez/test_email",     "velez_test_email",     velez_scheduler.route_test_email,     methods=["POST"])
 app.add_url_rule("/velez/smtp_diag",      "velez_smtp_diag",      velez_scheduler.route_smtp_diag,      methods=["GET"])
+
+
+@app.route("/scheduler/status", methods=["GET"])
+def scheduler_status():
+    """Estado del APScheduler: jobstore activo, jobs registrados."""
+    if not _scheduler:
+        return jsonify({"ok": False, "error": "scheduler no iniciado"}), 503
+    try:
+        jobs = _scheduler.get_jobs()
+        jobstores = list(_scheduler._jobstores.keys())
+        persistent = any(
+            "SQLAlchemy" in type(js).__name__
+            for js in _scheduler._jobstores.values()
+        )
+        return jsonify({
+            "ok":         True,
+            "persistent": persistent,
+            "jobstore":   "supabase_postgres" if persistent else "in-memory",
+            "jobs_n":     len(jobs),
+            "jobs": [
+                {
+                    "id":       j.id,
+                    "next_run": j.next_run_time.isoformat() if j.next_run_time else None,
+                    "trigger":  str(j.trigger),
+                }
+                for j in jobs
+            ],
+        })
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 500
 
 
 # ── Grass recovery projection ─────────────────────────────────────────────────

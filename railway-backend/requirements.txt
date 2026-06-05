@@ -26,3 +26,4 @@ spyndex>=0.3.0
 stackstac>=0.4.0
 dask[array]>=2024.1.0
 pyPhenology>=1.0.0
+SQLAlchemy>=2.0.0

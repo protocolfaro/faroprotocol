@@ -45,13 +45,14 @@ _sched = None   # instancia APScheduler (inyectada desde app.py o creada aquí)
 
 def init_scheduler(external_scheduler=None):
     """
-    Inicializa el scheduler. Si app.py pasa su instancia, la reutiliza.
-    Si no, crea una propia. Llamar desde app.py al inicio.
+    Inicializa el scheduler. app.py siempre pasa su instancia (con jobstore
+    persistente si SUPABASE_DB_URL está configurada). Solo crea instancia propia
+    como fallback de último recurso (sin persistencia).
     """
     global _sched
     if external_scheduler is not None:
         _sched = external_scheduler
-        log.info("dale_play_scheduler: usando scheduler externo")
+        log.info("dale_play_scheduler: usando scheduler externo (jobstore heredado)")
         return _sched
 
     if _sched is not None:
@@ -61,7 +62,7 @@ def init_scheduler(external_scheduler=None):
         from apscheduler.schedulers.background import BackgroundScheduler
         _sched = BackgroundScheduler(timezone="UTC")
         _sched.start()
-        log.info("dale_play_scheduler: BackgroundScheduler iniciado (instancia propia)")
+        log.warning("dale_play_scheduler: scheduler propio sin persistencia — pasar external_scheduler desde app.py")
     except Exception as exc:
         log.warning("dale_play_scheduler: no se pudo iniciar scheduler: %s", exc)
     return _sched
