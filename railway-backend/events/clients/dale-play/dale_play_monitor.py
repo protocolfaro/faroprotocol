@@ -439,13 +439,32 @@ def _run_monitoring_job() -> None:
 
 def get_monitor_status() -> dict:
     """Estado público para endpoint /dale-play/monitor-status."""
-    return {
-        "venues_activos":  [v["venue_id"] for v in _ACTIVE_VENUES],
-        "umbrales": {
+    import os
+    paperclip_activo = bool(os.environ.get("ANTHROPIC_API_KEY", ""))
+    try:
+        import importlib.util
+        paperclip_activo = paperclip_activo and (
+            importlib.util.find_spec("anthropic") is not None
+        )
+    except Exception:
+        paperclip_activo = False
+
+    status = {
+        "venues_activos": [v["venue_id"] for v in _ACTIVE_VENUES],
+        "motor":          "paperclip" if paperclip_activo else "umbrales_fijos",
+        "intervalo_h":    6,
+    }
+    if paperclip_activo:
+        status["paperclip"] = {
+            "modelo":       "claude-sonnet-4-6",
+            "descripcion":  "Decision contextual via Claude API — sin umbrales fijos",
+            "fallback":     "umbrales_fijos si API no disponible",
+        }
+    else:
+        status["umbrales"] = {
             "lluvia_mm_24h": _RAIN_MM_24H,
             "viento_kmh":    _WIND_KMH,
             "ndvi_drop":     _NDVI_DROP,
             "sar_conf_min":  _SAR_CONF_MIN,
-        },
-        "intervalo_h": 6,
-    }
+        }
+    return status

@@ -643,6 +643,24 @@ def commit_historial():
 
 @app.route("/velez/refresh_status", methods=["GET"])
 def refresh_status():
+    # Enrich satellite.last with Supabase pipeline_runs when in-memory state is empty
+    satellite_last = _last_satellite
+    if not satellite_last:
+        try:
+            from velez_supabase import query_pipeline_runs
+            runs = query_pipeline_runs(days=30)
+            if runs:
+                r = runs[0]
+                satellite_last = {
+                    "ok":           r.get("accepted"),
+                    "fecha_imagen": r.get("fecha_imagen"),
+                    "ndvi_median":  r.get("ndvi_median"),
+                    "ran_at":       r.get("timestamp_utc"),
+                    "source":       "supabase_pipeline_runs",
+                }
+        except Exception:
+            pass
+
     return jsonify({
         "service": "velez-ipos",
         "weather": {
@@ -656,7 +674,7 @@ def refresh_status():
         },
         "satellite": {
             "running": _satellite_running,
-            "last": _last_satellite,
+            "last": satellite_last,
         },
     })
 
