@@ -4,7 +4,7 @@ Compara NDVI pre/post show, genera PDF certificado con hash SHA-256.
 Output: dale-play/certificados/{show_id}_certificado.pdf
 """
 from __future__ import annotations
-import hashlib, json, logging, os, pathlib
+import base64, hashlib, json, logging, os, pathlib
 from datetime import datetime, timezone
 
 log = logging.getLogger(__name__)
@@ -626,10 +626,14 @@ class Certifier:
         out_path = CERT_DIR / f"{show_id}_certificado.pdf"
         _build_pdf(data, out_path)
 
+        # Codificar PDF en base64 para persistencia en Supabase
+        pdf_b64 = base64.b64encode(out_path.read_bytes()).decode("ascii")
+
         return {
-            "hash":     cert_hash,
-            "pdf_path": str(out_path),
-            "qr_url":   qr_url,
+            "hash":       cert_hash,
+            "pdf_path":   str(out_path),
+            "pdf_base64": pdf_b64,
+            "qr_url":     qr_url,
         }
 
 
@@ -739,12 +743,53 @@ def run_certification(show_id: str, mode: str = "post_show") -> dict:
     except Exception as _fii_e:
         log.warning("FII compute error: %s", _fii_e)
 
-    # Generar PDF via Certifier
+    # ── Hermes: validación físico-estacional antes de emitir cert ────────────
+    try:
+        import sys as _sys_h
+        from pathlib import Path as _Path_h
+        _agents_dir = str(_Path_h(__file__).parent.parent.parent.parent / "agents")
+        if _agents_dir not in _sys_h.path:
+            _sys_h.path.insert(0, _agents_dir)
+        from hermes import validate_certificate as _hermes_validate, CertificateBlocked as _CertBlocked
+        _hermes_stats = {
+            "sar_medio_db":        None,          # no SAR backscatter en pipeline dale-play
+            "ndvi_medio":          ndvi_post,
+            "indice_fusion_medio": (cert_data.get("fii") or {}).get("fii"),
+            "ndvi_disponible":     ndvi_post is not None,
+        }
+        _hermes_score  = (cert_data.get("fii") or {}).get("fii") or 0
+        _hermes_estado = (cert_data.get("fii") or {}).get("sello") or ""
+        _hermes_result = _hermes_validate(
+            area_name     = show_id,
+            stats         = _hermes_stats,
+            insight_score = _hermes_score,
+            insight_estado= _hermes_estado,
+            digest        = cert_hash,
+        )
+        if _hermes_result.get("fallback"):
+            log.warning("certification: Hermes fail-open — %s", _hermes_result.get("motivo"))
+        else:
+            log.info("certification: Hermes aprobado — %s (conf=%.2f)",
+                     _hermes_result.get("motivo"), _hermes_result.get("confianza", 0))
+        cert_data["hermes"] = _hermes_result
+    except _CertBlocked as _hb:
+        log.error("certification: Hermes BLOQUEÓ cert %s — %s", show_id, _hb.motivo)
+        # Persistir flag antes de abortar
+        raise RuntimeError(
+            f"Hermes bloqueó el certificado: {_hb.motivo} "
+            f"(anomalías: {[a.get('campo') for a in _hb.anomalias]})"
+        ) from _hb
+    except Exception as _he:
+        log.warning("certification: Hermes error (fail-open) — %s", _he)
+        cert_data["hermes"] = {"fallback": True, "motivo": str(_he)}
+
+    # Generar PDF via Certifier (incluye pdf_base64 para Supabase)
     _cert_result = Certifier().generate(cert_data)
-    cert_data["pdf_path"] = _cert_result["pdf_path"]
+    cert_data["pdf_path"]   = _cert_result["pdf_path"]
+    cert_data["pdf_base64"] = _cert_result.get("pdf_base64", "")
     log.info("Certificado generado → %s", _cert_result["pdf_path"])
 
-    # Persistir en Supabase
+    # Persistir en Supabase (pdf_base64 va dentro de data JSONB)
     try:
         from dale_play_storage import save_certification
         save_certification(show_id, cert_hash, _cert_result["pdf_path"], cert_data)

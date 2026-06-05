@@ -190,13 +190,40 @@ def dp_certify():
 
 @dale_play_bp.route("/certificado/<show_id>", methods=["GET"])
 def dp_certificado(show_id: str):
-    """GET /dale-play/certificado/{show_id} — descarga el PDF del certificado."""
+    """GET /dale-play/certificado/{show_id} — descarga el PDF del certificado.
+
+    Jerarquía:
+      1. Filesystem local (Railway efímero — solo disponible en la sesión que lo generó)
+      2. Supabase certifications.data.pdf_base64 (persistente entre restarts)
+    """
+    import io as _io
+    import base64 as _b64
     import os as _os
+
+    # 1. Intentar local
     pdf_path = _os.path.join(_DP_PATH, "certificados", f"{show_id}_certificado.pdf")
-    if not _os.path.exists(pdf_path):
-        return jsonify({"error": f"Certificado no encontrado: {show_id}"}), 404
-    return send_file(pdf_path, mimetype="application/pdf",
-                     download_name=f"{show_id}_certificado.pdf")
+    if _os.path.exists(pdf_path):
+        return send_file(pdf_path, mimetype="application/pdf",
+                         download_name=f"{show_id}_certificado.pdf")
+
+    # 2. Fallback: Supabase certifications.data.pdf_base64
+    try:
+        from dale_play_storage import get_certification
+        cert = get_certification(show_id)
+        if cert is None:
+            return jsonify({"error": f"Certificado no encontrado: {show_id}"}), 404
+        pdf_b64 = (cert.get("data") or {}).get("pdf_base64")
+        if not pdf_b64:
+            return jsonify({"error": f"PDF no disponible para {show_id} — regenerar con /certify"}), 404
+        pdf_bytes = _b64.b64decode(pdf_b64)
+        return send_file(
+            _io.BytesIO(pdf_bytes),
+            mimetype="application/pdf",
+            download_name=f"{show_id}_certificado.pdf",
+        )
+    except Exception as _e:
+        log.error("dp_certificado fallback Supabase error: %s", _e)
+        return jsonify({"error": f"Error recuperando certificado: {_e}"}), 500
 
 
 @dale_play_bp.route("/report-png/<show_id>", methods=["GET"])
