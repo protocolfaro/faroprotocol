@@ -193,8 +193,268 @@ def _search_source(src: dict, dt_from: str, dt_to: str,
         return []
 
 
+def _compute_indices(
+    nir_c, red_c, green_c, blue_c, swir1_c, scl_mask, mode: str
+) -> dict | None:
+    """Shared index computation used by both rasterio and stackstac paths.
+
+    Returns entry dict with ndvi + optional gndvi/bsi/ndwi/coverage_pct,
+    or None if insufficient valid pixels.
+    """
+    import numpy as np
+    try:
+        import faro_ndvi_clean as _fnc
+        _USE_CLEAN = True
+    except ImportError:
+        _USE_CLEAN = False
+
+    _SCL_BAD = frozenset({0, 1, 3, 8, 9, 10})
+
+    if nir_c is None or red_c is None or nir_c.size == 0:
+        return None
+
+    if _USE_CLEAN and mode == "s2":
+        nir_dn = (nir_c * 10000).astype(np.int32)
+        red_dn = (red_c * 10000).astype(np.int32)
+        cleaned = _fnc.clean_ndvi(nir_dn, red_dn, do_unmix=True, external_mask=scl_mask)
+        if cleaned["coverage_pct"] < 20.0:
+            return None
+        ndvi     = round(max(-1.0, min(1.0, cleaned["mean_ndvi"])), 3)
+        coverage = round(cleaned["coverage_pct"], 1)
+    else:
+        with np.errstate(invalid="ignore", divide="ignore"):
+            _closdi = 250.0 * (nir_c + red_c) / (nir_c + 2.4 * red_c + 1.0)
+        valid = (nir_c + red_c) > 0.02
+        valid &= (_closdi >= 34.0) | ((nir_c + red_c) <= 0.02)
+        valid &= (nir_c >= red_c)
+        if scl_mask is not None:
+            valid &= ~scl_mask
+        if valid.sum() < 2:
+            return None
+        with np.errstate(invalid="ignore", divide="ignore"):
+            ndvi = round(float(((nir_c - red_c) / (nir_c + red_c + 1e-9))[valid].mean()), 3)
+        ndvi     = max(-1.0, min(1.0, ndvi))
+        coverage = None
+
+    valid_g = ((nir_c + green_c) > 0.02) if green_c is not None else np.zeros(nir_c.shape, bool)
+    if scl_mask is not None:
+        valid_g &= ~scl_mask
+    if valid_g.sum() >= 2:
+        with np.errstate(invalid="ignore", divide="ignore"):
+            gndvi = round(float(((nir_c - green_c) / (nir_c + green_c + 1e-9))[valid_g].mean()), 3)
+        gndvi = max(-1.0, min(1.0, gndvi))
+    else:
+        gndvi = round(ndvi * 0.93, 3)
+
+    nst, nrec = _n_status(gndvi)
+    entry: dict = {"ndvi": ndvi, "gndvi": gndvi, "n_status": nst, "n_rec": nrec}
+    if coverage is not None:
+        entry["coverage_pct"] = coverage
+
+    valid_base = (nir_c + red_c) > 0.02
+    if scl_mask is not None:
+        valid_base &= ~scl_mask
+
+    if swir1_c is not None and blue_c is not None:
+        v = valid_base & ((swir1_c + red_c + nir_c + blue_c) > 0.04)
+        if v.sum() >= 2:
+            with np.errstate(invalid="ignore", divide="ignore"):
+                num = (swir1_c + red_c) - (nir_c + blue_c)
+                den = (swir1_c + red_c) + (nir_c + blue_c) + 1e-9
+                bsi = round(max(-1.0, min(1.0, float((num / den)[v].mean()))), 3)
+            entry["bsi"] = bsi
+
+    if swir1_c is not None:
+        v = valid_base & ((nir_c + swir1_c) > 0.02)
+        if v.sum() >= 2:
+            with np.errstate(invalid="ignore", divide="ignore"):
+                ndwi = round(max(-1.0, min(1.0,
+                    float(((nir_c - swir1_c) / (nir_c + swir1_c + 1e-9))[v].mean()))), 3)
+            entry["ndwi"] = ndwi
+
+    return entry
+
+
+def _read_canchas_stackstac(item, src: dict) -> dict[str, dict]:
+    """Load all canchas in one Dask operation via stackstac.
+
+    Fetches the entire cluster bbox as a single xarray DataArray,
+    then slices per cancha in pure numpy — no per-cancha HTTP round-trips.
+    Falls back to _read_canchas_rasterio() automatically on import error.
+    """
+    import numpy as np
+    import stackstac
+    from rasterio.warp import transform_bounds
+
+    mode = src["scale"]
+
+    # Build asset list from src config (first candidate present in item.assets wins)
+    band_map: dict[str, str | None] = {}
+    spectral_assets: list[str] = []
+    scl_asset: str | None = None
+
+    for logical, candidates in [
+        ("nir",   src["nir"]),
+        ("red",   src["red"]),
+        ("green", src["green"]),
+        ("blue",  src.get("blue", [])),
+        ("swir1", src.get("swir1", [])),
+    ]:
+        for c in candidates:
+            if c in item.assets:
+                band_map[logical] = c
+                if c not in spectral_assets:
+                    spectral_assets.append(c)
+                break
+        else:
+            band_map[logical] = None
+
+    for c in src.get("scl", []):
+        if c in item.assets:
+            scl_asset = c
+            break
+
+    if not band_map.get("nir") or not band_map.get("red"):
+        raise ValueError("NIR or RED band not found in STAC item")
+
+    resolution = 10 if mode == "s2" else 30
+
+    # ── Load all spectral bands for the full cluster bbox in one Dask compute ──
+    da = stackstac.stack(
+        [item],
+        assets=spectral_assets,
+        bounds_latlon=list(_CLUSTER_BBOX),
+        resolution=resolution,
+        dtype="float32",
+        fill_value=0.0,
+        xy_coords="center",
+    )
+    cluster = da.squeeze("time").compute()   # (band, y, x)
+
+    # ── Load SCL at 20m separately (needs integer class values, no float scale) ──
+    scl_cluster: np.ndarray | None = None
+    if scl_asset:
+        try:
+            da_scl = stackstac.stack(
+                [item],
+                assets=[scl_asset],
+                bounds_latlon=list(_CLUSTER_BBOX),
+                resolution=20,
+                dtype="float32",  # will cast to int after load
+                fill_value=0.0,
+                xy_coords="center",
+            )
+            scl_cluster = da_scl.squeeze("time").squeeze("band").compute().values.astype(np.int16)
+        except Exception as _scl_e:
+            log.debug("ndvi_real stackstac: SCL load non-fatal: %s", _scl_e)
+
+    # ── Spatial helpers ───────────────────────────────────────────────────────
+    crs_str  = str(da.attrs.get("crs", "EPSG:32721"))
+    affine_t = da.attrs.get("transform")   # affine.Affine
+
+    h_full = cluster.shape[-2]
+    w_full = cluster.shape[-1]
+
+    def _band_np(name: str) -> np.ndarray | None:
+        key = band_map.get(name)
+        if not key:
+            return None
+        arr = cluster.sel(band=key).values
+        return _to_refl(arr, mode)
+
+    nir_full   = _band_np("nir")
+    red_full   = _band_np("red")
+    green_full = _band_np("green")
+    blue_full  = _band_np("blue")
+    swir1_full = _band_np("swir1")
+
+    results: dict[str, dict] = {}
+
+    for cid, (minx, miny, maxx, maxy) in CANCHA_BBOXES.items():
+        try:
+            # Project cancha bbox to native CRS then find pixel indices
+            nx0, ny0, nx1, ny1 = transform_bounds("EPSG:4326", crs_str, minx, miny, maxx, maxy)
+
+            if affine_t is not None:
+                # Inverse affine: (col, row) = ~T * (x, y)  [y decreases with row]
+                inv = ~affine_t
+                c0, r0 = inv * (nx0, ny1)   # top-left in pixel space
+                c1, r1 = inv * (nx1, ny0)   # bottom-right
+                ri0, ri1 = max(0, int(r0)),  min(h_full, int(r1) + 1)
+                ci0, ci1 = max(0, int(c0)),  min(w_full, int(c1) + 1)
+            else:
+                # Fallback: scan coordinate arrays
+                x_v = cluster.x.values
+                y_v = cluster.y.values
+                ci0 = int(np.searchsorted(x_v, nx0))
+                ci1 = int(np.searchsorted(x_v, nx1)) + 1
+                ri0 = int(np.searchsorted(-y_v, -ny1))
+                ri1 = int(np.searchsorted(-y_v, -ny0)) + 1
+                ri0 = max(0, ri0); ri1 = min(h_full, ri1)
+                ci0 = max(0, ci0); ci1 = min(w_full, ci1)
+
+            if ri0 >= ri1 or ci0 >= ci1:
+                continue
+
+            def _crop(a: np.ndarray | None) -> np.ndarray | None:
+                return a[ri0:ri1, ci0:ci1] if a is not None else None
+
+            nir_c   = _crop(nir_full)
+            red_c   = _crop(red_full)
+            green_c = _crop(green_full)
+            blue_c  = _crop(blue_full)
+            swir1_c = _crop(swir1_full)
+
+            # SCL mask: upsample 20m→10m via nearest-neighbour (np.repeat)
+            scl_mask = None
+            if scl_cluster is not None:
+                try:
+                    factor = resolution // 20  # 0.5 for s2 10m, but we use 2× for 20m SCL
+                    scl_h, scl_w = scl_cluster.shape
+                    sr0 = max(0, int(ri0 * scl_h / h_full))
+                    sr1 = min(scl_h, int(ri1 * scl_h / h_full) + 1)
+                    sc0 = max(0, int(ci0 * scl_w / w_full))
+                    sc1 = min(scl_w, int(ci1 * scl_w / w_full) + 1)
+                    scl_crop = scl_cluster[sr0:sr1, sc0:sc1]
+                    # Nearest-neighbour upsample to 10m
+                    up = np.repeat(np.repeat(scl_crop, 2, axis=0), 2, axis=1)
+                    # Trim to match nir_c dimensions
+                    h_c = ri1 - ri0; w_c = ci1 - ci0
+                    scl_mask = np.isin(up[:h_c, :w_c], list(frozenset({0, 1, 3, 8, 9, 10})))
+                except Exception as _sm_e:
+                    log.debug("ndvi_real stackstac: %s SCL crop: %s", cid, _sm_e)
+
+            entry = _compute_indices(nir_c, red_c, green_c, blue_c, swir1_c, scl_mask, mode)
+            if entry is None:
+                log.warning("ndvi_real stackstac: %s — cobertura insuficiente", cid)
+                continue
+            results[cid] = entry
+
+        except Exception as exc:
+            log.warning("ndvi_real stackstac: %s: %s", cid, exc)
+
+    return results
+
+
 def _read_canchas(item, src: dict) -> dict[str, dict]:
-    """Windowed COG read for all canchas.
+    """Dispatch to stackstac (batch Dask) or rasterio (per-window) path.
+
+    stackstac fetches all bands for the cluster bbox in one compute() call,
+    then slices per cancha in numpy — significantly fewer HTTP round-trips.
+    Falls back automatically if stackstac is unavailable or errors.
+    """
+    try:
+        import stackstac as _ss  # noqa: F401 — probe import only
+        return _read_canchas_stackstac(item, src)
+    except ImportError:
+        pass
+    except Exception as exc:
+        log.warning("ndvi_real: stackstac error, fallback rasterio: %s", exc)
+    return _read_canchas_rasterio(item, src)
+
+
+def _read_canchas_rasterio(item, src: dict) -> dict[str, dict]:
+    """Per-cancha windowed COG read for all canchas.
 
     Applies SCL + CLOSDI pixel-level masking before computing NDVI.
     Computes NDVI, GNDVI (nitrogen), BSI (bare soil), NDWI (water stress).
@@ -207,12 +467,6 @@ def _read_canchas(item, src: dict) -> dict[str, dict]:
     from rasterio.warp import transform_bounds
     from rasterio.windows import from_bounds
     import numpy as np
-
-    try:
-        import faro_ndvi_clean as _fnc
-        _USE_CLEAN = True
-    except ImportError:
-        _USE_CLEAN = False
 
     mode = src["scale"]
 
@@ -279,59 +533,6 @@ def _read_canchas(item, src: dict) -> dict[str, dict]:
                     except Exception as _se:
                         log.debug("ndvi_real: %s SCL non-fatal: %s", cid, _se)
 
-                # NDVI via faro_ndvi_clean (CLOSDI + unmix) for S2; inline CLOSDI fallback otherwise
-                if _USE_CLEAN and mode == "s2":
-                    cleaned = _fnc.clean_ndvi(
-                        nir_raw.astype(np.int32), red_raw.astype(np.int32),
-                        do_unmix=True,
-                        external_mask=scl_mask,
-                    )
-                    if cleaned["coverage_pct"] < 20.0:
-                        log.warning("ndvi_real: %s coverage %.0f%% post-clean — skip",
-                                    cid, cleaned["coverage_pct"])
-                        continue
-                    ndvi     = round(max(-1.0, min(1.0, cleaned["mean_ndvi"])), 3)
-                    coverage = round(cleaned["coverage_pct"], 1)
-                else:
-                    # Fallback: inline CLOSDI + basic signal check
-                    with np.errstate(invalid="ignore", divide="ignore"):
-                        _closdi = 250.0 * (nir_r + red_r) / (nir_r + 2.4 * red_r + 1.0)
-                    valid = (nir_r + red_r) > 0.02
-                    valid &= (_closdi >= 34.0) | ((nir_r + red_r) <= 0.02)  # keep no-signal as-is
-                    valid &= (nir_r >= red_r)                                 # exclude negative NDVI
-                    if scl_mask is not None:
-                        valid &= ~scl_mask
-                    if valid.sum() < 2:
-                        log.warning("ndvi_real: %s — menos de 2 píxeles válidos", cid)
-                        continue
-                    with np.errstate(invalid="ignore", divide="ignore"):
-                        ndvi = round(float(
-                            ((nir_r - red_r) / (nir_r + red_r + 1e-9))[valid].mean()), 3)
-                    ndvi     = max(-1.0, min(1.0, ndvi))
-                    coverage = None
-
-                # GNDVI — nitrogen proxy
-                valid_g = (nir_r + green_r) > 0.02
-                if scl_mask is not None:
-                    valid_g &= ~scl_mask
-                if valid_g.sum() >= 2:
-                    with np.errstate(invalid="ignore", divide="ignore"):
-                        gndvi = round(float(
-                            ((nir_r - green_r) / (nir_r + green_r + 1e-9))[valid_g].mean()), 3)
-                    gndvi = max(-1.0, min(1.0, gndvi))
-                else:
-                    gndvi = round(ndvi * 0.93, 3)
-
-                nst, nrec = _n_status(gndvi)
-                entry: dict = {"ndvi": ndvi, "gndvi": gndvi, "n_status": nst, "n_rec": nrec}
-                if coverage is not None:
-                    entry["coverage_pct"] = coverage
-
-                # Base valid mask for optional indices
-                valid_base = (nir_r + red_r) > 0.02
-                if scl_mask is not None:
-                    valid_base &= ~scl_mask
-
                 # Optional bands
                 blue_r  = None
                 swir1_r = None
@@ -348,29 +549,11 @@ def _read_canchas(item, src: dict) -> dict[str, dict]:
                     except Exception:
                         pass
 
-                # BSI = ((SWIR1+RED)-(NIR+BLUE)) / ((SWIR1+RED)+(NIR+BLUE))
-                # Positive → bare/exposed soil. Key for post-show damage assessment.
-                if swir1_r is not None and blue_r is not None:
-                    v = valid_base & ((swir1_r + red_r + nir_r + blue_r) > 0.04)
-                    if v.sum() >= 2:
-                        with np.errstate(invalid="ignore", divide="ignore"):
-                            num = (swir1_r + red_r) - (nir_r + blue_r)
-                            den = (swir1_r + red_r) + (nir_r + blue_r) + 1e-9
-                            bsi = round(max(-1.0, min(1.0, float((num / den)[v].mean()))), 3)
-                        entry["bsi"] = bsi
-
-                # NDWI (Gao) = (NIR-SWIR1)/(NIR+SWIR1) — vegetation water stress.
-                # Detects hydraulic stress 3-5 days before NDVI shows it.
-                # Positive → high leaf water content; negative → stress / drought.
-                if swir1_r is not None:
-                    v = valid_base & ((nir_r + swir1_r) > 0.02)
-                    if v.sum() >= 2:
-                        with np.errstate(invalid="ignore", divide="ignore"):
-                            ndwi = round(max(-1.0, min(1.0,
-                                float(((nir_r - swir1_r) / (nir_r + swir1_r + 1e-9))[v].mean())
-                            )), 3)
-                        entry["ndwi"] = ndwi
-
+                entry = _compute_indices(nir_r, red_r, green_r, blue_r, swir1_r,
+                                         scl_mask, mode)
+                if entry is None:
+                    log.warning("ndvi_real: %s — cobertura insuficiente post-clean", cid)
+                    continue
                 results[cid] = entry
 
             except Exception as exc:

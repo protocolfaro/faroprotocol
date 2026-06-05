@@ -616,6 +616,18 @@ def manual_insar_refresh():
     }), 202
 
 
+@app.route("/velez/pipeline_history", methods=["GET"])
+def velez_pipeline_history():
+    """Last N days of satellite pipeline run history from Supabase pipeline_runs table."""
+    days = min(int(request.args.get("days", 14)), 90)
+    try:
+        from velez_supabase import query_pipeline_runs
+        runs = query_pipeline_runs(days=days)
+        return jsonify({"ok": True, "days": days, "count": len(runs), "runs": runs}), 200
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 500
+
+
 @app.route("/velez/commit_historial", methods=["POST"])
 def commit_historial():
     """Guarda snapshot semanal en historial/YYYY-MM-DD.json en GitHub."""
@@ -726,6 +738,15 @@ try:
         log.info("Dale Play post-show scheduler + source scout semanal inicializados")
     except Exception as _dp_sched2_err:
         log.warning("Dale Play post-show scheduler: %s", _dp_sched2_err)
+    # Dale Play — recuperar monitors activos de Supabase después de restart Railway
+    try:
+        from dale_play_scheduler import recover_monitors_on_startup as _dp_recover
+        threading.Thread(
+            target=lambda: _dp_recover(_scheduler), daemon=True, name="dp_monitor_recovery"
+        ).start()
+        log.info("Dale Play monitor recovery iniciado (background thread)")
+    except Exception as _dp_rec_err:
+        log.warning("Dale Play monitor recovery: %s", _dp_rec_err)
     # Dale Play — agente de monitoreo (chequeo cada 6h: clima/NDVI/SAR)
     try:
         from dale_play_monitor import register_monitoring_job as _dp_monitor_reg

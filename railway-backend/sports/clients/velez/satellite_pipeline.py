@@ -23,6 +23,33 @@ import requests
 log = logging.getLogger(__name__)
 
 _OWNER  = "protocolfaro"
+
+# ── Supabase observability ────────────────────────────────────────────────────
+
+def _record_run(
+    ts_utc: str,
+    fecha_imagen: str | None,
+    ndvi_median: float | None,
+    accepted: bool,
+    canchas: int | None = None,
+    skipped_reason: str | None = None,
+    error: str | None = None,
+) -> None:
+    """Insert one row into pipeline_runs. Non-blocking, silent on failure."""
+    try:
+        import velez_supabase as _vs
+        _vs.insert_pipeline_run(
+            timestamp_utc=ts_utc,
+            fecha_imagen=fecha_imagen,
+            ndvi_median=ndvi_median,
+            accepted=accepted,
+            canchas_procesadas=canchas,
+            skipped_reason=skipped_reason,
+            error=error,
+        )
+    except Exception as exc:
+        log.debug("pipeline_runs record failed (non-fatal): %s", exc)
+
 _REPO   = "faroprotocol"
 _BRANCH = "main"
 _VD_PATH = "velez/velez_data.json"
@@ -175,6 +202,8 @@ def run_satellite_cycle(ndvi_data: dict = None, force: bool = False) -> dict:
 
     Returns: dict con resultado del ciclo.
     """
+    _run_ts = datetime.now(timezone.utc).isoformat()
+
     # 1. Obtener NDVI real si no fue pasado
     if ndvi_data is None:
         try:
@@ -182,10 +211,12 @@ def run_satellite_cycle(ndvi_data: dict = None, force: bool = False) -> dict:
             ndvi_data = ndvi_real.fetch_ndvi()
         except Exception as e:
             log.warning("satellite_pipeline: fetch_ndvi falló: %s", e)
+            _record_run(_run_ts, None, None, False, error=str(e))
             return {"ok": False, "error": str(e)}
 
     if not ndvi_data:
         log.info("satellite_pipeline: sin imagen limpia disponible — ciclo omitido")
+        _record_run(_run_ts, None, None, False, skipped_reason="no_new_image")
         return {"ok": True, "skipped": True, "reason": "no_new_image"}
 
     img_date = ndvi_data.get("fecha_imagen", "?")
@@ -196,25 +227,27 @@ def run_satellite_cycle(ndvi_data: dict = None, force: bool = False) -> dict:
         v["ndvi"] for v in ndvi_data.get("canchas", {}).values()
         if isinstance(v.get("ndvi"), (int, float))
     )
-    if len(_ndvi_vals) >= 8:
-        _median_ndvi = _ndvi_vals[len(_ndvi_vals) // 2]
-        if _median_ndvi < 0.12:
-            log.warning(
-                "satellite_pipeline: imagen %s RECHAZADA — NDVI mediano %.3f < 0.12 "
-                "(artefacto probable: niebla/sombra de nube no detectada) — "
-                "manteniendo último ciclo válido",
-                img_date, _median_ndvi,
-            )
-            return {
-                "ok": True, "skipped": True, "reason": "ndvi_anomaly",
-                "fecha_imagen": img_date, "median_ndvi": _median_ndvi,
-            }
+    _median_ndvi = _ndvi_vals[len(_ndvi_vals) // 2] if len(_ndvi_vals) >= 8 else None
+
+    if _median_ndvi is not None and _median_ndvi < 0.12:
+        log.warning(
+            "satellite_pipeline: imagen %s RECHAZADA — NDVI mediano %.3f < 0.12 "
+            "(artefacto probable: niebla/sombra de nube no detectada) — "
+            "manteniendo último ciclo válido",
+            img_date, _median_ndvi,
+        )
+        _record_run(_run_ts, img_date, _median_ndvi, False, skipped_reason="ndvi_anomaly")
+        return {
+            "ok": True, "skipped": True, "reason": "ndvi_anomaly",
+            "fecha_imagen": img_date, "median_ndvi": _median_ndvi,
+        }
 
     # 3. Verificar si esta imagen ya fue procesada (usar >= para no re-procesar misma fecha)
     if not force:
         last = _last_processed_date()
         if last and last >= img_date:
             log.info("satellite_pipeline: imagen %s ya procesada (última: %s) — omitido", img_date, last)
+            _record_run(_run_ts, img_date, _median_ndvi, False, skipped_reason="already_processed")
             return {"ok": True, "skipped": True, "reason": "already_processed", "fecha_imagen": img_date}
 
     log.info("=== satellite_pipeline START — imagen %s ===", img_date)
@@ -282,6 +315,7 @@ def run_satellite_cycle(ndvi_data: dict = None, force: bool = False) -> dict:
 
     log.info("=== satellite_pipeline OK — %s · %d canchas · %d PNGs ===",
              img_date, len(ndvi_map), len(png_bytes))
+    _record_run(_run_ts, img_date, _median_ndvi, True, canchas=len(ndvi_map))
     return {
         "ok":              True,
         "fecha_imagen":    img_date,

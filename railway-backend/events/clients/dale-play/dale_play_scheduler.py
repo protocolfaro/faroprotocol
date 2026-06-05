@@ -168,6 +168,7 @@ def schedule_post_show_updates(
             "dale_play_scheduler: monitor %s registrado (c/6h, máx %d días, nivel=%s)",
             show_id, _MAX_DAYS, coc_nivel,
         )
+        _save_monitor_supabase(show_id)
     except Exception as exc:
         log.warning("dale_play_scheduler: add_job failed: %s", exc)
         _active.pop(show_id, None)
@@ -221,6 +222,7 @@ def _check_and_upgrade(show_id: str) -> None:
     if _NIVEL_RANK.get(new_coc, 0) > _NIVEL_RANK.get(prev_nivel, 0):
         log.info("dale_play_scheduler: %s MEJORÓ %s → %s", show_id, prev_nivel, new_coc)
         state["coc_nivel"] = new_coc
+        _save_monitor_supabase(show_id)
 
         # ── Calcular SHA-256 del nuevo PNG ───────────────────────────────────
         png_path = pathlib.Path(__file__).parent / "reportes" / f"reporte_{show_id}.png"
@@ -253,7 +255,104 @@ def _cancel_monitor(show_id: str) -> None:
     except Exception:
         pass
     _active.pop(show_id, None)
+    _delete_monitor_supabase(show_id)
     log.info("dale_play_scheduler: monitor cancelado para %s", show_id)
+
+
+# ── Supabase persistence helpers ──────────────────────────────────────────────
+
+def _save_monitor_supabase(show_id: str) -> None:
+    """Persist current _active[show_id] state to Supabase show_monitors."""
+    state = _active.get(show_id)
+    if state is None:
+        return
+    try:
+        from dale_play_storage import save_show_monitor
+        save_show_monitor(
+            show_id=show_id,
+            show_date=state.get("show_date", ""),
+            show_config=state.get("show_config") or {},
+            coc_nivel=state.get("coc_nivel", "SIN_DATOS"),
+            client_email=state.get("client_email", ""),
+            start_ts=state.get("start_ts", time.time()),
+            n_checks=state.get("n_checks", 0),
+        )
+    except Exception as exc:
+        log.warning("dale_play_scheduler: _save_monitor_supabase %s: %s", show_id, exc)
+
+
+def _delete_monitor_supabase(show_id: str) -> None:
+    try:
+        from dale_play_storage import delete_show_monitor
+        delete_show_monitor(show_id)
+    except Exception as exc:
+        log.warning("dale_play_scheduler: _delete_monitor_supabase %s: %s", show_id, exc)
+
+
+def recover_monitors_on_startup(external_scheduler=None) -> int:
+    """
+    Re-register active post-show monitor jobs from Supabase after Railway restart.
+    Called in a background thread from app.py; returns number of jobs recovered.
+    Expired monitors (> _MAX_DAYS) are purged automatically.
+    """
+    try:
+        from dale_play_storage import get_active_show_monitors
+        monitors = get_active_show_monitors()
+    except Exception as exc:
+        log.warning("dale_play_scheduler: recover — Supabase read failed: %s", exc)
+        return 0
+
+    sched = external_scheduler or _get_scheduler()
+    if sched is None:
+        log.warning("dale_play_scheduler: recover — scheduler not available")
+        return 0
+
+    recovered = 0
+    for m in monitors:
+        show_id   = m.get("show_id", "")
+        start_ts  = m.get("start_ts") or time.time()
+        coc_nivel = m.get("coc_nivel", "SIN_DATOS")
+        elapsed_d = (time.time() - start_ts) / 86400
+
+        if not show_id:
+            continue
+        if elapsed_d > _MAX_DAYS or coc_nivel == "GOLD":
+            log.info("dale_play_scheduler: recover: %s expired/GOLD — purging", show_id)
+            _delete_monitor_supabase(show_id)
+            continue
+        if show_id in _active:
+            log.info("dale_play_scheduler: recover: %s already active", show_id)
+            continue
+
+        _active[show_id] = {
+            "start_ts":     start_ts,
+            "show_config":  m.get("show_config") or {},
+            "show_date":    m.get("show_date", ""),
+            "coc_nivel":    coc_nivel,
+            "n_checks":     m.get("n_checks", 0),
+            "client_email": m.get("client_email", ""),
+        }
+        job_id = f"dp_postshow_{show_id}"
+        try:
+            sched.add_job(
+                _check_and_upgrade,
+                "interval",
+                hours=_INTERVAL_H,
+                args=[show_id],
+                id=job_id,
+                replace_existing=True,
+                max_instances=1,
+                misfire_grace_time=3600,
+            )
+            recovered += 1
+            log.info("dale_play_scheduler: recovered %s (nivel=%s, día %.1f/7)",
+                     show_id, coc_nivel, elapsed_d)
+        except Exception as exc:
+            log.warning("dale_play_scheduler: recover add_job %s: %s", show_id, exc)
+            _active.pop(show_id, None)
+
+    log.info("dale_play_scheduler: recovery complete — %d monitor(s) restored", recovered)
+    return recovered
 
 
 # ─────────────────────────────────────────────────────────────────────────────

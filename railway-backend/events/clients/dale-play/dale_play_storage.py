@@ -37,6 +37,7 @@ Estrategia de resiliencia:
 """
 from __future__ import annotations
 import json, logging, os, re, sys, time
+from datetime import datetime, timezone
 import pathlib as _pathlib
 
 import requests as _requests
@@ -288,6 +289,79 @@ def get_certification_by_hash(cert_hash: str) -> dict | None:
         return cached
     result = _select_one("certifications", "cert_hash", cert_hash)
     return result
+
+
+# ── show_monitors (persistencia cross-restart para Dale Play post-show jobs) ──
+#
+#   CREATE TABLE IF NOT EXISTS show_monitors (
+#     show_id       TEXT PRIMARY KEY,
+#     show_date     TEXT,
+#     show_config   JSONB,
+#     coc_nivel     TEXT,
+#     client_email  TEXT,
+#     start_ts      DOUBLE PRECISION,
+#     n_checks      INTEGER DEFAULT 0,
+#     updated_at    TIMESTAMPTZ DEFAULT NOW()
+#   );
+
+def save_show_monitor(
+    show_id: str,
+    show_date: str,
+    show_config: dict,
+    coc_nivel: str,
+    client_email: str,
+    start_ts: float,
+    n_checks: int,
+) -> bool:
+    """Upsert active monitor state so it survives Railway restarts."""
+    row = {
+        "show_id":      show_id,
+        "show_date":    show_date,
+        "show_config":  show_config,
+        "coc_nivel":    coc_nivel,
+        "client_email": client_email,
+        "start_ts":     start_ts,
+        "n_checks":     n_checks,
+        "updated_at":   datetime.now(timezone.utc).isoformat(),
+    }
+    ok = _upsert("show_monitors", row)
+    if not ok:
+        _local_save("monitor", show_id, row)
+    return ok
+
+
+def get_active_show_monitors() -> list[dict]:
+    """Return all rows from show_monitors. Empty list if Supabase not configured."""
+    if not _is_configured():
+        return []
+    url = f"{_base_url()}/rest/v1/show_monitors?select=*&order=updated_at.desc"
+    for attempt in range(2):
+        try:
+            r = _requests.get(url, headers=_headers(), timeout=10)
+            if r.status_code == 200:
+                return r.json()
+            log.warning("show_monitors query (%d/2): HTTP %s %s",
+                        attempt + 1, r.status_code, r.text[:200])
+        except Exception as exc:
+            log.warning("show_monitors query (%d/2): %s", attempt + 1, exc)
+        if attempt == 0:
+            time.sleep(1)
+    return []
+
+
+def delete_show_monitor(show_id: str) -> bool:
+    """Delete completed/cancelled monitor from show_monitors."""
+    if not _is_configured():
+        return False
+    url = f"{_base_url()}/rest/v1/show_monitors?show_id=eq.{show_id}"
+    try:
+        r = _requests.delete(url, headers=_headers(), timeout=8)
+        if r.status_code in (200, 204):
+            return True
+        log.warning("show_monitors delete %s: HTTP %s", show_id, r.status_code)
+    except Exception as exc:
+        log.warning("show_monitors delete %s: %s", show_id, exc)
+    return False
 
 
 # ── audit_log (inmutable — solo INSERT, nunca UPDATE) ─────────────────────────
