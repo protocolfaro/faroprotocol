@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import os
 import sys
-from pathlib import Path
 from typing import Any
 
 # ── Mock MCP before importing machina_gis_server ─────────────────────────────
@@ -33,11 +32,8 @@ sys.modules["mcp"]                  = MagicMock()
 sys.modules["mcp.server"]           = MagicMock()
 sys.modules["mcp.server.fastmcp"]   = _fastmcp_mod
 
-# ── Import GIS functions from repo root ───────────────────────────────────────
-_REPO_ROOT = Path(__file__).parent.parent
-sys.path.insert(0, str(_REPO_ROOT))
-
-from machina_gis_server import (   # noqa: E402
+# ── Import GIS functions (bundled in same directory) ─────────────────────────
+from machina_gis_server import (
     AREAS,
     calcular_indices_espectrales,
     analizar_cambio_sar,
