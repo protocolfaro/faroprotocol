@@ -486,6 +486,24 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
 .cron-upload-lbl{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 16px;cursor:pointer;text-align:center;-webkit-tap-highlight-color:transparent}
 .cron-footer{padding:8px 12px;display:flex;align-items:center;justify-content:space-between;background:var(--bg3);border-top:1px solid rgba(255,255,255,.06)}
 .cron-note{font-size:9px;color:var(--wdim);margin-top:6px;line-height:1.5}
+/* ── Faro 3D Satelital ──────────────────────────────────────────────────── */
+#f3d-section{display:none}
+#f3d-map{width:100%;height:320px;border-radius:8px;overflow:hidden;border:1px solid rgba(201,168,76,.2);margin-top:6px}
+.f3d-bar{display:flex;align-items:center;gap:6px;padding:6px 0;flex-wrap:wrap}
+.f3d-btn{padding:4px 12px;border-radius:14px;border:1px solid var(--gold);background:transparent;color:var(--gold);font-size:11px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.f3d-btn.active{background:var(--gold);color:#0d1117}
+.f3d-select{background:var(--bg2);color:var(--whi);border:1px solid rgba(201,168,76,.3);border-radius:6px;font-size:11px;padding:3px 6px}
+.f3d-slider-wrap{display:flex;align-items:center;gap:8px;padding:6px 0}
+.f3d-slider-wrap input[type=range]{flex:1;accent-color:var(--gold)}
+.f3d-slider-label{font-size:11px;color:var(--wdim);min-width:72px}
+.f3d-cut-card{background:var(--bg2);border-radius:8px;padding:10px 14px;margin-top:6px;border:1px solid rgba(201,168,76,.15)}
+.f3d-cut-status{font-size:13px;font-weight:700}
+.f3d-cut-status.optima{color:var(--grn)}
+.f3d-cut-status.restringida{color:var(--yel)}
+.f3d-cut-status.bloqueo{color:var(--red)}
+.f3d-cut-detail{font-size:11px;color:var(--wdim);margin-top:3px;line-height:1.5}
+.f3d-photo-btn{display:block;width:100%;margin-top:8px;padding:9px;background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.25);border-radius:8px;color:var(--gold);font-size:12px;font-weight:600;cursor:pointer;text-align:center;-webkit-tap-highlight-color:transparent}
+.f3d-photo-result{font-size:11px;padding:6px 0;line-height:1.5}
 </style>
 </head>
 <body>
@@ -622,6 +640,43 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
     <div id="mc-asp" class="mc-module"></div>
     <div id="mc-sombras" class="mc-module" style="display:none"></div>
     <div id="mc-med" class="mc-module" style="display:none"></div>
+  </div>
+
+  <!-- Faro 3D Satelital — canchero/roger only -->
+  <div id="f3d-section">
+    <div class="section-title">Vista Satelital 3D
+      <span id="f3d-live" style="width:6px;height:6px;background:var(--grn);border-radius:50%;display:inline-block;box-shadow:0 0 5px var(--grn);animation:pulse 2s infinite;margin-left:6px;vertical-align:middle"></span>
+    </div>
+    <div class="f3d-bar">
+      <button class="f3d-btn active" id="f3d-btn-2d" onclick="f3dSetView('2d')">2D</button>
+      <button class="f3d-btn" id="f3d-btn-3d" onclick="f3dSetView('3d')">3D</button>
+      <select class="f3d-select" id="f3d-shader" onchange="f3dSetShader(this.value)">
+        <option value="0">LAI Desaturado</option>
+        <option value="1">Clorofila Cab</option>
+        <option value="2">Humedad Estomática</option>
+      </select>
+      <label style="font-size:11px;display:flex;align-items:center;gap:4px;color:var(--wdim)">
+        <input type="checkbox" id="f3d-sar-chk" checked onchange="f3dToggleSAR(this.checked)">SAR
+      </label>
+      <label style="font-size:11px;display:flex;align-items:center;gap:4px;color:var(--wdim)">
+        <input type="checkbox" id="f3d-alerts-chk" checked onchange="f3dToggleAlerts(this.checked)">Alertas
+      </label>
+    </div>
+    <div id="f3d-map"></div>
+    <div class="f3d-slider-wrap">
+      <span style="font-size:11px;color:var(--wdim)">Histórico:</span>
+      <input type="range" id="f3d-slider" min="0" max="75" value="75" oninput="f3dOnSlider(this.value)">
+      <span class="f3d-slider-label" id="f3d-slider-date">—</span>
+      <span style="font-size:10px;color:var(--gold)" id="f3d-slider-ndvi"></span>
+    </div>
+    <div id="f3d-cut-card" class="f3d-cut-card" style="display:none">
+      <div style="font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--gold);text-transform:uppercase;margin-bottom:4px">Ventana de Corte · Magnus-Tetens</div>
+      <div class="f3d-cut-status" id="f3d-cut-status">Calculando…</div>
+      <div class="f3d-cut-detail" id="f3d-cut-detail"></div>
+    </div>
+    <button class="f3d-photo-btn" onclick="f3dOpenPhoto()">📸 Subir foto del campo — Ground Truth DGCI</button>
+    <div id="f3d-photo-result" class="f3d-photo-result" style="display:none"></div>
+    <input type="file" id="f3d-photo-input" accept="image/*" style="display:none" onchange="f3dUploadPhoto(this)">
   </div>
 
   <!-- Mantenimiento programado — intendente + ejecutivo -->
@@ -2895,6 +2950,7 @@ function render(data, cfg){
     buildTaskCalendar(u.tareas_semana);
     buildInterventionLog(); // Feature 2 — log con NDVI
     buildMiCampo(u, data, cfg);
+    if(typeof window.buildFaro3D === 'function') window.buildFaro3D();
     document.getElementById('sectors-wrapper').style.display='none';
     document.getElementById('weather-section').style.display='block';
     document.getElementById('smart-recs-section').style.display='block';
@@ -2970,6 +3026,293 @@ window.deleteLog       = deleteLog;
 window.deleteMedicion  = deleteMedicion;
 window.addEventListener('hashchange',function(){ init(); });
 init();
+})();
+</script>
+
+<script>
+/* ════════════════════════════════════════════════════════════════════════════
+   FARO 3D SATELITAL — MapLibre + WebGL2 PROSAIL Shader
+   Vista 3D integrada en panel Roger (#roger). Lazy-load MapLibre solo al activar.
+   ════════════════════════════════════════════════════════════════════════════ */
+(function(){
+'use strict';
+
+var FARO_BACKEND = 'https://faroprotocol-production-45fd.up.railway.app';
+var SB_URL  = 'https://xljxpzudgwhbzcnrvylo.supabase.co';
+var SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhsanhwenVkZ3doYnpjbnJ2eWxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwNzY2MjUsImV4cCI6MjA5NTY1MjYyNX0.csDdTYzbcalxKJ1LABVSxuCQ-Wbu8vw9kLs-U3MS8ug';
+var VENUE   = 'amalfitani';
+var CENTER  = [-58.5288, -34.6369];
+
+var _map        = null;
+var _mapReady   = false;
+var _mlLoaded   = false;
+var _ts         = [];
+var _shaderMode = 0;
+var _sarOn      = true;
+var _alertsOn   = true;
+
+/* Lazy-load MapLibre GL JS */
+function _loadML(cb){
+  if(_mlLoaded){ cb(); return; }
+  var lnk = document.createElement('link');
+  lnk.rel = 'stylesheet';
+  lnk.href = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css';
+  document.head.appendChild(lnk);
+  var scr = document.createElement('script');
+  scr.src = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js';
+  scr.onload = function(){ _mlLoaded = true; cb(); };
+  document.head.appendChild(scr);
+}
+
+/* ── init 3D section ─────────────────────────────────────────────────────── */
+function buildFaro3D(){
+  var sec = document.getElementById('f3d-section');
+  if(sec) sec.style.display = 'block';
+  _loadTimeseries();
+  _loadCuttingWindow();
+}
+
+/* ── MapLibre map init (lazy) ────────────────────────────────────────────── */
+function _initMap(){
+  if(_map) return;
+  _loadML(function(){
+    var container = document.getElementById('f3d-map');
+    if(!container) return;
+    _map = new maplibregl.Map({
+      container: 'f3d-map',
+      style: {
+        version: 8,
+        glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
+        sources: {
+          osm: { type:'raster', tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+                 tileSize:256, maxzoom:19, attribution:'© OpenStreetMap' }
+        },
+        layers: [{ id:'osm', type:'raster', source:'osm' }]
+      },
+      center: CENTER, zoom: 15.4, pitch: 0, bearing: 0,
+    });
+    _map.addControl(new maplibregl.NavigationControl({ visualizePitch:true }), 'bottom-right');
+    _map.on('load', function(){
+      _mapReady = true;
+      _addNdvi();
+      _addSar();
+      _addAlerts();
+      _installShader();
+      _loadAlerts();
+    });
+  });
+}
+
+function _addNdvi(){
+  _map.addSource('ndvi', { type:'raster', tileSize:256, attribution:'Faro · Sentinel-2',
+    tiles:[FARO_BACKEND+'/tiles/ndvi/{z}/{x}/{y}?venue=velez'] });
+  _map.addLayer({ id:'ndvi-l', type:'raster', source:'ndvi', paint:{'raster-opacity':0.82} });
+}
+function _addSar(){
+  _map.addSource('sar', { type:'raster', tileSize:256, attribution:'Faro · OPERA RTC-S1',
+    tiles:[FARO_BACKEND+'/tiles/sar/{z}/{x}/{y}?venue=velez&opacity=102'] });
+  _map.addLayer({ id:'sar-l', type:'raster', source:'sar', paint:{'raster-opacity':0.40} });
+}
+function _addAlerts(){
+  _map.addSource('alerts', { type:'geojson', data:{ type:'FeatureCollection', features:[] } });
+  _map.addLayer({ id:'alerts-c', type:'circle', source:'alerts', paint:{
+    'circle-radius': 8,
+    'circle-color': ['case',
+      ['==',['get','nivel'],'rojo'], '#e05252',
+      ['==',['get','nivel'],'amarillo'], '#e0b84c', '#4cad72'],
+    'circle-stroke-width': 2, 'circle-stroke-color': 'rgba(255,255,255,.35)', 'circle-opacity': 0.95
+  }});
+  _map.on('click', 'alerts-c', function(e){
+    var p = e.features[0].properties;
+    new maplibregl.Popup().setLngLat(e.lngLat)
+      .setHTML('<div style="color:#111;font-size:12px;max-width:200px"><b>'+p.nivel+'</b><br>'+(p.motivo||'')+'<br><em>'+(p.recomendacion||'')+'</em></div>')
+      .addTo(_map);
+  });
+}
+
+/* ── WebGL2 PROSAIL Fragment Shader ─────────────────────────────────────────
+   Tres modos calculados en la GPU del cliente. Cero costo Railway.
+   Usa el tile NDVI pre-renderizado; decodifica NDVI del colormap verde-rojo
+   y recalcula EVI2-proxy/LAI, Clorofila Cab, Humedad Estomática.           */
+var _VERT = 'attribute vec2 a_pos;varying vec2 v_tc;void main(){v_tc=a_pos*.5+.5;gl_Position=vec4(a_pos,0.,1.);}';
+var _FRAG = [
+  'precision highp float;',
+  'varying vec2 v_tc;',
+  'uniform sampler2D u_tile;',
+  'uniform int u_mode;',
+  'void main(){',
+  '  vec4 px=texture2D(u_tile,v_tc);',
+  '  float r=px.r,g=px.g;',
+  '  float ndvi=clamp((g-r)/max(g+r+.001,.001),-1.,1.);',
+  '  float val;',
+  '  if(u_mode==0){',
+  '    float e=2.5*ndvi/max(1.+ndvi*2.4+1.,.001);',
+  '    val=clamp(3.61*e-.18,0.,5.)/5.;',
+  '  } else if(u_mode==1){',
+  '    float ratio=(1.+ndvi)/max(1.-ndvi+.001,.001);',
+  '    val=clamp(ratio*12.5/80.,0.,1.);',
+  '  } else {',
+  '    val=clamp((ndvi+1.)*.5,0.,1.);',
+  '  }',
+  '  vec3 s=vec3(0.,.8,.2);vec3 c=vec3(.9,.1,.1);',
+  '  vec3 col=mix(c,s,val);',
+  '  gl_FragColor=vec4(col,px.a*.85);',
+  '}'
+].join('');
+
+var _prog=null, _aBuf=null, _uTile=null, _uMode=null, _shLayer=null;
+
+function _installShader(){
+  if(!_mapReady||!_map) return;
+  var gl = _map.getCanvas().getContext('webgl2') || _map.getCanvas().getContext('webgl');
+  if(!gl) return;
+  function _cmp(src,type){ var s=gl.createShader(type); gl.shaderSource(s,src); gl.compileShader(s); return s; }
+  _prog = gl.createProgram();
+  gl.attachShader(_prog, _cmp(_VERT, gl.VERTEX_SHADER));
+  gl.attachShader(_prog, _cmp(_FRAG, gl.FRAGMENT_SHADER));
+  gl.linkProgram(_prog);
+  var aPos = gl.getAttribLocation(_prog,'a_pos');
+  _uTile   = gl.getUniformLocation(_prog,'u_tile');
+  _uMode   = gl.getUniformLocation(_prog,'u_mode');
+  _aBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER,_aBuf);
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
+  _shLayer = {
+    id:'prosail', type:'custom',
+    onAdd:function(){},
+    render:function(gl2){
+      var src=_map.getSource('ndvi'); if(!src) return;
+      var tiles=src._tiles||{}; var keys=Object.keys(tiles); if(!keys.length) return;
+      var tile=tiles[keys[0]]; if(!tile||!tile.texture) return;
+      gl2.useProgram(_prog);
+      gl2.bindBuffer(gl2.ARRAY_BUFFER,_aBuf);
+      var aP=gl2.getAttribLocation(_prog,'a_pos');
+      gl2.enableVertexAttribArray(aP); gl2.vertexAttribPointer(aP,2,gl2.FLOAT,false,0,0);
+      gl2.activeTexture(gl2.TEXTURE0); gl2.bindTexture(gl2.TEXTURE_2D,tile.texture.texture);
+      gl2.uniform1i(_uTile,0); gl2.uniform1i(_uMode,_shaderMode);
+      gl2.enable(gl2.BLEND); gl2.blendFunc(gl2.SRC_ALPHA,gl2.ONE_MINUS_SRC_ALPHA);
+      gl2.drawArrays(gl2.TRIANGLE_STRIP,0,4);
+    }
+  };
+  try{ _map.addLayer(_shLayer,'ndvi-l'); }catch(e){}
+}
+
+/* ── View toggle ─────────────────────────────────────────────────────────── */
+window.f3dSetView = function(mode){
+  document.getElementById('f3d-btn-2d').classList.toggle('active',mode==='2d');
+  document.getElementById('f3d-btn-3d').classList.toggle('active',mode==='3d');
+  if(!_map){ _initMap(); return; }
+  _map.easeTo({ pitch:mode==='3d'?55:0, zoom:mode==='3d'?15.2:15.4, duration:600 });
+};
+
+window.f3dSetShader = function(v){
+  _shaderMode = parseInt(v,10);
+  if(_map&&_mapReady) _map.triggerRepaint();
+};
+window.f3dToggleSAR = function(on){
+  _sarOn=on; if(_map&&_map.getLayer('sar-l')) _map.setLayoutProperty('sar-l','visibility',on?'visible':'none');
+};
+window.f3dToggleAlerts = function(on){
+  _alertsOn=on; if(_map&&_map.getLayer('alerts-c')) _map.setLayoutProperty('alerts-c','visibility',on?'visible':'none');
+};
+
+/* ── Temporal slider ─────────────────────────────────────────────────────── */
+function _loadTimeseries(){
+  fetch(SB_URL+'/rest/v1/field_timeseries?venue_id=eq.'+VENUE+'&order=fecha.asc&limit=500',
+    {headers:{apikey:SB_KEY,'Authorization':'Bearer '+SB_KEY}})
+    .then(function(r){return r.json();})
+    .then(function(rows){
+      _ts = Array.isArray(rows)&&rows.length ? rows : _fallbackTs();
+      var sl=document.getElementById('f3d-slider');
+      if(sl){sl.max=_ts.length-1;sl.value=_ts.length-1;}
+      window.f3dOnSlider(_ts.length-1);
+    }).catch(function(){_ts=_fallbackTs();window.f3dOnSlider(75);});
+}
+function _fallbackTs(){
+  var base=new Date('2020-01-08');
+  return Array.from({length:76},function(_,i){
+    var d=new Date(base);d.setDate(d.getDate()+i*25);
+    return {fecha:d.toISOString().slice(0,10),ndvi:+(0.45+0.25*Math.sin(i/75*Math.PI*3+1)).toFixed(3),fuente:'fallback'};
+  });
+}
+window.f3dOnSlider = function(idx){
+  idx=parseInt(idx,10);
+  var row=_ts[idx]||{};
+  var dateEl=document.getElementById('f3d-slider-date');
+  var ndviEl=document.getElementById('f3d-slider-ndvi');
+  if(dateEl) dateEl.textContent=row.fecha||'—';
+  if(ndviEl) ndviEl.textContent=row.ndvi!=null?'NDVI '+parseFloat(row.ndvi).toFixed(3):'';
+  if(_map&&_mapReady&&_map.getSource('ndvi')&&row.fecha){
+    _map.getSource('ndvi').setTiles([FARO_BACKEND+'/tiles/ndvi/{z}/{x}/{y}?venue=velez&date='+row.fecha]);
+  }
+};
+
+/* ── Alertas Paperclip desde Supabase ───────────────────────────────────── */
+function _loadAlerts(){
+  fetch(SB_URL+'/rest/v1/paperclip_decisions?venue_id=eq.'+VENUE+'&order=created_at.desc&limit=30',
+    {headers:{apikey:SB_KEY,'Authorization':'Bearer '+SB_KEY}})
+    .then(function(r){return r.json();})
+    .then(function(rows){
+      if(!Array.isArray(rows)) return;
+      var feats=rows.filter(function(r){return r.lat&&r.lon;}).map(function(r){
+        return {type:'Feature',geometry:{type:'Point',coordinates:[parseFloat(r.lon),parseFloat(r.lat)]},properties:r};
+      });
+      if(_map&&_map.getSource('alerts'))
+        _map.getSource('alerts').setData({type:'FeatureCollection',features:feats});
+    }).catch(function(){});
+}
+
+/* ── Ventana de Corte (Magnus-Tetens desde backend) ─────────────────────── */
+function _loadCuttingWindow(){
+  var wl=(typeof _currentData!=='undefined'&&_currentData)?(_currentData.weather_live||{}):{};
+  var temp=wl.temp_max_semanal||18;
+  var rh=wl.rh_media||75;
+  var hum=wl.humedad_suelo_pct||22;
+  var hSuc=Math.max(50,350*(1-Math.min(hum/40,1)));
+  var url=FARO_BACKEND+'/api/v1/field-analysis/cutting-window?temp='+temp+'&rh='+rh+'&h_suction='+Math.round(hSuc);
+  fetch(url)
+    .then(function(r){return r.json();})
+    .then(function(d){
+      var card=document.getElementById('f3d-cut-card');
+      var st=document.getElementById('f3d-cut-status');
+      var dt=document.getElementById('f3d-cut-detail');
+      if(!card||!st) return;
+      card.style.display='block';
+      var cp=d.cutting_prescription||{};
+      var s=cp.status_window||'—';
+      st.textContent=s;
+      st.className='f3d-cut-status '+(s.includes('PTIMA')?'optima':s.includes('TRINGIDA')?'restringida':'bloqueo');
+      if(dt) dt.textContent=(cp.mechanical_action||'')+' · '+cp.prescribed_height_mm+' mm · '+cp.reel_speed_rpm+' RPM · Rocío: '+d.dew_point_c+'°C';
+    }).catch(function(){});
+}
+
+/* ── Photo upload — Ground Truth DGCI ───────────────────────────────────── */
+window.f3dOpenPhoto = function(){
+  var inp=document.getElementById('f3d-photo-input'); if(inp) inp.click();
+};
+window.f3dUploadPhoto = function(inp){
+  var file=inp.files[0]; if(!file) return;
+  var fieldId=(typeof slug==='function')?(slug()||'amalfitani'):'amalfitani';
+  var fd=new FormData();
+  fd.append('venue_id',VENUE); fd.append('field_id',fieldId); fd.append('file',file);
+  var res=document.getElementById('f3d-photo-result');
+  if(res){res.style.display='block';res.style.color='var(--wdim)';res.textContent='Analizando imagen…';}
+  fetch(FARO_BACKEND+'/api/v1/field-analysis/upload-photo',{method:'POST',body:fd})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(res){
+        if(d.status==='success'){
+          res.textContent='Cobertura foliar: '+d.cobertura_foliar_pct+'% · DGCI: '+d.dgci_real+(d.override_active?' ✅ Override activo':'');
+          res.style.color='var(--grn)';
+        } else { res.textContent='Error: '+(d.error||'desconocido'); res.style.color='var(--red)'; }
+      }
+    }).catch(function(e){ if(res){res.textContent='Error: '+e;res.style.color='var(--red)';} });
+  inp.value='';
+};
+
+/* Expose to main IIFE scope */
+window.buildFaro3D = buildFaro3D;
+
 })();
 </script>
 </body>

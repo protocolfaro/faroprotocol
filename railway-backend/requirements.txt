@@ -29,3 +29,5 @@ pyPhenology>=0.7.0
 SQLAlchemy>=2.0.0
 scikit-image>=0.22.0
 openeo>=0.26.0
+rio-tiler>=6.0.0
+opencv-python-headless>=4.9.0

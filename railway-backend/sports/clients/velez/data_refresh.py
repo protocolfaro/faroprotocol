@@ -1,7 +1,7 @@
 """
 data_refresh.py — Daily live weather refresh for Vélez panel.
 Fetches NASA POWER, SoilGrids, Open-Meteo, ECOSTRESS/SMAP metadata.
-Updates ONLY weather_live section of velez/velez_data.json in GitHub.
+Updates weather_live section + roger.acciones (physics prescriptions) in velez/velez_data.json.
 All other sections (heatmaps, IPOS, sector scores) are left untouched.
 """
 from __future__ import annotations
@@ -461,16 +461,20 @@ def _update_tareas_dates(cfg: dict) -> None:
 
 
 def push_weather_update(weather_live: dict) -> str:
-    """Write weather_live to Supabase (primary). Falls back to GitHub if Supabase not configured."""
+    """Write weather_live + roger physics prescriptions to GitHub. Supabase primary for weather_live."""
+    # Extract physics prescriptions before Supabase write (they go only to GitHub JSON)
+    physics_acc = weather_live.pop("_physics_acciones_roger", [])
+
     try:
         import velez_supabase as _vs
         if _vs._ok():
             if _vs.upsert_weather_live(weather_live):
-                log.info("push_weather_update: Supabase OK — GitHub write skipped")
-                return "supabase:ok"
+                log.info("push_weather_update: Supabase OK")
+                # Still update GitHub JSON for physics prescriptions + email scheduler
     except Exception as _se:
-        log.warning("push_weather_update Supabase (non-fatal): %s — fallback GitHub", _se)
-    # Fallback: GitHub PUT (used only when SUPABASE_URL/KEY not configured)
+        log.warning("push_weather_update Supabase (non-fatal): %s", _se)
+
+    # GitHub PUT — always runs to keep velez_data.json fresh for email scheduler
     ts = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
     sha, cfg = _gh_get_sha_and_content(_VD_PATH)
     cfg["weather_live"] = weather_live
@@ -479,8 +483,18 @@ def push_weather_update(weather_live: dict) -> str:
     cfg["meta"]["semana"] = (today_d - timedelta(days=today_d.weekday())).isoformat()
     cfg["updated_at"] = ts
     _update_tareas_dates(cfg)
+
+    # Inject physics prescriptions into roger.acciones (remove stale, prepend fresh)
+    if physics_acc:
+        roger = cfg.setdefault("usuarios", {}).setdefault("roger", {})
+        existing = [a for a in roger.get("acciones", [])
+                    if not (a.startswith("Ventana de corte:") or
+                            a.startswith("Prescripción riego") or
+                            a.startswith("Riego SAR:"))]
+        roger["acciones"] = physics_acc + existing
+
     payload = {
-        "message": f"data refresh: weather_live [{ts}]",
+        "message": f"data refresh: weather+physics [{ts}]",
         "content": base64.b64encode(
             json.dumps(cfg, ensure_ascii=False, separators=(",",":")).encode()
         ).decode(),
@@ -637,6 +651,51 @@ def run_refresh() -> dict:
                     log.warning("satellite_pipeline (non-fatal): %s", _sp_err)
         except Exception as _ndvi_err:
             log.warning("ndvi_real (non-fatal): %s", _ndvi_err)
+        # ── Physics prescriptions (faro_analytics_physics) ───────────────────
+        try:
+            import sys as _sys
+            _here_dr = os.path.dirname(os.path.abspath(__file__))
+            _rb_path = os.path.join(_here_dr, "..", "..", "..")
+            if _rb_path not in _sys.path:
+                _sys.path.insert(0, _rb_path)
+            from faro_analytics_physics import compute_faro_cutting_core, compute_faro_hydro_core
+            _temp24 = float(raw.get("nasa", {}).get("T2M_MAX", 18.0))
+            _rh24   = float(raw.get("nasa", {}).get("RH2M", 75.0))
+            _hum_pct = weather.get("humedad_suelo_pct", 22.0)
+            _h_suc  = max(50.0, 350.0 * (1.0 - min(_hum_pct / 40.0, 1.0)))
+            _cutting = compute_faro_cutting_core(_temp24, _rh24, 0.0, 35.0, _h_suc)
+            _cp = _cutting["cutting_prescription"]
+            _phys_acc = [
+                f'Ventana de corte: {_cp["status_window"]} — '
+                f'{_cp["prescribed_height_mm"]} mm · {_cp["reel_speed_rpm"]} RPM',
+            ]
+            _deficit = weather.get("deficit_hidrico_mm", 0.0)
+            _riego_min = weather.get("riego_min_sector", 0)
+            if _deficit > 3:
+                # SAR-enhanced hydro when SAR available, fallback to existing
+                _sar_ok = False
+                try:
+                    _sar_vv = float(raw.get("hourly", {}).get("_sar_vv_mean", -999))
+                    _sar_vh = float(raw.get("hourly", {}).get("_sar_vh_mean", -999))
+                    if _sar_vv > -50 and _sar_vh > -50:
+                        _hydro = compute_faro_hydro_core(_sar_vv, _sar_vh, 2.5, _deficit)
+                        _riego_min = _hydro["irrigation_prescription"]["aspersor_time_minutes"]
+                        _deficit   = _hydro["irrigation_prescription"]["deficit_hydric_mm"]
+                        weather["soil_moisture_sar"] = _hydro["soil_moisture_volumetric"]
+                        weather["sar_disponible"]    = True
+                        weather["sar_mensaje"]       = "SAR WCM activo"
+                        _sar_ok = True
+                except Exception:
+                    pass
+                _phys_acc.append(
+                    f'Prescripción riego (Toro 12.5 mm/h): déficit {_deficit:.1f} mm — '
+                    f'{_riego_min} min por sector'
+                )
+            weather["_physics_acciones_roger"] = _phys_acc
+            log.info("physics prescriptions: corte=%s, acciones=%d", _cp["status_window"], len(_phys_acc))
+        except Exception as _pe:
+            log.warning("faro_analytics_physics (non-fatal): %s", _pe)
+        # ─────────────────────────────────────────────────────────────────────
         commit_url = push_weather_update(weather)
         rf = weather.get("riesgo_fungosis", {})
         ts = weather["timestamp"]

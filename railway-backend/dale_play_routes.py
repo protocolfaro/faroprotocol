@@ -747,3 +747,229 @@ def dp_supabase_diag():
         except Exception as exc:
             out[table] = {"error": str(exc)}
     return jsonify(out)
+
+
+# ── verify-visual — QR interactivo del certificado ────────────────────────────
+
+_VERIFY_VISUAL_HTML = r"""<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Certificado · Faro Protocol</title>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<style>
+  :root{--gold:#c9a84c;--bg:#0a0a0a;--panel:rgba(17,17,17,.96);--border:#2a2a2a;--red:#e05050;--text:#e8e8e8;--muted:#777;--r:8px}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+  #map{flex:1;width:100%}
+  #cert-overlay{position:absolute;top:12px;left:12px;max-width:300px;background:var(--panel);border:1px solid var(--gold);border-radius:var(--r);padding:16px;backdrop-filter:blur(12px);z-index:5}
+  .co-logo{font-size:11px;font-weight:700;letter-spacing:.1em;color:var(--gold);text-transform:uppercase;margin-bottom:10px}
+  .co-title{font-size:14px;font-weight:700;margin-bottom:6px}
+  .co-sub{font-size:11px;color:var(--muted);margin-bottom:12px}
+  .co-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px}
+  .co-row:last-of-type{border-bottom:none}
+  .co-key{color:var(--muted)}
+  .co-val{font-weight:600}
+  .co-valid{margin-top:12px;padding:8px 12px;background:rgba(76,175,125,.15);border:1px solid rgba(76,175,125,.3);border-radius:6px;font-size:11px;text-align:center;color:#4caf7d}
+  .co-invalid{background:rgba(224,80,80,.15);border-color:rgba(224,80,80,.3);color:var(--red)}
+  #slider-bar{position:absolute;bottom:0;left:0;right:0;background:var(--panel);border-top:1px solid var(--border);padding:12px 16px;z-index:5}
+  .sb-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;display:flex;justify-content:space-between;margin-bottom:8px}
+  .sb-label strong{color:var(--gold)}
+  #timeline-slider{width:100%;-webkit-appearance:none;appearance:none;height:3px;background:var(--border);border-radius:2px;outline:none;cursor:pointer}
+  #timeline-slider::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--gold);cursor:pointer}
+  #tl-date{text-align:center;font-size:11px;color:var(--text);margin-top:8px}
+  .sar-legend{position:absolute;bottom:80px;right:12px;background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:8px 12px;font-size:10px;z-index:5}
+  .sar-legend .leg-row{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+  .sar-legend .leg-row:last-child{margin-bottom:0}
+  .leg-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+  @media(max-width:520px){#cert-overlay{max-width:none;left:8px;right:8px;top:8px}}
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<div id="cert-overlay">
+  <div class="co-logo">Faro Protocol · Verificación</div>
+  <div class="co-title" id="cert-show-id">Cargando…</div>
+  <div class="co-sub" id="cert-venue">—</div>
+  <div class="co-row"><span class="co-key">Fecha show</span><span class="co-val" id="cert-fecha">—</span></div>
+  <div class="co-row"><span class="co-key">NDVI pre-show</span><span class="co-val" id="cert-ndvi-pre">—</span></div>
+  <div class="co-row"><span class="co-key">NDVI post-show</span><span class="co-val" id="cert-ndvi-post">—</span></div>
+  <div class="co-row"><span class="co-key">Δ NDVI</span><span class="co-val" id="cert-delta">—</span></div>
+  <div class="co-row"><span class="co-key">Nivel impacto</span><span class="co-val" id="cert-nivel">—</span></div>
+  <div class="co-row"><span class="co-key">Hash SHA-256</span><span class="co-val" id="cert-hash" style="font-size:9px;word-break:break-all">—</span></div>
+  <div class="co-valid co-invalid" id="cert-status">Verificando…</div>
+</div>
+
+<div class="sar-legend">
+  <div style="font-size:9px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">SAR Backscatter</div>
+  <div class="leg-row"><div class="leg-dot" style="background:#900"></div><span>Compactación alta</span></div>
+  <div class="leg-row"><div class="leg-dot" style="background:#e05050"></div><span>Compactación media</span></div>
+  <div class="leg-row"><div class="leg-dot" style="background:#888"></div><span>Sin cambio</span></div>
+</div>
+
+<div id="slider-bar">
+  <div class="sb-label">
+    <span>Timeline pre / post show</span>
+    <strong id="tl-label">Pre-show</strong>
+  </div>
+  <input type="range" id="timeline-slider" min="0" max="1" value="0" step="1">
+  <div id="tl-date">—</div>
+</div>
+
+<script>
+'use strict';
+const BACKEND  = window.FARO_BACKEND || 'BACKEND_URL_PLACEHOLDER';
+const CERT_HASH = '__CERT_HASH__';
+const CERT_DATA = __CERT_JSON__;
+
+// Venue coords
+const VENUES = {
+  amalfitani: { center: [-58.5288, -34.6379], zoom: 15.5 },
+  default:    { center: [-58.5288, -34.6379], zoom: 14 },
+};
+
+const venueKey  = (CERT_DATA.show_id || '').includes('airbag') ? 'amalfitani' : 'default';
+const venueConf = VENUES[venueKey] || VENUES.default;
+
+// Poblar overlay
+const d = CERT_DATA;
+document.getElementById('cert-show-id').textContent  = d.show_id    || CERT_HASH.slice(0,16) + '…';
+document.getElementById('cert-venue').textContent     = d.venue      || 'Estadio Amalfitani';
+document.getElementById('cert-fecha').textContent     = d.fecha      || '—';
+document.getElementById('cert-ndvi-pre').textContent  = d.ndvi_pre  != null ? (+d.ndvi_pre).toFixed(4)  : '—';
+document.getElementById('cert-ndvi-post').textContent = d.ndvi_post != null ? (+d.ndvi_post).toFixed(4) : '—';
+document.getElementById('cert-delta').textContent     = d.delta_ndvi != null ? (d.delta_ndvi >= 0 ? '+' : '') + (+d.delta_ndvi).toFixed(4) : '—';
+document.getElementById('cert-nivel').textContent     = d.nivel_dano  || '—';
+document.getElementById('cert-hash').textContent      = CERT_HASH;
+
+const statusEl = document.getElementById('cert-status');
+if (d.valido) {
+  statusEl.textContent = 'Certificado válido · verificado en blockchain Faro';
+  statusEl.classList.remove('co-invalid');
+} else {
+  statusEl.textContent = d.error || 'Certificado no encontrado';
+}
+
+// MapLibre
+const map = new maplibregl.Map({
+  container: 'map',
+  style: {
+    version: 8,
+    sources: { osm: { type:'raster', tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize:256, attribution:'© OpenStreetMap' } },
+    layers:  [{ id:'osm', type:'raster', source:'osm' }],
+  },
+  center:  venueConf.center,
+  zoom:    venueConf.zoom,
+});
+map.addControl(new maplibregl.NavigationControl(), 'bottom-right');
+
+let sarMode = 'pre'; // pre | post
+
+map.on('load', () => {
+  // SAR pre-show
+  map.addSource('sar-pre', {
+    type:     'raster',
+    tiles:    [`${BACKEND}/tiles/sar/{z}/{x}/{y}?venue=amalfitani&opacity=180`],
+    tileSize: 256,
+  });
+  map.addLayer({ id:'sar-pre-layer', type:'raster', source:'sar-pre',
+    paint: { 'raster-opacity':0.6, 'raster-hue-rotate':0 } });
+
+  // SAR post-show (mismo source con distinto color via CSS/opacity — en producción
+  // usar scene_url distinto para la fecha post)
+  map.addSource('sar-post', {
+    type:     'raster',
+    tiles:    [`${BACKEND}/tiles/sar/{z}/{x}/{y}?venue=amalfitani&opacity=200`],
+    tileSize: 256,
+  });
+  map.addLayer({ id:'sar-post-layer', type:'raster', source:'sar-post',
+    layout: { visibility:'none' },
+    paint:  { 'raster-opacity':0.6, 'raster-color-range':[0,1] } });
+
+  // Marker del venue
+  new maplibregl.Marker({ color:'#c9a84c' })
+    .setLngLat(venueConf.center)
+    .setPopup(new maplibregl.Popup().setHTML(
+      `<strong>${d.show_id || 'Show'}</strong><br>Impacto SAR verificado`))
+    .addTo(map);
+});
+
+// Timeline slider (0=pre, 1=post)
+const tlSlider = document.getElementById('timeline-slider');
+const tlLabel  = document.getElementById('tl-label');
+const tlDate   = document.getElementById('tl-date');
+
+const DATES = {
+  pre:  d.fecha_pre  || (d.fecha ? shiftDate(d.fecha, -7) : '—'),
+  post: d.fecha_post || d.fecha || '—',
+};
+
+function shiftDate(iso, days) {
+  try {
+    const dt = new Date(iso);
+    dt.setDate(dt.getDate() + days);
+    return dt.toISOString().slice(0,10);
+  } catch { return iso; }
+}
+
+tlDate.textContent = DATES.pre;
+
+tlSlider.addEventListener('input', () => {
+  const v = +tlSlider.value;
+  sarMode = v === 0 ? 'pre' : 'post';
+  tlLabel.textContent = v === 0 ? 'Pre-show' : 'Post-show';
+  tlDate.textContent  = v === 0 ? DATES.pre : DATES.post;
+
+  if (map.getLayer('sar-pre-layer'))  map.setLayoutProperty('sar-pre-layer',  'visibility', v === 0 ? 'visible' : 'none');
+  if (map.getLayer('sar-post-layer')) map.setLayoutProperty('sar-post-layer', 'visibility', v === 1 ? 'visible' : 'none');
+});
+</script>
+</body>
+</html>
+"""
+
+
+@dale_play_bp.route("/verify-visual/<cert_hash>", methods=["GET"])
+def dp_verify_visual(cert_hash: str):
+    """
+    GET /dale-play/verify-visual/{hash}
+    Página HTML interactiva: MapLibre + SAR pre/post + datos del certificado.
+    Verificable sin login. Apta para QR público.
+    """
+    import os as _os
+    import json as _json
+
+    # Buscar datos del certificado
+    cert_data: dict = {"valido": False, "error": "Certificado no encontrado"}
+    try:
+        from dale_play_storage import get_certification_by_hash
+        cert = get_certification_by_hash(cert_hash.upper())
+        if cert:
+            data = cert.get("data") or {}
+            cert_data = {
+                "valido":      True,
+                "show_id":     cert.get("show_id", ""),
+                "venue":       data.get("venue", "Estadio Amalfitani"),
+                "fecha":       data.get("fecha_show", data.get("fecha_emision", "")),
+                "fecha_pre":   data.get("fecha_pre", ""),
+                "fecha_post":  data.get("fecha_post", ""),
+                "ndvi_pre":    cert.get("ndvi_pre"),
+                "ndvi_post":   cert.get("ndvi_post"),
+                "delta_ndvi":  cert.get("delta_ndvi"),
+                "nivel_dano":  cert.get("nivel_dano"),
+            }
+    except Exception as _e:
+        log.warning("dp_verify_visual hash=%s: %s", cert_hash[:16], _e)
+
+    backend_url = _os.environ.get("BACKEND_URL", "https://faroprotocol-production.up.railway.app")
+    cert_json   = _json.dumps(cert_data)
+
+    html = _VERIFY_VISUAL_HTML \
+        .replace("__CERT_HASH__", cert_hash[:64]) \
+        .replace("__CERT_JSON__", cert_json) \
+        .replace("BACKEND_URL_PLACEHOLDER", backend_url)
+
+    return render_template_string(html)

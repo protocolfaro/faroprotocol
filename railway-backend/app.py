@@ -31,6 +31,18 @@ import dale_play_routes
 app = Flask(__name__)
 CORS(app)
 app.register_blueprint(dale_play_routes.dale_play_bp)
+try:
+    import tiles_blueprint as _tiles_mod
+    app.register_blueprint(_tiles_mod.tiles_bp)
+except ImportError as _tile_err:
+    import logging as _tlog
+    _tlog.getLogger(__name__).warning("tiles_blueprint skip (rio-tiler no instalado): %s", _tile_err)
+try:
+    from faro_engine import engine_bp as _engine_bp
+    app.register_blueprint(_engine_bp)
+except ImportError as _eng_err:
+    import logging as _elog
+    _elog.getLogger(__name__).warning("faro_engine skip: %s", _eng_err)
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger(__name__)
@@ -1124,6 +1136,43 @@ def gis_insar():
         return jsonify({"error": str(e)}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/v1/field-analysis/cutting-window")
+def cutting_window():
+    """Magnus-Tetens + GDD cutting window. Reads live weather from query params or velez_data."""
+    try:
+        from faro_analytics_physics import compute_faro_cutting_core
+    except ImportError as e:
+        return jsonify({"error": f"faro_analytics_physics unavailable: {e}"}), 503
+    try:
+        temp    = float(request.args.get("temp", 18.0))
+        rh      = float(request.args.get("rh", 75.0))
+        gdd     = float(request.args.get("gdd", 0.0))
+        cab     = float(request.args.get("cab", 35.0))
+        h_suc   = float(request.args.get("h_suction", 300.0))
+        result  = compute_faro_cutting_core(temp, rh, gdd, cab, h_suc)
+        return jsonify(result)
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/api/v1/field-analysis/hydro")
+def hydro_analysis():
+    """WCM + Van Genuchten soil moisture from SAR VV/VH inputs."""
+    try:
+        from faro_analytics_physics import compute_faro_hydro_core
+    except ImportError as e:
+        return jsonify({"error": f"faro_analytics_physics unavailable: {e}"}), 503
+    try:
+        sigma_vv  = float(request.args.get("sigma_vv", -12.0))
+        sigma_vh  = float(request.args.get("sigma_vh", -18.0))
+        lai       = float(request.args.get("lai", 2.5))
+        evapo     = float(request.args.get("evapo", 4.0))
+        result    = compute_faro_hydro_core(sigma_vv, sigma_vh, lai, evapo)
+        return jsonify(result)
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
 
 
 if __name__ == "__main__":

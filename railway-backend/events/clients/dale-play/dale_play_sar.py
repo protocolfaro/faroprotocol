@@ -1,15 +1,16 @@
 """
 dale_play_sar.py — Cascada SAR con redundancia de aviación: nunca null, siempre confianza documentada.
 
-Cascada completa (A → B → C → D → E):
-  A. Umbra Open Data       X-band  0.26m   CC-BY-4.0          confianza: 0.95 (directo) / 0.25 (proxy)
-  B. Sentinel-1 RTC/PC     C-band  20m     SAS token libre     confianza: 0.80 (directo) / 0.35 (proxy)
-  C. Capella Open Data     X-band  0.50m   CC-BY-4.0          confianza: 0.90 (directo) / 0.20 (proxy)
-  D. ALOS-2 ASF search     L-band  25m     ASF public API     confianza: 0.15 (metadata only)
-  E. EGMS proxy            C-band  20m     Copernicus hist.   confianza: 0.10 (estimado siempre)
+Cascada completa (A → B → B2 → C → D → E):
+  A.  Umbra Open Data       X-band  0.26m   CC-BY-4.0          confianza: 0.95 (directo) / 0.25 (proxy)
+  B.  Sentinel-1 RTC/PC     C-band  20m     SAS token libre     confianza: 0.80 (directo) / 0.35 (proxy)
+  B2. OPERA RTC-S1 (NASA)   C-band  30m     AWS S3 público      confianza: 0.75 (datos ya procesados NASA)
+  C.  Capella Open Data     X-band  0.50m   CC-BY-4.0          confianza: 0.90 (directo) / 0.20 (proxy)
+  D.  ALOS-2 ASF search     L-band  25m     ASF public API     confianza: 0.15 (metadata only)
+  E.  EGMS proxy            C-band  20m     Copernicus hist.   confianza: 0.10 (estimado siempre)
 
 Lógica de cascada:
-  - Prueba A → B → C en orden.
+  - Prueba A → B → B2 → C en orden.
   - Si una fuente retorna confianza >= CONFIDENCE_THRESHOLD_STOP (0.70), para.
   - Si la mejor confianza es < 0.70, continúa buscando una mejor.
   - Si ninguna da pixels, usa D (metadata) y E (proxy) como complemento.
@@ -55,11 +56,12 @@ _KNOWN_BA_SCENE = {
 
 # ── Labels de fuentes ─────────────────────────────────────────────────────────
 _TIER_LABELS = {
-    "UMBRA_X":    "Umbra Open Data CC-BY-4.0 · X-band VV Spotlight · 0.267m · COG HTTP range",
-    "S1_RTC_PC":  "Sentinel-1 RTC · C-band VV · 20m · Planetary Computer · SAS token libre",
-    "CAPELLA_X":  "Capella Open Data CC-BY-4.0 · X-band · 0.5m · COG HTTP range",
-    "ALOS2_META": "ALOS-2 PALSAR-2 · L-band · 25m · ASF metadata (sin pixels — auth requerida)",
-    "EGMS_PROXY": "EGMS Copernicus 2015-2022 · C-band proxy · histórico · ESTIMADO",
+    "UMBRA_X":       "Umbra Open Data CC-BY-4.0 · X-band VV Spotlight · 0.267m · COG HTTP range",
+    "S1_RTC_PC":     "Sentinel-1 RTC · C-band VV · 20m · Planetary Computer · SAS token libre",
+    "OPERA_RTC_S1":  "OPERA RTC-S1 (NASA) · C-band VV · 30m · AWS S3 público · ya procesado",
+    "CAPELLA_X":     "Capella Open Data CC-BY-4.0 · X-band · 0.5m · COG HTTP range",
+    "ALOS2_META":    "ALOS-2 PALSAR-2 · L-band · 25m · ASF metadata (sin pixels — auth requerida)",
+    "EGMS_PROXY":    "EGMS Copernicus 2015-2022 · C-band proxy · histórico · ESTIMADO",
 }
 
 
@@ -404,6 +406,137 @@ def _try_s1_rtc(venue_lon: float, venue_lat: float, window_m: int) -> dict:
         log_entry.update({"resultado": "excepcion", "razon": str(exc)[:200]})
         log_entry["tiempo_ms"] = round((time.time() - t0) * 1000)
         log.warning("dale_play_sar: Tier B (S1 RTC): %s", exc)
+        return {"ok": False, "_log": log_entry}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Tier B2: OPERA RTC-S1 (NASA) — C-band 30m · AWS S3 público
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _try_opera_rtc_s1(venue_lon: float, venue_lat: float, window_m: int) -> dict:
+    """
+    Tier B2: OPERA L2 RTC-S1 (NASA/JPL) via AWS S3 público (opera-pds-rtc).
+    Búsqueda via NASA CMR STAC. Confianza 0.75 — datos ya preprocesados por NASA,
+    más confiables que GRD crudo. Resolución 30m, C-band VV/VH.
+    """
+    t0 = time.time()
+    log_entry: dict = {
+        "fuente":    "OPERA_RTC_S1",
+        "intentado": True,
+        "resultado": None,
+        "razon":     None,
+        "confianza_obtenida": 0.0,
+    }
+
+    try:
+        import requests
+
+        w, s, e, n   = _VENUE_BBOX
+        half_deg     = (window_m / 2) / 100_000
+
+        # ── NASA CMR STAC search ───────────────────────────────────────────────
+        end_dt   = date.today()
+        start_dt = end_dt - timedelta(days=45)
+
+        payload = {
+            "collections": ["OPERA_L2_RTC-S1_V1"],
+            "bbox":        [w, s, e, n],
+            "datetime":    f"{start_dt.isoformat()}T00:00:00Z/{end_dt.isoformat()}T23:59:59Z",
+            "limit":       3,
+            "sortby":      [{"field": "properties.datetime", "direction": "desc"}],
+        }
+        r = requests.post(
+            "https://cmr.earthdata.nasa.gov/stac/POCLOUD/search",
+            json=payload, timeout=20,
+        )
+        if not r.ok:
+            log_entry.update({
+                "resultado": "cmr_error",
+                "razon":     f"CMR STAC HTTP {r.status_code}",
+            })
+            log_entry["tiempo_ms"] = round((time.time() - t0) * 1000)
+            return {"ok": False, "_log": log_entry}
+
+        features = r.json().get("features", [])
+        if not features:
+            log_entry.update({
+                "resultado": "sin_escenas",
+                "razon":     f"No OPERA RTC-S1 en {start_dt.isoformat()} → {end_dt.isoformat()} para bbox Amalfitani",
+            })
+            log_entry["tiempo_ms"] = round((time.time() - t0) * 1000)
+            return {"ok": False, "_log": log_entry}
+
+        # ── Buscar asset VV ───────────────────────────────────────────────────
+        vv_href  = ""
+        item     = None
+        for feat in features:
+            for key, asset in feat.get("assets", {}).items():
+                href = asset.get("href", "")
+                if "VV" in key.upper() and href.endswith(".tif"):
+                    if href.startswith("s3://opera-pds-rtc"):
+                        bucket, _, path = href[5:].partition("/")
+                        href = f"https://{bucket}.s3.amazonaws.com/{path}"
+                    elif href.startswith("s3://"):
+                        bucket, _, path = href[5:].partition("/")
+                        href = f"https://{bucket}.s3.amazonaws.com/{path}"
+                    vv_href = href
+                    item    = feat
+                    break
+            if vv_href:
+                break
+
+        if not vv_href:
+            log_entry.update({
+                "resultado": "sin_asset_vv",
+                "razon":     "No se encontró asset VV .tif en los items OPERA disponibles",
+            })
+            log_entry["tiempo_ms"] = round((time.time() - t0) * 1000)
+            return {"ok": False, "_log": log_entry}
+
+        # ── Leer ventana SAR ─────────────────────────────────────────────────
+        stats = _read_sar_window_cog(vv_href, venue_lon, venue_lat, half_deg, is_power=True)
+
+        if not stats or stats.get("n_px", 0) < 4:
+            log_entry.update({
+                "resultado": "sin_pixeles",
+                "razon":     stats.get("error", "n_px < 4") if stats else "None",
+            })
+            log_entry["tiempo_ms"] = round((time.time() - t0) * 1000)
+            return {"ok": False, "_log": log_entry}
+
+        props  = item.get("properties", {}) if item else {}
+        dt_str = (props.get("datetime") or "")[:10]
+        bbox   = item.get("bbox", []) if item else []
+        covers = len(bbox) == 4 and _bbox_contains(venue_lon, venue_lat, bbox)
+
+        log_entry.update({
+            "resultado": "ok_directo" if covers else "ok_proxy",
+            "razon":     f"OPERA RTC-S1 fecha={dt_str} venue_cubierto={covers} VV sigma0→dB",
+            "confianza_obtenida": 0.75,
+        })
+        log_entry["tiempo_ms"] = round((time.time() - t0) * 1000)
+
+        return {
+            "ok":              True,
+            "confianza":       0.75,
+            "venue_cubierto":  covers,
+            "escena_id":       (item.get("id", "") if item else "")[:40],
+            "escena_datetime": dt_str,
+            "escena_platform": "OPERA RTC-S1 (NASA/JPL)",
+            "escena_res_m":    30.0,
+            "escena_bbox":     bbox,
+            "banda":           "C",
+            "polarizacion":    "VV",
+            "licencia":        "NASA Open Data",
+            "opera_url":       vv_href[:100],
+            **{f"backscatter_{k}": v for k, v in stats.items()},
+            "_log":            log_entry,
+        }
+
+    except Exception as exc:
+        log_entry.update({"resultado": "excepcion", "razon": str(exc)[:200]})
+        log_entry["tiempo_ms"] = round((time.time() - t0) * 1000)
+        log.warning("dale_play_sar: Tier B2 (OPERA RTC-S1): %s", exc)
         return {"ok": False, "_log": log_entry}
 
 
@@ -756,7 +889,7 @@ def fetch_sar(
     window_m:  int   = 500,
 ) -> dict:
     """
-    Cascada SAR con redundancia de aviación: Umbra → S1 RTC → Capella → EGMS proxy.
+    Cascada SAR: Umbra → S1 RTC → OPERA RTC-S1 → Capella → EGMS proxy.
 
     Lógica de parada:
     - Si confianza >= 0.70 (cobertura directa): parar y usar esa fuente.
@@ -776,9 +909,10 @@ def fetch_sar(
     best_conf: float        = -1.0
 
     tiers = [
-        (_try_umbra,       "UMBRA_X"),
-        (_try_s1_rtc,      "S1_RTC_PC"),
-        (_try_capella,     "CAPELLA_X"),
+        (_try_umbra,          "UMBRA_X"),
+        (_try_s1_rtc,         "S1_RTC_PC"),
+        (_try_opera_rtc_s1,   "OPERA_RTC_S1"),   # B2: NASA, confianza 0.75
+        (_try_capella,        "CAPELLA_X"),
     ]
 
     for tier_fn, tier_id in tiers:
