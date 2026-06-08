@@ -36,6 +36,9 @@ _TILE_CACHE: dict[str, tuple[bytes, float]] = {}
 _CACHE_TTL   = 6 * 3600     # 6 horas
 _CACHE_MAX   = 512           # entradas máximo
 
+# Scene URL cache — evita llamar STAC search en cada tile del mismo viewport
+_SCENE_CACHE: dict[str, tuple] = {}  # key → (result, timestamp)
+
 
 def _cache_get(key: str) -> Optional[bytes]:
     entry = _TILE_CACHE.get(key)
@@ -250,7 +253,13 @@ def ndvi_tile(z: int, x: int, y: int):
 
     try:
         if not (b04_url and b08_url):
-            scene = _find_s2_bands(bbox)
+            skey = f"s2_{venue}"
+            se = _SCENE_CACHE.get(skey)
+            if se and (time.time() - se[1]) < _CACHE_TTL:
+                scene = se[0]
+            else:
+                scene = _find_s2_bands(bbox)
+                _SCENE_CACHE[skey] = (scene, time.time())
             if not scene:
                 return Response(b"", status=503, mimetype="image/png")
             b04_url = scene["B04"]
@@ -281,7 +290,13 @@ def sar_tile(z: int, x: int, y: int):
 
     try:
         if not vv_url:
-            vv_url = _find_opera_vv(bbox)
+            skey = f"sar_{venue}"
+            se = _SCENE_CACHE.get(skey)
+            if se and (time.time() - se[1]) < _CACHE_TTL:
+                vv_url = se[0]
+            else:
+                vv_url = _find_opera_vv(bbox)
+                _SCENE_CACHE[skey] = (vv_url, time.time())
             if not vv_url:
                 return Response(b"", status=503, mimetype="image/png")
             log.info("tiles/sar: url=%s", vv_url[:60])

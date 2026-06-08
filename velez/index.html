@@ -3049,6 +3049,7 @@ var _ts         = [];
 var _shaderMode = 0;
 var _sarOn      = true;
 var _alertsOn   = true;
+var _pendingMode= null;
 
 /* Lazy-load MapLibre GL JS */
 function _loadML(cb){
@@ -3067,6 +3068,7 @@ function _loadML(cb){
 function buildFaro3D(){
   var sec = document.getElementById('f3d-section');
   if(sec) sec.style.display = 'block';
+  _initMap();
   _loadTimeseries();
   _loadCuttingWindow();
 }
@@ -3098,6 +3100,7 @@ function _initMap(){
       _addAlerts();
       _installShader();
       _loadAlerts();
+      if(_pendingMode){var m=_pendingMode;_pendingMode=null;_map.easeTo({pitch:m==='3d'?55:0,bearing:m==='3d'?-20:0,zoom:m==='3d'?15.2:15.4,duration:700});}
     });
   });
 }
@@ -3200,8 +3203,8 @@ function _installShader(){
 window.f3dSetView = function(mode){
   document.getElementById('f3d-btn-2d').classList.toggle('active',mode==='2d');
   document.getElementById('f3d-btn-3d').classList.toggle('active',mode==='3d');
-  if(!_map){ _initMap(); return; }
-  _map.easeTo({ pitch:mode==='3d'?55:0, zoom:mode==='3d'?15.2:15.4, duration:600 });
+  if(!_map||!_mapReady){_pendingMode=mode;if(!_map)_initMap();return;}
+  _map.easeTo({pitch:mode==='3d'?55:0,bearing:mode==='3d'?-20:0,zoom:mode==='3d'?15.2:15.4,duration:700});
 };
 
 window.f3dSetShader = function(v){
