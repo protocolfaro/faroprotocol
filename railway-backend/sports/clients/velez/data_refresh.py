@@ -726,13 +726,8 @@ def run_refresh() -> dict:
         # ─────────────────────────────────────────────────────────────────────
         # ── climate_metrics: persistir ciclo diario en Supabase ──────────────
         try:
-            import sys as _sys_cm, os as _os_cm
-            _here_cm = _os_cm.path.dirname(_os_cm.path.abspath(__file__))
-            _vs_path = _os_cm.path.join(_here_cm, "..", "..")
-            if _vs_path not in _sys_cm.path:
-                _sys_cm.path.insert(0, _vs_path)
             from velez_supabase import insert_climate_metrics as _ins_cm
-            _ins_cm(
+            _cm_ok = _ins_cm(
                 venue_id="amalfitani",
                 et0_mm_dia=weather.get("et0_mm_dia"),
                 deficit_hidrico_mm=weather.get("deficit_hidrico_mm"),
@@ -742,9 +737,13 @@ def run_refresh() -> dict:
                 ventana_corte=weather.get("_ventana_corte"),
                 altura_corte_mm=weather.get("_altura_corte_mm"),
             )
-            log.info("climate_metrics: ciclo insertado para amalfitani")
+            if _cm_ok:
+                log.info("climate_metrics: INSERT OK para amalfitani")
+            else:
+                log.error("climate_metrics: INSERT FALLÓ — Supabase no configurado o schema mismatch. "
+                          "Verificar /velez/diag-supabase y ejecutar fix_data_lake_schema.sql")
         except Exception as _cm_exc:
-            log.warning("climate_metrics write (non-fatal): %s", _cm_exc)
+            log.error("climate_metrics write FAILED: %s", _cm_exc)
         # ─────────────────────────────────────────────────────────────────────
         commit_url = push_weather_update(weather)
         # Paperclip: monitor inteligente del venue — al final del ciclo diario

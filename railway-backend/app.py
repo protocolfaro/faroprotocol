@@ -478,6 +478,44 @@ def manual_refresh():
     return jsonify({"status": status, **result}), code
 
 
+@app.route("/velez/diag-supabase", methods=["GET"])
+def diag_supabase():
+    """
+    Test INSERT+DELETE en cada tabla del data lake y expone el HTTP status/body exacto.
+    Permite verificar permisos y schema sin revisar Railway logs.
+    """
+    import requests as _rq
+    from velez_supabase import _base, _hdrs, _ok
+    results: dict = {"supabase_configured": _ok(), "tables": {}}
+    if not _ok():
+        return jsonify(results), 200
+
+    _test_rows = {
+        "climate_metrics":    {"venue_id": "_diag", "fecha": "2000-01-01", "fuente": "_diag_test"},
+        "soil_metrics":       {"venue_id": "_diag", "fuente": "_diag_test"},
+        "vegetation_metrics": {"venue_id": "_diag", "fuente": "_diag_test", "metodo_generacion": "SENTINEL_DIRECTO"},
+        "velez_intervenciones": {"cancha_id": "_diag", "tipo": "riego", "detalle": "_diag_test"},
+    }
+    hdrs_post = _hdrs({"Prefer": "return=representation"})
+    hdrs_del  = _hdrs()
+    for table, payload in _test_rows.items():
+        try:
+            url  = f"{_base()}/rest/v1/{table}"
+            r_in = _rq.post(url, headers=hdrs_post, json=payload, timeout=8)
+            entry: dict = {"insert_status": r_in.status_code, "insert_body": r_in.text[:300]}
+            # Delete test row on success
+            if r_in.status_code in (200, 201):
+                pk_field = "cancha_id" if table == "velez_intervenciones" else "venue_id"
+                _rq.delete(f"{url}?{pk_field}=eq._diag", headers=hdrs_del, timeout=8)
+                entry["insert_ok"] = True
+            else:
+                entry["insert_ok"] = False
+        except Exception as exc:
+            entry = {"insert_ok": False, "error": str(exc)}
+        results["tables"][table] = entry
+    return jsonify(results), 200
+
+
 _insar_running    = False
 _satellite_running = False
 _last_satellite:  dict = {}
@@ -824,6 +862,34 @@ def _make_jobstores() -> dict:
         return {}
 
 
+def _run_startup_migrations():
+    """
+    Aplica migrations/fix_data_lake_schema.sql al inicio del proceso Railway.
+    Requiere SUPABASE_DB_URL (postgres connection string). No bloquea si falla.
+    """
+    db_url = os.environ.get("SUPABASE_DB_URL", "")
+    if not db_url:
+        log.warning(
+            "SUPABASE_DB_URL no configurada — data lake schema NO se migró automáticamente. "
+            "Ejecutar migrations/fix_data_lake_schema.sql en Supabase SQL Editor manualmente."
+        )
+        return
+    if db_url.startswith("postgres://"):
+        db_url = db_url.replace("postgres://", "postgresql://", 1)
+    migration_path = os.path.join(_HERE, "migrations", "fix_data_lake_schema.sql")
+    try:
+        from sqlalchemy import create_engine, text
+        engine = create_engine(db_url, connect_args={"connect_timeout": 10})
+        sql = open(migration_path, encoding="utf-8").read()
+        stmts = [s.strip() for s in sql.split(";") if s.strip() and not s.strip().startswith("--")]
+        with engine.begin() as conn:
+            for stmt in stmts:
+                conn.execute(text(stmt))
+        log.info("startup migrations: OK — data lake schema actualizado")
+    except Exception as exc:
+        log.warning("startup migrations (non-fatal): %s — ejecutar fix_data_lake_schema.sql manualmente", exc)
+
+
 def _start_scheduler():
     jobstores  = _make_jobstores()
     persistent = bool(jobstores)
@@ -857,6 +923,8 @@ def _start_scheduler():
     )
     return scheduler
 
+
+_run_startup_migrations()
 
 try:
     _scheduler = _start_scheduler()
