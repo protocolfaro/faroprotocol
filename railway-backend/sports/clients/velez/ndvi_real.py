@@ -605,13 +605,30 @@ def fetch_ndvi() -> Optional[dict]:
                 log.warning("ndvi_real [%s]: sin píxeles válidos en %s", src["name"], img_dt)
                 continue
 
-            log.info("ndvi_real OK [%s] — %s · nub %.0f%% · %d canchas",
-                     src["name"], img_dt, cloud, len(canchas))
+            # Prithvi-EO-2.0 enrichment — adds prithvi_confidence + prithvi_flag per cancha
+            prithvi_ok = False
+            try:
+                import prithvi_enrich
+                p_result = prithvi_enrich.enrich_canchas(
+                    canchas, item=item, src=src["name"].lower().split()[0], mes=today.month
+                )
+                if p_result["enriquecido"]:
+                    canchas    = p_result["canchas"]
+                    prithvi_ok = True
+                    log.info("ndvi_real: prithvi OK — fuente=%s", p_result["fuente"])
+                else:
+                    log.debug("ndvi_real: prithvi enrich returned no enriched data")
+            except Exception as _pe:
+                log.warning("ndvi_real: prithvi_enrich (non-fatal): %s", _pe)
+
+            log.info("ndvi_real OK [%s] — %s · nub %.0f%% · %d canchas · prithvi=%s",
+                     src["name"], img_dt, cloud, len(canchas), prithvi_ok)
             return {
-                "fuente":        f"{src['collection']} · {src['name']} · {img_dt} · nub {cloud:.0f}%",
-                "fecha_imagen":  img_dt,
-                "nubosidad_pct": round(cloud, 1),
-                "canchas":       canchas,
+                "fuente":             f"{src['collection']} · {src['name']} · {img_dt} · nub {cloud:.0f}%",
+                "fecha_imagen":       img_dt,
+                "nubosidad_pct":      round(cloud, 1),
+                "canchas":            canchas,
+                "prithvi_enriquecido": prithvi_ok,
             }
 
     log.warning("ndvi_real: ⚠️ ninguna fuente devolvió datos — NDVI anterior mantenido")

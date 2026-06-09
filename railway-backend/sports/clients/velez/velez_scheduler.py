@@ -107,7 +107,7 @@ def _get_velez_data() -> dict:
                     if cid in canchas_ov:
                         cd = canchas_ov[cid]
                         for field in ("ndvi", "gndvi", "bsi", "ndwi", "score", "sem",
-                                      "detalle", "n_status", "n_rec"):
+                                      "detalle", "n_status", "n_rec", "tipo_cesped"):
                             if cd.get(field) is not None:
                                 entry[field] = cd[field]
                 # Update weather_live.gndvi_por_cancha.canchas
@@ -125,7 +125,7 @@ def _get_velez_data() -> dict:
                 for cid, cd in canchas_ov.items():
                     roger_hm.setdefault(cid, {}).update(
                         {k: v for k, v in cd.items()
-                         if k in ("ndvi", "gndvi", "bsi", "ndwi", "n_status", "n_rec")
+                         if k in ("ndvi", "gndvi", "bsi", "ndwi", "n_status", "n_rec", "tipo_cesped")
                          and cd.get(k) is not None})
     except Exception as _oe:
         log.debug("Supabase overlay (non-fatal): %s", _oe)
@@ -621,6 +621,7 @@ def _body_roger(vd: dict, panel_url: str = "") -> str:
     def _cancha_li(c):
         cid  = c.get("id", "")
         hm_e = _hm.get(cid, {}) if isinstance(_hm.get(cid), dict) else {}
+        tipo = c.get("tipo_cesped") or hm_e.get("tipo_cesped") or "natural"
         dat: list[str] = []
         if isinstance(hm_e.get("gndvi"), (int, float)):
             dat.append(f'GNDVI {hm_e["gndvi"]:.2f}')
@@ -632,9 +633,15 @@ def _body_roger(vd: dict, panel_url: str = "") -> str:
         if dat:
             extra = (f' · {" · ".join(dat)}'
                      f' <span style="color:#c9a84c;font-size:11px">[DATO REAL]</span>')
+        ndvi_label = c.get("ndvi", "—")
+        if tipo == "hibrido":
+            ndvi_label = (
+                f'{ndvi_label} '
+                f'<span style="color:#9aa0a8;font-size:11px">referencial — campo híbrido · SAR primario</span>'
+            )
         return (
             f'<li><b>{c.get("nombre","?")}: </b>'
-            f'NDVI {c.get("ndvi","—")} · Score {c.get("score","—")}/100{extra}<br>'
+            f'NDVI {ndvi_label} · Score {c.get("score","—")}/100{extra}<br>'
             f'<span style="font-size:13px;color:#ccc">{c.get("detalle","")}</span></li>'
         )
 

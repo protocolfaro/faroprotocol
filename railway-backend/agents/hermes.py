@@ -65,6 +65,14 @@ R6: ndvi_medio < 0.10  en meses Dic/Ene/Feb con ndvi_disponible=True (pasto muer
 R7: score_faro = 100   con ndvi_disponible=False
 R8: indice_fusion_medio > 97 con ndvi_disponible=False
 
+## Intervenciones recientes (contexto operacional)
+Si se proveen intervenciones del cuaderno de Roger, usalas para contextualizar anomalías.
+Ejemplos de contextualización válida (NO bloquear si hay intervención que lo explique):
+- NDVI bajo + resiembra reciente  → plausible, en regeneración
+- Backscatter atípico + riego intensivo (≥ 30 mm) → suelo saturado esperado
+- Score bajo + aireación hace < 5 días → remoción de tapiz, normal
+Aún así, aplicar R1 y R2 sin excepción (son errores instrumentales, no agronómicos).
+
 Si ninguna regla se activa → APROBADO.
 """
 
@@ -86,6 +94,7 @@ def validate_certificate(
     insight_estado: str,
     digest: str,
     mes: int | None = None,
+    intervenciones: list | None = None,
 ) -> dict:
     """
     Valida coherencia físico-estacional antes de emitir el certificado SHA-256.
@@ -98,6 +107,7 @@ def validate_certificate(
         insight_estado: estado textual ('ÓPTIMO', 'DEGRADADO', etc.)
         digest:         SHA-256 hex del PNG de reporte
         mes:            mes actual 1–12 (None = detectar automáticamente)
+        intervenciones: lista de ops recientes de velez_intervenciones (opcional)
 
     Returns:
         {"aprobado": True, "motivo": ..., "confianza": ...}
@@ -129,6 +139,22 @@ def validate_certificate(
     ndvi   = stats.get("ndvi_medio")
     fii    = stats.get("indice_fusion_medio")
 
+    _interv_section = ""
+    if intervenciones:
+        lines = []
+        for iv in intervenciones[:10]:  # max 10 para no saturar
+            ts   = str(iv.get("created_at", ""))[:10]
+            tipo = iv.get("tipo", "?")
+            det  = iv.get("detalle", "")
+            hu   = iv.get("horas_uso")
+            line = f"  [{ts}] {tipo}"
+            if hu is not None:
+                line += f" {hu}h"
+            if det:
+                line += f" — {det}"
+            lines.append(line)
+        _interv_section = "\n\nIntervenciones recientes (últimos 14 días):\n" + "\n".join(lines)
+
     user_msg = (
         f"Validá el resultado del análisis satelital Faro Protocol:\n\n"
         f"Área:  {area_name}\n"
@@ -140,7 +166,8 @@ def validate_certificate(
         f"  indice_fusion_medio = {fii}\n"
         f"  score_faro          = {insight_score}\n"
         f"  estado              = {insight_estado}\n"
-        f"  sha256_prefix       = {digest[:20]}...\n\n"
+        f"  sha256_prefix       = {digest[:20]}..."
+        f"{_interv_section}\n\n"
         f"Aplicá las reglas de bloqueo y usá la herramienta hermes_decision."
     )
 

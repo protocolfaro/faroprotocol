@@ -661,6 +661,56 @@ def velez_pipeline_history():
         return jsonify({"ok": False, "error": str(exc)}), 500
 
 
+@app.route("/velez/log-intervencion", methods=["POST"])
+def log_intervencion():
+    """
+    Log a field operation (riego, corte, fertilizante, etc.) from Roger's panel.
+    Body: { pin, cancha_id, tipo, detalle?, horas_uso?, foto_url? }
+    Stores in Supabase velez_intervenciones. Hermes uses this for contextual validation.
+    """
+    body = request.get_json(silent=True) or {}
+    if not _ok_pin(body.get("pin")):
+        return jsonify({"status": "error", "error": "PIN inválido"}), 401
+
+    cancha_id = (body.get("cancha_id") or "").strip()
+    tipo      = (body.get("tipo") or "").strip().lower()
+    detalle   = (body.get("detalle") or "").strip()
+    horas_uso = body.get("horas_uso")
+    foto_url  = (body.get("foto_url") or "").strip() or None
+
+    _TIPOS_VALIDOS = {"riego", "corte", "fertilizante", "fungicida", "resiembra", "aireacion"}
+    if not cancha_id:
+        return jsonify({"status": "error", "error": "cancha_id requerido"}), 400
+    if tipo not in _TIPOS_VALIDOS:
+        return jsonify({
+            "status": "error",
+            "error": f"tipo inválido — debe ser uno de: {', '.join(sorted(_TIPOS_VALIDOS))}",
+        }), 400
+
+    if horas_uso is not None:
+        try:
+            horas_uso = float(horas_uso)
+        except (TypeError, ValueError):
+            return jsonify({"status": "error", "error": "horas_uso debe ser número"}), 400
+
+    try:
+        from velez_supabase import insert_intervencion
+        ok = insert_intervencion(
+            cancha_id=cancha_id,
+            tipo=tipo,
+            detalle=detalle,
+            horas_uso=horas_uso,
+            foto_url=foto_url,
+        )
+        if ok:
+            log.info("log-intervencion: %s en %s guardada", tipo, cancha_id)
+            return jsonify({"status": "ok", "cancha_id": cancha_id, "tipo": tipo}), 201
+        return jsonify({"status": "error", "error": "Supabase no disponible o no configurado"}), 503
+    except Exception as exc:
+        log.error(traceback.format_exc())
+        return jsonify({"status": "error", "error": str(exc)}), 500
+
+
 @app.route("/velez/commit_historial", methods=["POST"])
 def commit_historial():
     """Guarda snapshot semanal en historial/YYYY-MM-DD.json en GitHub."""

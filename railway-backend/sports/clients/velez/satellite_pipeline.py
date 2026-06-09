@@ -308,7 +308,17 @@ def run_satellite_cycle(ndvi_data: dict = None, force: bool = False) -> dict:
         _h_score  = round((_median_ndvi or 0.5) * 100)
         _h_estado = ("ÓPTIMO" if (_median_ndvi or 0) > 0.55
                      else "NORMAL" if (_median_ndvi or 0) > 0.35 else "DEGRADADO")
-        _h_res = validate_certificate("amalfitani", _h_stats, _h_score, _h_estado, _digest)
+        # Fetch recent field interventions to give Hermes operational context
+        _h_intervs: list = []
+        try:
+            import velez_supabase as _vs_h
+            _h_intervs = _vs_h.get_intervenciones_recientes("amalfitani", dias=14)
+        except Exception as _vie:
+            log.debug("hermes: intervenciones fetch (non-fatal): %s", _vie)
+        _h_res = validate_certificate(
+            "amalfitani", _h_stats, _h_score, _h_estado, _digest,
+            intervenciones=_h_intervs or None,
+        )
         log.info("hermes: aprobado=%s motivo=%s confianza=%.2f",
                  _h_res.get("aprobado"), _h_res.get("motivo"), _h_res.get("confianza", 1.0))
     except Exception as _hb:

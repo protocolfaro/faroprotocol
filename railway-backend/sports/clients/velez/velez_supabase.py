@@ -4,13 +4,24 @@ Same SUPABASE_URL + SUPABASE_KEY env vars as dale_play_storage.py.
 Never raises — failures are logged and silently swallowed.
 
 Tables (SQL en migrations/velez_live_tables.sql):
-  pipeline_runs   — one row per satellite cycle (observability / audit)
-  velez_canchas   — per-cancha NDVI/score/sem, updated by satellite_pipeline
-  velez_sectores  — per-sector score/sem/detalle/insar, updated by pipeline + insar_hyp3
-  velez_weather_live — single row (id='current') with weather_live JSONB, updated daily
+  pipeline_runs        — one row per satellite cycle (observability / audit)
+  velez_canchas        — per-cancha NDVI/score/sem/tipo_cesped, updated by satellite_pipeline
+  velez_sectores       — per-sector score/sem/detalle/insar, updated by pipeline + insar_hyp3
+  velez_weather_live   — single row (id='current') with weather_live JSONB, updated daily
+  velez_intervenciones — operaciones de campo logueadas por Roger (riego, corte, etc.)
 
-These three tables replace the mutable sections of velez/velez_data.json on GitHub.
-GitHub JSON is updated once per week as a static snapshot; SHA conflicts eliminated.
+Migration notes:
+  ALTER TABLE velez_canchas ADD COLUMN IF NOT EXISTS tipo_cesped TEXT DEFAULT 'natural';
+  CREATE TABLE IF NOT EXISTS velez_intervenciones (
+      id BIGSERIAL PRIMARY KEY,
+      cancha_id TEXT NOT NULL,
+      tipo TEXT NOT NULL,  -- riego|corte|fertilizante|fungicida|resiembra|aireacion
+      detalle TEXT DEFAULT '',
+      horas_uso NUMERIC,
+      foto_url TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+  );
+  CREATE INDEX IF NOT EXISTS idx_interv_cancha_ts ON velez_intervenciones (cancha_id, created_at DESC);
 """
 from __future__ import annotations
 import json, logging, os, time
@@ -19,6 +30,16 @@ from datetime import datetime, timedelta, timezone
 import requests as _req
 
 log = logging.getLogger(__name__)
+
+# Canchas con césped híbrido (Bermuda Tifway 419 type) — NDVI referencial, SAR primario
+_TIPO_CESPED: dict[str, str] = {
+    "amalfitani": "hibrido",
+    "1fa":        "hibrido",   # Cancha 1 Villa Olímpica
+}
+
+
+def _tipo_for(cancha_id: str) -> str:
+    return _TIPO_CESPED.get(cancha_id, "natural")
 
 
 def _base() -> str:
@@ -119,6 +140,7 @@ def upsert_canchas(canchas: dict, fuente: str = "") -> bool:
                       "score", "score_prev", "sem", "detalle"):
             if field in cd:
                 row[field] = cd[field]
+        row["tipo_cesped"] = cd.get("tipo_cesped") or _tipo_for(cid)
         if fuente:
             row["fuente"] = fuente
         rows.append(row)
@@ -270,3 +292,58 @@ def get_live_overlay() -> dict:
     if not weather and not sectores and not canchas:
         return {}
     return {"weather_live": weather, "sectores": sectores, "canchas": canchas}
+
+
+# ── velez_intervenciones ──────────────────────────────────────────────────────
+
+def insert_intervencion(
+    *,
+    cancha_id: str,
+    tipo:      str,
+    detalle:   str = "",
+    horas_uso: float | None = None,
+    foto_url:  str | None = None,
+) -> bool:
+    """Insert one field-operation log row. Returns True on success."""
+    if not _ok():
+        return False
+    row = {
+        "cancha_id": cancha_id,
+        "tipo":      tipo,
+        "detalle":   detalle,
+        "horas_uso": horas_uso,
+        "foto_url":  foto_url,
+    }
+    url = f"{_base()}/rest/v1/velez_intervenciones"
+    try:
+        r = _req.post(url, headers=_hdrs(),
+                      data=json.dumps(row, default=str), timeout=8)
+        if r.status_code in (200, 201, 204):
+            log.info("velez_intervenciones: %s en %s registrada", tipo, cancha_id)
+            return True
+        log.warning("velez_intervenciones insert HTTP %s: %s", r.status_code, r.text[:200])
+    except Exception as exc:
+        log.warning("velez_intervenciones insert: %s", exc)
+    return False
+
+
+def get_intervenciones_recientes(cancha_id: str | None = None, dias: int = 14) -> list[dict]:
+    """
+    Return recent intervention rows, newest first.
+    If cancha_id is given, filter by it; otherwise returns all canchas.
+    """
+    if not _ok():
+        return []
+    since = (datetime.now(timezone.utc) - timedelta(days=dias)).isoformat()
+    base_url = (f"{_base()}/rest/v1/velez_intervenciones"
+                f"?created_at=gte.{since}&order=created_at.desc&limit=100")
+    if cancha_id:
+        base_url += f"&cancha_id=eq.{cancha_id}"
+    try:
+        r = _req.get(base_url, headers=_hdrs(), timeout=8)
+        if r.status_code == 200:
+            return r.json()
+        log.warning("velez_intervenciones get HTTP %s", r.status_code)
+    except Exception as exc:
+        log.warning("velez_intervenciones get: %s", exc)
+    return []

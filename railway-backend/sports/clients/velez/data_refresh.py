@@ -79,6 +79,16 @@ def _fetch_nasa_power() -> dict:
     gdd    = [max(0.0, (mx + mn) / 2 - 10) for mx, mn in zip(tmax_d, tmin_d)]
     result["_gdd_7d"]   = round(sum(gdd), 1)
     result["_gdd_rate"] = round(sum(gdd) / len(gdd), 1) if gdd else 5.0
+    # 5-day averages for Smith-Kerns Dollar Spot model (MSU validated on 5-day window)
+    rh2m_d = daily.get("RH2M", [])
+    tmax_5 = tmax_d[-5:] if len(tmax_d) >= 5 else tmax_d
+    tmin_5 = tmin_d[-5:] if len(tmin_d) >= 5 else tmin_d
+    rh2m_5 = rh2m_d[-5:] if len(rh2m_d) >= 5 else rh2m_d
+    if tmax_5 and tmin_5:
+        tmean_5 = [(mx + mn) / 2.0 for mx, mn in zip(tmax_5, tmin_5)]
+        result["_t2m_avg_5d"] = round(sum(tmean_5) / len(tmean_5), 2)
+    if rh2m_5:
+        result["_rh2m_avg_5d"] = round(sum(rh2m_5) / len(rh2m_5), 1)
     return result
 
 
@@ -673,9 +683,11 @@ def run_refresh() -> dict:
                 f'Ventana de corte: {_cp["status_window"]} — '
                 f'{_cp["prescribed_height_mm"]} mm · {_cp["reel_speed_rpm"]} RPM',
             ]
-            # Smith-Kerns Dollar Spot (5-day avg usando NASA POWER como proxy)
-            _temp5 = (_temp24 + _tmin24) / 2.0
-            _sk_pct = compute_smith_kerns(_temp5, _rh24)
+            # Smith-Kerns Dollar Spot — real 5-day avg T + RH from NASA POWER
+            _t5_avg  = float(raw.get("nasa", {}).get("_t2m_avg_5d",
+                             (_temp24 + _tmin24) / 2.0))
+            _rh5_avg = float(raw.get("nasa", {}).get("_rh2m_avg_5d", _rh24))
+            _sk_pct = compute_smith_kerns(_t5_avg, _rh5_avg)
             weather["riesgo_dollar_spot_pct"] = _sk_pct
             log.info("smith_kerns: Dollar Spot %.1f%%", _sk_pct)
 
