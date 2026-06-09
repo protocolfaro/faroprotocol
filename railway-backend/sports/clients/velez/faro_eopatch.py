@@ -88,8 +88,38 @@ def build_eopatch(venue_id: str = "amalfitani",
         f"venue_id=eq.{venue_id}&order=fecha.asc&limit={limit}",
     )
     if not ts_rows:
-        log.warning("faro_eopatch: sin datos en field_timeseries para %s", venue_id)
-        return patch
+        log.warning(
+            "faro_eopatch: sin datos en field_timeseries para %s — "
+            "fallback a vegetation_metrics", venue_id,
+        )
+        # Bootstrap desde vegetation_metrics cuando field_timeseries no tiene datos.
+        # Da pocos puntos pero permite que el Kalman arranque con datos reales en lugar
+        # de usar siempre los defaults de BsAs.
+        _cid_qs_fb = f"&cancha_id=eq.{cancha_id}" if cancha_id else ""
+        veg_fb = _sb_get(
+            "vegetation_metrics",
+            f"venue_id=eq.{venue_id}{_cid_qs_fb}&order=fecha_imagen.asc&limit={limit}",
+        )
+        _seen_fb: dict[str, dict] = {}
+        for _row in veg_fb:
+            _fd = str(_row.get("fecha_imagen") or "")[:10]
+            if _fd and _row.get("ndvi") is not None:
+                _seen_fb[_fd] = _row
+        if _seen_fb:
+            ts_rows = [
+                {
+                    "fecha":    _fd,
+                    "ndvi":     _row["ndvi"],
+                    "nubosidad": _row.get("confianza_pct") or 0,
+                }
+                for _fd, _row in sorted(_seen_fb.items())
+            ]
+            log.info(
+                "faro_eopatch: fallback vegetation_metrics — %d obs para %s",
+                len(ts_rows), venue_id,
+            )
+        else:
+            return patch
 
     # Build date index
     date_index: dict[str, int] = {}

@@ -708,6 +708,21 @@ def run_refresh() -> dict:
                 if _deficit > 3:
                     _riego_min = _hydro["irrigation_prescription"]["aspersor_time_minutes"]
                     _deficit   = _hydro["irrigation_prescription"]["deficit_hydric_mm"]
+                # Persistir Van Genuchten proxy en soil_metrics (dato diario)
+                try:
+                    from velez_supabase import insert_soil_metrics as _ins_sm
+                    _ins_sm(
+                        venue_id="amalfitani",
+                        is_hibrido=True,
+                        sar_vv_db=_sar_vv,
+                        sar_vh_db=_sar_vh,
+                        theta_soil=_theta,
+                        h_suction_cm=float(_hydro.get("matric_potential_cm") or 0),
+                        fuente="van-genuchten-proxy · open-meteo",
+                    )
+                    log.info("soil_metrics: INSERT OK (Van Genuchten proxy θ=%.3f)", _theta)
+                except Exception as _sm_exc:
+                    log.warning("soil_metrics write (non-fatal): %s", _sm_exc)
             except Exception as _ve:
                 log.warning("Van Genuchten proxy (non-fatal): %s", _ve)
             if _deficit > 3:

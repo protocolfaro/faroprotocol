@@ -478,6 +478,41 @@ def manual_refresh():
     return jsonify({"status": status, **result}), code
 
 
+@app.route("/velez/run-refresh", methods=["POST"])
+def velez_run_refresh():
+    """
+    Fuerza un ciclo data_refresh completo (clima + Supabase inserts + satélite).
+    PIN-protegido. Async — retorna 202 inmediatamente.
+    Resultado disponible en /velez/refresh_status después de ~60s.
+    """
+    global _last_refresh
+    body = request.get_json(silent=True) or {}
+    if not _ok_pin(body.get("pin")):
+        return jsonify({"status": "error", "error": "PIN inválido"}), 401
+
+    def _run():
+        global _last_refresh
+        log.info("=== /velez/run-refresh: ciclo forzado iniciado ===")
+        result = data_refresh.run_refresh()
+        _last_refresh = {
+            **result,
+            "ran_at":       datetime.now(timezone.utc).isoformat(),
+            "triggered_by": "manual_pin",
+        }
+        if result.get("ok"):
+            log.info("=== /velez/run-refresh: OK — ts=%s ===", result.get("ts"))
+        else:
+            log.error("=== /velez/run-refresh: FAILED — %s ===", result.get("error"))
+
+    threading.Thread(target=_run, daemon=True, name="manual_refresh").start()
+    return jsonify({
+        "status": "accepted",
+        "msg":    "Ciclo data_refresh iniciado en background. "
+                  "Revisá /velez/refresh_status en ~60s para ver el resultado.",
+        "check":  "/velez/refresh_status",
+    }), 202
+
+
 @app.route("/velez/diag-supabase", methods=["GET"])
 def diag_supabase():
     """
@@ -817,6 +852,23 @@ def _daily_refresh():
         log.error("=== Cron: daily weather refresh FAILED: %s ===", result.get("error"))
 
 
+def _daily_qa_check():
+    """Cron 09:05 UTC — QA post-ciclo: verifica las 4 tablas del data lake."""
+    log.info("=== Cron: QA watchdog starting ===")
+    try:
+        from faro_qa_watchdog import run_qa_checks
+        result = run_qa_checks(venue_id="amalfitani")
+        if result.get("ok"):
+            log.info("=== Cron: QA OK — todos los checks pasaron ===")
+        else:
+            log.warning(
+                "=== Cron: QA WARN/FAIL — alertas: %s ===",
+                result.get("alerts", []),
+            )
+    except Exception as exc:
+        log.error("=== Cron: QA watchdog FAILED: %s ===", exc)
+
+
 def _weekly_insar_refresh():
     global _last_insar
     if not os.environ.get("NASA_EARTHDATA_USER") or not os.environ.get("NASA_EARTHDATA_PASS"):
@@ -907,6 +959,13 @@ def _start_scheduler():
         _daily_refresh,
         CronTrigger(hour=9, minute=0, timezone="UTC"),
         id="daily_weather_refresh",
+        replace_existing=True,
+    )
+    # 06:05 ART = 09:05 UTC — QA post-ciclo: verifica las 4 tablas del data lake
+    scheduler.add_job(
+        _daily_qa_check,
+        CronTrigger(hour=9, minute=5, timezone="UTC"),
+        id="daily_qa_watchdog",
         replace_existing=True,
     )
     # Lunes 10:00 UTC = 07:00 ART

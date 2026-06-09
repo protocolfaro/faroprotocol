@@ -379,6 +379,47 @@ def run_satellite_cycle(ndvi_data: dict = None, force: bool = False) -> dict:
     except Exception as e:
         log.error("satellite_pipeline: push_velez_data falló: %s", e)
 
+    # 6d. Regenerar PNGs de reportes con datos frescos y subirlos a velez/reportes/
+    try:
+        from pathlib import Path as _Path
+        import render_reports as _rr
+        _out_dir = _Path(__file__).parents[4] / "reportes_velez"
+        _out_dir.mkdir(exist_ok=True)
+        _, _vd_rpt = _gh_get(_VD_PATH)
+        if _vd_rpt:
+            _rendered = _rr.render_all(_vd_rpt, _out_dir)
+            _ts_rpt   = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            _pushed_rpt = 0
+            for _rp in _rendered:
+                try:
+                    _rpt_gh = f"velez/reportes/{_rp.name}"
+                    _rsha_r = requests.get(
+                        f"https://api.github.com/repos/{_OWNER}/{_REPO}/contents/{_rpt_gh}",
+                        headers=_gh_hdrs(), params={"ref": _BRANCH}, timeout=8,
+                    )
+                    _rsha = _rsha_r.json().get("sha") if _rsha_r.status_code == 200 else None
+                    _pl = {
+                        "message": f"reports: {_rp.name} · {img_date} [{_ts_rpt}]",
+                        "content": base64.b64encode(_rp.read_bytes()).decode(),
+                        "branch":  _BRANCH,
+                    }
+                    if _rsha:
+                        _pl["sha"] = _rsha
+                    _rr_resp = requests.put(
+                        f"https://api.github.com/repos/{_OWNER}/{_REPO}/contents/{_rpt_gh}",
+                        headers=_gh_hdrs(), json=_pl, timeout=35,
+                    )
+                    if _rr_resp.status_code in (200, 201):
+                        _pushed_rpt += 1
+                except Exception as _push_rpt_exc:
+                    log.debug("satellite_pipeline: push report %s: %s", _rp.name, _push_rpt_exc)
+            log.info(
+                "satellite_pipeline: %d/%d report PNGs regenerados → velez/reportes/",
+                _pushed_rpt, len(_rendered),
+            )
+    except Exception as _rnd_exc:
+        log.warning("satellite_pipeline: render_all (non-fatal): %s", _rnd_exc)
+
     # 7. Snapshot histórico en GitHub (historial/YYYY-MM-DD.json)
     hist_result = {}
     try:
