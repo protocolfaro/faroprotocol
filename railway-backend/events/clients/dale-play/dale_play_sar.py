@@ -22,6 +22,7 @@ Cada entrada en cascade_log:
 from __future__ import annotations
 
 import logging
+import math
 import os
 import time
 from datetime import date, timedelta
@@ -881,6 +882,25 @@ def compare_sar_scenes(scene_pre: dict, scene_post: dict) -> dict:
 # ─────────────────────────────────────────────────────────────────────────────
 # Entry point principal — cascada completa
 # ─────────────────────────────────────────────────────────────────────────────
+def _van_genuchten_from_sar(sar_vv_db: float, sar_vh_db: float) -> tuple[float, float]:
+    """WCM vegetation-removal + Van Genuchten → (theta_soil, h_suction_cm)."""
+    sig_vv = 10.0 ** (sar_vv_db / 10.0)
+    sig_vh = 10.0 ** (sar_vh_db / 10.0)
+    ratio  = sig_vh / sig_vv if sig_vv > 0 else 0.0
+    sig_c  = sig_vh / 0.11 if ratio < 0.05 else sig_vv
+    lai, cos_t = 2.5, math.cos(math.radians(38.5))
+    tau2   = math.exp(-2.0 * 0.08 * lai / cos_t)
+    s_veg  = 0.0012 * lai * (1.0 - tau2) * cos_t
+    s_soil = max((sig_c - s_veg) / (tau2 + 1e-6), 1e-4)
+    theta  = (s_soil * 0.28) + 0.12
+    theta_r, theta_s, alpha, n = 0.045, 0.410, 0.068, 1.89
+    m = 1.0 - 1.0 / n
+    theta_c = max(theta_r + 1e-4, min(theta_s - 1e-4, theta))
+    se      = (theta_c - theta_r) / (theta_s - theta_r)
+    inner   = max((se ** (-1.0 / m)) - 1.0, 0.0)
+    h_suc   = (1.0 / alpha) * (inner ** (1.0 / n))
+    return round(theta_c, 4), round(h_suc, 2)
+
 
 def fetch_sar(
     venue_lat: float = _VENUE_LAT,
@@ -992,6 +1012,27 @@ def fetch_sar(
         best.get("backscatter_db_mean"),
         best.get("backscatter_n_px"),
     )
+
+    # ── soil_metrics: escribir humedad/tensión estimadas via Van Genuchten ────
+    try:
+        _vv = best.get("backscatter_db_mean")
+        if _vv is not None:
+            _vh = _vv - 7.5
+            _theta, _h = _van_genuchten_from_sar(float(_vv), float(_vh))
+            from sports.clients.velez.velez_supabase import insert_soil_metrics
+            insert_soil_metrics(
+                venue_id="amalfitani",
+                cancha_id="amalfitani",
+                is_hibrido=True,
+                sar_vv_db=round(float(_vv), 2),
+                sar_vh_db=round(float(_vh), 2),
+                theta_soil=_theta,
+                h_suction_cm=_h,
+                fuente=tier_id_usado,
+                fecha_imagen=str(date.today()),
+            )
+    except Exception as _sm_exc:
+        log.debug("dale_play_sar: soil_metrics write (non-fatal): %s", _sm_exc)
 
     # Registrar en SOURCE_LOG.md automáticamente
     try:

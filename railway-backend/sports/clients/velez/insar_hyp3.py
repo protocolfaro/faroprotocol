@@ -145,8 +145,11 @@ def _submit_and_wait(granule1: dict, granule2: dict, timeout_s: int = 7200) -> o
     return completed[0]
 
 
-def _download_displacement_tif(job) -> str:
-    """Download and extract *_los_displacement.tif from HyP3 job zip. Returns local path."""
+def _download_insar_files(job) -> tuple[str, str | None]:
+    """
+    Download HyP3 job zip. Extract *_los_displacement.tif and *_amp.tif (if present).
+    Returns (disp_tif_path, amp_tif_path_or_None).
+    """
     import io, zipfile
     import requests as _req
 
@@ -165,20 +168,36 @@ def _download_displacement_tif(job) -> str:
     r = _req.get(zip_url, timeout=180, stream=True)
     r.raise_for_status()
 
-    tmp_dir = tempfile.mkdtemp(prefix="insar_")
-    with zipfile.ZipFile(io.BytesIO(r.content)) as zf:
-        candidates = [n for n in zf.namelist() if "los_displacement" in n and n.endswith(".tif")]
-        if not candidates:
-            candidates = [n for n in zf.namelist() if "displacement" in n and n.endswith(".tif")]
-        if not candidates:
-            raise RuntimeError(f"No displacement GeoTIFF in zip: {zf.namelist()}")
-        tif_name = candidates[0]
-        tif_path = os.path.join(tmp_dir, os.path.basename(tif_name))
-        with open(tif_path, "wb") as out:
-            out.write(zf.read(tif_name))
+    tmp_dir  = tempfile.mkdtemp(prefix="insar_")
+    disp_path: str | None = None
+    amp_path:  str | None = None
 
-    log.info("insar_hyp3: extracted %s → %s", tif_name, tif_path)
-    return tif_path
+    with zipfile.ZipFile(io.BytesIO(r.content)) as zf:
+        namelist = zf.namelist()
+        # Displacement TIF
+        disps = [n for n in namelist if "los_displacement" in n and n.endswith(".tif")]
+        if not disps:
+            disps = [n for n in namelist if "displacement" in n and n.endswith(".tif")]
+        if not disps:
+            raise RuntimeError(f"No displacement GeoTIFF in zip: {namelist}")
+        disp_path = os.path.join(tmp_dir, os.path.basename(disps[0]))
+        with open(disp_path, "wb") as out:
+            out.write(zf.read(disps[0]))
+        # Amplitude TIF (HyP3 InSAR products include *_amp.tif from reference+secondary)
+        amps = [n for n in namelist if n.endswith("_amp.tif")]
+        if amps:
+            amp_path = os.path.join(tmp_dir, os.path.basename(amps[0]))
+            with open(amp_path, "wb") as out:
+                out.write(zf.read(amps[0]))
+            log.info("insar_hyp3: extracted amp TIF → %s", amp_path)
+
+    log.info("insar_hyp3: extracted disp → %s, amp → %s", disp_path, amp_path or "none")
+    return disp_path, amp_path
+
+
+# keep old name for any external callers
+def _download_displacement_tif(job) -> str:
+    return _download_insar_files(job)[0]
 
 
 def _read_sector_displacement(tif_path: str) -> dict[str, float]:
@@ -220,6 +239,109 @@ def _read_sector_displacement(tif_path: str) -> dict[str, float]:
     return results
 
 
+def _read_sector_backscatter(amp_tif_path: str) -> dict[str, float]:
+    """
+    Per-sector SAR VV backscatter from HyP3 amplitude TIF.
+    HyP3 amp.tif: float32 power units → dB = 10*log10(power).
+    Returns {sector_id: sar_vv_db}.
+    """
+    import numpy as np
+    import rasterio
+    from rasterio.warp import transform_bounds
+    from rasterio.windows import from_bounds
+
+    results: dict[str, float] = {}
+    with rasterio.open(amp_tif_path) as src:
+        crs    = src.crs
+        nodata = src.nodata
+        for sector_id, (minx, miny, maxx, maxy) in SECTOR_BBOXES.items():
+            try:
+                native = transform_bounds("EPSG:4326", crs, minx, miny, maxx, maxy)
+                win    = from_bounds(*native, transform=src.transform)
+                data   = src.read(1, window=win).astype("float32")
+                mask   = np.isfinite(data) & (data > 0)
+                if nodata is not None:
+                    mask &= (data != float(nodata))
+                if mask.sum() < 2:
+                    continue
+                power_mean = float(data[mask].mean())
+                results[sector_id] = round(10.0 * math.log10(max(power_mean, 1e-10)), 2)
+            except Exception as exc:
+                log.debug("insar_hyp3 backscatter %s: %s", sector_id, exc)
+    return results
+
+
+def _van_genuchten_from_sar(sar_vv_db: float, sar_vh_db: float) -> tuple[float, float]:
+    """
+    Water Cloud Model → Van Genuchten (Franco-Arenoso Deportivo).
+    Returns (theta_soil, h_suction_cm).
+    Mirrors compute_faro_hydro_core() from faro_analytics_physics but scalar-only.
+    """
+    import math as _m
+    sig_vv = 10.0 ** (sar_vv_db / 10.0)
+    sig_vh = 10.0 ** (sar_vh_db / 10.0)
+    ratio  = sig_vh / sig_vv if sig_vv > 0 else 0.0
+    sig_c  = sig_vh / 0.11 if ratio < 0.05 else sig_vv
+    denom  = sig_c + sig_vh
+    # WCM vegetation attenuation (LAI=2.5, θ=38.5°)
+    lai   = 2.5
+    cos_t = _m.cos(_m.radians(38.5))
+    tau2  = _m.exp(-2.0 * 0.08 * lai / cos_t)
+    s_veg = 0.0012 * lai * (1.0 - tau2) * cos_t
+    s_soil = max((sig_c - s_veg) / (tau2 + 1e-6), 1e-4)
+    theta  = (s_soil * 0.28) + 0.12
+    # Van Genuchten
+    theta_r, theta_s, alpha, n = 0.045, 0.410, 0.068, 1.89
+    m = 1.0 - 1.0 / n
+    theta_c = max(theta_r + 1e-4, min(theta_s - 1e-4, theta))
+    se      = (theta_c - theta_r) / (theta_s - theta_r)
+    inner   = max((se ** (-1.0 / m)) - 1.0, 0.0)
+    h_suc   = (1.0 / alpha) * (inner ** (1.0 / n))
+    return round(theta_c, 4), round(h_suc, 2)
+
+
+# InSAR sector → cancha mapping for soil_metrics (only sectors with grass)
+_SECTOR_TO_CANCHA: dict[str, str | None] = {
+    "estadio":           "amalfitani",
+    "poli_basquet":      "poli_f11",
+    "poli_playon_norte": "poli_f11",
+    "sede_anexo_norte":  None,
+    "piletas":           None,
+}
+
+
+def _write_soil_metrics(sector_backscatter: dict[str, float], fuente: str,
+                        fecha_imagen: str) -> None:
+    """Non-blocking: write SAR soil_metrics to Supabase for each sector. Silent on failure."""
+    try:
+        import sys as _sys, os as _os
+        _here = _os.path.dirname(_os.path.abspath(__file__))
+        if _here not in _sys.path:
+            _sys.path.insert(0, _here)
+        from velez_supabase import insert_soil_metrics
+    except Exception as _imp:
+        log.debug("insar soil_metrics import (non-fatal): %s", _imp)
+        return
+
+    for sector_id, vv_db in sector_backscatter.items():
+        cancha_id = _SECTOR_TO_CANCHA.get(sector_id)
+        try:
+            vh_db = round(vv_db - 7.5, 2)  # typical C-band VV/VH cross-pol ratio for grass
+            theta, h_suc = _van_genuchten_from_sar(vv_db, vh_db)
+            insert_soil_metrics(
+                venue_id      = "velez",
+                cancha_id     = cancha_id or sector_id,
+                sar_vv_db     = vv_db,
+                sar_vh_db     = vh_db,
+                theta_soil    = theta,
+                h_suction_cm  = h_suc,
+                fuente        = fuente,
+                fecha_imagen  = fecha_imagen,
+            )
+        except Exception as _ie:
+            log.debug("insar soil_metrics insert %s (non-fatal): %s", sector_id, _ie)
+
+
 def fetch_insar() -> Optional[dict]:
     """
     Full S1 InSAR pipeline: search → pair → submit → wait → download → read.
@@ -258,18 +380,23 @@ def fetch_insar() -> Optional[dict]:
         log.warning("insar_hyp3: HyP3 job failed: %s", exc)
         return None
 
-    tif_path = None
+    disp_path = amp_path = None
     try:
-        tif_path    = _download_displacement_tif(job)
-        sector_mm   = _read_sector_displacement(tif_path)
+        disp_path, amp_path = _download_insar_files(job)
+        sector_mm           = _read_sector_displacement(disp_path)
     except Exception as exc:
         log.warning("insar_hyp3: read failed: %s", exc)
         return None
     finally:
-        if tif_path:
+        for p in (disp_path, amp_path):
+            if p:
+                try:
+                    os.remove(p)
+                except Exception:
+                    pass
+        if disp_path:
             try:
-                os.remove(tif_path)
-                os.rmdir(os.path.dirname(tif_path))
+                os.rmdir(os.path.dirname(disp_path))
             except Exception:
                 pass
 
@@ -277,13 +404,28 @@ def fetch_insar() -> Optional[dict]:
         log.warning("insar_hyp3: ⚠️  No valid sector readings from displacement map")
         return None
 
+    fuente_str = f"Sentinel-1 InSAR · ASF HyP3 · par {date1}/{date2}"
+
+    # SAR backscatter from amplitude TIF → soil_metrics (non-blocking)
+    if amp_path:
+        try:
+            sector_bs = _read_sector_backscatter(amp_path)
+            if sector_bs:
+                _write_soil_metrics(sector_bs, fuente=fuente_str, fecha_imagen=date2)
+            else:
+                log.debug("insar_hyp3: amp TIF returned no backscatter — soil_metrics skipped")
+        except Exception as _be:
+            log.debug("insar_hyp3: backscatter read (non-fatal): %s", _be)
+    else:
+        log.debug("insar_hyp3: no amp TIF in zip — soil_metrics skipped (displacement only)")
+
     log.info(
         "✅ InSAR — par %s/%s · %d sectores · %s",
         date1, date2, len(sector_mm),
         ", ".join(f"{k}:{v:+.2f}mm" for k, v in sector_mm.items()),
     )
     return {
-        "fuente":         f"Sentinel-1 InSAR · ASF HyP3 · par {date1}/{date2}",
+        "fuente":         fuente_str,
         "fecha_ref":      date1,
         "fecha_sec":      date2,
         "incidencia_deg": _INCIDENCE_DEG,

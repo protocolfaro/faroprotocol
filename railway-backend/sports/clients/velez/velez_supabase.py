@@ -9,6 +9,9 @@ Tables (SQL en migrations/velez_live_tables.sql):
   velez_sectores       — per-sector score/sem/detalle/insar, updated by pipeline + insar_hyp3
   velez_weather_live   — single row (id='current') with weather_live JSONB, updated daily
   velez_intervenciones — operaciones de campo logueadas por Roger (riego, corte, etc.)
+  soil_metrics         — SAR backscatter + Van Genuchten por cancha/sector (fuente: insar_hyp3 + dale_play_sar)
+  vegetation_metrics   — índices ópticos por cancha (fuente: satellite_pipeline)
+  climate_metrics      — ET0/déficit/GDD/Smith-Kerns por venue (fuente: data_refresh)
 
 Migration notes:
   ALTER TABLE velez_canchas ADD COLUMN IF NOT EXISTS tipo_cesped TEXT DEFAULT 'natural';
@@ -22,6 +25,21 @@ Migration notes:
       created_at TIMESTAMPTZ DEFAULT NOW()
   );
   CREATE INDEX IF NOT EXISTS idx_interv_cancha_ts ON velez_intervenciones (cancha_id, created_at DESC);
+  CREATE TABLE IF NOT EXISTS soil_metrics (
+      id BIGSERIAL PRIMARY KEY,
+      venue_id TEXT NOT NULL,
+      cancha_id TEXT,
+      is_hibrido BOOLEAN DEFAULT FALSE,
+      sar_vv_db NUMERIC,
+      sar_vh_db NUMERIC,
+      theta_soil NUMERIC,
+      h_suction_cm NUMERIC,
+      fuente TEXT,
+      fecha_imagen DATE,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+  );
+  CREATE INDEX IF NOT EXISTS idx_soil_metrics_venue_ts ON soil_metrics (venue_id, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_soil_metrics_cancha_ts ON soil_metrics (cancha_id, created_at DESC);
 """
 from __future__ import annotations
 import json, logging, os, time
@@ -346,4 +364,72 @@ def get_intervenciones_recientes(cancha_id: str | None = None, dias: int = 14) -
         log.warning("velez_intervenciones get HTTP %s", r.status_code)
     except Exception as exc:
         log.warning("velez_intervenciones get: %s", exc)
+    return []
+
+
+# ── soil_metrics ──────────────────────────────────────────────────────────────
+
+def insert_soil_metrics(
+    *,
+    venue_id:     str,
+    cancha_id:    str | None = None,
+    is_hibrido:   bool = False,
+    sar_vv_db:    float | None = None,
+    sar_vh_db:    float | None = None,
+    theta_soil:   float | None = None,
+    h_suction_cm: float | None = None,
+    fuente:       str = "",
+    fecha_imagen: str | None = None,
+) -> bool:
+    """
+    Insert one SAR soil row into soil_metrics. Silent fallback on failure.
+    is_hibrido is auto-resolved from _TIPO_CESPED if not passed.
+    """
+    if not _ok():
+        return False
+    if cancha_id and is_hibrido is False:
+        is_hibrido = _tipo_for(cancha_id) == "hibrido"
+    row = {
+        "venue_id":     venue_id,
+        "cancha_id":    cancha_id,
+        "is_hibrido":   is_hibrido,
+        "sar_vv_db":    sar_vv_db,
+        "sar_vh_db":    sar_vh_db,
+        "theta_soil":   theta_soil,
+        "h_suction_cm": h_suction_cm,
+        "fuente":       fuente,
+        "fecha_imagen": fecha_imagen,
+    }
+    url = f"{_base()}/rest/v1/soil_metrics"
+    try:
+        r = _req.post(url, headers=_hdrs(),
+                      data=json.dumps(row, default=str), timeout=8)
+        if r.status_code in (200, 201, 204):
+            log.info("soil_metrics: insert OK venue=%s cancha=%s vv=%.1f θ=%.3f",
+                     venue_id, cancha_id, sar_vv_db or 0, theta_soil or 0)
+            return True
+        log.warning("soil_metrics insert HTTP %s: %s", r.status_code, r.text[:200])
+    except Exception as exc:
+        log.warning("soil_metrics insert: %s", exc)
+    return False
+
+
+def get_soil_metrics_latest(venue_id: str, cancha_id: str | None = None,
+                             dias: int = 30) -> list[dict]:
+    """Return most recent soil_metrics rows for a venue/cancha. Newest first."""
+    if not _ok():
+        return []
+    since = (datetime.now(timezone.utc) - timedelta(days=dias)).isoformat()
+    url = (f"{_base()}/rest/v1/soil_metrics"
+           f"?venue_id=eq.{venue_id}&created_at=gte.{since}"
+           f"&order=created_at.desc&limit=50")
+    if cancha_id:
+        url += f"&cancha_id=eq.{cancha_id}"
+    try:
+        r = _req.get(url, headers=_hdrs(), timeout=8)
+        if r.status_code == 200:
+            return r.json()
+        log.warning("soil_metrics get HTTP %s", r.status_code)
+    except Exception as exc:
+        log.warning("soil_metrics get: %s", exc)
     return []
