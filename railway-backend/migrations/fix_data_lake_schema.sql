@@ -64,5 +64,24 @@ ALTER TABLE qa_alerts DISABLE ROW LEVEL SECURITY;
 GRANT ALL ON public.qa_alerts TO anon;
 GRANT USAGE, SELECT ON SEQUENCE public.qa_alerts_id_seq TO anon;
 
+-- ── Stack científico — columnas nuevas 2026-06-09 ─────────────────────────────
+-- soil_metrics: polarimetría SAR H-Alpha, temperatura superficial, perfil Richards, ML, SMAP
+ALTER TABLE soil_metrics ADD COLUMN IF NOT EXISTS entropia_h          REAL;
+ALTER TABLE soil_metrics ADD COLUMN IF NOT EXISTS angulo_alpha        REAL;
+ALTER TABLE soil_metrics ADD COLUMN IF NOT EXISTS temp_superficie_c   REAL;
+ALTER TABLE soil_metrics ADD COLUMN IF NOT EXISTS theta_5cm           REAL;
+ALTER TABLE soil_metrics ADD COLUMN IF NOT EXISTS theta_10cm          REAL;
+ALTER TABLE soil_metrics ADD COLUMN IF NOT EXISTS theta_20cm          REAL;
+ALTER TABLE soil_metrics ADD COLUMN IF NOT EXISTS compactacion_index_ml REAL;
+ALTER TABLE soil_metrics ADD COLUMN IF NOT EXISTS theta_smap          REAL;
+
+-- climate_metrics: ET termodinámica ECOSTRESS
+ALTER TABLE climate_metrics ADD COLUMN IF NOT EXISTS et_ecostress_mm  REAL;
+
+-- vegetation_metrics: super-resolución ESA 2.5m
+ALTER TABLE vegetation_metrics ADD COLUMN IF NOT EXISTS ndvi_2_5m     REAL;
+ALTER TABLE vegetation_metrics ADD COLUMN IF NOT EXISTS bsi_2_5m      REAL;
+ALTER TABLE vegetation_metrics ADD COLUMN IF NOT EXISTS ndwi_2_5m     REAL;
+
 -- ── Forzar recarga del schema cache de PostgREST (fix inmediato de PGRST204) ──
 NOTIFY pgrst, 'reload schema';

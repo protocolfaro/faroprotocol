@@ -560,6 +560,45 @@ def insert_climate_metrics(*, venue_id: str, fecha: str | None = None,
     return False
 
 
+def patch_row(table: str, row_id: int, fields: dict) -> bool:
+    """
+    PATCH specific columns on a row by primary key id.
+    Used by scientific enrichment modules (polimetría, ECOSTRESS, Landsat, etc.)
+    to add computed values to existing rows without overwriting other columns.
+    """
+    if not _ok() or not fields or row_id is None:
+        return False
+    url = f"{_base()}/rest/v1/{table}?id=eq.{row_id}"
+    try:
+        r = _req.patch(url, headers=_hdrs(),
+                       data=json.dumps(fields, default=str), timeout=8)
+        if r.status_code in (200, 204):
+            log.info("%s PATCH id=%d OK — %s", table, row_id, list(fields.keys()))
+            return True
+        log.warning("%s PATCH id=%d HTTP %s: %s", table, row_id, r.status_code, r.text[:150])
+    except Exception as exc:
+        log.warning("%s patch_row: %s", table, exc)
+    return False
+
+
+def get_latest_soil_row(venue_id: str, cancha_id: str | None = None) -> dict | None:
+    """Return the most recent soil_metrics row (full columns). Used by enrichment modules."""
+    rows = get_soil_metrics_latest(venue_id, cancha_id, dias=3)
+    return rows[0] if rows else None
+
+
+def get_latest_climate_row(venue_id: str) -> dict | None:
+    """Return the most recent climate_metrics row. Used by enrichment modules."""
+    rows = get_climate_metrics_latest(venue_id, dias=3)
+    return rows[0] if rows else None
+
+
+def get_latest_vegetation_row(venue_id: str, cancha_id: str | None = None) -> dict | None:
+    """Return the most recent vegetation_metrics row. Used by enrichment modules."""
+    rows = get_vegetation_metrics_latest(venue_id, cancha_id, dias=3)
+    return rows[0] if rows else None
+
+
 def get_climate_metrics_latest(venue_id: str, dias: int = 30) -> list[dict]:
     """Return most recent climate_metrics rows for a venue. Newest first."""
     if not _ok():

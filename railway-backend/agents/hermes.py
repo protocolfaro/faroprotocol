@@ -504,6 +504,54 @@ def hermes_consolidate(venue_id: str, cancha_id: str | None = None) -> dict:
         except Exception:
             pass
 
+    # ── Alertas stack científico (capas H-Alpha / Landsat / ECOSTRESS / ML) ───
+    if _soil:
+        # H-Alpha polarimétrico: compactación mecánica confirmada
+        _h_val = _soil.get("entropia_h")
+        _alpha = _soil.get("angulo_alpha")
+        if _h_val is not None and _alpha is not None:
+            _h_val, _alpha = float(_h_val), float(_alpha)
+            if _h_val < 0.3 and _alpha < 20.0:
+                out["alertas"].append(
+                    f"compactacion_mecanica_sar: H={_h_val:.3f}<0.3 Alpha={_alpha:.1f}°<20° "
+                    f"— superficie especular, aireación recomendada"
+                )
+            elif _h_val > 0.7:
+                out["fuentes_activas"].append("Polimetría/SAR-sano")
+
+        # Temperatura superficial + humedad profunda
+        _temp_sup = _soil.get("temp_superficie_c")
+        _theta_10 = _soil.get("theta_10cm")
+        if _temp_sup is not None and float(_temp_sup) > 35.0:
+            if _theta_10 is not None and float(_theta_10) < 0.10:
+                out["alertas"].append(
+                    f"estres_hidrico_profundo: temp_superficie={float(_temp_sup):.1f}°C>35°C "
+                    f"con theta_10cm={float(_theta_10):.3f}<0.10 — estrés hídrico severo"
+                )
+            elif float(_temp_sup) > 40.0:
+                out["alertas"].append(
+                    f"calentamiento_extremo: temp_superficie={float(_temp_sup):.1f}°C>40°C"
+                )
+
+        # Índice de compactación ML
+        _cml = _soil.get("compactacion_index_ml")
+        if _cml is not None and float(_cml) > 70.0:
+            out["alertas"].append(
+                f"compactacion_ml_alta: índice={float(_cml):.0f}/100>70 — aireación necesaria"
+            )
+
+    # Divergencia termodinámica ET: ECOSTRESS vs Penman-Monteith
+    if _clim:
+        _et_eco = _clim.get("et_ecostress_mm")
+        _et0_pm = _clim.get("et0_mm_dia")
+        if _et_eco is not None and _et0_pm is not None and float(_et0_pm) > 0:
+            _diff_pct = abs(float(_et_eco) - float(_et0_pm)) / float(_et0_pm) * 100
+            if _diff_pct > 30:
+                out["alertas"].append(
+                    f"anomalia_termodinamica: ET_ECOSTRESS={float(_et_eco):.2f}mm vs "
+                    f"ET0_PM={float(_et0_pm):.2f}mm ({_diff_pct:.0f}%>30%)"
+                )
+
     out["confianza_consolidada"] = round(min(conf, 1.0), 3)
 
     log.info(

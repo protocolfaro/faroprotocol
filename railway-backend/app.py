@@ -869,6 +869,43 @@ def _daily_qa_check():
         log.error("=== Cron: QA watchdog FAILED: %s ===", exc)
 
 
+def _daily_enrichment():
+    """
+    Cron 09:15 UTC — Stack científico completo post-ciclo.
+    Corre después del refresh (09:00) y QA watchdog (09:05).
+    Cada módulo tiene fallback silencioso; ninguno puede romper el pipeline.
+    """
+    log.info("=== Cron: enrichment cycle starting ===")
+    _here = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "sports", "clients", "velez")
+    import sys as _sys
+    if _here not in _sys.path:
+        _sys.path.insert(0, _here)
+
+    modules = [
+        ("faro_sar_polimetria",  "run_polimetria",       {"venue_id": "amalfitani"}),
+        ("faro_ecostress",       "run_ecostress_cycle",  {"venue_id": "amalfitani"}),
+        ("faro_landsat_thermal", "run_landsat_cycle",    {"venue_id": "amalfitani"}),
+        ("faro_richards_profile","run_richards_profile", {"venue_id": "amalfitani"}),
+        ("faro_superres",        "run_superres_cycle",   {"venue_id": "amalfitani"}),
+        ("faro_compactacion_ml", "run_compactacion_cycle",{"venue_id": "amalfitani"}),
+    ]
+    results = {}
+    for mod_name, fn_name, kwargs in modules:
+        try:
+            import importlib
+            mod = importlib.import_module(mod_name)
+            fn  = getattr(mod, fn_name)
+            result = fn(**kwargs)
+            results[mod_name] = result
+            log.info("enrichment: %s.%s OK — %s", mod_name, fn_name, result)
+        except Exception as exc:
+            results[mod_name] = {"error": str(exc)}
+            log.warning("enrichment: %s (non-fatal): %s", mod_name, exc)
+    log.info("=== Cron: enrichment cycle done — %d módulos ===", len(modules))
+    return results
+
+
 def _weekly_insar_refresh():
     global _last_insar
     if not os.environ.get("NASA_EARTHDATA_USER") or not os.environ.get("NASA_EARTHDATA_PASS"):
@@ -966,6 +1003,13 @@ def _start_scheduler():
         _daily_qa_check,
         CronTrigger(hour=9, minute=5, timezone="UTC"),
         id="daily_qa_watchdog",
+        replace_existing=True,
+    )
+    # 06:15 ART = 09:15 UTC — enrichment científico post-ciclo
+    scheduler.add_job(
+        _daily_enrichment,
+        CronTrigger(hour=9, minute=15, timezone="UTC"),
+        id="daily_scientific_enrichment",
         replace_existing=True,
     )
     # Lunes 10:00 UTC = 07:00 ART
