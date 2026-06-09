@@ -716,10 +716,35 @@ def run_refresh() -> dict:
                     f'{_riego_min} min por sector'
                 )
             weather["_physics_acciones_roger"] = _phys_acc
+            weather["_ventana_corte"]   = _cp.get("status_window")
+            weather["_altura_corte_mm"] = _cp.get("prescribed_height_mm")
+            weather["_riego_min_final"] = _riego_min
             log.info("physics prescriptions: corte=%s sk=%.1f%% acciones=%d",
                      _cp["status_window"], _sk_pct, len(_phys_acc))
         except Exception as _pe:
             log.warning("faro_analytics_physics (non-fatal): %s", _pe)
+        # ─────────────────────────────────────────────────────────────────────
+        # ── climate_metrics: persistir ciclo diario en Supabase ──────────────
+        try:
+            import sys as _sys_cm, os as _os_cm
+            _here_cm = _os_cm.path.dirname(_os_cm.path.abspath(__file__))
+            _vs_path = _os_cm.path.join(_here_cm, "..", "..")
+            if _vs_path not in _sys_cm.path:
+                _sys_cm.path.insert(0, _vs_path)
+            from velez_supabase import insert_climate_metrics as _ins_cm
+            _ins_cm(
+                venue_id="amalfitani",
+                et0_mm_dia=weather.get("et0_mm_dia"),
+                deficit_hidrico_mm=weather.get("deficit_hidrico_mm"),
+                gdd_acumulado_7d=weather.get("gdd_acumulado_7d"),
+                smith_kerns_pct=weather.get("riesgo_dollar_spot_pct"),
+                riego_min=weather.get("_riego_min_final") or weather.get("riego_min_sector"),
+                ventana_corte=weather.get("_ventana_corte"),
+                altura_corte_mm=weather.get("_altura_corte_mm"),
+            )
+            log.info("climate_metrics: ciclo insertado para amalfitani")
+        except Exception as _cm_exc:
+            log.warning("climate_metrics write (non-fatal): %s", _cm_exc)
         # ─────────────────────────────────────────────────────────────────────
         commit_url = push_weather_update(weather)
         # Paperclip: monitor inteligente del venue — al final del ciclo diario

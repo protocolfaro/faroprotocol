@@ -54,6 +54,17 @@ Migration notes:
   );
   CREATE INDEX IF NOT EXISTS idx_veg_metrics_venue_ts ON vegetation_metrics (venue_id, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_veg_metrics_cancha_ts ON vegetation_metrics (cancha_id, created_at DESC);
+  CREATE TABLE IF NOT EXISTS climate_metrics (
+      id BIGSERIAL PRIMARY KEY,
+      venue_id TEXT NOT NULL,
+      fecha DATE,
+      et0_mm_dia NUMERIC, deficit_hidrico_mm NUMERIC,
+      gdd_acumulado_7d NUMERIC, smith_kerns_pct NUMERIC,
+      riego_min SMALLINT, ventana_corte TEXT, altura_corte_mm NUMERIC,
+      fuente TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+  );
+  CREATE INDEX IF NOT EXISTS idx_climate_metrics_venue_ts ON climate_metrics (venue_id, created_at DESC);
 """
 from __future__ import annotations
 import json, logging, os, time
@@ -503,4 +514,56 @@ def get_vegetation_metrics_latest(venue_id: str, cancha_id: str | None = None,
         log.warning("vegetation_metrics get HTTP %s", r.status_code)
     except Exception as exc:
         log.warning("vegetation_metrics get: %s", exc)
+    return []
+
+
+# ── climate_metrics ───────────────────────────────────────────────────────────
+
+def insert_climate_metrics(*, venue_id: str, fecha: str | None = None,
+                            et0_mm_dia: float | None = None,
+                            deficit_hidrico_mm: float | None = None,
+                            gdd_acumulado_7d: float | None = None,
+                            smith_kerns_pct: float | None = None,
+                            riego_min: int | None = None,
+                            ventana_corte: str | None = None,
+                            altura_corte_mm: float | None = None,
+                            fuente: str = "nasa+openmeteo") -> bool:
+    """INSERT one row into climate_metrics for a venue's daily climate cycle."""
+    if not _ok():
+        return False
+    from datetime import date as _date
+    row = {
+        "venue_id": venue_id,
+        "fecha": fecha or str(_date.today()),
+        "et0_mm_dia": et0_mm_dia, "deficit_hidrico_mm": deficit_hidrico_mm,
+        "gdd_acumulado_7d": gdd_acumulado_7d, "smith_kerns_pct": smith_kerns_pct,
+        "riego_min": riego_min, "ventana_corte": ventana_corte,
+        "altura_corte_mm": altura_corte_mm, "fuente": fuente,
+    }
+    url = f"{_base()}/rest/v1/climate_metrics"
+    try:
+        r = _req.post(url, headers=_hdrs(), data=json.dumps(row, default=str), timeout=8)
+        if r.status_code in (200, 201, 204):
+            return True
+        log.warning("climate_metrics insert HTTP %s: %s", r.status_code, r.text[:200])
+    except Exception as exc:
+        log.warning("climate_metrics insert: %s", exc)
+    return False
+
+
+def get_climate_metrics_latest(venue_id: str, dias: int = 30) -> list[dict]:
+    """Return most recent climate_metrics rows for a venue. Newest first."""
+    if not _ok():
+        return []
+    since = (datetime.now(timezone.utc) - timedelta(days=dias)).isoformat()
+    url = (f"{_base()}/rest/v1/climate_metrics"
+           f"?venue_id=eq.{venue_id}&created_at=gte.{since}"
+           f"&order=created_at.desc&limit=50")
+    try:
+        r = _req.get(url, headers=_hdrs(), timeout=8)
+        if r.status_code == 200:
+            return r.json()
+        log.warning("climate_metrics get HTTP %s", r.status_code)
+    except Exception as exc:
+        log.warning("climate_metrics get: %s", exc)
     return []
