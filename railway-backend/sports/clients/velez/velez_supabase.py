@@ -49,6 +49,9 @@ Migration notes:
       dias_antiguedad SMALLINT,
       ndvi NUMERIC, gndvi NUMERIC, evi2 NUMERIC, bsi NUMERIC, ndwi NUMERIC,
       confianza_pct SMALLINT,
+      ndvi_sintetico REAL,
+      margen_error_kalman REAL,
+      metodo_generacion TEXT DEFAULT 'SENTINEL_DIRECTO',
       fuente TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW()
   );
@@ -467,6 +470,9 @@ def insert_vegetation_metrics(*, venue_id: str, cancha_id: str | None = None,
                                ndvi: float | None = None, gndvi: float | None = None,
                                evi2: float | None = None, bsi: float | None = None,
                                ndwi: float | None = None, confianza_pct: int | None = None,
+                               ndvi_sintetico: float | None = None,
+                               margen_error_kalman: float | None = None,
+                               metodo_generacion: str = "SENTINEL_DIRECTO",
                                fuente: str = "") -> bool:
     """INSERT one row into vegetation_metrics. is_hibrido auto-derived from cancha_id."""
     if not _ok():
@@ -484,6 +490,9 @@ def insert_vegetation_metrics(*, venue_id: str, cancha_id: str | None = None,
         "fecha_imagen": fecha_imagen, "dias_antiguedad": dias_ant,
         "ndvi": ndvi, "gndvi": gndvi, "evi2": evi2, "bsi": bsi, "ndwi": ndwi,
         "confianza_pct": confianza_pct, "fuente": fuente,
+        "ndvi_sintetico": ndvi_sintetico,
+        "margen_error_kalman": margen_error_kalman,
+        "metodo_generacion": metodo_generacion,
     }
     url = f"{_base()}/rest/v1/vegetation_metrics"
     try:

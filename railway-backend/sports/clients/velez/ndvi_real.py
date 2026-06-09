@@ -639,5 +639,27 @@ def fetch_ndvi() -> Optional[dict]:
                 "prithvi_enriquecido": prithvi_ok,
             }
 
+    # ── Kalman gap-fill — si no hay imagen limpia disponible ─────────────
+    try:
+        import faro_kalman_gapfill as _kgf
+        _k_result = _kgf.gap_fill_today(venue_id="amalfitani")
+        if _k_result:
+            log.info("ndvi_real: Kalman gap-fill activado — margen=%.3f",
+                     list(_k_result["canchas"].values())[0].get("margen_error_kalman", 0))
+            return _k_result
+    except Exception as _ke:
+        log.warning("ndvi_real: kalman gap-fill (non-fatal): %s", _ke)
+
+    # ── CloudBreaker HF — segundo fallback SAR→S2 fusion ─────────────────
+    try:
+        import faro_cloudbreaker_hf as _cbhf
+        _cb_result = _cbhf.reconstruct(venue_id="amalfitani")
+        if _cb_result:
+            log.info("ndvi_real: CloudBreaker HF activado — %d canchas",
+                     len(_cb_result.get("canchas", {})))
+            return _cb_result
+    except Exception as _cbe:
+        log.warning("ndvi_real: cloudbreaker HF (non-fatal): %s", _cbe)
+
     log.warning("ndvi_real: ⚠️ ninguna fuente devolvió datos — NDVI anterior mantenido")
     return None

@@ -350,6 +350,7 @@ def run_satellite_cycle(ndvi_data: dict = None, force: bool = False) -> dict:
             _pc = _cd.get("prithvi_confidence")
             if _pc is not None:
                 _conf_pct = int(round(_pc * 100))
+            _metodo = _cd.get("metodo_generacion") or ndvi_data.get("metodo_generacion", "SENTINEL_DIRECTO")
             _vs_vm.insert_vegetation_metrics(
                 venue_id="amalfitani",
                 cancha_id=_cid,
@@ -360,6 +361,9 @@ def run_satellite_cycle(ndvi_data: dict = None, force: bool = False) -> dict:
                 bsi=_cd.get("bsi"),
                 ndwi=_cd.get("ndwi"),
                 confianza_pct=_conf_pct,
+                ndvi_sintetico=_cd.get("ndvi") if _metodo != "SENTINEL_DIRECTO" else None,
+                margen_error_kalman=_cd.get("margen_error_kalman"),
+                metodo_generacion=_metodo,
                 fuente=_fuente_vm,
             )
         log.info("satellite_pipeline: vegetation_metrics insertados (%d canchas)", len(ndvi_map))

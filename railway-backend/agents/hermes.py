@@ -369,23 +369,37 @@ def hermes_consolidate(venue_id: str, cancha_id: str | None = None) -> dict:
             soil_age = 99
         conf += 0.30 if soil_age < 7 else 0.15
 
-    # ── 2. vegetation_metrics (óptico) — ponderación temporal ────────────
+    # ── 2. vegetation_metrics (óptico) — ponderación por margen Kalman o antigüedad ──
     veg_rows = _vs.get_vegetation_metrics_latest(venue_id, cancha_id, dias=15)
     if veg_rows:
         _fields = ("ndvi", "gndvi", "evi2", "bsi", "ndwi")
         acc: dict[str, float] = {f: 0.0 for f in _fields}
         total_w = 0.0
         conf_sum, conf_n = 0.0, 0
+        _uses_kalman = False
         for row in veg_rows:
-            d = row.get("dias_antiguedad")
-            if d is None:
-                try:
-                    d = (date.today() - date.fromisoformat(str(row["fecha_imagen"]))).days
-                except Exception:
-                    d = 999
-            if d > 15:
-                continue
-            w = 1.0 if d < 7 else 0.4
+            margen = row.get("margen_error_kalman")
+            if margen is not None:
+                # Kalman disponible — reemplaza lógica de días
+                _uses_kalman = True
+                m = float(margen)
+                if m < 0.05:
+                    w = 1.0       # confianza 100%
+                elif m <= 0.15:
+                    w = 0.6       # confianza 60%
+                else:
+                    continue      # confianza 0% — excluir fila, activar física
+            else:
+                # Sin Kalman — lógica días de antigüedad original
+                d = row.get("dias_antiguedad")
+                if d is None:
+                    try:
+                        d = (date.today() - date.fromisoformat(str(row["fecha_imagen"]))).days
+                    except Exception:
+                        d = 999
+                if d > 15:
+                    continue
+                w = 1.0 if d < 7 else 0.4
             for f in _fields:
                 v = row.get(f)
                 if v is not None:
@@ -400,9 +414,13 @@ def hermes_consolidate(venue_id: str, cancha_id: str | None = None) -> dict:
             if conf_n > 0:
                 veg_out["confianza_pct"] = round(conf_sum / conf_n)
             veg_out["optical_weight"] = round(min(total_w / max(len(veg_rows), 1), 1.0), 2)
+            veg_out["usa_kalman"] = _uses_kalman
             out["vegetation"] = veg_out
-            out["fuentes_activas"].append("Óptico/S2")
+            out["fuentes_activas"].append("Kalman/LSTM" if _uses_kalman else "Óptico/S2")
             conf += 0.30 * veg_out["optical_weight"]
+        elif any(row.get("margen_error_kalman", 0) or 0 > 0.15 for row in veg_rows):
+            # Todas las filas con margen > 0.15 → activar física de suelos como señal
+            out["alertas"].append("kalman_incertidumbre_alta: margen>0.15 — usando física de suelos")
 
     # ── 3. climate_metrics ────────────────────────────────────────────────
     clim_rows = _vs.get_climate_metrics_latest(venue_id, dias=7)
