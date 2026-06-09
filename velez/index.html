@@ -504,6 +504,15 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
 .f3d-cut-detail{font-size:11px;color:var(--wdim);margin-top:3px;line-height:1.5}
 .f3d-photo-btn{display:block;width:100%;margin-top:8px;padding:9px;background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.25);border-radius:8px;color:var(--gold);font-size:12px;font-weight:600;cursor:pointer;text-align:center;-webkit-tap-highlight-color:transparent}
 .f3d-photo-result{font-size:11px;padding:6px 0;line-height:1.5}
+/* ── Faro Data Lake cards ── */
+#datalake-section{border-top:1px solid rgba(201,168,76,.12)}
+.dl-card{background:rgba(255,255,255,.04);border:1px solid rgba(201,168,76,.15);border-radius:8px;padding:12px 14px;margin:8px 12px}
+.dl-card-title{font-size:10px;font-weight:700;letter-spacing:.10em;text-transform:uppercase;color:var(--gold);margin-bottom:8px}
+.dl-row{display:flex;justify-content:space-between;align-items:baseline;padding:2px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.dl-row:last-child{border-bottom:none}
+.dl-label{font-size:12px;color:var(--wdim);flex-shrink:0;margin-right:8px}
+.dl-val{font-size:13px;color:#e8e0d4;text-align:right}
+.dl-age{margin-top:4px;font-size:11px;color:var(--wdim);justify-content:flex-end}
 </style>
 </head>
 <body>
@@ -608,6 +617,14 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
   <div id="smart-recs-section" style="display:none">
     <div class="section-title">Qué Hacer esta Semana</div>
     <div id="smart-recs-content"></div>
+  </div>
+
+  <!-- Faro Data Lake — canchero/roger only -->
+  <div id="datalake-section" style="display:none">
+    <div class="section-title">Estado Real del Campo
+      <span style="font-size:9px;font-weight:400;color:var(--wdim);text-transform:none;margin-left:6px;letter-spacing:0">datos en vivo · Supabase</span>
+    </div>
+    <div id="datalake-content"><div class="weather-loading">Cargando datos del campo…</div></div>
   </div>
 
   <!-- Sector cards — generic + intendente -->
@@ -746,6 +763,9 @@ var _cbTs       = Math.floor(Date.now()/60000);  // 1-minute cache granularity
 var DATA_URL    = './velez_data.json?t=' + _cbTs;
 var CONFIG_URL  = './config_velez.json?t=' + _cbTs;
 var RAILWAY_URL = 'https://faroprotocol-production-45fd.up.railway.app';
+var _SB_URL     = 'https://xljxpzudgwhbzcnrvylo.supabase.co';
+var _SB_KEY     = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhsanhwenVkZ3doYnpjbnJ2eWxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwNzY2MjUsImV4cCI6MjA5NTY1MjYyNX0.csDdTYzbcalxKJ1LABVSxuCQ-Wbu8vw9kLs-U3MS8ug';
+var _SB_VENUE   = 'amalfitani';
 var _pinValue   = '1234';
 var WEATHER_URL = 'https://api.open-meteo.com/v1/forecast?latitude=-34.6375&longitude=-58.5215' +
   '&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,wind_speed_10m_max' +
@@ -2948,6 +2968,7 @@ function render(data, cfg){
     buildDisclaimer('disclaimer-recs');
     buildTaskCalendar(u.tareas_semana);
     buildInterventionLog(); // Feature 2 — log con NDVI
+    fetchDataLake();        // Data Lake: 4 tablas Supabase en tiempo real
     buildMiCampo(u, data, cfg);
     if(typeof window.buildFaro3D === 'function') window.buildFaro3D();
     document.getElementById('sectors-wrapper').style.display='none';
@@ -2980,6 +3001,218 @@ function render(data, cfg){
     buildActions(u.acciones);
     show('content');
   }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   FARO DATA LAKE — fetch directo a las 4 tablas Supabase
+   Módulos visibles según confianza calculada desde antigüedad de datos.
+   velez_data.json queda como config estática (layout, nombres, umbrales).
+   ══════════════════════════════════════════════════════════════════════════ */
+
+function _sbHdrs(){ return {apikey:_SB_KEY,'Authorization':'Bearer '+_SB_KEY}; }
+
+function _sbFetch(table, qs){
+  return fetch(_SB_URL+'/rest/v1/'+table+'?'+qs, {headers:_sbHdrs()})
+    .then(function(r){ return r.ok ? r.json() : []; })
+    .catch(function(){ return []; });
+}
+
+function _dlDaysAgo(isoStr){
+  if(!isoStr) return 999;
+  try{
+    return Math.floor((Date.now() - new Date(isoStr).getTime()) / 86400000);
+  } catch(e){ return 999; }
+}
+
+function _dlOptWeight(dias){
+  if(dias < 7)  return 1.0;
+  if(dias <= 15) return 0.4;
+  return 0;
+}
+
+function _dlTurcaCorrection(thetaSar, et0Acc){
+  // 1 mm ET0 sobre zona radicular 300 mm ≈ 0.00333 m³/m³ depleción
+  return Math.max(0.046, thetaSar - et0Acc / 300.0);
+}
+
+function buildDataLake(soil, veg, clim, intervs, conf){
+  var el = document.getElementById('datalake-content');
+  if(!el) return;
+
+  var cards = '';
+
+  /* ── MÓDULO SUELO (SAR) ── conf umbral 0.25 */
+  if(soil && conf >= 0.25){
+    var tSar   = parseFloat(soil.theta_soil||0);
+    var hSuc   = parseFloat(soil.h_suction_cm||0);
+    var vv     = parseFloat(soil.sar_vv_db||0);
+    var dAge   = _dlDaysAgo(soil.fecha_imagen || soil.created_at);
+    var tColor = tSar > 0.25 ? '#4cad72' : (tSar > 0.15 ? '#e0b84c' : '#e05252');
+    var hLabel = hSuc < 100 ? 'húmedo' : (hSuc < 300 ? 'óptimo' : (hSuc < 800 ? 'estrés moderado' : 'estrés severo'));
+
+    // corrección turca si hay datos de clima
+    var thetaHoy = tSar;
+    var et0AccStr = '';
+    if(clim && clim.et0_mm_dia){
+      var et0Acc = parseFloat(clim.et0_mm_dia) * Math.max(0, dAge);
+      thetaHoy = _dlTurcaCorrection(tSar, et0Acc);
+      et0AccStr = ' · ET₀ acum. '+et0Acc.toFixed(1)+' mm';
+      tColor = thetaHoy > 0.25 ? '#4cad72' : (thetaHoy > 0.15 ? '#e0b84c' : '#e05252');
+    }
+
+    cards += '<div class="dl-card">'
+      + '<div class="dl-card-title">💧 Suelo · SAR Sentinel-1</div>'
+      + '<div class="dl-row"><span class="dl-label">θ SAR</span><span class="dl-val">'+tSar.toFixed(3)+' m³/m³</span></div>'
+      + (thetaHoy !== tSar ? '<div class="dl-row"><span class="dl-label">θ hoy (corregida)</span>'
+          +'<span class="dl-val" style="color:'+tColor+'"><b>'+thetaHoy.toFixed(3)+'</b> m³/m³'+et0AccStr+'</span></div>' : '')
+      + '<div class="dl-row"><span class="dl-label">Tensión</span><span class="dl-val">'+hSuc.toFixed(0)+' cm ('+hLabel+')</span></div>'
+      + '<div class="dl-row"><span class="dl-label">SAR VV</span><span class="dl-val">'+vv.toFixed(1)+' dB · '+(soil.fuente||'—')+'</span></div>'
+      + '<div class="dl-row dl-age"><span>Imagen: '+(soil.fecha_imagen||'—')+' ('+dAge+'d)</span></div>'
+      + '</div>';
+  }
+
+  /* ── MÓDULO VEGETACIÓN (óptico, ponderado) ── conf umbral 0.30 */
+  if(veg && veg._ndvi !== undefined && conf >= 0.30){
+    var ndviv  = veg._ndvi, evi2v = veg._evi2, bsiv = veg._bsi, ndwiv = veg._ndwi;
+    var gndviv = veg._gndvi;
+    var nColor = ndviv > 0.55 ? '#4cad72' : (ndviv > 0.35 ? '#e0b84c' : '#e05252');
+    var bsiTag = bsiv !== undefined ? (bsiv > 0.3 ? ' <b style="color:#e05252">⚠ compactación</b>' : '') : '';
+    cards += '<div class="dl-card">'
+      + '<div class="dl-card-title">🌿 Vegetación · Sentinel-2 óptico</div>'
+      + '<div class="dl-row"><span class="dl-label">NDVI (pond.)</span><span class="dl-val" style="color:'+nColor+'"><b>'+ndviv.toFixed(3)+'</b></span></div>'
+      + (gndviv !== undefined ? '<div class="dl-row"><span class="dl-label">GNDVI</span><span class="dl-val">'+gndviv.toFixed(3)+'</span></div>' : '')
+      + (evi2v  !== undefined ? '<div class="dl-row"><span class="dl-label">EVI2</span><span class="dl-val">'+evi2v.toFixed(3)+'</span></div>' : '')
+      + (bsiv   !== undefined ? '<div class="dl-row"><span class="dl-label">BSI</span><span class="dl-val">'+bsiv.toFixed(3)+bsiTag+'</span></div>' : '')
+      + (ndwiv  !== undefined ? '<div class="dl-row"><span class="dl-label">NDWI</span><span class="dl-val">'+ndwiv.toFixed(3)+'</span></div>' : '')
+      + '<div class="dl-row dl-age"><span>Peso óptico: '+(veg._weight*100).toFixed(0)+'% · '+veg._fuente+'</span></div>'
+      + '</div>';
+  }
+
+  /* ── MÓDULO CLIMA (climate_metrics) ── conf umbral 0.20 */
+  if(clim && conf >= 0.20){
+    var et0v = parseFloat(clim.et0_mm_dia||0);
+    var defv = parseFloat(clim.deficit_hidrico_mm||0);
+    var skv  = parseFloat(clim.smith_kerns_pct||0);
+    var rmin = parseInt(clim.riego_min||0, 10);
+    var vent = clim.ventana_corte||'—';
+    var altv = clim.altura_corte_mm;
+    var defC = defv > 8 ? '#e05252' : (defv > 3 ? '#e0b84c' : '#4cad72');
+    var skC  = skv >= 40 ? '#e05252' : (skv >= 20 ? '#e0b84c' : '#4cad72');
+    var clAge= _dlDaysAgo(clim.fecha||clim.created_at);
+    cards += '<div class="dl-card">'
+      + '<div class="dl-card-title">☁️ Clima · NASA POWER + Van Genuchten</div>'
+      + '<div class="dl-row"><span class="dl-label">ET₀</span><span class="dl-val">'+et0v.toFixed(2)+' mm/día</span></div>'
+      + '<div class="dl-row"><span class="dl-label">Déficit hídrico</span><span class="dl-val" style="color:'+defC+'"><b>'+defv.toFixed(1)+' mm</b>'+(rmin>0?' → riego '+rmin+' min':'')+'</span></div>'
+      + '<div class="dl-row"><span class="dl-label">Dollar Spot (SK)</span><span class="dl-val" style="color:'+skC+'"><b>'+skv.toFixed(1)+'%</b>'+(skv>=40?' ⚠ FUNGICIDA':(skv>=20?' ⚠ monitorear':''))+'</span></div>'
+      + '<div class="dl-row"><span class="dl-label">Corte</span><span class="dl-val">'+vent+(altv?' · '+altv+' mm':'')+'</span></div>'
+      + '<div class="dl-row dl-age"><span>Actualizado hace '+clAge+'d</span></div>'
+      + '</div>';
+  }
+
+  /* ── MÓDULO INTERVENCIONES 48h ── siempre visible */
+  var intHtml = '';
+  if(intervs && intervs.length){
+    var rows = intervs.slice(0,5).map(function(iv){
+      var ts  = (iv.created_at||'').slice(0,10);
+      var tip = iv.tipo||'?';
+      var det = iv.detalle ? ' — '+iv.detalle : '';
+      var hu  = iv.horas_uso != null ? ' '+iv.horas_uso+'h' : '';
+      return '<li style="font-size:13px;line-height:1.7"><b>'+ts+'</b> · '+tip+hu+det+'</li>';
+    }).join('');
+    intHtml = '<ul style="margin:4px 0 0;padding-left:18px">'+rows+'</ul>';
+  } else {
+    intHtml = '<p style="font-size:13px;color:var(--wdim);margin:4px 0 0">Sin intervenciones en las últimas 48h.</p>';
+  }
+  cards += '<div class="dl-card">'
+    + '<div class="dl-card-title">📋 Intervenciones Recientes (48h)</div>'
+    + intHtml
+    + '</div>';
+
+  /* ── BADGE CONFIANZA ── */
+  var confColor = conf >= 0.7 ? '#4cad72' : (conf >= 0.4 ? '#e0b84c' : '#e05252');
+  var confLabel = conf >= 0.7 ? 'Alta' : (conf >= 0.4 ? 'Media' : 'Baja');
+  var fuentes = [];
+  if(soil)   fuentes.push('SAR');
+  if(veg && veg._ndvi !== undefined) fuentes.push('S2');
+  if(clim)   fuentes.push('Clima');
+  cards += '<div style="font-size:11px;color:var(--wdim);text-align:right;margin-top:4px">'
+    + 'Confianza Hermes: <span style="color:'+confColor+'"><b>'+confLabel+' ('+Math.round(conf*100)+'%)</b></span>'
+    + (fuentes.length ? ' · Fuentes: '+fuentes.join(', ') : '')
+    + '</div>';
+
+  if(!cards){ el.innerHTML='<p style="font-size:13px;color:var(--wdim)">Sin datos disponibles en Supabase.</p>'; return; }
+  el.innerHTML = cards;
+}
+
+function fetchDataLake(){
+  var sec = document.getElementById('datalake-section');
+  if(!sec) return;
+  sec.style.display = 'block';
+
+  var today = new Date().toISOString().slice(0,10);
+  var since15 = new Date(Date.now()-15*86400000).toISOString();
+  var since2  = new Date(Date.now()-2*86400000).toISOString();
+
+  Promise.all([
+    _sbFetch('soil_metrics',
+      'venue_id=eq.'+_SB_VENUE+'&order=created_at.desc&limit=1'),
+    _sbFetch('vegetation_metrics',
+      'venue_id=eq.'+_SB_VENUE+'&created_at=gte.'+since15+'&order=created_at.desc&limit=50'),
+    _sbFetch('climate_metrics',
+      'venue_id=eq.'+_SB_VENUE+'&order=created_at.desc&limit=7'),
+    _sbFetch('velez_intervenciones',
+      'created_at=gte.'+since2+'&order=created_at.desc&limit=10'),
+  ]).then(function(res){
+    var soilRows=res[0], vegRows=res[1], climRows=res[2], intRows=res[3];
+    var soil  = (soilRows && soilRows.length)  ? soilRows[0]  : null;
+    var clim  = (climRows && climRows.length)  ? climRows[0]  : null;
+    var intervs = Array.isArray(intRows) ? intRows : [];
+
+    /* temporal weighting of optical data */
+    var veg = null;
+    if(vegRows && vegRows.length){
+      var acc={ndvi:0,gndvi:0,evi2:0,bsi:0,ndwi:0}, totW=0, fuenteSet=false, fuSrc='';
+      vegRows.forEach(function(row){
+        var d = row.dias_antiguedad != null ? row.dias_antiguedad
+              : _dlDaysAgo(row.fecha_imagen||row.created_at);
+        var w = _dlOptWeight(d);
+        if(w <= 0) return;
+        ['ndvi','gndvi','evi2','bsi','ndwi'].forEach(function(f){
+          if(row[f] != null) acc[f] += parseFloat(row[f]) * w;
+        });
+        totW += w;
+        if(!fuenteSet && row.fuente){ fuSrc = row.fuente; fuenteSet = true; }
+      });
+      if(totW > 0){
+        var nCnt = vegRows.filter(function(r){
+          var d=r.dias_antiguedad!=null?r.dias_antiguedad:_dlDaysAgo(r.fecha_imagen||r.created_at);
+          return _dlOptWeight(d) > 0;
+        }).length;
+        veg = {_weight: Math.min(totW/Math.max(nCnt,1),1.0), _fuente: fuSrc||'S2'};
+        ['ndvi','gndvi','evi2','bsi','ndwi'].forEach(function(f){
+          if(acc[f] !== 0) veg['_'+f] = Math.round(acc[f]/totW*1000)/1000;
+        });
+      }
+    }
+
+    /* confidence score (mirrors hermes_consolidate logic) */
+    var conf = 0.10;
+    if(soil){
+      var sAge = _dlDaysAgo(soil.fecha_imagen||soil.created_at);
+      conf += sAge < 7 ? 0.30 : 0.15;
+    }
+    if(veg && veg._weight > 0) conf += 0.30 * veg._weight;
+    if(clim){
+      var cAge = _dlDaysAgo(clim.fecha||clim.created_at);
+      conf += cAge < 2 ? 0.20 : 0.10;
+    }
+    conf = Math.min(conf, 1.0);
+
+    buildDataLake(soil, veg, clim, intervs, conf);
+  }).catch(function(){
+    var el=document.getElementById('datalake-content');
+    if(el) el.innerHTML='<p style="font-size:13px;color:var(--wdim)">Error al cargar datos del campo.</p>';
+  });
 }
 
 function init(){
