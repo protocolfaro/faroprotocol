@@ -18,7 +18,8 @@ from __future__ import annotations
 import json
 import logging
 import os
-from datetime import datetime, timezone
+import sys
+from datetime import date, datetime, timedelta, timezone
 
 log = logging.getLogger(__name__)
 
@@ -305,3 +306,191 @@ def _log_flag(area_name: str, digest: str, mes: int, result: dict) -> None:
             )
     except Exception as exc:
         log.warning("hermes: no se pudo guardar flag: %s", exc)
+
+
+# ── hermes_consolidate ────────────────────────────────────────────────────────
+
+def hermes_consolidate(venue_id: str, cancha_id: str | None = None) -> dict:
+    """
+    Lee las 4 tablas del data lake y consolida una vista agronómica unificada.
+
+    Ponderación temporal óptica:
+      dias_antiguedad < 7   → peso 1.0
+      7 ≤ dias ≤ 15         → peso 0.4
+      dias > 15             → excluido
+
+    Corrección turca (soil moisture drift):
+      humedad_hoy = theta_soil - ET0_acumulada_desde_SAR / root_zone_mm
+      root_zone = 300 mm (césped)
+
+    Returns dict: soil, vegetation, climate, intervenciones_48h,
+                  humedad_estimada, confianza_consolidada, fuentes_activas, alertas
+    """
+    _ts = datetime.now(timezone.utc).isoformat()
+    out: dict = {
+        "venue_id":              venue_id,
+        "cancha_id":             cancha_id,
+        "soil":                  None,
+        "vegetation":            None,
+        "climate":               None,
+        "intervenciones_48h":    [],
+        "humedad_estimada":      None,
+        "confianza_consolidada": 0.10,
+        "fuentes_activas":       [],
+        "alertas":               [],
+        "ts":                    _ts,
+    }
+
+    # ── import velez_supabase ─────────────────────────────────────────────
+    try:
+        _here = os.path.dirname(os.path.abspath(__file__))
+        _vs_path = os.path.join(_here, "..", "sports", "clients", "velez")
+        if _vs_path not in sys.path:
+            sys.path.insert(0, _vs_path)
+        import velez_supabase as _vs
+        if not _vs._ok():
+            log.warning("hermes_consolidate: Supabase no disponible — retornando vacío")
+            return out
+    except Exception as _imp:
+        log.warning("hermes_consolidate: import error: %s", _imp)
+        return out
+
+    conf = 0.10
+
+    # ── 1. soil_metrics (SAR) ─────────────────────────────────────────────
+    soil_rows = _vs.get_soil_metrics_latest(venue_id, cancha_id, dias=14)
+    if soil_rows:
+        soil = soil_rows[0]
+        out["soil"] = soil
+        out["fuentes_activas"].append("SAR")
+        try:
+            soil_age = (date.today() - date.fromisoformat(str(soil["fecha_imagen"]))).days
+        except Exception:
+            soil_age = 99
+        conf += 0.30 if soil_age < 7 else 0.15
+
+    # ── 2. vegetation_metrics (óptico) — ponderación temporal ────────────
+    veg_rows = _vs.get_vegetation_metrics_latest(venue_id, cancha_id, dias=15)
+    if veg_rows:
+        _fields = ("ndvi", "gndvi", "evi2", "bsi", "ndwi")
+        acc: dict[str, float] = {f: 0.0 for f in _fields}
+        total_w = 0.0
+        conf_sum, conf_n = 0.0, 0
+        for row in veg_rows:
+            d = row.get("dias_antiguedad")
+            if d is None:
+                try:
+                    d = (date.today() - date.fromisoformat(str(row["fecha_imagen"]))).days
+                except Exception:
+                    d = 999
+            if d > 15:
+                continue
+            w = 1.0 if d < 7 else 0.4
+            for f in _fields:
+                v = row.get(f)
+                if v is not None:
+                    acc[f] += float(v) * w
+            total_w += w
+            cp = row.get("confianza_pct")
+            if cp is not None:
+                conf_sum += float(cp)
+                conf_n += 1
+        if total_w > 0:
+            veg_out = {f: round(acc[f] / total_w, 3) for f in _fields if acc[f] != 0.0}
+            if conf_n > 0:
+                veg_out["confianza_pct"] = round(conf_sum / conf_n)
+            veg_out["optical_weight"] = round(min(total_w / max(len(veg_rows), 1), 1.0), 2)
+            out["vegetation"] = veg_out
+            out["fuentes_activas"].append("Óptico/S2")
+            conf += 0.30 * veg_out["optical_weight"]
+
+    # ── 3. climate_metrics ────────────────────────────────────────────────
+    clim_rows = _vs.get_climate_metrics_latest(venue_id, dias=7)
+    if clim_rows:
+        out["climate"] = clim_rows[0]
+        out["fuentes_activas"].append("Clima/NASA")
+        try:
+            clim_age = (
+                date.today()
+                - date.fromisoformat(str(clim_rows[0].get("fecha") or
+                                        clim_rows[0].get("created_at", ""))[:10])
+            ).days
+            conf += 0.20 if clim_age < 2 else 0.10
+        except Exception:
+            conf += 0.10
+
+    # ── 4. intervenciones 48h ─────────────────────────────────────────────
+    try:
+        _cid_int = cancha_id or venue_id
+        int_rows = _vs.get_intervenciones_recientes(_cid_int, dias=2)
+        out["intervenciones_48h"] = int_rows
+        if int_rows:
+            out["fuentes_activas"].append("Intervenciones")
+    except Exception as _ie:
+        log.debug("hermes_consolidate: intervenciones (non-fatal): %s", _ie)
+
+    # ── 5. Corrección turca — theta ajustado por ET0 acumulada ───────────
+    _soil = out["soil"]
+    if _soil and _soil.get("theta_soil") is not None:
+        theta = float(_soil["theta_soil"])
+        humedad = theta
+        if clim_rows and _soil.get("fecha_imagen"):
+            try:
+                sar_date = date.fromisoformat(str(_soil["fecha_imagen"]))
+                et0_acc = 0.0
+                for cr in clim_rows:
+                    cr_date_str = str(cr.get("fecha") or cr.get("created_at", ""))[:10]
+                    cr_date = date.fromisoformat(cr_date_str)
+                    if cr_date >= sar_date:
+                        et0_acc += float(cr.get("et0_mm_dia") or 0.0)
+                # 1 mm ET0 over 300 mm root zone → 0.00333 m³/m³ depletion
+                depletion = et0_acc / 300.0
+                humedad = max(0.046, round(theta - depletion, 4))
+                out["_et0_acumulada_mm"] = round(et0_acc, 1)
+                out["_theta_sar"] = theta
+            except Exception as _te:
+                log.debug("hermes_consolidate: corrección turca: %s", _te)
+        out["humedad_estimada"] = humedad
+
+    # ── 6. Alertas automáticas ────────────────────────────────────────────
+    _hum = out["humedad_estimada"]
+    if _hum is not None and _hum < 0.15:
+        out["alertas"].append(f"riesgo_sequia: humedad_estimada {_hum:.3f} m³/m³ < 0.15")
+
+    _clim = out["climate"] or {}
+    _sk = _clim.get("smith_kerns_pct")
+    if _sk is not None and float(_sk) > 50.0:
+        out["alertas"].append(f"riesgo_dollar_spot: Smith-Kerns {float(_sk):.1f}%")
+
+    _veg = out["vegetation"] or {}
+    _ndvi = _veg.get("ndvi")
+    if _ndvi is not None:
+        _mes = datetime.now().month
+        if _mes in (6, 7, 8) and _ndvi > 0.60:
+            out["alertas"].append(
+                f"ndvi_invierno_alto: NDVI {_ndvi:.3f} > 0.60 en invierno austral"
+            )
+        if _mes in (12, 1, 2) and _ndvi < 0.25:
+            out["alertas"].append(
+                f"ndvi_verano_bajo: NDVI {_ndvi:.3f} < 0.25 en verano"
+            )
+
+    # Compactación: BSI alto sin aireación en 14d
+    if _veg.get("bsi") is not None and float(_veg["bsi"]) > 0.30:
+        try:
+            _all_int = _vs.get_intervenciones_recientes(cancha_id or venue_id, dias=14)
+            if "aireacion" not in {iv.get("tipo") for iv in _all_int}:
+                out["alertas"].append(
+                    f"compactacion: BSI {_veg['bsi']:.3f} > 0.30 sin aireación en 14d"
+                )
+        except Exception:
+            pass
+
+    out["confianza_consolidada"] = round(min(conf, 1.0), 3)
+
+    log.info(
+        "hermes_consolidate [%s/%s] conf=%.2f fuentes=%s alertas=%d",
+        venue_id, cancha_id, out["confianza_consolidada"],
+        out["fuentes_activas"], len(out["alertas"]),
+    )
+    return out
