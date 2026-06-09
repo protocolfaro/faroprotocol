@@ -5,7 +5,7 @@ no `schedule` library (uses APScheduler from app.py).
 
 Config is fetched from GitHub raw URL so it works in stateless Railway containers.
 """
-import base64, json, logging, math, os, smtplib, threading
+import base64, json, logging, math, os, smtplib, subprocess, sys, tempfile, threading
 from datetime import datetime, date, timezone, timedelta
 from pathlib import Path
 
@@ -74,62 +74,22 @@ def load_config() -> dict:
 
 
 def _get_velez_data() -> dict:
-    """Load velez_data.json (local / GitHub), then overlay live Supabase data on top."""
-    local = Path(__file__).parents[4] / "velez" / "velez_data.json"
-    vd: dict = {}
-    if local.exists():
-        try:
-            vd = json.loads(local.read_text(encoding="utf-8"))
-        except Exception as e:
-            log.warning("_get_velez_data local: %s", e)
-    if not vd:
-        try:
-            req = UReq(_VD_RAW_URL, headers={"User-Agent": "FaroProtocol/4.0"})
-            with urlopen(req, timeout=10) as r:
-                vd = json.loads(r.read())
-        except Exception as e:
-            log.warning("_get_velez_data remote: %s", e)
-    # Overlay live data from Supabase on top of static GitHub JSON
+    """Delega a faro_assembler.assemble_report() — fuente única de verdad."""
     try:
-        import velez_supabase as _vs
-        overlay = _vs.get_live_overlay()
-        if overlay:
-            if overlay.get("weather_live"):
-                vd["weather_live"] = overlay["weather_live"]
-            for sid, s in overlay.get("sectores", {}).items():
-                vd.setdefault("sectores", {}).setdefault(sid, {}).update(
-                    {k: v for k, v in s.items() if k not in ("sector_id", "updated_at")})
-            canchas_ov = overlay.get("canchas", {})
-            if canchas_ov:
-                # Update individual cancha entries in sectores.canchero.canchas list
-                for entry in vd.get("sectores", {}).get("canchero", {}).get("canchas", []):
-                    cid = entry.get("id", "")
-                    if cid in canchas_ov:
-                        cd = canchas_ov[cid]
-                        for field in ("ndvi", "gndvi", "bsi", "ndwi", "score", "sem",
-                                      "detalle", "n_status", "n_rec", "tipo_cesped"):
-                            if cd.get(field) is not None:
-                                entry[field] = cd[field]
-                # Update weather_live.gndvi_por_cancha.canchas
-                gn_c = (vd.setdefault("weather_live", {})
-                          .setdefault("gndvi_por_cancha", {})
-                          .setdefault("canchas", {}))
-                for cid, cd in canchas_ov.items():
-                    gn_c.setdefault(cid, {}).update(
-                        {k: v for k, v in cd.items()
-                         if k not in ("cancha_id", "updated_at", "fuente")})
-                # Update usuarios.roger.heatmaps for spectral fields used in email body
-                roger_hm = (vd.setdefault("usuarios", {})
-                              .setdefault("roger", {})
-                              .setdefault("heatmaps", {}))
-                for cid, cd in canchas_ov.items():
-                    roger_hm.setdefault(cid, {}).update(
-                        {k: v for k, v in cd.items()
-                         if k in ("ndvi", "gndvi", "bsi", "ndwi", "n_status", "n_rec", "tipo_cesped")
-                         and cd.get(k) is not None})
-    except Exception as _oe:
-        log.debug("Supabase overlay (non-fatal): %s", _oe)
-    return vd
+        _here = os.path.dirname(os.path.abspath(__file__))
+        if _here not in sys.path:
+            sys.path.insert(0, _here)
+        from faro_assembler import assemble_report
+        return assemble_report("amalfitani")
+    except Exception as _ae:
+        log.warning("_get_velez_data assembler (non-fatal): %s — fallback JSON estático", _ae)
+        local = Path(__file__).parents[4] / "velez" / "velez_data.json"
+        if local.exists():
+            try:
+                return json.loads(local.read_text(encoding="utf-8"))
+            except Exception as _le:
+                log.warning("_get_velez_data JSON local: %s", _le)
+        return {}
 
 
 def _get_sectores() -> dict:
@@ -568,7 +528,122 @@ def _fetch_aspersores_summary(railway_url: str, pin: str = "") -> str:
     return '<p style="font-size:13px;color:#9aa0a8">Sin datos de aspersores sincronizados — actualizá desde el panel web.</p>'
 
 
-# ── Email bodies — leen datos reales de velez_data.json ───────────────────────
+# ── Helpers de rendering — leen del dict canónico, sin imports de datos ──────
+
+def _render_hermes_banners(hc: dict, wl: dict, month: int) -> str:
+    """Banners HTML con alertas de hermes: humedad invernal, Smith-Kerns, compactación."""
+    parts = []
+    # Banner invernal con corrección turca (mayo–septiembre)
+    hum_est = hc.get("humedad_estimada")
+    hc_conf = hc.get("confianza_consolidada", 0)
+    if hum_est is not None and hc_conf >= 0.30 and month in (5, 6, 7, 8, 9):
+        hum_col = "#27ae60" if hum_est > 0.25 else ("#f0b429" if hum_est > 0.15 else "#e74c3c")
+        et0_acc = hc.get("_et0_acumulada_mm", "—")
+        th_sar  = hc.get("_theta_sar", "—")
+        fuentes = " · ".join(hc.get("fuentes_activas", []) or ["—"])
+        parts.append(
+            f'<div style="background:rgba(201,168,76,.12);border-left:4px solid #c9a84c;'
+            f'padding:10px 14px;margin-bottom:16px;border-radius:0 6px 6px 0">'
+            f'<b style="color:#c9a84c">Humedad de suelo estimada (SAR + corrección ET₀)</b><br>'
+            f'<span style="font-size:14px">θ SAR: <b>{th_sar} m³/m³</b> · '
+            f'ET₀ acum.: <b>{et0_acc} mm</b> → '
+            f'θ hoy: <b style="color:{hum_col}">{hum_est:.3f} m³/m³</b></span><br>'
+            f'<span style="font-size:12px;color:#9aa0a8">Fuentes: {fuentes} · '
+            f'Confianza Hermes: {int(hc_conf*100)}%</span></div>'
+        )
+    # Alerta Smith-Kerns (Dollar Spot)
+    clim = hc.get("climate") or {}
+    sk   = clim.get("smith_kerns_pct") or wl.get("smith_kerns_pct")
+    if sk is not None and float(sk) >= 20.0:
+        sk_col = "#f0b429" if float(sk) < 40 else "#e74c3c"
+        sk_act = ('<b> → APLICAR FUNGICIDA preventivo</b>' if float(sk) >= 40
+                  else ' → monitorear manchas esta semana')
+        parts.append(
+            f'<div style="background:rgba(231,76,60,.12);border-left:4px solid {sk_col};'
+            f'padding:10px 14px;margin-bottom:16px;border-radius:0 6px 6px 0">'
+            f'<b style="color:{sk_col}">Dollar Spot (Smith-Kerns MSU): {float(sk):.1f}%</b>'
+            f'{sk_act}<br><span style="font-size:12px;color:#9aa0a8">'
+            f'Modelo validado NASA/MSU · ventana 5 días reales</span></div>'
+        )
+    # Alerta compactación mecánica (BSI satelital)
+    comp = next((a for a in hc.get("alertas", []) if a.startswith("compactacion")), None)
+    if comp:
+        bsi_val = ""
+        try:
+            bsi_val = comp.split("BSI ")[1].split(" ")[0]
+        except Exception:
+            pass
+        parts.append(
+            f'<div style="background:rgba(231,76,60,.12);border-left:4px solid #e74c3c;'
+            f'padding:10px 14px;margin-bottom:16px;border-radius:0 6px 6px 0">'
+            f'<b style="color:#e74c3c">Compactación detectada por satélite'
+            f'{"  — BSI " + bsi_val if bsi_val else ""}</b>'
+            f' → Programar aireación mecánica<br>'
+            f'<span style="font-size:12px;color:#9aa0a8">'
+            f'BSI (Bare Soil Index) elevado · Sentinel-2 SWIR/NIR</span></div>'
+        )
+    return "".join(parts)
+
+
+def _render_weather_block(wl: dict) -> str:
+    """HTML con ET₀, déficit hídrico y GDD desde weather_live."""
+    if not wl:
+        return ""
+    et0  = wl.get("et0_mm_dia", 0)
+    deff = wl.get("deficit_hidrico_mm", 0)
+    rmin = wl.get("riego_min_sector", 0)
+    hrio = wl.get("hora_riego_optima", "06:00")
+    gdd  = wl.get("gdd_acumulado_7d", 0)
+    dias = wl.get("dias_proximo_corte", 7)
+    hcor = wl.get("hora_corte_optima", "07:00")
+    rc   = "#27ae60" if deff <= 3 else ("#f0b429" if deff <= 8 else "#e74c3c")
+    rieg = f' → riego {rmin} min/sector a las {hrio}' if deff > 3 else ' → sin déficit hídrico'
+    items = [
+        f'<li>ET₀: <b>{et0} mm/día</b> · Déficit: <b style="color:{rc}">{deff} mm</b>{rieg}</li>',
+        f'<li>GDD acumulados (7d): <b>{gdd}</b> · Próximo corte: <b>{dias} días</b> · ventana: {hcor}</li>',
+    ]
+    return ('<h3 style="color:#c9a84c">Clima y Prescripciones — Datos Actuales</h3>'
+            '<ul style="font-size:14px;line-height:1.8">' + "".join(items) + '</ul>')
+
+
+def _render_cancha_sections(canchas: list, hm: dict) -> str:
+    """HTML con canchas agrupadas por semáforo. Usa campos del cancha dict (ya enriquecido)."""
+    def _li(c):
+        cid  = c.get("id", "")
+        hm_e = hm.get(cid, {}) if isinstance(hm.get(cid), dict) else {}
+        tipo = c.get("tipo_cesped") or hm_e.get("tipo_cesped") or "natural"
+        dat  = []
+        for fname, label, fmt in [("gndvi","GNDVI",".2f"), ("bsi","BSI","+.2f"), ("ndwi","NDWI","+.2f")]:
+            val = c.get(fname) if c.get(fname) is not None else hm_e.get(fname)
+            if isinstance(val, (int, float)):
+                dat.append(f'{label} {val:{fmt}}')
+        extra = (f' · {" · ".join(dat)} <span style="color:#c9a84c;font-size:11px">[DATO REAL]</span>'
+                 if dat else "")
+        ndvi_lbl = c.get("ndvi", "—")
+        if tipo == "hibrido":
+            ndvi_lbl = (f'{ndvi_lbl} <span style="color:#9aa0a8;font-size:11px">'
+                        f'referencial — campo híbrido · SAR primario</span>')
+        return (f'<li><b>{c.get("nombre","?")}: </b>'
+                f'NDVI {ndvi_lbl} · Score {c.get("score","—")}/100{extra}<br>'
+                f'<span style="font-size:13px;color:#ccc">{c.get("detalle","")}</span></li>')
+
+    criticas = [c for c in canchas if c.get("sem") == "rojo"]
+    atencion = [c for c in canchas if c.get("sem") == "amarillo"]
+    optimas  = [c for c in canchas if c.get("sem") == "verde"]
+    html = ""
+    if criticas:
+        html += (f'<h3 style="color:#e74c3c">Intervención Urgente</h3>'
+                 f'<ul style="font-size:15px;line-height:1.8">{"".join(_li(c) for c in criticas)}</ul>')
+    if atencion:
+        html += (f'<h3 style="color:#f0b429">Tratamiento Esta Semana</h3>'
+                 f'<ul style="font-size:15px;line-height:1.8">{"".join(_li(c) for c in atencion)}</ul>')
+    if optimas:
+        html += (f'<h3 style="color:#27ae60">Estado Óptimo</h3>'
+                 f'<ul style="font-size:14px;line-height:1.8">{"".join(_li(c) for c in optimas)}</ul>')
+    return html
+
+
+# ── Email bodies — leen del dict canónico ensamblado ─────────────────────────
 
 def _satellite_age_warning(vd: dict) -> str:
     """Returns an HTML warning block if satellite data is older than 7 days. Empty string otherwise."""
@@ -608,269 +683,77 @@ def _body_roger(vd: dict, panel_url: str = "") -> str:
     canchas    = sectores.get("canchero", {}).get("canchas", [])
     poli       = sectores.get("poli", {})
     agro       = sectores.get("agro", {})
+    wl         = vd.get("weather_live", {})
+    hm         = u.get("heatmaps", {}) if isinstance(u.get("heatmaps"), dict) else {}
+    _hc        = vd.get("hermes", {})   # pre-ensamblado por faro_assembler
     acciones   = u.get("acciones", [])
     tareas_sem = u.get("tareas_semana", [])
     fecha      = datetime.now(_ART).strftime("%d/%m/%Y")
 
-    criticas = [c for c in canchas if c.get("sem") == "rojo"]
-    atencion = [c for c in canchas if c.get("sem") == "amarillo"]
-    optimas  = [c for c in canchas if c.get("sem") == "verde"]
+    sections    = _render_cancha_sections(canchas, hm)
+    hermes_html = _render_hermes_banners(_hc, wl, datetime.now(_ART).month)
+    age_warn    = _satellite_age_warning(vd)
+    wx_html     = _render_weather_block(wl)
 
-    _hm = u.get("heatmaps", {}) if isinstance(u.get("heatmaps"), dict) else {}
+    agro_col  = _SEM_COLOR.get(agro.get("sem", "amarillo"), "#f0b429")
+    poli_col  = _SEM_COLOR.get(poli.get("sem", "amarillo"), "#f0b429")
+    agro_html = (f'<h3 style="color:{agro_col}">Área Agronómica</h3>'
+                 f'<ul style="font-size:14px;line-height:1.8">'
+                 f'<li>Score: <b>{agro.get("score","—")}/100</b> · {agro.get("detalle","")}</li></ul>'
+                 ) if agro else ""
+    poli_html = (f'<h3 style="color:{poli_col}">Polideportivo Feijóo</h3>'
+                 f'<ul style="font-size:14px;line-height:1.8">'
+                 f'<li>Score: <b>{poli.get("score","—")}/100</b> · {poli.get("detalle","")}</li></ul>'
+                 ) if poli else ""
 
-    # ── hermes_consolidate — vista agronómica desde las 4 tablas del data lake ──
-    _hc: dict = {}
-    try:
-        import sys as _sys_hc, os as _os_hc
-        _here_hc   = _os_hc.path.dirname(_os_hc.path.abspath(__file__))
-        _agents_hc = _os_hc.path.join(_here_hc, "..", "..", "..", "agents")
-        if _agents_hc not in _sys_hc.path:
-            _sys_hc.path.insert(0, _agents_hc)
-        from hermes import hermes_consolidate as _hcons
-        _hc = _hcons("amalfitani")
-    except Exception as _hce:
-        log.debug("_body_roger: hermes_consolidate (non-fatal): %s", _hce)
-
-    def _cancha_li(c):
-        cid  = c.get("id", "")
-        hm_e = _hm.get(cid, {}) if isinstance(_hm.get(cid), dict) else {}
-        tipo = c.get("tipo_cesped") or hm_e.get("tipo_cesped") or "natural"
-        dat: list[str] = []
-        if isinstance(hm_e.get("gndvi"), (int, float)):
-            dat.append(f'GNDVI {hm_e["gndvi"]:.2f}')
-        if isinstance(hm_e.get("bsi"), (int, float)):
-            dat.append(f'BSI {hm_e["bsi"]:+.2f}')
-        if isinstance(hm_e.get("ndwi"), (int, float)):
-            dat.append(f'NDWI {hm_e["ndwi"]:+.2f}')
-        extra = ""
-        if dat:
-            extra = (f' · {" · ".join(dat)}'
-                     f' <span style="color:#c9a84c;font-size:11px">[DATO REAL]</span>')
-        ndvi_label = c.get("ndvi", "—")
-        if tipo == "hibrido":
-            ndvi_label = (
-                f'{ndvi_label} '
-                f'<span style="color:#9aa0a8;font-size:11px">referencial — campo híbrido · SAR primario</span>'
-            )
-        return (
-            f'<li><b>{c.get("nombre","?")}: </b>'
-            f'NDVI {ndvi_label} · Score {c.get("score","—")}/100{extra}<br>'
-            f'<span style="font-size:13px;color:#ccc">{c.get("detalle","")}</span></li>'
-        )
-
-    # Canchas por prioridad agronómica
-    sections = ""
-    if criticas:
-        rows = "".join(_cancha_li(c) for c in criticas)
-        sections += f'<h3 style="color:#e74c3c">Intervención Urgente</h3><ul style="font-size:15px;line-height:1.8">{rows}</ul>'
-    if atencion:
-        rows = "".join(_cancha_li(c) for c in atencion)
-        sections += f'<h3 style="color:#f0b429">Tratamiento Esta Semana</h3><ul style="font-size:15px;line-height:1.8">{rows}</ul>'
-    if optimas:
-        rows = "".join(_cancha_li(c) for c in optimas)
-        sections += f'<h3 style="color:#27ae60">Estado Óptimo</h3><ul style="font-size:14px;line-height:1.8">{rows}</ul>'
-
-    # Área Agronómica
-    agro_col = _SEM_COLOR.get(agro.get("sem", "amarillo"), "#f0b429")
-    agro_html = (
-        f'<h3 style="color:{agro_col}">Área Agronómica</h3>'
-        f'<ul style="font-size:14px;line-height:1.8">'
-        f'<li>Score: <b>{agro.get("score","—")}/100</b> · {agro.get("detalle","")}</li>'
-        f'</ul>'
-    ) if agro else ""
-
-    # Polideportivo
-    poli_col = _SEM_COLOR.get(poli.get("sem", "amarillo"), "#f0b429")
-    poli_html = (
-        f'<h3 style="color:{poli_col}">Polideportivo Feijóo</h3>'
-        f'<ul style="font-size:14px;line-height:1.8">'
-        f'<li>Score: <b>{poli.get("score","—")}/100</b> · {poli.get("detalle","")}</li>'
-        f'</ul>'
-    ) if poli else ""
-
-    # Prescripciones y acciones
-    if acciones:
-        items = "".join(f"<li>{a}</li>" for a in acciones)
-        sections += f'<h3 style="color:#c9a84c">Prescripciones Agronómicas</h3><ul style="font-size:14px;line-height:1.8">{items}</ul>'
-
-    # Datos meteorológicos en tiempo real (weather_live)
-    wl     = vd.get("weather_live", {})
-    wx_html = ""
-    if wl:
-        _et0  = wl.get("et0_mm_dia", 0)
-        _def  = wl.get("deficit_hidrico_mm", 0)
-        _rmin = wl.get("riego_min_sector", 0)
-        _hrio = wl.get("hora_riego_optima", "06:00")
-        _gdd  = wl.get("gdd_acumulado_7d", 0)
-        _dias = wl.get("dias_proximo_corte", 7)
-        _hcor = wl.get("hora_corte_optima", "07:00")
-        _sk   = wl.get("riesgo_dollar_spot_pct")
-        _rc   = "#27ae60" if _def <= 3 else ("#f0b429" if _def <= 8 else "#e74c3c")
-        _riego_txt = (
-            f' → riego {_rmin} min/sector a las {_hrio}'
-            if _def > 3 else ' → sin déficit hídrico'
-        )
-        _sk_c = "#27ae60" if (_sk or 0) < 20 else ("#f0b429" if (_sk or 0) < 40 else "#e74c3c")
-        _sk_alert = (
-            ' <b style="color:#e74c3c">⚠ APLICAR FUNGICIDA</b>' if (_sk or 0) >= 40
-            else (' <span style="color:#f0b429">⚠ monitorear manchas</span>' if (_sk or 0) >= 20
-                  else '')
-        )
-        _wx_items = [
-            f'<li>ET₀: <b>{_et0} mm/día</b> · Déficit: <b style="color:{_rc}">{_def} mm</b>{_riego_txt}</li>',
-            f'<li>GDD acumulados (7d): <b>{_gdd}</b> · Próximo corte: <b>{_dias} días</b> · ventana: {_hcor}</li>',
-        ]
-        if _sk is not None:
-            _wx_items.append(
-                f'<li>Dollar Spot (Smith-Kerns MSU): <b style="color:{_sk_c}">{_sk}%</b>{_sk_alert}</li>'
-            )
-        wx_html = (
-            '<h3 style="color:#c9a84c">Clima y Prescripciones — Datos Actuales</h3>'
-            '<ul style="font-size:14px;line-height:1.8">'
-            + "".join(_wx_items)
-            + '</ul>'
-        )
-
-    # Plan semanal
+    acc_html  = "".join(f"<li>{a}</li>" for a in acciones)
     plan_html = ""
     if tareas_sem:
-        items = ""
-        for t in tareas_sem[:3]:
-            tasks = " · ".join(t.get("tareas", []))
-            items += f'<li><b>{t.get("dia_nombre","?")}: </b>{tasks}</li>'
-        plan_html = f'<h3 style="color:#c9a84c">Plan de Trabajo Semanal</h3><ul style="font-size:14px;line-height:1.7">{items}</ul>'
+        items = "".join(
+            f'<li><b>{t.get("dia_nombre","?")}: </b>{" · ".join(t.get("tareas",[]))}</li>'
+            for t in tareas_sem[:3]
+        )
+        plan_html = (f'<h3 style="color:#c9a84c">Plan de Trabajo Semanal</h3>'
+                     f'<ul style="font-size:14px;line-height:1.7">{items}</ul>')
 
-    # Senter lights
-    railway_url = os.environ.get("RAILWAY_URL", "")
     sunset_str, needs_light, senter_rec = _senter_lighting()
     senter_color = "#f0b429" if needs_light else "#27ae60"
-    senter_html = (
-        f'<h3 style="color:{senter_color}">Carros de Luces Senter — Semana {datetime.now(_ART).strftime("%d/%m")}</h3>'
-        f'<ul style="font-size:14px;line-height:1.8">{senter_rec}</ul>'
-    )
+    senter_html  = (f'<h3 style="color:{senter_color}">Carros de Luces Senter — '
+                    f'Semana {datetime.now(_ART).strftime("%d/%m")}</h3>'
+                    f'<ul style="font-size:14px;line-height:1.8">{senter_rec}</ul>')
+    asp_html = ('<h3 style="color:#c9a84c">Red de Aspersores — Cobertura Actual</h3>'
+                + _fetch_aspersores_summary(os.environ.get("RAILWAY_URL", "")))
 
-    # Aspersores coverage
-    asp_html = (
-        '<h3 style="color:#c9a84c">Red de Aspersores — Cobertura Actual</h3>'
-        + _fetch_aspersores_summary(railway_url)
-    )
-
-    # Clegg Hammer compactación (datos en vd si disponibles)
-    clegg_raw  = u.get("mediciones", {}).get("clegg", [])
-    clegg_html = ""
+    clegg_raw = u.get("mediciones", {}).get("clegg", [])
     if clegg_raw:
         alerta = [m for m in clegg_raw if m.get("valor_cg", 0) > 50]
         normal = [m for m in clegg_raw if m.get("valor_cg", 0) <= 50]
-        rows_a = "".join(
-            f'<li style="color:#e74c3c"><b>{m.get("zona","?")}:</b> {m.get("valor_cg")} CG — compactación ALTA · descompactar</li>'
-            for m in alerta
-        )
-        rows_n = "".join(
-            f'<li><b>{m.get("zona","?")}:</b> {m.get("valor_cg")} CG — OK</li>'
-            for m in normal
-        )
-        clegg_html = (
-            '<h3 style="color:#e74c3c">Compactación Clegg Hammer — Alertas por Cuadrante</h3>'
-            + (f'<ul style="font-size:14px;line-height:1.8">{rows_a}</ul>' if alerta else "")
-            + (f'<h3 style="color:#27ae60">Cuadrantes OK</h3><ul style="font-size:14px">{rows_n}</ul>' if normal else "")
-        )
+        rows_a = "".join(f'<li style="color:#e74c3c"><b>{m.get("zona","?")}:</b> {m.get("valor_cg")} CG — ALTA · descompactar</li>' for m in alerta)
+        rows_n = "".join(f'<li><b>{m.get("zona","?")}:</b> {m.get("valor_cg")} CG — OK</li>' for m in normal)
+        clegg_html = ('<h3 style="color:#e74c3c">Compactación Clegg Hammer</h3>'
+                      + (f'<ul style="font-size:14px;line-height:1.8">{rows_a}</ul>' if alerta else "")
+                      + (f'<h3 style="color:#27ae60">Cuadrantes OK</h3><ul style="font-size:14px">{rows_n}</ul>' if normal else ""))
     else:
-        clegg_html = (
-            '<h3 style="color:#c9a84c">Compactación Clegg Hammer</h3>'
-            '<p style="font-size:13px;color:#9aa0a8">Sin mediciones cargadas esta semana — '
-            'ingresalas desde Mediciones en el panel web.</p>'
-        )
-
-    age_warn = _satellite_age_warning(vd)
-
-    # ── Hermes: banner invernal con corrección turca ──────────────────────────
-    hermes_winter_html = ""
-    _hum_est = _hc.get("humedad_estimada")
-    _hc_conf = _hc.get("confianza_consolidada", 0)
-    _mes_act  = datetime.now(_ART).month
-    if _hum_est is not None and _hc_conf >= 0.30 and _mes_act in (5, 6, 7, 8, 9):
-        _hum_color  = "#27ae60" if _hum_est > 0.25 else ("#f0b429" if _hum_est > 0.15 else "#e74c3c")
-        _et0_acc    = _hc.get("_et0_acumulada_mm", "—")
-        _theta_sar  = _hc.get("_theta_sar", "—")
-        _fuentes_str = " · ".join(_hc.get("fuentes_activas", []) or ["—"])
-        hermes_winter_html = (
-            f'<div style="background:rgba(201,168,76,.12);border-left:4px solid #c9a84c;'
-            f'padding:10px 14px;margin-bottom:16px;border-radius:0 6px 6px 0">'
-            f'<b style="color:#c9a84c">Humedad de suelo estimada (SAR + corrección ET₀)</b><br>'
-            f'<span style="font-size:14px">'
-            f'θ SAR: <b>{_theta_sar} m³/m³</b> · '
-            f'ET₀ acum. desde imagen: <b>{_et0_acc} mm</b> → '
-            f'θ hoy: <b style="color:{_hum_color}">{_hum_est:.3f} m³/m³</b>'
-            f'</span><br>'
-            f'<span style="font-size:12px;color:#9aa0a8">'
-            f'Fuentes: {_fuentes_str} · Confianza Hermes: {int(_hc_conf*100)}%'
-            f'</span>'
-            f'</div>'
-        )
-
-    # ── Hermes: alerta fungicida (Smith-Kerns desde climate_metrics) ──────────
-    hermes_sk_html = ""
-    _hc_clim = _hc.get("climate") or {}
-    _hc_sk   = _hc_clim.get("smith_kerns_pct")
-    if _hc_sk is not None and float(_hc_sk) >= 20.0:
-        _sk_color  = "#f0b429" if float(_hc_sk) < 40 else "#e74c3c"
-        _sk_action = (
-            '<b> → APLICAR FUNGICIDA preventivo</b>' if float(_hc_sk) >= 40
-            else ' → monitorear manchas esta semana'
-        )
-        hermes_sk_html = (
-            f'<div style="background:rgba(231,76,60,.12);border-left:4px solid {_sk_color};'
-            f'padding:10px 14px;margin-bottom:16px;border-radius:0 6px 6px 0">'
-            f'<b style="color:{_sk_color}">Dollar Spot (Smith-Kerns MSU): '
-            f'{float(_hc_sk):.1f}%</b>{_sk_action}<br>'
-            f'<span style="font-size:12px;color:#9aa0a8">'
-            f'Modelo validado NASA/MSU · ventana 5 días reales (T avg + RH avg)'
-            f'</span>'
-            f'</div>'
-        )
-
-    # ── Hermes: alerta compactación mecánica (BSI satelital) ─────────────────
-    hermes_comp_html = ""
-    _hc_alertas = _hc.get("alertas", [])
-    _comp_alerta = next((a for a in _hc_alertas if a.startswith("compactacion")), None)
-    if _comp_alerta:
-        _bsi_val = ""
-        try:
-            _bsi_val = _comp_alerta.split("BSI ")[1].split(" ")[0]
-        except Exception:
-            pass
-        hermes_comp_html = (
-            f'<div style="background:rgba(231,76,60,.12);border-left:4px solid #e74c3c;'
-            f'padding:10px 14px;margin-bottom:16px;border-radius:0 6px 6px 0">'
-            f'<b style="color:#e74c3c">Compactación detectada por satélite'
-            f'{"  — BSI " + _bsi_val if _bsi_val else ""}</b>'
-            f' → Programar aireación mecánica<br>'
-            f'<span style="font-size:12px;color:#9aa0a8">'
-            f'BSI (Bare Soil Index) elevado sin aireación en últimos 14 días · '
-            f'índice Sentinel-2 SWIR/NIR'
-            f'</span>'
-            f'</div>'
-        )
+        clegg_html = ('<h3 style="color:#c9a84c">Compactación Clegg Hammer</h3>'
+                      '<p style="font-size:13px;color:#9aa0a8">Sin mediciones cargadas esta semana — '
+                      'ingresalas desde Mediciones en el panel web.</p>')
 
     body = f"""
         {age_warn}
-        {hermes_winter_html}
+        {hermes_html}
         <p style="font-size:16px;font-weight:bold">Roger, informe agronómico de la semana del {fecha}.</p>
         <p style="font-size:14px">Análisis satelital Sentinel-2 + prescripciones por superficie.</p>
         {sections}
         {agro_html}
         {poli_html}
         {wx_html}
-        {hermes_sk_html}
-        {hermes_comp_html}
+        {"<h3 style='color:#c9a84c'>Prescripciones Agronómicas</h3><ul style='font-size:14px;line-height:1.8'>" + acc_html + "</ul>" if acciones else ""}
         {plan_html}
         {senter_html}
         {asp_html}
         {clegg_html}
         {_novedad_section("roger")}
-        <p style="font-size:13px;color:#9aa0a8">
-          Cualquier consulta respondeme por este mail o por WhatsApp. — Faro Protocol
-        </p>
+        <p style="font-size:13px;color:#9aa0a8">Cualquier consulta respondeme por este mail o por WhatsApp. — Faro Protocol</p>
     """
     return _html_wrap(f"Informe Agronómico Semanal — Vélez Sarsfield · {fecha}", body, panel_url)
 
@@ -1271,17 +1154,73 @@ def send_all_reports(config: dict = None, vd: dict = None) -> dict:
     except Exception as e:
         log.warning("historico: %s", e)
 
-    # ── FASE B-2: Regenerar PNGs frescos ─────────────────────────────────────
+    # ── FASE B-2: Regenerar PNGs via gen scripts (FARO_VD_PATH) ─────────────
     out_dir = Path(__file__).parents[4] / "reportes_velez"
     out_dir.mkdir(exist_ok=True)
+    _script_dir = Path(__file__).parent
+    _gen_scripts = [
+        ("gen_velez_main.py",      "faro_reporte_velez.png"),
+        ("gen_velez_canchero.py",  "faro_reporte_velez_canchero.png"),
+        ("gen_velez_final.py",     "faro_reporte_velez_agro_FINAL.png"),
+        ("gen_velez_solar_v2.py",  "faro_reporte_velez_solar_v2.png"),
+        ("gen_velez_poli.py",      "faro_reporte_velez_poli.png"),
+        ("gen_velez_sede.py",      "faro_reporte_velez_sede.png"),
+        ("gen_velez_piletas.py",   "faro_reporte_velez_piletas.png"),
+        ("gen_velez_instituto.py", "faro_reporte_velez_instituto.png"),
+    ]
+    _rendered_n = 0
+    _vd_tmp = None
     try:
-        import sys as _sys
-        _sys.path.insert(0, str(Path(__file__).parent))
-        from render_reports import render_all as _render_all
-        _rendered = _render_all(vd, out_dir)
-        log.info("render_all: %d/%d PNGs generados", len(_rendered), 8)
-    except Exception as _re:
-        log.warning("render_all falló — PNGs existentes conservados: %s", _re)
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False, encoding="utf-8"
+        ) as _tf:
+            json.dump(vd, _tf, ensure_ascii=False, default=str)
+            _vd_tmp = _tf.name
+
+        _env = {**os.environ, "FARO_VD_PATH": _vd_tmp}
+        for _script, _png in _gen_scripts:
+            _script_path = _script_dir / _script
+            if not _script_path.exists():
+                log.warning("gen script no encontrado: %s", _script_path)
+                continue
+            _out_png = out_dir / _png
+            try:
+                _proc = subprocess.run(
+                    [sys.executable, str(_script_path)],
+                    env=_env, capture_output=True, text=True, timeout=120,
+                )
+                if _proc.returncode == 0 and _out_png.exists():
+                    _rendered_n += 1
+                    log.info("gen script OK: %s → %s", _script, _png)
+                else:
+                    log.warning(
+                        "gen script FAIL: %s (rc=%d)\nstderr: %s",
+                        _script, _proc.returncode, _proc.stderr[-400:],
+                    )
+            except Exception as _pe:
+                log.warning("gen script excepción [%s]: %s", _script, _pe)
+
+        log.info("gen scripts: %d/%d PNGs generados", _rendered_n, len(_gen_scripts))
+
+        # Fallback: render_reports.py si todos los gen scripts fallaron
+        if _rendered_n == 0:
+            log.warning("todos los gen scripts fallaron — usando render_reports.py como fallback")
+            try:
+                sys.path.insert(0, str(_script_dir))
+                from render_reports import render_all as _render_all
+                _rendered = _render_all(vd, out_dir)
+                log.info("render_all fallback: %d/%d PNGs generados", len(_rendered), 8)
+            except Exception as _re:
+                log.warning("render_all fallback también falló: %s", _re)
+
+    except Exception as _b2e:
+        log.warning("FASE B-2 excepción (non-fatal): %s", _b2e)
+    finally:
+        if _vd_tmp:
+            try:
+                os.unlink(_vd_tmp)
+            except Exception:
+                pass
 
     date_str     = datetime.now(_ART).strftime("%d/%m/%Y")
     report_paths = _get_report_paths(config)   # {key → Path} from config.zonas
