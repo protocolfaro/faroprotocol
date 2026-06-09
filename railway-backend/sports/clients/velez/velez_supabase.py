@@ -40,6 +40,20 @@ Migration notes:
   );
   CREATE INDEX IF NOT EXISTS idx_soil_metrics_venue_ts ON soil_metrics (venue_id, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_soil_metrics_cancha_ts ON soil_metrics (cancha_id, created_at DESC);
+  CREATE TABLE IF NOT EXISTS vegetation_metrics (
+      id BIGSERIAL PRIMARY KEY,
+      venue_id TEXT NOT NULL,
+      cancha_id TEXT,
+      is_hibrido BOOLEAN DEFAULT FALSE,
+      fecha_imagen DATE,
+      dias_antiguedad SMALLINT,
+      ndvi NUMERIC, gndvi NUMERIC, evi2 NUMERIC, bsi NUMERIC, ndwi NUMERIC,
+      confianza_pct SMALLINT,
+      fuente TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+  );
+  CREATE INDEX IF NOT EXISTS idx_veg_metrics_venue_ts ON vegetation_metrics (venue_id, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_veg_metrics_cancha_ts ON vegetation_metrics (cancha_id, created_at DESC);
 """
 from __future__ import annotations
 import json, logging, os, time
@@ -432,4 +446,61 @@ def get_soil_metrics_latest(venue_id: str, cancha_id: str | None = None,
         log.warning("soil_metrics get HTTP %s", r.status_code)
     except Exception as exc:
         log.warning("soil_metrics get: %s", exc)
+    return []
+
+
+# ── vegetation_metrics ────────────────────────────────────────────────────────
+
+def insert_vegetation_metrics(*, venue_id: str, cancha_id: str | None = None,
+                               fecha_imagen: str | None = None,
+                               ndvi: float | None = None, gndvi: float | None = None,
+                               evi2: float | None = None, bsi: float | None = None,
+                               ndwi: float | None = None, confianza_pct: int | None = None,
+                               fuente: str = "") -> bool:
+    """INSERT one row into vegetation_metrics. is_hibrido auto-derived from cancha_id."""
+    if not _ok():
+        return False
+    from datetime import date as _date
+    is_hibrido = _tipo_for(cancha_id) == "hibrido" if cancha_id else False
+    dias_ant: int | None = None
+    if fecha_imagen:
+        try:
+            dias_ant = (_date.today() - _date.fromisoformat(str(fecha_imagen))).days
+        except Exception:
+            pass
+    row = {
+        "venue_id": venue_id, "cancha_id": cancha_id, "is_hibrido": is_hibrido,
+        "fecha_imagen": fecha_imagen, "dias_antiguedad": dias_ant,
+        "ndvi": ndvi, "gndvi": gndvi, "evi2": evi2, "bsi": bsi, "ndwi": ndwi,
+        "confianza_pct": confianza_pct, "fuente": fuente,
+    }
+    url = f"{_base()}/rest/v1/vegetation_metrics"
+    try:
+        r = _req.post(url, headers=_hdrs(), data=json.dumps(row, default=str), timeout=8)
+        if r.status_code in (200, 201, 204):
+            return True
+        log.warning("vegetation_metrics insert HTTP %s: %s", r.status_code, r.text[:200])
+    except Exception as exc:
+        log.warning("vegetation_metrics insert: %s", exc)
+    return False
+
+
+def get_vegetation_metrics_latest(venue_id: str, cancha_id: str | None = None,
+                                   dias: int = 30) -> list[dict]:
+    """Return most recent vegetation_metrics rows for a venue/cancha. Newest first."""
+    if not _ok():
+        return []
+    since = (datetime.now(timezone.utc) - timedelta(days=dias)).isoformat()
+    url = (f"{_base()}/rest/v1/vegetation_metrics"
+           f"?venue_id=eq.{venue_id}&created_at=gte.{since}"
+           f"&order=created_at.desc&limit=100")
+    if cancha_id:
+        url += f"&cancha_id=eq.{cancha_id}"
+    try:
+        r = _req.get(url, headers=_hdrs(), timeout=8)
+        if r.status_code == 200:
+            return r.json()
+        log.warning("vegetation_metrics get HTTP %s", r.status_code)
+    except Exception as exc:
+        log.warning("vegetation_metrics get: %s", exc)
     return []

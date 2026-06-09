@@ -272,6 +272,14 @@ def _compute_indices(
                     float(((nir_c - swir1_c) / (nir_c + swir1_c + 1e-9))[v].mean()))), 3)
             entry["ndwi"] = ndwi
 
+    # EVI2 = 2.5 * (NIR - RED) / (NIR + 2.4*RED + 1) — no requiere banda azul
+    v_evi = valid_base & ((nir_c + red_c) > 0.02)
+    if v_evi.sum() >= 2:
+        with np.errstate(invalid="ignore", divide="ignore"):
+            evi2 = round(max(-1.0, min(2.5,
+                float((2.5 * (nir_c - red_c) / (nir_c + 2.4 * red_c + 1.0))[v_evi].mean()))), 3)
+        entry["evi2"] = evi2
+
     return entry
 
 

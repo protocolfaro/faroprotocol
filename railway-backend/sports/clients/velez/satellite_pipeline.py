@@ -339,7 +339,34 @@ def run_satellite_cycle(ndvi_data: dict = None, force: bool = False) -> dict:
     except Exception as e:
         log.error("satellite_pipeline: push_heatmap_ndvi_update falló: %s", e)
 
-    # 6b. Propagar NDVI real a sectores.canchero.canchas[] y recalcular scores
+    # 6b. vegetation_metrics: persistir índices ópticos por cancha en Supabase
+    try:
+        import velez_supabase as _vs_vm
+        _fuente_vm = ndvi_data.get("fuente", "sentinel-2-l2a")
+        for _cid, _cd in ndvi_data.get("canchas", {}).items():
+            if _cd.get("ndvi") is None:
+                continue
+            _conf_pct = None
+            _pc = _cd.get("prithvi_confidence")
+            if _pc is not None:
+                _conf_pct = int(round(_pc * 100))
+            _vs_vm.insert_vegetation_metrics(
+                venue_id="amalfitani",
+                cancha_id=_cid,
+                fecha_imagen=img_date,
+                ndvi=_cd.get("ndvi"),
+                gndvi=_cd.get("gndvi"),
+                evi2=_cd.get("evi2"),
+                bsi=_cd.get("bsi"),
+                ndwi=_cd.get("ndwi"),
+                confianza_pct=_conf_pct,
+                fuente=_fuente_vm,
+            )
+        log.info("satellite_pipeline: vegetation_metrics insertados (%d canchas)", len(ndvi_map))
+    except Exception as _vm_exc:
+        log.warning("satellite_pipeline: vegetation_metrics write (non-fatal): %s", _vm_exc)
+
+    # 6c. Propagar NDVI real a sectores.canchero.canchas[] y recalcular scores
     try:
         import github_push as _gp
         _ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
