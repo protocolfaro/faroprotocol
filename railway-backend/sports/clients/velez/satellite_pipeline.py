@@ -291,6 +291,36 @@ def run_satellite_cycle(ndvi_data: dict = None, force: bool = False) -> dict:
     except Exception as e:
         log.error("satellite_pipeline: push_heatmaps falló: %s", e)
 
+    # 5b. Hermes — validar coherencia físico-estacional antes de persistir
+    try:
+        import hashlib as _hl, sys as _sys, os as _os
+        _agents = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", "..", "..", "agents")
+        if _agents not in _sys.path:
+            _sys.path.insert(0, _agents)
+        from hermes import validate_certificate, CertificateBlocked
+        _digest   = _hl.sha256(next(iter(png_bytes.values()), b"")).hexdigest() if png_bytes else "no_png"
+        _h_stats  = {
+            "sar_medio_db":        None,
+            "ndvi_medio":          _median_ndvi,
+            "indice_fusion_medio": _median_ndvi,
+            "ndvi_disponible":     True,
+        }
+        _h_score  = round((_median_ndvi or 0.5) * 100)
+        _h_estado = ("ÓPTIMO" if (_median_ndvi or 0) > 0.55
+                     else "NORMAL" if (_median_ndvi or 0) > 0.35 else "DEGRADADO")
+        _h_res = validate_certificate("amalfitani", _h_stats, _h_score, _h_estado, _digest)
+        log.info("hermes: aprobado=%s motivo=%s confianza=%.2f",
+                 _h_res.get("aprobado"), _h_res.get("motivo"), _h_res.get("confianza", 1.0))
+    except Exception as _hb:
+        # CertificateBlocked es subclase de Exception — capturar por nombre
+        if type(_hb).__name__ == "CertificateBlocked":
+            log.error("hermes: BLOQUEADO — %s — datos corruptos no persistidos", _hb)
+            _record_run(_run_ts, img_date, _median_ndvi, False,
+                        error=f"hermes_blocked:{_hb}")
+            return {"ok": False, "error": f"hermes_blocked: {_hb}",
+                    "anomalias": getattr(_hb, "anomalias", [])}
+        log.warning("hermes: error no bloqueante (continúa): %s", _hb)
+
     # 6. Actualizar velez_data.json (NDVI real + semana)
     commit_ndvi = ""
     try:

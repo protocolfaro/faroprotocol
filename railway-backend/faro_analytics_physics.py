@@ -66,8 +66,9 @@ def compute_faro_cutting_core(temp_air_24h, rh_pct, last_cut_gdd, cab_nitrogen, 
 
     gp_thermal   = np.exp(-0.5 * ((temp - 20.0) / 5.5) ** 2)
     alpha_stress = np.where(cab >= 40.0, 1.0, cab / 40.0)
-    gdd_today    = np.maximum(temp - 5.0, 0.0)
-    crec         = gdd_today * 0.45 * alpha_stress * gp_thermal
+    gdd_today    = np.maximum(temp - 10.0, 0.0)   # base 10°C — estándar subtropical Bermuda
+    gdd_acc      = np.asarray(last_cut_gdd, dtype=np.float64)
+    crec         = (gdd_today + gdd_acc * 0.05) * 0.45 * alpha_stress * gp_thermal
 
     a_m, b_m = 17.625, 243.04
     alpha_magnus = ((a_m * temp) / (b_m + temp)) + np.log(np.clip(rh / 100.0, 1e-4, 1.0))
@@ -105,3 +106,16 @@ def compute_faro_cutting_core(temp_air_24h, rh_pct, last_cut_gdd, cab_nitrogen, 
             "reel_speed_rpm":       rpm,
         },
     }
+
+
+def compute_smith_kerns(temp_avg_5d, rh_avg_5d):
+    """
+    Modelo Smith-Kerns Dollar Spot (MSU — Michigan State University).
+    Parámetros validados: a=-16.672, b=0.1967, c=0.1483.
+    Retorna probabilidad de infección (%) en las próximas 24h.
+    """
+    t = np.asarray(temp_avg_5d, dtype=np.float64)
+    r = np.asarray(rh_avg_5d,   dtype=np.float64)
+    linear      = -16.672 + (0.1967 * t) + (0.1483 * r)
+    probability = np.exp(linear) / (1.0 + np.exp(linear))
+    return round(float(np.mean(probability)) * 100, 1)

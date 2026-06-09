@@ -583,13 +583,21 @@ def _satellite_age_warning(vd: dict) -> str:
         return ""
     if age_days <= 7:
         return ""
+    _winter_note = ""
+    if datetime.now(_ART).month in (6, 7, 8):
+        _winter_note = (
+            " Buenos Aires en invierno tiene nubosidad elevada — "
+            "es normal no tener imagen nueva este período. "
+            "Los datos agronómicos (riego, corte, Van Genuchten) se calculan "
+            "desde física real y clima, no desde el satélite."
+        )
     return (
         f'<div style="background:rgba(231,76,60,.15);border-left:4px solid #e74c3c;'
         f'padding:10px 14px;margin-bottom:16px;border-radius:0 6px 6px 0">'
         f'<b style="color:#e74c3c">⚠ Datos satelitales de hace {age_days} días</b><br>'
         f'<span style="font-size:13px;color:#ccc">Última imagen Sentinel-2: {img_date.strftime("%d/%m/%Y")}. '
         f'No hay imagen limpia más reciente disponible (nubosidad o cobertura insuficiente). '
-        f'Las alertas de NDVI reflejan esa fecha, no el estado actual del campo.</span>'
+        f'Las alertas de NDVI reflejan esa fecha, no el estado actual del campo.{_winter_note}</span>'
         f'</div>'
     )
 
@@ -665,6 +673,44 @@ def _body_roger(vd: dict, panel_url: str = "") -> str:
         items = "".join(f"<li>{a}</li>" for a in acciones)
         sections += f'<h3 style="color:#c9a84c">Prescripciones Agronómicas</h3><ul style="font-size:14px;line-height:1.8">{items}</ul>'
 
+    # Datos meteorológicos en tiempo real (weather_live)
+    wl     = vd.get("weather_live", {})
+    wx_html = ""
+    if wl:
+        _et0  = wl.get("et0_mm_dia", 0)
+        _def  = wl.get("deficit_hidrico_mm", 0)
+        _rmin = wl.get("riego_min_sector", 0)
+        _hrio = wl.get("hora_riego_optima", "06:00")
+        _gdd  = wl.get("gdd_acumulado_7d", 0)
+        _dias = wl.get("dias_proximo_corte", 7)
+        _hcor = wl.get("hora_corte_optima", "07:00")
+        _sk   = wl.get("riesgo_dollar_spot_pct")
+        _rc   = "#27ae60" if _def <= 3 else ("#f0b429" if _def <= 8 else "#e74c3c")
+        _riego_txt = (
+            f' → riego {_rmin} min/sector a las {_hrio}'
+            if _def > 3 else ' → sin déficit hídrico'
+        )
+        _sk_c = "#27ae60" if (_sk or 0) < 20 else ("#f0b429" if (_sk or 0) < 40 else "#e74c3c")
+        _sk_alert = (
+            ' <b style="color:#e74c3c">⚠ APLICAR FUNGICIDA</b>' if (_sk or 0) >= 40
+            else (' <span style="color:#f0b429">⚠ monitorear manchas</span>' if (_sk or 0) >= 20
+                  else '')
+        )
+        _wx_items = [
+            f'<li>ET₀: <b>{_et0} mm/día</b> · Déficit: <b style="color:{_rc}">{_def} mm</b>{_riego_txt}</li>',
+            f'<li>GDD acumulados (7d): <b>{_gdd}</b> · Próximo corte: <b>{_dias} días</b> · ventana: {_hcor}</li>',
+        ]
+        if _sk is not None:
+            _wx_items.append(
+                f'<li>Dollar Spot (Smith-Kerns MSU): <b style="color:{_sk_c}">{_sk}%</b>{_sk_alert}</li>'
+            )
+        wx_html = (
+            '<h3 style="color:#c9a84c">Clima y Prescripciones — Datos Actuales</h3>'
+            '<ul style="font-size:14px;line-height:1.8">'
+            + "".join(_wx_items)
+            + '</ul>'
+        )
+
     # Plan semanal
     plan_html = ""
     if tareas_sem:
@@ -724,6 +770,7 @@ def _body_roger(vd: dict, panel_url: str = "") -> str:
         {sections}
         {agro_html}
         {poli_html}
+        {wx_html}
         {plan_html}
         {senter_html}
         {asp_html}

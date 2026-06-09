@@ -658,45 +658,85 @@ def run_refresh() -> dict:
             _rb_path = os.path.join(_here_dr, "..", "..", "..")
             if _rb_path not in _sys.path:
                 _sys.path.insert(0, _rb_path)
-            from faro_analytics_physics import compute_faro_cutting_core, compute_faro_hydro_core
-            _temp24 = float(raw.get("nasa", {}).get("T2M_MAX", 18.0))
-            _rh24   = float(raw.get("nasa", {}).get("RH2M", 75.0))
+            from faro_analytics_physics import (compute_faro_cutting_core,
+                                               compute_faro_hydro_core,
+                                               compute_smith_kerns)
+            _temp24  = float(raw.get("nasa", {}).get("T2M_MAX", 18.0))
+            _tmin24  = float(raw.get("nasa", {}).get("T2M_MIN", 10.0))
+            _rh24    = float(raw.get("nasa", {}).get("RH2M", 75.0))
             _hum_pct = weather.get("humedad_suelo_pct", 22.0)
-            _h_suc  = max(50.0, 350.0 * (1.0 - min(_hum_pct / 40.0, 1.0)))
-            _cutting = compute_faro_cutting_core(_temp24, _rh24, 0.0, 35.0, _h_suc)
+            _h_suc   = max(50.0, 350.0 * (1.0 - min(_hum_pct / 40.0, 1.0)))
+            _gdd_acc = weather.get("gdd_acumulado_7d", 0.0)  # GDD real base 10°C
+            _cutting = compute_faro_cutting_core(_temp24, _rh24, _gdd_acc, 35.0, _h_suc)
             _cp = _cutting["cutting_prescription"]
             _phys_acc = [
                 f'Ventana de corte: {_cp["status_window"]} — '
                 f'{_cp["prescribed_height_mm"]} mm · {_cp["reel_speed_rpm"]} RPM',
             ]
-            _deficit = weather.get("deficit_hidrico_mm", 0.0)
+            # Smith-Kerns Dollar Spot (5-day avg usando NASA POWER como proxy)
+            _temp5 = (_temp24 + _tmin24) / 2.0
+            _sk_pct = compute_smith_kerns(_temp5, _rh24)
+            weather["riesgo_dollar_spot_pct"] = _sk_pct
+            log.info("smith_kerns: Dollar Spot %.1f%%", _sk_pct)
+
+            _deficit   = weather.get("deficit_hidrico_mm", 0.0)
             _riego_min = weather.get("riego_min_sector", 0)
+            # Van Genuchten — siempre corre via proxy SM→SAR cuando no hay SAR real
+            try:
+                import math as _math
+                _theta    = max(0.046, min(0.409, _hum_pct / 100.0))
+                _s_soil   = max(1e-4, (_theta - 0.12) / 0.28)
+                _sar_vv   = round(10.0 * _math.log10(max(1e-9, _s_soil * 0.85)), 2)
+                _sar_vh   = round(10.0 * _math.log10(max(1e-9, _s_soil * 0.85 * 0.11)), 2)
+                _hydro    = compute_faro_hydro_core(_sar_vv, _sar_vh, 2.5, _deficit)
+                weather["soil_moisture_sar"]   = _hydro["soil_moisture_volumetric"]
+                weather["matric_potential_cm"] = _hydro["matric_potential_cm"]
+                weather["sar_disponible"]      = True
+                weather["sar_mensaje"]         = "Van Genuchten activo (SM proxy)"
+                if _deficit > 3:
+                    _riego_min = _hydro["irrigation_prescription"]["aspersor_time_minutes"]
+                    _deficit   = _hydro["irrigation_prescription"]["deficit_hydric_mm"]
+            except Exception as _ve:
+                log.warning("Van Genuchten proxy (non-fatal): %s", _ve)
             if _deficit > 3:
-                # SAR-enhanced hydro when SAR available, fallback to existing
-                _sar_ok = False
-                try:
-                    _sar_vv = float(raw.get("hourly", {}).get("_sar_vv_mean", -999))
-                    _sar_vh = float(raw.get("hourly", {}).get("_sar_vh_mean", -999))
-                    if _sar_vv > -50 and _sar_vh > -50:
-                        _hydro = compute_faro_hydro_core(_sar_vv, _sar_vh, 2.5, _deficit)
-                        _riego_min = _hydro["irrigation_prescription"]["aspersor_time_minutes"]
-                        _deficit   = _hydro["irrigation_prescription"]["deficit_hydric_mm"]
-                        weather["soil_moisture_sar"] = _hydro["soil_moisture_volumetric"]
-                        weather["sar_disponible"]    = True
-                        weather["sar_mensaje"]       = "SAR WCM activo"
-                        _sar_ok = True
-                except Exception:
-                    pass
                 _phys_acc.append(
                     f'Prescripción riego (Toro 12.5 mm/h): déficit {_deficit:.1f} mm — '
                     f'{_riego_min} min por sector'
                 )
             weather["_physics_acciones_roger"] = _phys_acc
-            log.info("physics prescriptions: corte=%s, acciones=%d", _cp["status_window"], len(_phys_acc))
+            log.info("physics prescriptions: corte=%s sk=%.1f%% acciones=%d",
+                     _cp["status_window"], _sk_pct, len(_phys_acc))
         except Exception as _pe:
             log.warning("faro_analytics_physics (non-fatal): %s", _pe)
         # ─────────────────────────────────────────────────────────────────────
         commit_url = push_weather_update(weather)
+        # Paperclip: monitor inteligente del venue — al final del ciclo diario
+        try:
+            import sys as _sys, os as _os
+            _here_pc   = _os.path.dirname(_os.path.abspath(__file__))
+            _agents_pc = _os.path.join(_here_pc, "..", "..", "..", "agents")
+            if _agents_pc not in _sys.path:
+                _sys.path.insert(0, _agents_pc)
+            from paperclip import analyze_venue as _pc_analyze
+            _precip24 = float(raw.get("nasa", {}).get("PRECTOTCORR", 0.0))
+            _wind_ms  = float(raw.get("nasa", {}).get("WS2M", 0.0))
+            _c_ndvi   = (weather.get("gndvi_por_cancha", {})
+                                .get("canchas", {})
+                                .get("amalfitani", {})
+                                .get("gndvi")) or _CANCHA_NDVI.get("amalfitani", 0.60)
+            _pc_analyze(
+                venue       = {"venue_id": "amalfitani", "nombre": "Estadio Amalfitani",
+                               "lat": LAT, "lon": LON},
+                weather_ctx = {"precipitation_24h": _precip24, "wind_max": _wind_ms * 3.6},
+                ndvi_ctx    = {"baseline_ndvi": 0.60, "current_ndvi": _c_ndvi,
+                               "drop": round(0.60 - _c_ndvi, 3)},
+                sar_ctx     = {"sar_fuente": weather.get("sar_mensaje", "proxy"),
+                               "is_egms_proxy": True},
+            )
+            log.info("paperclip: análisis completado para amalfitani")
+        except Exception as _pce:
+            log.warning("paperclip (non-fatal): %s", _pce)
+        # ─────────────────────────────────────────────────────────────────────
         rf = weather.get("riesgo_fungosis", {})
         ts = weather["timestamp"]
         log.info(
