@@ -835,6 +835,91 @@ def refresh_status():
     })
 
 
+# ── Panel Roger — canonical endpoints ────────────────────────────────────────
+
+@app.route("/velez/panel-roger-canonical", methods=["GET"])
+def velez_panel_roger_canonical():
+    """Single endpoint for #roger panel: calls assemble_report() and returns JSON."""
+    try:
+        if _VELEZ_PATH not in sys.path:
+            sys.path.insert(0, _VELEZ_PATH)
+        from faro_assembler import assemble_report
+        data = assemble_report("amalfitani")
+        resp = jsonify(data)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["Cache-Control"] = "no-store"
+        return resp
+    except Exception as e:
+        log.warning("/velez/panel-roger-canonical error: %s", e)
+        return jsonify({"error": str(e), "_assembled_at": None}), 500
+
+
+@app.route("/velez/amalfitani-geojson", methods=["GET"])
+def velez_amalfitani_geojson():
+    """GeoJSON FeatureCollection for MapLibre fill layers.
+    Geometries: approximate rectangular polygons for each cancha in Amalfitani.
+    Properties: real from faro_assembler (ndvi, entropia_h, theta_*cm, etc.).
+    """
+    # Approximate bounding boxes [lng_min, lat_min, lng_max, lat_max]
+    # Amalfitani training complex center: -34.6344, -58.5034
+    # Each pitch ≈ 0.0014° lng × 0.0009° lat (~105m × 100m at this latitude)
+    _BOUNDS = {
+        "cancha1": [-58.5048, -58.5034, -34.6351, -34.6339],  # will be fixed below
+    }
+    # Correct format: [lng_min, lat_min, lng_max, lat_max]
+    _CANCHA_BOUNDS = {
+        "cancha1": [-58.5048, -34.6351, -58.5034, -34.6339],
+        "cancha2": [-58.5033, -34.6351, -58.5019, -34.6339],
+        "cancha3": [-58.5048, -34.6365, -58.5034, -34.6353],
+        "cancha4": [-58.5033, -34.6365, -58.5019, -34.6353],
+        "cancha5": [-58.5063, -34.6351, -58.5049, -34.6339],
+        "cancha6": [-58.5063, -34.6365, -58.5049, -34.6353],
+        "cancha7": [-58.5018, -34.6351, -58.5004, -34.6339],
+        "cancha8": [-58.5018, -34.6365, -58.5004, -34.6353],
+    }
+
+    def _bbox_polygon(b):
+        lng0, lat0, lng1, lat1 = b
+        return {"type": "Polygon", "coordinates": [[
+            [lng0, lat1], [lng1, lat1], [lng1, lat0], [lng0, lat0], [lng0, lat1]
+        ]]}
+
+    _CANCHA_FIELDS = (
+        "id", "nombre", "score", "sem", "ndvi", "gndvi", "bsi", "ndwi",
+        "entropia_h", "angulo_alpha", "compactacion_index_ml",
+        "temp_superficie_c", "theta_5cm", "theta_10cm", "theta_20cm", "theta_smap",
+        "ndvi_2_5m", "n_status", "n_rec", "detalle",
+    )
+
+    try:
+        if _VELEZ_PATH not in sys.path:
+            sys.path.insert(0, _VELEZ_PATH)
+        from faro_assembler import assemble_report
+        data = assemble_report("amalfitani")
+    except Exception as e:
+        log.warning("/velez/amalfitani-geojson assembler error: %s", e)
+        data = {}
+
+    canchas = (data.get("sectores") or {}).get("canchero", {}).get("canchas", [])
+    features = []
+    for c in canchas:
+        cid = c.get("id", "")
+        bounds = _CANCHA_BOUNDS.get(cid)
+        if not bounds:
+            continue
+        props = {k: c.get(k) for k in _CANCHA_FIELDS}
+        features.append({
+            "type": "Feature",
+            "geometry": _bbox_polygon(bounds),
+            "properties": props,
+        })
+
+    resp = jsonify({"type": "FeatureCollection", "features": features})
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
 # ── Daily weather cron ────────────────────────────────────────────────────────
 
 _last_refresh: dict = {}
