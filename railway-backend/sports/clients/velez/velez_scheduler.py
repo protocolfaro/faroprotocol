@@ -618,6 +618,19 @@ def _body_roger(vd: dict, panel_url: str = "") -> str:
 
     _hm = u.get("heatmaps", {}) if isinstance(u.get("heatmaps"), dict) else {}
 
+    # ── hermes_consolidate — vista agronómica desde las 4 tablas del data lake ──
+    _hc: dict = {}
+    try:
+        import sys as _sys_hc, os as _os_hc
+        _here_hc   = _os_hc.path.dirname(_os_hc.path.abspath(__file__))
+        _agents_hc = _os_hc.path.join(_here_hc, "..", "..", "..", "agents")
+        if _agents_hc not in _sys_hc.path:
+            _sys_hc.path.insert(0, _agents_hc)
+        from hermes import hermes_consolidate as _hcons
+        _hc = _hcons("amalfitani")
+    except Exception as _hce:
+        log.debug("_body_roger: hermes_consolidate (non-fatal): %s", _hce)
+
     def _cancha_li(c):
         cid  = c.get("id", "")
         hm_e = _hm.get(cid, {}) if isinstance(_hm.get(cid), dict) else {}
@@ -770,14 +783,86 @@ def _body_roger(vd: dict, panel_url: str = "") -> str:
 
     age_warn = _satellite_age_warning(vd)
 
+    # ── Hermes: banner invernal con corrección turca ──────────────────────────
+    hermes_winter_html = ""
+    _hum_est = _hc.get("humedad_estimada")
+    _hc_conf = _hc.get("confianza_consolidada", 0)
+    _mes_act  = datetime.now(_ART).month
+    if _hum_est is not None and _hc_conf >= 0.30 and _mes_act in (5, 6, 7, 8, 9):
+        _hum_color  = "#27ae60" if _hum_est > 0.25 else ("#f0b429" if _hum_est > 0.15 else "#e74c3c")
+        _et0_acc    = _hc.get("_et0_acumulada_mm", "—")
+        _theta_sar  = _hc.get("_theta_sar", "—")
+        _fuentes_str = " · ".join(_hc.get("fuentes_activas", []) or ["—"])
+        hermes_winter_html = (
+            f'<div style="background:rgba(201,168,76,.12);border-left:4px solid #c9a84c;'
+            f'padding:10px 14px;margin-bottom:16px;border-radius:0 6px 6px 0">'
+            f'<b style="color:#c9a84c">Humedad de suelo estimada (SAR + corrección ET₀)</b><br>'
+            f'<span style="font-size:14px">'
+            f'θ SAR: <b>{_theta_sar} m³/m³</b> · '
+            f'ET₀ acum. desde imagen: <b>{_et0_acc} mm</b> → '
+            f'θ hoy: <b style="color:{_hum_color}">{_hum_est:.3f} m³/m³</b>'
+            f'</span><br>'
+            f'<span style="font-size:12px;color:#9aa0a8">'
+            f'Fuentes: {_fuentes_str} · Confianza Hermes: {int(_hc_conf*100)}%'
+            f'</span>'
+            f'</div>'
+        )
+
+    # ── Hermes: alerta fungicida (Smith-Kerns desde climate_metrics) ──────────
+    hermes_sk_html = ""
+    _hc_clim = _hc.get("climate") or {}
+    _hc_sk   = _hc_clim.get("smith_kerns_pct")
+    if _hc_sk is not None and float(_hc_sk) >= 20.0:
+        _sk_color  = "#f0b429" if float(_hc_sk) < 40 else "#e74c3c"
+        _sk_action = (
+            '<b> → APLICAR FUNGICIDA preventivo</b>' if float(_hc_sk) >= 40
+            else ' → monitorear manchas esta semana'
+        )
+        hermes_sk_html = (
+            f'<div style="background:rgba(231,76,60,.12);border-left:4px solid {_sk_color};'
+            f'padding:10px 14px;margin-bottom:16px;border-radius:0 6px 6px 0">'
+            f'<b style="color:{_sk_color}">Dollar Spot (Smith-Kerns MSU): '
+            f'{float(_hc_sk):.1f}%</b>{_sk_action}<br>'
+            f'<span style="font-size:12px;color:#9aa0a8">'
+            f'Modelo validado NASA/MSU · ventana 5 días reales (T avg + RH avg)'
+            f'</span>'
+            f'</div>'
+        )
+
+    # ── Hermes: alerta compactación mecánica (BSI satelital) ─────────────────
+    hermes_comp_html = ""
+    _hc_alertas = _hc.get("alertas", [])
+    _comp_alerta = next((a for a in _hc_alertas if a.startswith("compactacion")), None)
+    if _comp_alerta:
+        _bsi_val = ""
+        try:
+            _bsi_val = _comp_alerta.split("BSI ")[1].split(" ")[0]
+        except Exception:
+            pass
+        hermes_comp_html = (
+            f'<div style="background:rgba(231,76,60,.12);border-left:4px solid #e74c3c;'
+            f'padding:10px 14px;margin-bottom:16px;border-radius:0 6px 6px 0">'
+            f'<b style="color:#e74c3c">Compactación detectada por satélite'
+            f'{"  — BSI " + _bsi_val if _bsi_val else ""}</b>'
+            f' → Programar aireación mecánica<br>'
+            f'<span style="font-size:12px;color:#9aa0a8">'
+            f'BSI (Bare Soil Index) elevado sin aireación en últimos 14 días · '
+            f'índice Sentinel-2 SWIR/NIR'
+            f'</span>'
+            f'</div>'
+        )
+
     body = f"""
         {age_warn}
+        {hermes_winter_html}
         <p style="font-size:16px;font-weight:bold">Roger, informe agronómico de la semana del {fecha}.</p>
         <p style="font-size:14px">Análisis satelital Sentinel-2 + prescripciones por superficie.</p>
         {sections}
         {agro_html}
         {poli_html}
         {wx_html}
+        {hermes_sk_html}
+        {hermes_comp_html}
         {plan_html}
         {senter_html}
         {asp_html}
