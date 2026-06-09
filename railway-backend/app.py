@@ -861,21 +861,24 @@ def velez_amalfitani_geojson():
     Properties: real from faro_assembler (ndvi, entropia_h, theta_*cm, etc.).
     """
     # Approximate bounding boxes [lng_min, lat_min, lng_max, lat_max]
-    # Amalfitani training complex center: -34.6344, -58.5034
-    # Each pitch ≈ 0.0014° lng × 0.0009° lat (~105m × 100m at this latitude)
-    _BOUNDS = {
-        "cancha1": [-58.5048, -58.5034, -34.6351, -34.6339],  # will be fixed below
-    }
-    # Correct format: [lng_min, lat_min, lng_max, lat_max]
+    # Amalfitani training complex center: lat -34.6344, lng -58.5034
+    # Grid: 2 columnas × 5 filas para 1FA-10FA, fila extra para 1FP/2FP
+    # Cada cancha ≈ 0.0013° lng × 0.0011° lat (~100m × 120m)
+    # Col A origin: lng -58.5060  Col B origin: lng -58.5044
+    # Row origin (lat, top de cada fila): -34.6326, -34.6339, -34.6352, -34.6365, -34.6378, -34.6391
     _CANCHA_BOUNDS = {
-        "cancha1": [-58.5048, -34.6351, -58.5034, -34.6339],
-        "cancha2": [-58.5033, -34.6351, -58.5019, -34.6339],
-        "cancha3": [-58.5048, -34.6365, -58.5034, -34.6353],
-        "cancha4": [-58.5033, -34.6365, -58.5019, -34.6353],
-        "cancha5": [-58.5063, -34.6351, -58.5049, -34.6339],
-        "cancha6": [-58.5063, -34.6365, -58.5049, -34.6353],
-        "cancha7": [-58.5018, -34.6351, -58.5004, -34.6339],
-        "cancha8": [-58.5018, -34.6365, -58.5004, -34.6353],
+        "1fa":  [-58.5060, -34.6337, -58.5047, -34.6326],  # col A, row 0
+        "2fa":  [-58.5044, -34.6337, -58.5031, -34.6326],  # col B, row 0
+        "3fa":  [-58.5060, -34.6350, -58.5047, -34.6339],  # col A, row 1
+        "4fa":  [-58.5044, -34.6350, -58.5031, -34.6339],  # col B, row 1
+        "5fa":  [-58.5060, -34.6363, -58.5047, -34.6352],  # col A, row 2
+        "6fa":  [-58.5044, -34.6363, -58.5031, -34.6352],  # col B, row 2
+        "7fa":  [-58.5060, -34.6376, -58.5047, -34.6365],  # col A, row 3
+        "8fa":  [-58.5044, -34.6376, -58.5031, -34.6365],  # col B, row 3
+        "9fa":  [-58.5060, -34.6389, -58.5047, -34.6378],  # col A, row 4
+        "10fa": [-58.5044, -34.6389, -58.5031, -34.6378],  # col B, row 4
+        "1fp":  [-58.5060, -34.6402, -58.5047, -34.6391],  # polivalente A
+        "2fp":  [-58.5044, -34.6402, -58.5031, -34.6391],  # polivalente B
     }
 
     def _bbox_polygon(b):
