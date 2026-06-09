@@ -45,16 +45,24 @@ CREATE TABLE IF NOT EXISTS fenologia_baselines (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- ── qa_alerts: alertas post-ciclo del QA watchdog ──────────────────────────────
-CREATE TABLE IF NOT EXISTS qa_alerts (
-    id         BIGSERIAL PRIMARY KEY,
-    table_name TEXT,
-    check_name TEXT        NOT NULL,
-    status     TEXT        NOT NULL,   -- FAIL | WARN | OK
-    detail     TEXT,
-    checked_at TIMESTAMPTZ DEFAULT NOW()
+-- ── qa_alerts: alertas post-ciclo del QA watchdog (schema v2 — 2026-06-09) ─────
+-- DROP + recreate porque v1 tenía check_name NOT NULL incompatible con watchdog v2
+DROP TABLE IF EXISTS qa_alerts CASCADE;
+CREATE TABLE qa_alerts (
+    id                 BIGSERIAL PRIMARY KEY,
+    nivel              TEXT CHECK (nivel IN ('ERROR','WARNING','INFO')),
+    modulo             TEXT NOT NULL,
+    mensaje            TEXT NOT NULL,
+    diagnostico_claude TEXT,
+    venue_id           TEXT DEFAULT 'velez',
+    resuelto           BOOLEAN DEFAULT FALSE,
+    created_at         TIMESTAMPTZ DEFAULT NOW()
 );
-CREATE INDEX IF NOT EXISTS idx_qa_alerts_ts ON qa_alerts (checked_at DESC);
+CREATE INDEX IF NOT EXISTS idx_qa_alerts_ts    ON qa_alerts (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_qa_alerts_nivel ON qa_alerts (nivel, created_at DESC);
+ALTER TABLE qa_alerts DISABLE ROW LEVEL SECURITY;
+GRANT ALL ON public.qa_alerts TO anon;
+GRANT USAGE, SELECT ON SEQUENCE public.qa_alerts_id_seq TO anon;
 
 -- ── Forzar recarga del schema cache de PostgREST (fix inmediato de PGRST204) ──
 NOTIFY pgrst, 'reload schema';
