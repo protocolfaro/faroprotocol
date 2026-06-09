@@ -12,9 +12,13 @@ ALTER TABLE climate_metrics ADD COLUMN IF NOT EXISTS riego_min          SMALLINT
 ALTER TABLE climate_metrics ADD COLUMN IF NOT EXISTS ventana_corte      TEXT;
 ALTER TABLE climate_metrics ADD COLUMN IF NOT EXISTS altura_corte_mm    NUMERIC;
 ALTER TABLE climate_metrics ADD COLUMN IF NOT EXISTS fuente             TEXT;
+ALTER TABLE climate_metrics ADD COLUMN IF NOT EXISTS fecha              DATE;
 
 -- ── soil_metrics: cancha_id debe ser nullable para inserts a nivel venue ──
 ALTER TABLE soil_metrics ALTER COLUMN cancha_id DROP NOT NULL;
+
+-- ── vegetation_metrics: cancha_id debe ser nullable para inserts a nivel venue ──
+ALTER TABLE vegetation_metrics ALTER COLUMN cancha_id DROP NOT NULL;
 
 -- ── vegetation_metrics: columnas Kalman gap-fill agregadas 2026-06-09 ──
 ALTER TABLE vegetation_metrics ADD COLUMN IF NOT EXISTS ndvi_sintetico      REAL;
