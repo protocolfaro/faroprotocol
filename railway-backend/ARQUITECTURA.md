@@ -50,3 +50,14 @@ Cada cliente tiene exactamente un archivo HTML. No se crean subpáginas ni rutas
 
 La estructura visual de los gen scripts (`gen_velez_*.py`) es fija.
 Solo cambian datos vía `FARO_VD_PATH`. Nunca simplificar ni reemplazar con layouts genéricos.
+
+## Regla 4: Sin constantes hardcodeadas de datos de campo
+
+**Ningún gen script puede contener constantes hardcodeadas de datos de campo.**
+Esto incluye temperaturas, índices espectrales, KPIs acuáticos, valores InSAR, conteos de paneles,
+o cualquier número que represente estado físico del predio.
+
+Todo dato viene del assembler (`assemble_report()` → `FARO_VD_PATH`).
+Si no hay dato real → el campo es `None`/`null` → el renderer muestra `'SIN DATO'`.
+
+Nunca un número inventado.

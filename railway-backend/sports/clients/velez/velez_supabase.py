@@ -615,3 +615,132 @@ def get_climate_metrics_latest(venue_id: str, dias: int = 30) -> list[dict]:
     except Exception as exc:
         log.warning("climate_metrics get: %s", exc)
     return []
+
+
+# ── velez_solar ───────────────────────────────────────────────────────────────
+# SQL:
+#   CREATE TABLE IF NOT EXISTS velez_solar (
+#       id BIGSERIAL PRIMARY KEY,
+#       panel_id TEXT NOT NULL,
+#       eficiencia_pct REAL,
+#       temperatura_c REAL,
+#       estado TEXT,
+#       created_at TIMESTAMPTZ DEFAULT NOW()
+#   );
+#   ALTER TABLE velez_solar DISABLE ROW LEVEL SECURITY;
+#   GRANT ALL ON public.velez_solar TO anon;
+#   GRANT USAGE, SELECT ON SEQUENCE public.velez_solar_id_seq TO anon;
+
+def upsert_solar(panels: list[dict]) -> bool:
+    """
+    Insert solar panel readings into velez_solar.
+    panels: list of {panel_id, eficiencia_pct, temperatura_c, estado}
+    Returns True on success.
+    """
+    if not _ok() or not panels:
+        return False
+    url  = f"{_base()}/rest/v1/velez_solar"
+    hdrs = _hdrs({"Prefer": "return=minimal"})
+    rows = []
+    for p in panels:
+        row: dict = {}
+        for field in ("panel_id", "eficiencia_pct", "temperatura_c", "estado"):
+            if p.get(field) is not None:
+                row[field] = p[field]
+        if "panel_id" not in row:
+            continue
+        rows.append(row)
+    if not rows:
+        return False
+    try:
+        r = _req.post(url, headers=hdrs,
+                      data=json.dumps(rows, default=str), timeout=12)
+        if r.status_code in (200, 201, 204):
+            log.info("velez_solar: %d paneles inserted", len(rows))
+            return True
+        log.warning("velez_solar upsert HTTP %s: %s", r.status_code, r.text[:200])
+    except Exception as exc:
+        log.warning("velez_solar upsert: %s", exc)
+    return False
+
+
+def get_solar_latest(dias: int = 7) -> list[dict]:
+    """Return most recent velez_solar rows (one per panel_id). Newest first."""
+    if not _ok():
+        return []
+    since = (datetime.now(timezone.utc) - timedelta(days=dias)).isoformat()
+    url = (f"{_base()}/rest/v1/velez_solar"
+           f"?created_at=gte.{since}&order=created_at.desc&limit=500")
+    try:
+        r = _req.get(url, headers=_hdrs(), timeout=8)
+        if r.status_code == 200:
+            return r.json()
+        log.warning("velez_solar get HTTP %s", r.status_code)
+    except Exception as exc:
+        log.warning("velez_solar get: %s", exc)
+    return []
+
+
+# ── velez_piletas ─────────────────────────────────────────────────────────────
+# SQL:
+#   CREATE TABLE IF NOT EXISTS velez_piletas (
+#       id BIGSERIAL PRIMARY KEY,
+#       pileta_id TEXT NOT NULL,
+#       turbidez_ntu REAL,
+#       ph REAL,
+#       cloro_ppm REAL,
+#       temperatura_c REAL,
+#       created_at TIMESTAMPTZ DEFAULT NOW()
+#   );
+#   ALTER TABLE velez_piletas DISABLE ROW LEVEL SECURITY;
+#   GRANT ALL ON public.velez_piletas TO anon;
+#   GRANT USAGE, SELECT ON SEQUENCE public.velez_piletas_id_seq TO anon;
+
+def upsert_piletas(readings: list[dict]) -> bool:
+    """
+    Insert aquatic quality readings into velez_piletas.
+    readings: list of {pileta_id, turbidez_ntu, ph, cloro_ppm, temperatura_c}
+    Returns True on success.
+    """
+    if not _ok() or not readings:
+        return False
+    url  = f"{_base()}/rest/v1/velez_piletas"
+    hdrs = _hdrs({"Prefer": "return=minimal"})
+    rows = []
+    for p in readings:
+        row: dict = {}
+        for field in ("pileta_id", "turbidez_ntu", "ph", "cloro_ppm", "temperatura_c"):
+            if p.get(field) is not None:
+                row[field] = p[field]
+        if "pileta_id" not in row:
+            continue
+        rows.append(row)
+    if not rows:
+        return False
+    try:
+        r = _req.post(url, headers=hdrs,
+                      data=json.dumps(rows, default=str), timeout=12)
+        if r.status_code in (200, 201, 204):
+            log.info("velez_piletas: %d lecturas inserted", len(rows))
+            return True
+        log.warning("velez_piletas upsert HTTP %s: %s", r.status_code, r.text[:200])
+    except Exception as exc:
+        log.warning("velez_piletas upsert: %s", exc)
+    return False
+
+
+def get_piletas_latest(dias: int = 7) -> list[dict]:
+    """Return most recent velez_piletas rows. Newest first."""
+    if not _ok():
+        return []
+    since = (datetime.now(timezone.utc) - timedelta(days=dias)).isoformat()
+    url = (f"{_base()}/rest/v1/velez_piletas"
+           f"?created_at=gte.{since}&order=created_at.desc&limit=200")
+    try:
+        r = _req.get(url, headers=_hdrs(), timeout=8)
+        if r.status_code == 200:
+            return r.json()
+        log.warning("velez_piletas get HTTP %s", r.status_code)
+    except Exception as exc:
+        log.warning("velez_piletas get: %s", exc)
+    return []

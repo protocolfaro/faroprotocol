@@ -176,6 +176,52 @@ def _enrich_canchas_scientific(vd: dict, venue_id: str) -> None:
         log.warning("assembler: enriquecimiento científico (non-fatal): %s", e)
 
 
+def _apply_solar_overlay(vd: dict) -> None:
+    """5. velez_solar → vd['sectores']['solar']['panel_data'] por panel_id."""
+    try:
+        _here = os.path.dirname(os.path.abspath(__file__))
+        if _here not in sys.path:
+            sys.path.insert(0, _here)
+        import velez_supabase as _vs
+        rows = _vs.get_solar_latest(dias=7)
+        if not rows:
+            return
+        by_panel: dict = {}
+        for r in rows:
+            pid = r.get("panel_id")
+            if pid and pid not in by_panel:
+                by_panel[pid] = {k: v for k, v in r.items()
+                                 if k not in ("id", "created_at")}
+        solar = vd.setdefault("sectores", {}).setdefault("solar", {})
+        solar["panel_data"] = by_panel
+        log.info("assembler: solar overlay OK (%d paneles)", len(by_panel))
+    except Exception as e:
+        log.warning("assembler: solar overlay (non-fatal): %s", e)
+
+
+def _apply_piletas_overlay(vd: dict) -> None:
+    """6. velez_piletas → vd['sectores']['piletas']['kpis_por_pileta'] por pileta_id."""
+    try:
+        _here = os.path.dirname(os.path.abspath(__file__))
+        if _here not in sys.path:
+            sys.path.insert(0, _here)
+        import velez_supabase as _vs
+        rows = _vs.get_piletas_latest(dias=7)
+        if not rows:
+            return
+        by_pileta: dict = {}
+        for r in rows:
+            pid = r.get("pileta_id")
+            if pid and pid not in by_pileta:
+                by_pileta[pid] = {k: v for k, v in r.items()
+                                  if k not in ("id", "created_at")}
+        piletas = vd.setdefault("sectores", {}).setdefault("piletas", {})
+        piletas["kpis_por_pileta"] = by_pileta
+        log.info("assembler: piletas overlay OK (%d piletas)", len(by_pileta))
+    except Exception as e:
+        log.warning("assembler: piletas overlay (non-fatal): %s", e)
+
+
 def assemble_report(venue_id: str = "amalfitani") -> dict:
     """
     Ensambla el VelezReport canónico.
@@ -186,6 +232,8 @@ def assemble_report(venue_id: str = "amalfitani") -> dict:
     _apply_supabase_overlay(vd)
     _apply_hermes(vd, venue_id)
     _enrich_canchas_scientific(vd, venue_id)
+    _apply_solar_overlay(vd)
+    _apply_piletas_overlay(vd)
     vd["_assembled_at"] = datetime.now(timezone.utc).isoformat()
     vd["_venue_id"]     = venue_id
     log.info("assembler: reporte ensamblado para %s [%s]",

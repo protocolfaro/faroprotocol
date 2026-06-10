@@ -67,8 +67,9 @@ ax.text(0.5, 0.88, 'EN CALIBRACIÓN',
 
 # Texto principal
 ax.text(0.5, 0.66,
-        'Primera cobertura satelital disponible próxima semana',
-        color=WHITE, fontsize=13, ha='center', va='center')
+        'Sin datos satelitales disponibles para este sector.\n'
+        'Primera cobertura disponible cuando el pipeline procese imágenes del área.',
+        color=WHITE, fontsize=11, ha='center', va='center')
 
 # Separador puntado
 ax.plot([0.25, 0.75], [0.53, 0.53], color=WDIM + '55', lw=0.8, linestyle=':')

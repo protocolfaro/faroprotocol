@@ -2,19 +2,17 @@
 gen_velez_piletas.py
 Faro Protocol — Complejo Acuático + Natatorio Olímpico · Vélez Sarsfield
 Genera: reportes_velez/faro_reporte_velez_piletas.png
-Sentinel-2 NIR + Landsat TIRS + SAR/InSAR · Mayo 2026
-Sistema de alerta temprana de calidad de agua
+Datos reales vía faro_assembler / FARO_VD_PATH.
+Sin datos individuales → muestra score global únicamente.
 """
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.patches as mpatches
-from matplotlib.patches import FancyBboxPatch, Circle, Arc
-from matplotlib.colors import LinearSegmentedColormap
-from matplotlib.cm import ScalarMappable
+from matplotlib.patches import FancyBboxPatch, Circle
 import numpy as np
-import hashlib, pathlib, shutil
+import hashlib, pathlib, json, os
 from datetime import datetime
 
 # ─── PALETA ──────────────────────────────────────────────────────────────────
@@ -30,8 +28,6 @@ YELL  = '#f0b429'
 GRNL  = '#27ae60'
 BLUE  = '#1565c0'
 BLUEL = '#4a9ede'
-CYAN  = '#00bcd4'
-CYANL = '#40c4d4'
 BORDER= '#1e2a38'
 DPI   = 200
 
@@ -41,119 +37,34 @@ now  = datetime.now()
 CERT = hashlib.sha256(f"FARO-VELEZ-PILETAS-{now.isoformat()}".encode()).hexdigest()[:28].upper()
 WEEK = now.strftime('Semana del %d de %B de %Y')
 
-# ─── 6 KPIs ACUÁTICOS ────────────────────────────────────────────────────────
-KPIS_ACUATICOS = [
-    {
-        'label':  'TURBIDEZ',
-        'sublabel': 'Sentinel-2 NIR',
-        'valor':  2.8,
-        'unidad': 'NTU',
-        'umbral_aten': 5.0,
-        'umbral_alert': 10.0,
-        'estado': 'ÓPTIMA',
-        'sem':    'verde',
-        'nota':   '< 5 NTU = agua transparente',
-        'historico': [3.1, 2.9, 3.4, 2.8],
-    },
-    {
-        'label':  'CLOROFILA/ALGAS',
-        'sublabel': 'Sentinel-2 B5/B4',
-        'valor':  0.12,
-        'unidad': 'mg/m³',
-        'umbral_aten': 0.5,
-        'umbral_alert': 2.0,
-        'estado': 'ÓPTIMA',
-        'sem':    'verde',
-        'nota':   '< 0.5 = sin proliferación',
-        'historico': [0.09, 0.11, 0.14, 0.12],
-    },
-    {
-        'label':  'TEMP. AGUA',
-        'sublabel': 'Sentinel-2 LST',
-        'valor':  23.4,
-        'unidad': '°C',
-        'umbral_aten': 28.0,
-        'umbral_alert': 32.0,
-        'estado': 'ÓPTIMA',
-        'sem':    'verde',
-        'nota':   'Rango óptimo 20–26°C',
-        'historico': [22.8, 23.1, 23.8, 23.4],
-    },
-    {
-        'label':  'TEMP. TECHO',
-        'sublabel': 'Landsat TIRS',
-        'valor':  38.7,
-        'unidad': '°C',
-        'umbral_aten': 40.0,
-        'umbral_alert': 50.0,
-        'estado': 'ATENCIÓN',
-        'sem':    'amarillo',
-        'nota':   'Verificar aislamiento',
-        'historico': [35.2, 36.8, 37.9, 38.7],
-    },
-    {
-        'label':  'ASENTAMIENTO',
-        'sublabel': 'InSAR Sentinel-1',
-        'valor':  0.85,
-        'unidad': 'mm/sem',
-        'umbral_aten': 2.0,
-        'umbral_alert': 3.5,
-        'estado': 'ÓPTIMA',
-        'sem':    'verde',
-        'nota':   '< 2mm = estable',
-        'historico': [0.72, 0.78, 0.81, 0.85],
-    },
-    {
-        'label':  'SCORE GLOBAL',
-        'sublabel': 'Índice FARO',
-        'valor':  91,
-        'unidad': '/100',
-        'umbral_aten': 60,
-        'umbral_alert': 40,
-        'estado': 'ÓPTIMA',
-        'sem':    'verde',
-        'nota':   'Calidad acuática excelente',
-        'historico': [88, 89, 90, 91],
-    },
-]
+# ─── DATOS REALES ─────────────────────────────────────────────────────────────
+score_piletas   = None
+sem_piletas     = 'verde'
+detalle_piletas = None
 
-# Alerta global: ÓPTIMA
-N_CRIT  = sum(1 for k in KPIS_ACUATICOS if k['sem'] == 'rojo')
-N_ATEN  = sum(1 for k in KPIS_ACUATICOS if k['sem'] == 'amarillo')
-if N_CRIT > 0:
-    ALERTA_GLOBAL = 'ALERTA ROJA'
-    ALERTA_COL    = REDL
-elif N_ATEN > 0:
-    ALERTA_GLOBAL = 'ATENCIÓN'
-    ALERTA_COL    = YELL
-else:
-    ALERTA_GLOBAL = 'ÓPTIMA'
-    ALERTA_COL    = GRNL
-
-# ─── REAL DATA OVERRIDE ──────────────────────────────────────────────────────
-import os as _os, json as _json
-_vd_path = _os.environ.get("FARO_VD_PATH")
+_vd_path = os.environ.get("FARO_VD_PATH")
 if _vd_path:
     try:
         with open(_vd_path, encoding="utf-8") as _f:
-            _vd = _json.load(_f)
+            _vd = json.load(_f)
         _s = _vd.get("sectores", {}).get("piletas", {})
-        if _s:
-            if "score"   in _s: KPIS_ACUATICOS[5]["valor"] = _s["score"]
-            if "sem"     in _s: KPIS_ACUATICOS[5]["sem"]   = _s["sem"]
-            if "detalle" in _s: KPIS_ACUATICOS[5]["nota"]  = _s["detalle"]
-            if "kpis" in _s:
-                for _i, _ku in enumerate(_s["kpis"]):
-                    if _i < len(KPIS_ACUATICOS):
-                        KPIS_ACUATICOS[_i].update({_k: _v for _k, _v in _ku.items() if _k in KPIS_ACUATICOS[_i]})
-            _nc = sum(1 for _k in KPIS_ACUATICOS if _k['sem'] == 'rojo')
-            _na = sum(1 for _k in KPIS_ACUATICOS if _k['sem'] == 'amarillo')
-            if _nc > 0:   ALERTA_GLOBAL, ALERTA_COL = 'ALERTA ROJA', REDL
-            elif _na > 0: ALERTA_GLOBAL, ALERTA_COL = 'ATENCIÓN',    YELL
-            else:         ALERTA_GLOBAL, ALERTA_COL = 'ÓPTIMA',      GRNL
+        if isinstance(_s.get("score"), (int, float)):
+            score_piletas = int(_s["score"])
+        if _s.get("sem"):
+            sem_piletas = _s["sem"]
+        detalle_piletas = _s.get("detalle")
     except Exception as _e:
         print(f"FARO_VD_PATH piletas: {_e}")
-_out_path = _os.environ.get("FARO_OUT_PATH")
+
+_out_path = os.environ.get("FARO_OUT_PATH")
+
+ALERTA_COL = SEM_COL.get(sem_piletas, GRNL)
+if sem_piletas == 'rojo':
+    ALERTA_GLOBAL = 'ALERTA ROJA'
+elif sem_piletas == 'amarillo':
+    ALERTA_GLOBAL = 'ATENCIÓN'
+else:
+    ALERTA_GLOBAL = 'ÓPTIMA'
 
 # ─── HELPERS ─────────────────────────────────────────────────────────────────
 def panel_ax(ax, title=''):
@@ -164,20 +75,20 @@ def panel_ax(ax, title=''):
         ax.set_title(title, color=GOLD, fontsize=9.5, fontweight='bold',
                      loc='left', pad=5, fontfamily='monospace')
 
-def draw_gauge(ax, cx, cy, r, val, max_val, col, label, sublabel, unidad):
-    theta_bg = np.linspace(np.pi, 0, 100)
-    xs_bg = cx + r * np.cos(theta_bg)
-    ys_bg = cy + r * 0.6 * np.sin(theta_bg)
-    ax.plot(xs_bg, ys_bg, color=BG3, linewidth=12, solid_capstyle='round', zorder=2)
-    pct = min(val / max_val, 1.0)
-    theta_val = np.linspace(np.pi, np.pi - pct * np.pi, 100)
-    xs_v = cx + r * np.cos(theta_val)
-    ys_v = cy + r * 0.6 * np.sin(theta_val)
-    ax.plot(xs_v, ys_v, color=col, linewidth=12, solid_capstyle='round', zorder=3)
-    ax.text(cx, cy - r*0.15, label, color=GOLD, fontsize=7.5, fontweight='bold',
-           ha='center', va='center', fontfamily='monospace')
-    ax.text(cx, cy - r*0.42, sublabel, color=WDIM, fontsize=6.5,
-           ha='center', va='center', fontfamily='monospace')
+def sin_dato_panel(ax, titulo, nota=''):
+    ax.set_facecolor(BG2); ax.set_xlim(0,1); ax.set_ylim(0,1); ax.axis('off')
+    ax.set_title(titulo, color=GOLD+'99', fontsize=9.5, fontweight='bold',
+                 loc='left', pad=5, fontfamily='monospace')
+    ax.add_patch(FancyBboxPatch((0.10, 0.18), 0.80, 0.60,
+        boxstyle='round,pad=0.02', transform=ax.transAxes,
+        facecolor=BG3, edgecolor=WDIM+'33', linewidth=1.0))
+    ax.text(0.5, 0.56, 'SIN DATO',
+        transform=ax.transAxes, color=WDIM, fontsize=20, fontweight='bold',
+        ha='center', va='center', fontfamily='monospace')
+    if nota:
+        ax.text(0.5, 0.32, nota,
+            transform=ax.transAxes, color=WDIM+'88', fontsize=8.5,
+            ha='center', va='center', fontfamily='monospace')
 
 # ─── FIGURA ───────────────────────────────────────────────────────────────────
 fig = plt.figure(figsize=(13.5, 30), facecolor=BG)
@@ -201,178 +112,82 @@ ax_hdr.text(0.99, 0.26, 'Sentinel-2 NIR · Landsat TIRS · InSAR · Alerta Calid
             color=WDIM, fontsize=8, ha='right', transform=ax_hdr.transAxes, fontfamily='monospace')
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 6 KPIs ACUÁTICOS (gauges semicirculares)
+# PANEL EJECUTIVO — SCORE GLOBAL + SIN DATO PARA KPIs
 # ══════════════════════════════════════════════════════════════════════════════
 ax_kpi = fig.add_subplot(gs[1])
 ax_kpi.set_facecolor(BG3); ax_kpi.axis('off')
 ax_kpi.set_xlim(0, 12); ax_kpi.set_ylim(0, 3)
 
-ax_kpi.text(6, 2.92, 'PANEL EJECUTIVO — 6 KPIs ACUÁTICOS · Sistema de Alerta Temprana',
+ax_kpi.text(6, 2.92, 'PANEL EJECUTIVO — KPIs ACUÁTICOS · Sistema de Alerta Temprana',
            color=GOLD, fontsize=9.5, fontweight='bold',
            ha='center', va='top', fontfamily='monospace')
 
+KPI_LABELS = ['TURBIDEZ', 'CLOROFILA/\nALGAS', 'TEMP.\nAGUA', 'TEMP.\nTECHO',
+              'ASENTA-\nMIENTO', 'SCORE\nGLOBAL']
+KPI_SUB    = ['Sentinel-2 NIR', 'Sentinel-2 B5/B4', 'Sentinel-2 LST',
+              'Landsat TIRS', 'InSAR Sentinel-1', 'Índice FARO']
 xs_kpi = np.linspace(1.0, 11.0, 6)
-for i, kpi in enumerate(KPIS_ACUATICOS):
+
+for i in range(6):
     cx = xs_kpi[i]
-    col = SEM_COL[kpi['sem']]
-    max_v = kpi['umbral_alert'] * 1.3 if kpi['valor'] < kpi['umbral_alert'] else kpi['valor'] * 1.1
-    if kpi['label'] == 'SCORE GLOBAL':
-        pct = kpi['valor'] / 100
+    is_score = (i == 5)
+
+    if is_score and score_piletas is not None:
+        col = ALERTA_COL
+        pct = score_piletas / 100
+        theta_bg = np.linspace(np.pi, 0, 100)
+        ax_kpi.plot(cx + 0.7*np.cos(theta_bg), 1.6 + 0.42*np.sin(theta_bg),
+                   color=BG2, linewidth=10, solid_capstyle='round', zorder=2)
+        theta_v = np.linspace(np.pi, np.pi - pct*np.pi, 100)
+        ax_kpi.plot(cx + 0.7*np.cos(theta_v), 1.6 + 0.42*np.sin(theta_v),
+                   color=col, linewidth=10, solid_capstyle='round', zorder=3)
+        ax_kpi.text(cx, 1.58, str(score_piletas), color=col, fontsize=16, fontweight='bold',
+                   ha='center', va='center')
+        ax_kpi.text(cx, 1.32, '/100', color=WDIM, fontsize=8,
+                   ha='center', va='top', fontfamily='monospace')
+        ax_kpi.text(cx, 0.82, ALERTA_GLOBAL, color=col, fontsize=8, fontweight='bold',
+                   ha='center', va='top', fontfamily='monospace')
+        if detalle_piletas:
+            ax_kpi.text(cx, 0.58, detalle_piletas[:30], color=WDIM, fontsize=5.5,
+                       ha='center', va='top', fontfamily='monospace')
+        ax_kpi.add_patch(Circle((cx, 1.58), 0.32, facecolor=col, alpha=0.10, zorder=1))
     else:
-        pct = min(kpi['valor'] / max_v, 1.0)
+        ax_kpi.add_patch(FancyBboxPatch((cx-0.60, 0.45), 1.20, 1.50,
+            boxstyle='round,pad=0.04', facecolor=BG2, edgecolor=WDIM+'22',
+            linewidth=0.7, zorder=2))
+        ax_kpi.text(cx, 1.60, '—', color=WDIM+'55', fontsize=18, fontweight='bold',
+                   ha='center', va='center')
+        ax_kpi.text(cx, 0.82, 'SIN DATO', color=WDIM+'66', fontsize=6.5, fontweight='bold',
+                   ha='center', va='top', fontfamily='monospace')
 
-    # Gauge
-    theta_bg = np.linspace(np.pi, 0, 100)
-    ax_kpi.plot(cx + 0.7*np.cos(theta_bg), 1.6 + 0.42*np.sin(theta_bg),
-               color=BG2, linewidth=10, solid_capstyle='round', zorder=2)
-    theta_v = np.linspace(np.pi, np.pi - pct*np.pi, 100)
-    ax_kpi.plot(cx + 0.7*np.cos(theta_v), 1.6 + 0.42*np.sin(theta_v),
-               color=col, linewidth=10, solid_capstyle='round', zorder=3)
-
-    ax_kpi.text(cx, 2.18, kpi['label'], color=GOLD, fontsize=7, fontweight='bold',
+    ax_kpi.text(cx, 2.18, KPI_LABELS[i], color=GOLD, fontsize=7, fontweight='bold',
                ha='center', va='bottom', fontfamily='monospace')
-    ax_kpi.text(cx, 1.58, f"{kpi['valor']}", color=col, fontsize=16, fontweight='bold',
-               ha='center', va='center')
-    ax_kpi.text(cx, 1.32, kpi['unidad'], color=WDIM, fontsize=8,
+    ax_kpi.text(cx, 0.38, KPI_SUB[i], color=WDIM+'66', fontsize=6,
                ha='center', va='top', fontfamily='monospace')
-    ax_kpi.text(cx, 1.12, kpi['sublabel'], color=WDIM+'99', fontsize=6,
-               ha='center', va='top', fontfamily='monospace')
-    ax_kpi.text(cx, 0.82, kpi['estado'], color=col, fontsize=8, fontweight='bold',
-               ha='center', va='top', fontfamily='monospace')
-    ax_kpi.text(cx, 0.58, kpi['nota'], color=WDIM, fontsize=6.5,
-               ha='center', va='top', fontfamily='monospace')
-
-    # Glow
-    ax_kpi.add_patch(Circle((cx, 1.58), 0.32, facecolor=col, alpha=0.10, zorder=1))
 
 # ══════════════════════════════════════════════════════════════════════════════
-# MAPA COMPLEJO ACUÁTICO
+# MAPA COMPLEJO ACUÁTICO — SIN DATO
 # ══════════════════════════════════════════════════════════════════════════════
 ax_map = fig.add_subplot(gs[2])
-panel_ax(ax_map, '  MAPA COMPLEJO ACUÁTICO — Sentinel-2 NIR · Calidad y Temperatura del Agua')
-ax_map.set_facecolor('#040c14')
-ax_map.set_xlim(0, 10); ax_map.set_ylim(0, 8)
-ax_map.tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
-
-# Color del agua según calidad
-cmap_agua = LinearSegmentedColormap.from_list('agua',
-    ['#b71c1c','#f57f17','#1565c0','#0288d1','#00acc1','#00bcd4','#4dd0e1'], N=256)
-
-piletas = [
-    # (x, y, w, h, label, turbidez, temp, sem)
-    (0.4, 4.0, 4.2, 3.5, 'NATATORIO OLÍMPICO\n50m · Competencia', 2.8, 23.4, 'verde'),
-    (5.0, 4.0, 4.5, 3.5, 'NATATORIO 2\n25m · Entrenamiento',      3.1, 22.8, 'verde'),
-    (0.4, 1.0, 2.8, 2.5, 'PILETA EXTERIOR 1',                      4.2, 24.1, 'verde'),
-    (3.5, 1.0, 2.8, 2.5, 'PILETA EXTERIOR 2',                      4.8, 25.3, 'verde'),
-    (6.6, 1.0, 2.8, 2.5, 'PILETA INFANTIL',                        2.5, 24.8, 'verde'),
-]
-
-for (x, y, w, h, lbl, turb, temp, sem) in piletas:
-    t = np.clip(1 - turb / 10, 0.2, 1.0)
-    col = cmap_agua(t)
-    ax_map.add_patch(mpatches.Rectangle((x, y), w, h, facecolor=col,
-        edgecolor='#ffffff55', linewidth=1.2, zorder=2, linestyle='-'))
-    lines = lbl.split('\n')
-    ax_map.text(x+w/2, y+h/2+0.15, lines[0], color='#ffffffee', fontsize=7.5,
-               ha='center', va='center', fontweight='bold', zorder=4)
-    if len(lines) > 1:
-        ax_map.text(x+w/2, y+h/2-0.22, lines[1], color='#ffffffaa', fontsize=6.5,
-                   ha='center', va='center', zorder=4)
-    ax_map.text(x+w/2, y+0.22, f'Turb: {turb} NTU  ·  {temp}°C',
-               color='#ffffffcc', fontsize=6.5, ha='center', va='bottom', zorder=4,
-               fontfamily='monospace')
-    sem_c = SEM_COL[sem]
-    ax_map.add_patch(Circle((x+0.22, y+h-0.22), 0.16, facecolor=sem_c, zorder=5))
-
-# Edificio natatorio (contorno)
-ax_map.add_patch(mpatches.Rectangle((0.2, 3.6), 9.6, 4.2,
-    facecolor='none', edgecolor=GOLD+'55', linewidth=1.2, linestyle=':', zorder=7))
-ax_map.text(5.0, 7.7, 'NATATORIO OLÍMPICO — TECHO CUBIERTO',
-           color=GOLD+'88', fontsize=7, ha='center', fontfamily='monospace', zorder=8)
-
-sm_agua = ScalarMappable(cmap=cmap_agua, norm=plt.Normalize(0, 10))
-sm_agua.set_array([])
-cax = ax_map.inset_axes([0.88, 0.05, 0.025, 0.88])
-cb = plt.colorbar(sm_agua, cax=cax)
-cb.set_ticks([0, 2, 5, 8, 10])
-cb.set_ticklabels(['0\nCryst.', '2', '5\nNTU', '8', '10\nTurb.'], fontsize=6)
-cb.ax.yaxis.set_tick_params(color=WDIM, labelcolor=WDIM)
-cb.outline.set_edgecolor(BORDER)
-cb.set_label('Turbidez', color=GOLD, fontsize=7, rotation=270, labelpad=8)
-
-ax_map.text(9.7, 7.65, 'N', color=GOLD, fontsize=10, fontweight='bold', ha='center')
-ax_map.annotate('', xy=(9.7, 7.58), xytext=(9.7, 7.15),
-               arrowprops=dict(arrowstyle='->', color=GOLD, lw=1.5))
+sin_dato_panel(ax_map,
+    '  MAPA COMPLEJO ACUÁTICO — Sentinel-2 NIR · Calidad y Temperatura del Agua',
+    'Disponible cuando velez_piletas (Supabase) tenga datos de turbidez y temperatura por pileta_id.')
 
 # ══════════════════════════════════════════════════════════════════════════════
-# GRÁFICOS TENDENCIAS CALIDAD AGUA
+# TENDENCIAS — SIN DATO
 # ══════════════════════════════════════════════════════════════════════════════
 ax_trend = fig.add_subplot(gs[3])
-panel_ax(ax_trend, '  TENDENCIAS — Calidad del Agua · Últimas 4 semanas')
-ax_trend.set_xlim(0,1); ax_trend.set_ylim(0,1); ax_trend.axis('off')
-
-semanas = ['Sem-3', 'Sem-2', 'Sem-1', 'Actual']
-x_sems = np.linspace(0.05, 0.35, 4)
-
-trends = [
-    ('Turbidez (NTU)',        KPIS_ACUATICOS[0]['historico'], BLUEL,  0.01,  0.45,  0.36, 5.0),
-    ('Clorofila (mg/m³)',     KPIS_ACUATICOS[1]['historico'], GRNL,   0.38,  0.45,  0.36, 0.5),
-    ('Temp. Agua (°C)',       KPIS_ACUATICOS[2]['historico'], CYANL,  0.72,  0.45,  0.24, 28.0),
-]
-
-for (lbl, hist, col, ox, oy, ow, umbral) in trends:
-    ax_s = ax_trend.inset_axes([ox, oy, ow, 0.48])
-    ax_s.set_facecolor(BG3)
-    for sp in ax_s.spines.values(): sp.set_color(BORDER+'88')
-    ax_s.plot(range(4), hist, 'o-', color=col, linewidth=2, markersize=5, zorder=3)
-    ax_s.axhline(umbral, color=YELL+'77', linewidth=1.0, linestyle='--')
-    ax_s.set_xticks(range(4))
-    ax_s.set_xticklabels(semanas, fontsize=6.5, color=WDIM, fontfamily='monospace')
-    ax_s.tick_params(colors=WDIM, labelsize=6.5)
-    ax_s.set_facecolor(BG3)
-    for sp in ax_s.spines.values(): sp.set_edgecolor(BORDER)
-    ax_s.yaxis.set_tick_params(labelcolor=WDIM)
-    ax_trend.text(ox + ow/2, oy + 0.50, lbl, color=col, fontsize=8,
-                 fontweight='bold', ha='center', transform=ax_trend.transAxes,
-                 fontfamily='monospace')
-    ax_trend.text(ox + ow/2, oy + 0.04, f'Actual: {hist[-1]}',
-                 color=WHITE, fontsize=8, ha='center', transform=ax_trend.transAxes,
-                 fontfamily='monospace')
+sin_dato_panel(ax_trend,
+    '  TENDENCIAS — Calidad del Agua · Últimas 4 semanas',
+    'Series históricas disponibles cuando velez_piletas tenga registros por pileta_id y fecha.')
 
 # ══════════════════════════════════════════════════════════════════════════════
-# InSAR ASENTAMIENTO PERIMETRAL
+# InSAR ASENTAMIENTO — SIN DATO
 # ══════════════════════════════════════════════════════════════════════════════
 ax_ins = fig.add_subplot(gs[4])
-panel_ax(ax_ins, '  InSAR PERIMETRAL — Sentinel-1 · Asentamiento Diferencial Vasos Piletas (mm/sem)')
-ax_ins.set_facecolor(BG2)
-
-sectores_ins = ['Natatorio\nOlímpico N', 'Natatorio\nOlímpico S', 'Natatorio\n2 E',
-                'Natatorio\n2 O', 'Pileta\nExt. 1', 'Pileta\nExt. 2', 'Piscina\nInfantil']
-vals_ins = [0.85, 0.72, 0.68, 0.91, 0.55, 0.62, 0.48]
-cols_ins = [GRNL if v < 1.0 else (YELL if v < 2.0 else REDL) for v in vals_ins]
-x_pos = np.arange(len(sectores_ins))
-
-bars = ax_ins.bar(x_pos, vals_ins, color=cols_ins, edgecolor=BG, linewidth=0.8,
-                  zorder=3, width=0.6)
-ax_ins.axhline(1.5, color=YELL+'aa', linewidth=1.2, linestyle='--', zorder=4)
-ax_ins.text(6.6, 1.55, 'UMBRAL\n1.5mm', color=YELL, fontsize=7, ha='right', va='bottom',
-           fontfamily='monospace')
-
-for bar_, val, col in zip(bars, vals_ins, cols_ins):
-    ax_ins.text(bar_.get_x()+bar_.get_width()/2, val+0.02,
-               f'{val:.2f}', color=col, fontsize=9, fontweight='bold',
-               ha='center', va='bottom', fontfamily='monospace')
-
-ax_ins.set_xlim(-0.5, len(sectores_ins)-0.3)
-ax_ins.set_ylim(0, 2.2)
-ax_ins.set_xticks(x_pos)
-ax_ins.set_xticklabels([s.replace('\n', ' ') for s in sectores_ins],
-                       color=WHITE, fontsize=7, fontfamily='monospace')
-ax_ins.set_ylabel('Desplazamiento (mm/sem)', color=WDIM, fontsize=8, fontfamily='monospace')
-ax_ins.tick_params(colors=WDIM)
-ax_ins.yaxis.label.set_color(WDIM)
-ax_ins.set_facecolor(BG3)
-for sp in ax_ins.spines.values(): sp.set_edgecolor(BORDER)
+sin_dato_panel(ax_ins,
+    '  InSAR PERIMETRAL — Sentinel-1 · Asentamiento Diferencial Vasos Piletas (mm/sem)',
+    'Datos de asentamiento disponibles cuando soil_metrics tenga registros para sector piletas.')
 
 # ══════════════════════════════════════════════════════════════════════════════
 # ALERTA GLOBAL CALIDAD AGUA
@@ -396,29 +211,16 @@ ax_alert.text(0.5, 0.74, 'CALIDAD AGUA',
 ax_alert.text(0.5, 0.52, ALERTA_GLOBAL,
              color=ALERTA_COL, fontsize=24, fontweight='bold', ha='center',
              transform=ax_alert.transAxes, fontfamily='monospace')
-ax_alert.text(0.5, 0.37, KPIS_ACUATICOS[5]['nota'],
+ax_alert.text(0.5, 0.37,
+             detalle_piletas if detalle_piletas else 'Score global vía Faro assembler',
              color=WDIM, fontsize=9, ha='center',
              transform=ax_alert.transAxes, fontfamily='monospace')
 
-# Indicadores compactos
-estados = [('TURB.', KPIS_ACUATICOS[0]['estado'], SEM_COL[KPIS_ACUATICOS[0]['sem']]),
-           ('CLOROFILA', KPIS_ACUATICOS[1]['estado'], SEM_COL[KPIS_ACUATICOS[1]['sem']]),
-           ('TEMP AGUA', KPIS_ACUATICOS[2]['estado'], SEM_COL[KPIS_ACUATICOS[2]['sem']]),
-           ('TECHO NAT.', KPIS_ACUATICOS[3]['estado'], SEM_COL[KPIS_ACUATICOS[3]['sem']]),
-           ('INSAR', KPIS_ACUATICOS[4]['estado'], SEM_COL[KPIS_ACUATICOS[4]['sem']]),]
-xs_est = np.linspace(0.05, 0.25, 5)
-for j, (lbl, est, col) in enumerate(estados):
-    xj = xs_est[j]
-    ax_alert.add_patch(FancyBboxPatch((xj-0.022, 0.05), 0.044, 0.72,
-        boxstyle="round,pad=0.005", facecolor=col+'18', edgecolor=col+'55',
-        linewidth=0.7, transform=ax_alert.transAxes))
-    ax_alert.text(xj, 0.70, lbl, color=WDIM, fontsize=6.5, ha='center',
+if score_piletas is not None:
+    ax_alert.text(0.5, 0.15, f'Score: {score_piletas}/100',
+                 color=ALERTA_COL, fontsize=12, fontweight='bold', ha='center',
                  transform=ax_alert.transAxes, fontfamily='monospace')
-    ax_alert.text(xj, 0.42, est, color=col, fontsize=7.5, fontweight='bold',
-                 ha='center', transform=ax_alert.transAxes, fontfamily='monospace')
-    ax_alert.plot(xj, 0.22, 'o', ms=12, color=col, transform=ax_alert.transAxes, zorder=4)
 
-# Leyenda derecha
 leyenda = [
     (GRNL, 'ÓPTIMA   — Agua en condición excelente'),
     (YELL,  'ATENCIÓN  — Verificar parámetro en campo'),
