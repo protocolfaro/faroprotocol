@@ -176,6 +176,77 @@ def _enrich_canchas_scientific(vd: dict, venue_id: str) -> None:
         log.warning("assembler: enriquecimiento científico (non-fatal): %s", e)
 
 
+def _apply_surface_rules(vd: dict) -> None:
+    """7. Aplicar reglas de capa por tipo de superficie.
+
+    Para superficies no biológicas (sintético, polvo de ladrillo, indoor):
+      - NDVI / GNDVI / BSI / NDWI / n_status / n_rec → None
+      - Excluir de canchas_en_riesgo de fungosis
+      - Agregar campo tipo_superficie a cada heatmap
+
+    Para indoor: adicionalmente marca sar_aplica=False.
+    """
+    try:
+        _here = os.path.dirname(os.path.abspath(__file__))
+        if _here not in sys.path:
+            sys.path.insert(0, _here)
+        import velez_supabase as _vs
+        tipo_cesped  = _vs._TIPO_CESPED
+        tipos_no_bio = _vs._TIPOS_NO_BIO
+        tipos_indoor = _vs._TIPOS_INDOOR
+    except Exception as e:
+        log.warning("assembler: surface_rules — no pudo importar tipos: %s", e)
+        return
+
+    _NDVI_FIELDS = ("ndvi", "gndvi", "bsi", "ndwi", "n_status", "n_rec")
+
+    # ── heatmaps de Roger ──────────────────────────────────────────────────
+    heatmaps = (vd.get("usuarios", {})
+                   .get("roger", {})
+                   .get("heatmaps", {}))
+    nulled = 0
+    for cid, hm in heatmaps.items():
+        t = tipo_cesped.get(cid, "natural")
+        hm["tipo_superficie"] = t
+        if t in tipos_no_bio:
+            for f in _NDVI_FIELDS:
+                if hm.get(f) is not None:
+                    hm[f] = None
+                    nulled += 1
+            if t in tipos_indoor:
+                hm["sar_aplica"] = False
+
+    # ── sectores.canchero.canchas ──────────────────────────────────────────
+    for c in (vd.get("sectores", {})
+                 .get("canchero", {})
+                 .get("canchas", []) or []):
+        cid = c.get("id", "")
+        t = tipo_cesped.get(cid, "natural")
+        c["tipo_superficie"] = t
+        if t in tipos_no_bio:
+            for f in _NDVI_FIELDS:
+                c[f] = None
+
+    # ── excluir no-biológicos de canchas_en_riesgo fungosis ───────────────
+    riesgo = vd.get("weather_live", {}).get("riesgo_fungosis", {})
+    cr = riesgo.get("canchas_en_riesgo")
+    if isinstance(cr, list):
+        antes = len(cr)
+        riesgo["canchas_en_riesgo"] = [
+            c for c in cr
+            if tipo_cesped.get(c, "natural") not in tipos_no_bio
+        ]
+        excluidas = antes - len(riesgo["canchas_en_riesgo"])
+        if excluidas:
+            log.info("assembler: surface_rules — %d canchas no-biológicas excluidas "
+                     "de fungosis: %s",
+                     excluidas,
+                     [c for c in cr if tipo_cesped.get(c, "natural") in tipos_no_bio])
+
+    log.info("assembler: surface_rules OK — %d campos NDVI nulleados en superficies no-bio",
+             nulled)
+
+
 def _apply_solar_overlay(vd: dict) -> None:
     """5. velez_solar → vd['sectores']['solar']['panel_data'] por panel_id."""
     try:
@@ -232,6 +303,7 @@ def assemble_report(venue_id: str = "amalfitani") -> dict:
     _apply_supabase_overlay(vd)
     _apply_hermes(vd, venue_id)
     _enrich_canchas_scientific(vd, venue_id)
+    _apply_surface_rules(vd)
     _apply_solar_overlay(vd)
     _apply_piletas_overlay(vd)
     vd["_assembled_at"] = datetime.now(timezone.utc).isoformat()

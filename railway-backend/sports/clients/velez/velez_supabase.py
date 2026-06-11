@@ -77,11 +77,60 @@ import requests as _req
 
 log = logging.getLogger(__name__)
 
-# Canchas con césped híbrido (Bermuda Tifway 419 type) — NDVI referencial, SAR primario
+# Tipo de superficie por cancha — determina qué capas satelitales aplican.
+#
+# hibrido      — Bermuda Tifway 419 + fibra sintética entrelazada.
+#                NDVI referencial (no directo). SAR primario. ET0/GDD/fungosis aplican.
+# natural      — Bermuda / Rye grass puro.
+#                Stack completo: NDVI, SAR humedad, ET0, GDD, fungosis.
+# sintetico    — Fibra polietileno, infill caucho/arena, losa hormigón base.
+#                NDVI → null (ruido). SAR parcial (infill/drenaje). InSAR losa ✅.
+#                Temperatura Landsat ✅ crítico (>60°C en verano). ET0/fungosis → null.
+# polvo_ladrillo — Arcilla triturada, sin vegetación.
+#                NDVI → null. SAR parcial (humedad base). InSAR base ✅. Temperatura ✅.
+#                ET0 / riego agronómico / fungosis → null.
+# indoor       — Edificio cerrado, parquet/hormigón interior.
+#                NDVI → null. SAR → null (bloqueado por techo).
+#                InSAR ✅ deformación estructural edificio/fundación.
+#                Temperatura Landsat → techo del edificio (no piso de juego).
+#                ET0 / riego / fungosis → null.
+
 _TIPO_CESPED: dict[str, str] = {
-    "amalfitani": "hibrido",
-    "1fa":        "hibrido",   # Cancha 1 Villa Olímpica
+    # HÍBRIDO — Bermuda natural + fibra sintética
+    "amalfitani":   "hibrido",
+    "1fa":          "hibrido",      # Cancha 1 Villa Olímpica — plantel profesional
+
+    # NATURAL — Bermuda / Rye grass puro
+    "2fa":          "natural",
+    "3fa":          "natural",
+    "4fa":          "natural",
+    "5fa":          "natural",
+    "6fa":          "natural",
+    "7fa":          "natural",
+    "8fa":          "natural",
+    "9fa":          "natural",
+    "10fa":         "natural",
+    "1fp":          "natural",      # Primer equipo — verificar si es híbrido
+    "2fp":          "natural",      # Primer equipo — natural confirmado
+
+    # SINTÉTICO — fibra polietileno, sin suelo biológico
+    "poli_f11":     "sintetico",    # Fútbol 11 — Polideportivo Feijóo
+    "poli_f8a":     "sintetico",    # Fútbol 8A — Polideportivo Feijóo
+    "poli_f8b":     "sintetico",    # Fútbol 8B — Polideportivo Feijóo
+    "poli_hockey":  "sintetico",    # Hockey — Polideportivo Feijóo
+
+    # POLVO DE LADRILLO — arcilla triturada, sin vegetación
+    "poli_tenis1":  "polvo_ladrillo",
+    "poli_tenis2":  "polvo_ladrillo",
+
+    # INDOOR — edificio cerrado, parquet de madera
+    "poli_basquet": "indoor",
 }
+
+# Tipos que NO tienen componente biológico vivo
+_TIPOS_NO_BIO: frozenset[str] = frozenset({"sintetico", "polvo_ladrillo", "indoor"})
+# Tipos donde el SAR no llega al suelo (bloqueado por techo)
+_TIPOS_INDOOR: frozenset[str] = frozenset({"indoor"})
 
 
 def _tipo_for(cancha_id: str) -> str:
