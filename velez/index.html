@@ -115,8 +115,8 @@ footer { background:linear-gradient(to top,rgba(10,10,10,1) 70%,transparent); pa
 // ── COORDENADAS REALES VÉLEZ ──────────────────────────────────────────────
 const VENUES = {
     amalfitani:     { lng:-58.5288, lat:-34.6379, zoom:17.5 },
-    villa_olimpica: { lng:-58.519800, lat:-34.636500, zoom:15.5 },
-    polideportivo:  { lng:-58.521855, lat:-34.637385, zoom:17.5 },
+    villa_olimpica: { lng:-58.7193, lat:-34.6221, zoom:15.5 },
+    polideportivo:  { lng:-58.5135, lat:-34.6333, zoom:17.5 },
     paneles_solares:{ lng:-58.522200, lat:-34.636800, zoom:19   },
     sede:           { lng:-58.523912, lat:-34.634620, zoom:18.5 },
     piletas:        { lng:-58.520900, lat:-34.637800, zoom:18.5 }
@@ -157,16 +157,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         style: 'https://tiles.openfreemap.org/styles/dark',
         center: [VENUES.amalfitani.lng, VENUES.amalfitani.lat],
         zoom:  VENUES.amalfitani.zoom,
-        pitch: 0, bearing: 0,
+        pitch: 45, bearing: -15,
         attributionControl: false
     });
 
     // Un solo canvas WebGL — deck.gl como overlay sobre MapLibre
     deckOverlay = new deck.MapboxOverlay({ interleaved: true, layers: [] });
     map.addControl(deckOverlay);
-    map.dragRotate.disable();
-    map.touchZoomRotate.disableRotation();
-
     map.on('load', async () => {
         // Satélite ArcGIS World Imagery — sin API key
         map.addSource('arcgis-sat', {
@@ -216,7 +213,7 @@ function switchVenue(v, btn) {
 
     const c = VENUES[v];
     if (c && map) {
-        map.flyTo({ center:[c.lng, c.lat], zoom:c.zoom, pitch:0, bearing:0, duration:1800 });
+        map.flyTo({ center:[c.lng, c.lat], zoom:c.zoom, pitch:45, bearing:-15, duration:1800 });
     }
     renderUI();
     renderLayers();
@@ -323,8 +320,18 @@ function renderUI() {
 function toggleLayer(lk) {
     const el = document.getElementById('chk-' + lk);
     if (el) activeL[lk] = el.checked;
-    renderUI();
     renderLayers();
+}
+
+// Centroid of a GeoJSON Feature (Point or Polygon ring avg)
+function geomCenter(f) {
+    if (f.geometry?.type === 'Point') return f.geometry.coordinates;
+    const ring = f.geometry?.coordinates?.[0];
+    if (!ring || ring.length < 3) return [VENUES[currentVenue].lng, VENUES[currentVenue].lat];
+    const pts = (ring[0][0] === ring[ring.length-1][0] && ring[0][1] === ring[ring.length-1][1])
+        ? ring.slice(0, -1) : ring;
+    const n = pts.length;
+    return [pts.reduce((s,c) => s+c[0], 0)/n, pts.reduce((s,c) => s+c[1], 0)/n];
 }
 
 // ── RENDER LAYERS (deck.gl) ──────────────────────────────────────────────
@@ -343,13 +350,7 @@ function renderLayers() {
     if (activeL.ndvi) {
         const pts = features
             .filter(f => f.properties?.ndvi != null)
-            .map(f => {
-                const c = f.geometry?.type === 'Point'
-                    ? f.geometry.coordinates
-                    : [f.properties.lng ?? VENUES[currentVenue].lng,
-                       f.properties.lat ?? VENUES[currentVenue].lat];
-                return { pos: c, w: f.properties.ndvi };
-            });
+            .map(f => ({ pos: geomCenter(f), w: f.properties.ndvi }));
         if (pts.length > 0) {
             layers.push(new deck.HeatmapLayer({
                 id: 'ndvi-heat',
@@ -393,12 +394,7 @@ function renderLayers() {
             layers.push(new deck.ColumnLayer({
                 id: 'richards-col',
                 data: cols,
-                getPosition: f => {
-                    const c = f.geometry?.coordinates;
-                    if (Array.isArray(c) && typeof c[0] === 'number') return c;
-                    return [f.properties.lng ?? VENUES[currentVenue].lng,
-                            f.properties.lat ?? VENUES[currentVenue].lat];
-                },
+                getPosition: f => geomCenter(f),
                 getElevation:  f => (f.properties[depthKey] ?? 0) * 200,
                 getFillColor:  [14,165,233,180],
                 radius:        3,
