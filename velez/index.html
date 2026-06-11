@@ -513,6 +513,25 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
 .dl-label{font-size:12px;color:var(--wdim);flex-shrink:0;margin-right:8px}
 .dl-val{font-size:13px;color:#e8e0d4;text-align:right}
 .dl-age{margin-top:4px;font-size:11px;color:var(--wdim);justify-content:flex-end}
+/* ── Faro Panel Multi-Venue — deck.gl ── */
+#deckgl-section{border-top:1px solid rgba(201,168,76,.12)}
+.venue-bar{display:flex;gap:6px;overflow-x:auto;padding:8px 12px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.venue-bar::-webkit-scrollbar{display:none}
+.venue-btn{flex-shrink:0;padding:6px 12px;border-radius:20px;border:1px solid rgba(201,168,76,.3);background:transparent;color:var(--wdim);font-size:11px;font-weight:600;letter-spacing:.08em;cursor:pointer;transition:all .2s;-webkit-tap-highlight-color:transparent}
+.venue-btn.active{background:rgba(201,168,76,.15);border-color:var(--gold);color:var(--gold)}
+.venue-btn:hover{border-color:rgba(201,168,76,.6);color:var(--whi)}
+#deckgl-map{height:420px;border-radius:10px;overflow:hidden;margin:0 12px 8px;background:var(--bg2)}
+@media(max-width:480px){#deckgl-map{height:320px}}
+.layer-bar{display:flex;gap:5px;overflow-x:auto;padding:4px 12px 8px;scrollbar-width:none}
+.layer-bar::-webkit-scrollbar{display:none}
+.layer-btn{flex-shrink:0;padding:4px 10px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:transparent;color:var(--wdim);font-size:10px;font-weight:600;letter-spacing:.06em;cursor:pointer;transition:all .15s;-webkit-tap-highlight-color:transparent}
+.layer-btn.active{background:rgba(100,181,246,.12);border-color:rgba(100,181,246,.4);color:#64b5f6}
+#dk-info{padding:6px 12px 8px;font-size:11px;color:var(--wdim);min-height:24px;line-height:1.5}
+.dk-sliders{padding:4px 12px 2px;display:flex;flex-direction:column;gap:6px}
+.dk-slider-row{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--wdim)}
+.dk-slider-row input[type=range]{flex:1;accent-color:var(--gold);height:3px}
+.dk-slider-row .dk-slider-lbl{flex-shrink:0;min-width:120px;font-size:10px;letter-spacing:.05em}
+.dk-slider-row .dk-slider-val{flex-shrink:0;min-width:44px;text-align:right;color:var(--gold);font-weight:600;font-size:10px}
 </style>
 </head>
 <body>
@@ -694,6 +713,36 @@ body{background:var(--bg);color:var(--whi);font-family:-apple-system,BlinkMacSys
     <button class="f3d-photo-btn" onclick="f3dOpenPhoto()">📸 Subir foto del campo — Ground Truth DGCI</button>
     <div id="f3d-photo-result" class="f3d-photo-result" style="display:none"></div>
     <input type="file" id="f3d-photo-input" accept="image/*" style="display:none" onchange="f3dUploadPhoto(this)">
+  </div>
+
+  <!-- Faro Panel Multi-Venue — deck.gl + MapLibre (canchero/roger) -->
+  <div id="deckgl-section" style="display:none">
+    <div class="section-title">Panel Multi-Venue
+      <span id="dk-live" style="width:6px;height:6px;background:var(--gold);border-radius:50%;display:inline-block;box-shadow:0 0 5px var(--gold);animation:pulse 2s infinite;margin-left:6px;vertical-align:middle"></span>
+    </div>
+    <div class="venue-bar" id="dk-venue-bar">
+      <button class="venue-btn active" data-v="amalf"   onclick="dkSelectVenue('amalf')">AMALFITANI</button>
+      <button class="venue-btn"        data-v="vo"      onclick="dkSelectVenue('vo')">VILLA OLÍMPICA</button>
+      <button class="venue-btn"        data-v="poli"    onclick="dkSelectVenue('poli')">POLIDEPORTIVO</button>
+      <button class="venue-btn"        data-v="solar"   onclick="dkSelectVenue('solar')">PANELES SOLARES</button>
+      <button class="venue-btn"        data-v="sede"    onclick="dkSelectVenue('sede')">SEDE</button>
+      <button class="venue-btn"        data-v="piletas" onclick="dkSelectVenue('piletas')">PILETAS</button>
+    </div>
+    <div class="layer-bar" id="dk-layer-bar"></div>
+    <div class="dk-sliders" id="dk-sliders" style="display:none">
+      <div class="dk-slider-row">
+        <span class="dk-slider-lbl">Profundidad (Richards):</span>
+        <input type="range" id="dk-richards" min="5" max="20" step="5" value="5" oninput="dkRichardsChange(this.value)">
+        <span class="dk-slider-val" id="dk-richards-val">5 cm</span>
+      </div>
+      <div class="dk-slider-row">
+        <span class="dk-slider-lbl">◀ Dale Play (días):</span>
+        <input type="range" id="dk-daleplay" min="0" max="30" value="0" oninput="dkDalePlayChange(this.value)">
+        <span class="dk-slider-val" id="dk-daleplay-val">Hoy</span>
+      </div>
+    </div>
+    <div id="deckgl-map"></div>
+    <div id="dk-info">Cargando datos satelitales…</div>
   </div>
 
   <!-- Mantenimiento programado — intendente + ejecutivo -->
@@ -2971,6 +3020,8 @@ function render(data, cfg){
     fetchDataLake();        // Data Lake: 4 tablas Supabase en tiempo real
     buildMiCampo(u, data, cfg);
     if(typeof window.buildFaro3D === 'function') window.buildFaro3D();
+    window._faroVelezData = data;
+    if(typeof window.buildDeckPanel === 'function') window.buildDeckPanel();
     document.getElementById('sectors-wrapper').style.display='none';
     document.getElementById('weather-section').style.display='block';
     document.getElementById('smart-recs-section').style.display='block';
@@ -3547,6 +3598,490 @@ window.f3dUploadPhoto = function(inp){
 
 /* Expose to main IIFE scope */
 window.buildFaro3D = buildFaro3D;
+
+})();
+</script>
+
+<script>
+/* ════════════════════════════════════════════════════════════════════════
+   FARO PANEL MULTI-VENUE — deck.gl ^9 + MapLibre 4.x
+   Reglas:
+     • Un solo canvas WebGL — deck.gl como MapboxOverlay sobre MapLibre
+     • Reset de sliders al cambiar venue
+     • Honesty: null → capa invisible / "Sin dato"
+     • Safe null access en todo acceso a data
+   ════════════════════════════════════════════════════════════════════════ */
+(function(){
+'use strict';
+
+var FB = 'https://faroprotocol-production-45fd.up.railway.app';
+
+var _dkLoaded  = false;
+var _mlLoaded2 = false;
+var _map       = null;
+var _overlay   = null;
+var _data      = null;
+var _venue     = 'amalf';
+var _layer     = 'ndvi';
+var _richardsDepth = 5;    // cm: 5 | 10 | 20
+var _dalePlayDay   = 0;    // 0 = today, N = N days ago
+
+/* ── Venue configuration ── */
+var _VC = {
+  amalf:   { center:[-58.5207,-34.6353], zoom:16,   canchas:['amalfitani'] },
+  vo:      { center:[-58.7200,-34.6221], zoom:15.2, canchas:['1fa','2fa','3fa','4fa','5fa','6fa','7fa','8fa','9fa','10fa','1fp','2fp'] },
+  poli:    { center:[-58.5138,-34.6334], zoom:17,   canchas:['poli_f11','poli_f8a','poli_f8b','poli_hockey','poli_tenis1','poli_tenis2','poli_basquet'] },
+  solar:   { center:[-58.5230,-34.6360], zoom:17,   canchas:[] },
+  sede:    { center:[-58.5235,-34.6358], zoom:17,   canchas:[] },
+  piletas: { center:[-58.5240,-34.6362], zoom:18,   canchas:[] },
+};
+
+/* ── Cancha center coordinates [lng, lat] ── */
+var _CP = {
+  amalfitani:  [-58.5207,-34.6353],
+  '1fa':       [-58.7208,-34.6195],
+  '2fa':       [-58.7205,-34.6205],
+  '3fa':       [-58.7196,-34.6232],
+  '4fa':       [-58.7196,-34.6225],
+  '5fa':       [-58.7193,-34.6242],
+  '6fa':       [-58.7192,-34.6216],
+  '7fa':       [-58.7188,-34.6208],
+  '8fa':       [-58.7183,-34.6195],
+  '9fa':       [-58.7186,-34.6210],
+  '10fa':      [-58.7178,-34.6187],
+  '1fp':       [-58.7208,-34.6255],
+  '2fp':       [-58.7200,-34.6255],
+  poli_f11:    [-58.5152,-34.6345],
+  poli_f8a:    [-58.5143,-34.6325],
+  poli_f8b:    [-58.5118,-34.6338],
+  poli_hockey: [-58.5122,-34.6320],
+  poli_tenis1: [-58.5130,-34.6330],
+  poli_tenis2: [-58.5125,-34.6328],
+  poli_basquet:[-58.5138,-34.6334],
+};
+
+/* Approximate Amalfitani field outline [lng, lat] */
+var _AMALF_OUTLINE = [
+  [-58.5218,-34.6346],[-58.5196,-34.6346],
+  [-58.5196,-34.6361],[-58.5218,-34.6361],
+];
+
+/* ── Color helpers → [r,g,b,a] ── */
+function _cNdvi(v){
+  if(v == null) return [139,134,128,0];
+  if(v > 0.55)  return [76,173,114,230];
+  if(v > 0.35)  return [224,184,76,230];
+  return [224,82,82,230];
+}
+function _cScore(v){
+  if(v == null) return [139,134,128,0];
+  if(v >= 70)   return [76,173,114,230];
+  if(v >= 45)   return [224,184,76,230];
+  return [224,82,82,230];
+}
+function _cSurface(t){
+  var m = {hibrido:[201,168,76,200], natural:[76,173,114,200], sintetico:[100,181,246,200],
+           polvo_ladrillo:[180,120,80,200], indoor:[150,120,200,200]};
+  return m[t] || [139,134,128,150];
+}
+function _cSoil(theta){
+  if(theta == null) return [139,134,128,0];
+  if(theta > 0.28)  return [76,173,114,230];
+  if(theta > 0.18)  return [224,184,76,230];
+  return [224,82,82,230];
+}
+
+/* Safe deep-get: _g(obj, 'a.b.c') */
+function _g(obj, path){
+  return path.split('.').reduce(function(o,k){ return (o != null) ? o[k] : null; }, obj);
+}
+
+/* Null-safe venue data selectors */
+function _heatmaps(d)   { return _g(d,'usuarios.roger.heatmaps') || {}; }
+function _canchaList(d) { return _g(d,'sectores.canchero.canchas') || []; }
+function _canchaIdx(d){
+  var idx = {};
+  _canchaList(d).forEach(function(c){ if(c && c.id) idx[c.id] = c; });
+  return idx;
+}
+function _soilTheta(hm){
+  var k = 'theta_'+_richardsDepth+'cm';
+  return (hm && hm[k] != null) ? hm[k] : null;
+}
+
+/* ── First available layer that has real data for this venue ── */
+function _firstAvailableLayer(venueId, d){
+  var candidates = ['ndvi','score','soil','surface'];
+  if(!d) return 'surface';
+  var hm = _heatmaps(d);
+  var ci = _canchaIdx(d);
+  var canchas = (_VC[venueId] && _VC[venueId].canchas) || [];
+  for(var li = 0; li < candidates.length; li++){
+    var lyr = candidates[li];
+    for(var ci2 = 0; ci2 < canchas.length; ci2++){
+      var cid = canchas[ci2];
+      var hmC = hm[cid] || {};
+      var cC  = ci[cid]  || {};
+      if(lyr==='ndvi'    && hmC.ndvi    != null) return lyr;
+      if(lyr==='score'   && cC.score    != null) return lyr;
+      if(lyr==='soil'    && _soilTheta(hmC) != null) return lyr;
+      if(lyr==='surface' && (hmC.tipo_superficie || cC.tipo_superficie)) return lyr;
+    }
+    /* Special venues */
+    if(lyr==='score'){
+      if(venueId==='sede'    && _g(d,'sectores.sede.score')    != null) return lyr;
+      if(venueId==='solar'   && _g(d,'sectores.solar.score')   != null) return lyr;
+      if(venueId==='piletas' && _g(d,'sectores.piletas.score') != null) return lyr;
+    }
+  }
+  return 'surface';
+}
+
+/* ── Build deck.gl layers for the current venue/layer/sliders ── */
+function _buildLayers(venueId, d, activeLayer){
+  if(!d || !deck) return [];
+  var hm  = _heatmaps(d);
+  var ci  = _canchaIdx(d);
+  var cfg = _VC[venueId] || {};
+  var layers = [];
+
+  /* Amalfitani: PolygonLayer outlines + scatter center */
+  if(venueId === 'amalf'){
+    var amHm   = hm['amalfitani'] || {};
+    var amC    = ci['amalfitani'] || {};
+    var ndvi   = amHm.ndvi;
+    var score  = amC.score;
+    var tipo   = amHm.tipo_superficie || amC.tipo_superficie || 'hibrido';
+    var theta  = _soilTheta(amHm);
+    var col = activeLayer==='ndvi'    ? _cNdvi(ndvi)
+            : activeLayer==='score'   ? _cScore(score)
+            : activeLayer==='soil'    ? _cSoil(theta)
+            : _cSurface(tipo);
+    layers.push(new deck.PolygonLayer({
+      id: 'amalf-poly',
+      data: [{polygon: _AMALF_OUTLINE}],
+      getPolygon:   function(f){ return f.polygon; },
+      getFillColor: [col[0],col[1],col[2], 70],
+      getLineColor: [col[0],col[1],col[2], 220],
+      lineWidthMinPixels: 2,
+      filled: true, stroked: true, pickable: true,
+      onHover: function(info){
+        _setInfo(info.picked ? _fmtCancha('amalfitani', hm, ci) : null);
+      },
+    }));
+  }
+
+  /* Scatter dots for all canchero canchas of this venue */
+  var vCanchas = (cfg.canchas || []).filter(function(cid){ return _CP[cid]; });
+  if(vCanchas.length){
+    var scatter = vCanchas.map(function(cid){
+      var hmC   = hm[cid] || {};
+      var cC    = ci[cid]  || {};
+      var ndvi  = hmC.ndvi;
+      var score = cC.score;
+      var tipo  = hmC.tipo_superficie || cC.tipo_superficie || 'natural';
+      var theta = _soilTheta(hmC);
+      var col = activeLayer==='ndvi'   ? _cNdvi(ndvi)
+              : activeLayer==='score'  ? _cScore(score)
+              : activeLayer==='soil'   ? _cSoil(theta)
+              : _cSurface(tipo);
+      return {id:cid, pos:_CP[cid], col:col,
+              ndvi:ndvi, score:score, tipo:tipo, theta:theta};
+    });
+    var r = venueId==='amalf' ? 28 : 22;
+    layers.push(new deck.ScatterplotLayer({
+      id: 'cancha-scatter',
+      data: scatter,
+      getPosition: function(d){ return d.pos; },
+      getColor:    function(d){ return d.col; },
+      getRadius:   r,
+      radiusMinPixels: venueId==='amalf' ? 10 : 7,
+      radiusMaxPixels: venueId==='amalf' ? 26 : 20,
+      pickable: true,
+      onHover: function(info){
+        _setInfo(info.picked ? _fmtCancha(info.object.id, hm, ci) : null);
+      },
+    }));
+  }
+
+  /* Solar: ColumnLayer by panel_id */
+  if(venueId === 'solar'){
+    var panelData = _g(d,'sectores.solar.panel_data') || {};
+    var panelKeys = Object.keys(panelData);
+    if(panelKeys.length){
+      var base = [-58.5230,-34.6360];
+      var cols = panelKeys.map(function(pid, i){
+        var pd  = panelData[pid] || {};
+        var eff = pd.eficiencia_pct != null ? pd.eficiencia_pct : null;
+        var row = Math.floor(i / 6), col2 = i % 6;
+        return {pos:[base[0]+(col2-3)*0.00009, base[1]+(row-1)*0.00009],
+                eff:eff, pid:pid};
+      });
+      layers.push(new deck.ColumnLayer({
+        id: 'solar-cols',
+        data: cols,
+        getPosition: function(d){ return d.pos; },
+        getElevation: function(d){ return d.eff != null ? d.eff * 2 : 10; },
+        getColor: function(d){
+          if(d.eff == null) return [139,134,128,150];
+          if(d.eff >= 80)   return [76,173,114,220];
+          if(d.eff >= 60)   return [224,184,76,220];
+          return [224,82,82,220];
+        },
+        radius: 3, elevationScale: 1, pickable: true,
+        onHover: function(info){
+          if(info.picked) _setInfo('Panel '+info.object.pid+(info.object.eff != null ? ' · '+info.object.eff.toFixed(1)+'% eficiencia' : ' · sin dato'));
+          else _setInfo(null);
+        },
+      }));
+    } else {
+      _setInfo('Sin datos de paneles solares en Supabase aún.');
+    }
+  }
+
+  /* Piletas: Scatter by pileta_id */
+  if(venueId === 'piletas'){
+    var piletaData = _g(d,'sectores.piletas.kpis_por_pileta') || {};
+    var piletaKeys = Object.keys(piletaData);
+    if(piletaKeys.length){
+      var pbase = [-58.5240,-34.6362];
+      var pts = piletaKeys.map(function(pid, i){
+        var pd   = piletaData[pid] || {};
+        var turb = pd.turbidez_ntu != null ? pd.turbidez_ntu : null;
+        return {pos:[pbase[0]+(i-piletaKeys.length/2)*0.0002, pbase[1]],
+                turb:turb, ph:pd.ph, pid:pid};
+      });
+      layers.push(new deck.ScatterplotLayer({
+        id: 'pileta-scatter',
+        data: pts,
+        getPosition: function(d){ return d.pos; },
+        getColor: function(d){
+          if(d.turb == null) return [139,134,128,150];
+          if(d.turb < 1)     return [76,173,114,220];
+          if(d.turb < 5)     return [224,184,76,220];
+          return [224,82,82,220];
+        },
+        getRadius: 20, radiusMinPixels: 14, pickable: true,
+        onHover: function(info){
+          if(info.picked){
+            var t = info.object.turb != null ? ' · Turbidez: '+info.object.turb.toFixed(2)+' NTU' : ' · sin dato';
+            var p = info.object.ph != null ? ' · pH: '+info.object.ph.toFixed(1) : '';
+            _setInfo(info.object.pid + t + p);
+          } else { _setInfo(null); }
+        },
+      }));
+    } else {
+      _setInfo('Sin datos de piletas en Supabase aún.');
+    }
+  }
+
+  /* Sede: single score dot */
+  if(venueId === 'sede'){
+    var sedeScore = _g(d,'sectores.sede.score');
+    layers.push(new deck.ScatterplotLayer({
+      id: 'sede-dot',
+      data: [{pos:[-58.5235,-34.6358], score:sedeScore}],
+      getPosition: function(d){ return d.pos; },
+      getColor: function(d){ return _cScore(d.score); },
+      getRadius: 40, radiusMinPixels: 18, pickable: true,
+      onHover: function(info){
+        if(info.picked) _setInfo('Sede Central'+(info.object.score != null ? ' · Score: '+info.object.score+'/100' : ' · sin dato'));
+        else _setInfo(null);
+      },
+    }));
+  }
+
+  return layers;
+}
+
+/* Format hover info for a cancha */
+function _fmtCancha(cid, hm, ci){
+  var hmC = (hm && hm[cid]) || {};
+  var cC  = (ci && ci[cid]) || {};
+  var parts = [cid.toUpperCase()];
+  if(hmC.tipo_superficie) parts.push(hmC.tipo_superficie);
+  if(hmC.ndvi != null)    parts.push('NDVI: '+hmC.ndvi.toFixed(3));
+  if(cC.score != null)    parts.push('Score: '+cC.score+'/100');
+  var k = 'theta_'+_richardsDepth+'cm';
+  if(hmC[k] != null)      parts.push('θ'+_richardsDepth+'cm: '+hmC[k].toFixed(3));
+  if(hmC.n_status)        parts.push(hmC.n_status);
+  return parts.join(' · ');
+}
+
+function _setInfo(txt){
+  var el = document.getElementById('dk-info');
+  if(el) el.textContent = txt != null ? txt : '';
+}
+
+function _buildLayerBar(){
+  var el = document.getElementById('dk-layer-bar');
+  if(!el) return;
+  var defs = [
+    {id:'ndvi',    lbl:'NDVI'},
+    {id:'score',   lbl:'Score Faro'},
+    {id:'soil',    lbl:'Humedad Suelo'},
+    {id:'surface', lbl:'Superficie'},
+  ];
+  el.innerHTML = defs.map(function(d){
+    return '<button class="layer-btn'+(d.id===_layer?' active':'')+
+           '" onclick="dkSelectLayer(\''+d.id+'\')">'+d.lbl+'</button>';
+  }).join('');
+}
+
+function _showSliders(show){
+  var el = document.getElementById('dk-sliders');
+  if(el) el.style.display = show ? 'flex' : 'none';
+}
+
+function _repaint(){
+  if(!_overlay || !_data) return;
+  try {
+    _overlay.setProps({ layers: _buildLayers(_venue, _data, _layer) });
+  } catch(e){ console.warn('deck repaint:', e); }
+}
+
+/* ── Lazy loaders ── */
+function _loadML2(cb){
+  if(_mlLoaded2 || (typeof maplibregl !== 'undefined')){
+    _mlLoaded2 = true; cb(); return;
+  }
+  var lnk = document.createElement('link');
+  lnk.rel = 'stylesheet';
+  lnk.href = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css';
+  document.head.appendChild(lnk);
+  var s = document.createElement('script');
+  s.src = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js';
+  s.onload = function(){ _mlLoaded2 = true; cb(); };
+  document.head.appendChild(s);
+}
+
+function _loadDeck(cb){
+  if(_dkLoaded || (typeof deck !== 'undefined' && deck.MapboxOverlay)){
+    _dkLoaded = true; cb(); return;
+  }
+  var s = document.createElement('script');
+  s.src = 'https://unpkg.com/deck.gl@^9.0.0/dist.min.js';
+  s.onload = function(){ _dkLoaded = true; cb(); };
+  s.onerror = function(){ _setInfo('Error cargando deck.gl — verificar conexión.'); };
+  document.head.appendChild(s);
+}
+
+function _loadData(cb){
+  if(_data){ cb(_data); return; }
+  /* 1st: Railway canonical endpoint */
+  fetch(FB+'/velez/panel-roger-canonical', {headers:{'Accept':'application/json'}})
+    .then(function(r){ return r.ok ? r.json() : Promise.reject(r.status); })
+    .then(function(d){ _data = d; cb(d); })
+    .catch(function(){
+      /* 2nd: already-loaded data from main IIFE */
+      var d = window._faroVelezData;
+      if(d){ _data = d; cb(d); return; }
+      /* 3rd: static JSON */
+      fetch('./velez_data.json')
+        .then(function(r){ return r.json(); })
+        .then(function(d2){ _data = d2; cb(d2); })
+        .catch(function(){ _setInfo('Sin datos disponibles.'); cb({}); });
+    });
+}
+
+/* ── Public API ── */
+
+window.dkSelectVenue = function(v){
+  if(!_VC[v]) return;
+  _venue = v;
+  /* Update button states */
+  document.querySelectorAll('#dk-venue-bar .venue-btn').forEach(function(btn){
+    btn.classList.toggle('active', btn.dataset.v === v);
+  });
+  /* Reset sliders */
+  var rSlider = document.getElementById('dk-richards');
+  var dSlider = document.getElementById('dk-daleplay');
+  var rVal    = document.getElementById('dk-richards-val');
+  var dVal    = document.getElementById('dk-daleplay-val');
+  if(rSlider){ rSlider.value = '5'; _richardsDepth = 5; }
+  if(rVal)   { rVal.textContent = '5 cm'; }
+  if(dSlider){ dSlider.value = '0'; _dalePlayDay = 0; }
+  if(dVal)   { dVal.textContent = 'Hoy'; }
+  /* Pick best layer for this venue */
+  _layer = _firstAvailableLayer(v, _data);
+  _buildLayerBar();
+  /* flyTo — single canvas stays alive */
+  if(_map){
+    var cfg = _VC[v];
+    _map.flyTo({ center:cfg.center, zoom:cfg.zoom, speed:1.2, curve:1.4, essential:true });
+  }
+  _setInfo('');
+  _repaint();
+};
+
+window.dkSelectLayer = function(l){
+  _layer = l;
+  _buildLayerBar();
+  _showSliders(l === 'soil');
+  _repaint();
+};
+
+window.dkRichardsChange = function(v){
+  _richardsDepth = parseInt(v, 10);
+  var el = document.getElementById('dk-richards-val');
+  if(el) el.textContent = v + ' cm';
+  _repaint();
+};
+
+window.dkDalePlayChange = function(v){
+  _dalePlayDay = parseInt(v, 10);
+  var el = document.getElementById('dk-daleplay-val');
+  if(el) el.textContent = v === '0' ? 'Hoy' : 'Hace '+v+'d';
+  /* Data for past days would require historical endpoint — for now repaint with current */
+  _repaint();
+};
+
+/* ── Entry point — called from render() for canchero ── */
+window.buildDeckPanel = function(){
+  var sec = document.getElementById('deckgl-section');
+  if(sec) sec.style.display = 'block';
+
+  _loadML2(function(){
+    _loadDeck(function(){
+      _loadData(function(data){
+        _data = data;
+        /* Pick best initial layer for amalfitani */
+        _layer = _firstAvailableLayer(_venue, _data);
+        _buildLayerBar();
+
+        if(_map){
+          /* Map already exists — just repaint */
+          _repaint();
+          return;
+        }
+
+        /* Init MapLibre + single shared WebGL canvas via MapboxOverlay */
+        var vcfg = _VC[_venue];
+        _map = new maplibregl.Map({
+          container: 'deckgl-map',
+          style: {
+            version: 8,
+            sources: { osm:{type:'raster', tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize:256, maxzoom:19, attribution:'© OpenStreetMap'} },
+            layers: [{id:'osm', type:'raster', source:'osm'}]
+          },
+          center: vcfg.center, zoom: vcfg.zoom,
+          attributionControl: false,
+        });
+        _map.addControl(new maplibregl.NavigationControl({visualizePitch:false}), 'bottom-right');
+
+        _map.on('load', function(){
+          /* deck.gl overlay on the SAME canvas — no second WebGL context */
+          _overlay = new deck.MapboxOverlay({
+            interleaved: false,
+            layers: _buildLayers(_venue, _data, _layer),
+          });
+          _map.addControl(_overlay);
+          _setInfo('Tocá una cancha para ver datos detallados.');
+        });
+      });
+    });
+  });
+};
 
 })();
 </script>
