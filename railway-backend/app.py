@@ -856,44 +856,96 @@ def velez_panel_roger_canonical():
 
 @app.route("/velez/amalfitani-geojson", methods=["GET"])
 def velez_amalfitani_geojson():
-    """GeoJSON FeatureCollection for MapLibre fill layers.
-    Geometries: approximate rectangular polygons for each cancha in Amalfitani.
-    Properties: real from faro_assembler (ndvi, entropia_h, theta_*cm, etc.).
+    """GeoJSON FeatureCollection — ALL system canchas with correct coordinates.
+
+    Amalfitani main field (id='amalfitani'):
+      Center derived from tiles_blueprint._BBOXES["amalfitani"] — the authoritative
+      bbox already used by the satellite pipeline for Sentinel-2 and OPERA RTC-S1.
+      Generates a 2.5×2.5 m quadrant grid (42 cols × 27 rows = 1 134 polygons).
+
+    Villa Olímpica (1fa–10fa, 1fp, 2fp) and Polideportivo (poli_*):
+      Centers from the system coordinate registry (_SYSTEM_COORDS below).
+      Each rendered as a single ~90×60 m (training) or ~105×68 m (professional)
+      rectangular polygon.
+
+    Properties on every feature come from faro_assembler (live assembler data).
+    quad_id / quad_row / quad_col added on Amalfitani quads for future per-quad
+    enrichment once Supabase has quadrant-level satellite rows.
     """
-    # Approximate bounding boxes [lng_min, lat_min, lng_max, lat_max]
-    # Amalfitani training complex center: lat -34.6344, lng -58.5034
-    # Grid: 2 columnas × 5 filas para 1FA-10FA, fila extra para 1FP/2FP
-    # Cada cancha ≈ 0.0013° lng × 0.0011° lat (~100m × 120m)
-    # Col A origin: lng -58.5060  Col B origin: lng -58.5044
-    # Row origin (lat, top de cada fila): -34.6326, -34.6339, -34.6352, -34.6365, -34.6378, -34.6391
-    _CANCHA_BOUNDS = {
-        "1fa":  [-58.5060, -34.6337, -58.5047, -34.6326],  # col A, row 0
-        "2fa":  [-58.5044, -34.6337, -58.5031, -34.6326],  # col B, row 0
-        "3fa":  [-58.5060, -34.6350, -58.5047, -34.6339],  # col A, row 1
-        "4fa":  [-58.5044, -34.6350, -58.5031, -34.6339],  # col B, row 1
-        "5fa":  [-58.5060, -34.6363, -58.5047, -34.6352],  # col A, row 2
-        "6fa":  [-58.5044, -34.6363, -58.5031, -34.6352],  # col B, row 2
-        "7fa":  [-58.5060, -34.6376, -58.5047, -34.6365],  # col A, row 3
-        "8fa":  [-58.5044, -34.6376, -58.5031, -34.6365],  # col B, row 3
-        "9fa":  [-58.5060, -34.6389, -58.5047, -34.6378],  # col A, row 4
-        "10fa": [-58.5044, -34.6389, -58.5031, -34.6378],  # col B, row 4
-        "1fp":  [-58.5060, -34.6402, -58.5047, -34.6391],  # polivalente A
-        "2fp":  [-58.5044, -34.6402, -58.5031, -34.6391],  # polivalente B
+    import math
+
+    _D2R = math.pi / 180.0
+
+    # ── Amalfitani center from tiles_blueprint authoritative bbox ─────────
+    # tiles_blueprint._BBOXES["amalfitani"] = [-58.5305, -34.6391, -58.5271, -34.6367]
+    # This bbox is used by the satellite ingest pipeline — it IS the system truth.
+    try:
+        from tiles_blueprint import _BBOXES as _TB
+        _ab = _TB.get("amalfitani", (-58.5305, -34.6391, -58.5271, -34.6367))
+    except ImportError:
+        _ab = (-58.5305, -34.6391, -58.5271, -34.6367)
+
+    AMALF_LNG = (_ab[0] + _ab[2]) / 2.0   # -58.5288
+    AMALF_LAT = (_ab[1] + _ab[3]) / 2.0   # -34.6379
+
+    _M_LAT = lambda lat: 111_132.0 * (1.0 - 0.00335 * math.sin(2.0 * lat * _D2R) ** 2)
+    _M_LNG = lambda lat: 111_320.0 * math.cos(lat * _D2R)
+
+    A_MLAT = _M_LAT(AMALF_LAT)
+    A_MLNG = _M_LNG(AMALF_LAT)
+
+    FIELD_W, FIELD_H, QUAD_M = 105.0, 68.0, 2.5
+    COLS = int(FIELD_W / QUAD_M)   # 42
+    ROWS = int(FIELD_H / QUAD_M)   # 27
+    step_lng   = QUAD_M / A_MLNG
+    step_lat   = QUAD_M / A_MLAT
+    lng_origin = AMALF_LNG - (FIELD_W / 2.0) / A_MLNG   # west edge
+    lat_origin = AMALF_LAT + (FIELD_H / 2.0) / A_MLAT   # north edge
+
+    # ── System coordinate registry ────────────────────────────────────────
+    # Source: Club Atlético Vélez Sarsfield numeración de canchas 2024 +
+    # OSM relation 2567701.  (lng, lat, half_w_m, half_h_m)
+    _VO_MLNG = _M_LNG(-34.620)
+    _VO_MLAT = _M_LAT(-34.620)
+    _PO_MLNG = _M_LNG(-34.633)
+    _PO_MLAT = _M_LAT(-34.633)
+
+    def _hl(m, mlng): return m / mlng
+    def _hh(m, mlat): return m / mlat
+
+    _SYSTEM_COORDS = {
+        # Villa Olímpica — training fields ~90×60 m
+        "1fa":         (-58.7208, -34.6195, _hl(45, _VO_MLNG), _hh(30, _VO_MLAT)),
+        "2fa":         (-58.7205, -34.6205, _hl(45, _VO_MLNG), _hh(30, _VO_MLAT)),
+        "3fa":         (-58.7196, -34.6232, _hl(45, _VO_MLNG), _hh(30, _VO_MLAT)),
+        "4fa":         (-58.7196, -34.6225, _hl(45, _VO_MLNG), _hh(30, _VO_MLAT)),
+        "5fa":         (-58.7193, -34.6242, _hl(45, _VO_MLNG), _hh(30, _VO_MLAT)),
+        "6fa":         (-58.7192, -34.6216, _hl(45, _VO_MLNG), _hh(30, _VO_MLAT)),
+        "7fa":         (-58.7188, -34.6208, _hl(45, _VO_MLNG), _hh(30, _VO_MLAT)),
+        "8fa":         (-58.7183, -34.6195, _hl(45, _VO_MLNG), _hh(30, _VO_MLAT)),
+        "9fa":         (-58.7186, -34.6210, _hl(45, _VO_MLNG), _hh(30, _VO_MLAT)),
+        "10fa":        (-58.7178, -34.6187, _hl(45, _VO_MLNG), _hh(30, _VO_MLAT)),
+        # Villa Olímpica — professional training ~105×68 m
+        "1fp":         (-58.7208, -34.6255, _hl(52, _VO_MLNG), _hh(34, _VO_MLAT)),
+        "2fp":         (-58.7200, -34.6255, _hl(52, _VO_MLNG), _hh(34, _VO_MLAT)),
+        # Polideportivo Feijóo
+        "poli_f11":    (-58.5152, -34.6345, _hl(52, _PO_MLNG), _hh(34, _PO_MLAT)),
+        "poli_f8a":    (-58.5143, -34.6325, _hl(40, _PO_MLNG), _hh(25, _PO_MLAT)),
+        "poli_f8b":    (-58.5118, -34.6338, _hl(40, _PO_MLNG), _hh(25, _PO_MLAT)),
+        "poli_hockey": (-58.5122, -34.6320, _hl(45, _PO_MLNG), _hh(27, _PO_MLAT)),
+        "poli_tenis1": (-58.5130, -34.6330, _hl(12, _PO_MLNG), _hh(6,  _PO_MLAT)),
+        "poli_tenis2": (-58.5125, -34.6328, _hl(12, _PO_MLNG), _hh(6,  _PO_MLAT)),
+        "poli_basquet":(-58.5138, -34.6334, _hl(14, _PO_MLNG), _hh(8,  _PO_MLAT)),
     }
 
-    def _bbox_polygon(b):
-        lng0, lat0, lng1, lat1 = b
-        return {"type": "Polygon", "coordinates": [[
-            [lng0, lat1], [lng1, lat1], [lng1, lat0], [lng0, lat0], [lng0, lat1]
-        ]]}
-
-    _CANCHA_FIELDS = (
+    _PROP_KEYS = (
         "id", "nombre", "score", "sem", "ndvi", "gndvi", "bsi", "ndwi",
         "entropia_h", "angulo_alpha", "compactacion_index_ml",
         "temp_superficie_c", "theta_5cm", "theta_10cm", "theta_20cm", "theta_smap",
         "ndvi_2_5m", "n_status", "n_rec", "detalle",
     )
 
+    # ── Assembler data ────────────────────────────────────────────────────
     try:
         if _VELEZ_PATH not in sys.path:
             sys.path.insert(0, _VELEZ_PATH)
@@ -904,16 +956,44 @@ def velez_amalfitani_geojson():
         data = {}
 
     canchas = (data.get("sectores") or {}).get("canchero", {}).get("canchas", [])
+    cancha_idx = {c.get("id"): c for c in canchas if c.get("id")}
+    amalf      = cancha_idx.get("amalfitani", {})
+
     features = []
-    for c in canchas:
-        cid = c.get("id", "")
-        bounds = _CANCHA_BOUNDS.get(cid)
-        if not bounds:
-            continue
-        props = {k: c.get(k) for k in _CANCHA_FIELDS}
+
+    # ── 1. Amalfitani 2.5×2.5 m quadrant grid ────────────────────────────
+    base = {k: amalf.get(k) for k in _PROP_KEYS}
+    for row in range(ROWS):
+        lat_n = lat_origin - row * step_lat
+        lat_s = lat_n - step_lat
+        for col in range(COLS):
+            lng_w = lng_origin + col * step_lng
+            lng_e = lng_w + step_lng
+            props = dict(base)
+            props["quad_id"]  = f"r{row:02d}_c{col:02d}"
+            props["quad_row"] = row
+            props["quad_col"] = col
+            features.append({
+                "type": "Feature",
+                "geometry": {"type": "Polygon", "coordinates": [[
+                    [lng_w, lat_n], [lng_e, lat_n],
+                    [lng_e, lat_s], [lng_w, lat_s],
+                    [lng_w, lat_n],
+                ]]},
+                "properties": props,
+            })
+
+    # ── 2. All other system canchas — one polygon each ────────────────────
+    for cid, (lng0, lat0, hl, hh) in _SYSTEM_COORDS.items():
+        c     = cancha_idx.get(cid, {"id": cid})
+        props = {k: c.get(k) for k in _PROP_KEYS}
         features.append({
             "type": "Feature",
-            "geometry": _bbox_polygon(bounds),
+            "geometry": {"type": "Polygon", "coordinates": [[
+                [lng0 - hl, lat0 + hh], [lng0 + hl, lat0 + hh],
+                [lng0 + hl, lat0 - hh], [lng0 - hl, lat0 - hh],
+                [lng0 - hl, lat0 + hh],
+            ]]},
             "properties": props,
         })
 
@@ -921,6 +1001,13 @@ def velez_amalfitani_geojson():
     resp.headers["Access-Control-Allow-Origin"] = "*"
     resp.headers["Cache-Control"] = "no-store"
     return resp
+
+
+@app.route("/velez/villa-olimpica-geojson", methods=["GET"])
+def velez_villa_olimpica_geojson():
+    """Alias — redirects to /velez/amalfitani-geojson which now serves all venues."""
+    from flask import redirect
+    return redirect("/velez/amalfitani-geojson", code=302)
 
 
 # ── Daily weather cron ────────────────────────────────────────────────────────
