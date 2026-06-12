@@ -1116,11 +1116,13 @@ def _daily_enrichment():
         _sys.path.insert(0, _here)
 
     modules = [
-        ("faro_sar_polimetria",  "run_polimetria",       {"venue_id": "amalfitani"}),
-        ("faro_ecostress",       "run_ecostress_cycle",  {"venue_id": "amalfitani"}),
-        ("faro_landsat_thermal", "run_landsat_cycle",    {"venue_id": "amalfitani"}),
-        ("faro_richards_profile","run_richards_profile", {"venue_id": "amalfitani"}),
-        ("faro_superres",        "run_superres_cycle",   {"venue_id": "amalfitani"}),
+        ("faro_sar_polimetria",  "run_polimetria",        {"venue_id": "amalfitani"}),
+        ("faro_ecostress",       "run_ecostress_cycle",   {"venue_id": "amalfitani"}),
+        ("faro_landsat_thermal", "run_landsat_cycle",     {"venue_id": "amalfitani"}),
+        ("faro_clms_lst",        "run_clms_lst_cycle",    {"venue_id": "amalfitani"}),  # NUEVO: CLMS LST 3km
+        ("faro_saocom",          "run_saocom_cycle",      {"venue_id": "amalfitani"}),  # NUEVO: SAOCOM L-band
+        ("faro_richards_profile","run_richards_profile",  {"venue_id": "amalfitani"}),
+        ("faro_superres",        "run_superres_cycle",    {"venue_id": "amalfitani"}),
         ("faro_compactacion_ml", "run_compactacion_cycle",{"venue_id": "amalfitani"}),
     ]
     results = {}
