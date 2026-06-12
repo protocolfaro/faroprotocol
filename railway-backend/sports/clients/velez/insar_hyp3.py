@@ -41,13 +41,13 @@ SECTOR_BBOXES: dict[str, tuple] = {
 }
 
 
-def _search_slc_granules(days_back: int = 26) -> list[dict]:
+def _search_slc_granules(days_back: int = 30) -> list[dict]:
     """Search ASF Vertex for recent S1 IW SLC granules over Vélez complex."""
     import requests as _req
     end_dt   = date.today()
     start_dt = end_dt - timedelta(days=days_back)
     params = {
-        "platform":        "SA,SB",
+        "platform":        "SA,SB,SC,SD",  # 1A+1B+1C+1D — constelacion completa jun 2026
         "processingLevel": "SLC",
         "beamMode":        "IW",
         "intersectsWith":  "POINT(-58.5215 -34.6375)",
@@ -105,7 +105,7 @@ def _find_pair(granules: list[dict]) -> tuple[dict, dict] | None:
                 d1 = _parse_date(sorted_g[i])
                 d2 = _parse_date(sorted_g[j])
                 delta = (d2 - d1).days
-                if 10 <= delta <= 14:
+                if 4 <= delta <= 14:  # acepta pares 6-day (1C+1D) y 12-day (1A,1C)
                     if best_date is None or d2 > best_date:
                         best_pair = (sorted_g[i], sorted_g[j])
                         best_date = d2
@@ -329,7 +329,7 @@ def _write_soil_metrics(sector_backscatter: dict[str, float], fuente: str,
             vh_db = round(vv_db - 7.5, 2)  # typical C-band VV/VH cross-pol ratio for grass
             theta, h_suc = _van_genuchten_from_sar(vv_db, vh_db)
             insert_soil_metrics(
-                venue_id      = "velez",
+                venue_id      = "amalfitani",  # FIX: era "velez", rompia todos los modulos cientificos
                 cancha_id     = cancha_id or sector_id,
                 sar_vv_db     = vv_db,
                 sar_vh_db     = vh_db,
