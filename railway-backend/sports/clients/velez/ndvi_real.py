@@ -93,6 +93,7 @@ _STAC_SOURCES = [
         "green":      ["B03"],
         "blue":       ["B02"],          # for BSI
         "swir1":      ["B11"],          # for BSI + NDWI
+        "red_edge":   ["B05"],          # Red-edge 705nm — NDRE real para nitrógeno
         "scl":        ["SCL"],          # Scene Classification Layer — cloud/shadow masking
         "scale":      "s2",
     },
@@ -107,6 +108,7 @@ _STAC_SOURCES = [
         "green":      ["B03", "green"],
         "blue":       ["B02", "blue"],
         "swir1":      ["B11", "swir16"],
+        "red_edge":   ["B05", "rededge"],   # Red-edge para NDRE
         "scl":        ["scl", "SCL"],
         "scale":      "s2",
     },
@@ -194,7 +196,8 @@ def _search_source(src: dict, dt_from: str, dt_to: str,
 
 
 def _compute_indices(
-    nir_c, red_c, green_c, blue_c, swir1_c, scl_mask, mode: str
+    nir_c, red_c, green_c, blue_c, swir1_c, scl_mask, mode: str,
+    red_edge_c=None
 ) -> dict | None:
     """Shared index computation used by both rasterio and stackstac paths.
 
@@ -279,6 +282,18 @@ def _compute_indices(
             evi2 = round(max(-1.0, min(2.5,
                 float((2.5 * (nir_c - red_c) / (nir_c + 2.4 * red_c + 1.0))[v_evi].mean()))), 3)
         entry["evi2"] = evi2
+
+    # NDRE = (NIR - RedEdge) / (NIR + RedEdge) — B08/B05 Sentinel-2
+    # Más sensible a nitrógeno que GNDVI. Reemplaza ndre=ndvi*0.65 hardcodeado.
+    if red_edge_c is not None:
+        v_re = valid_base & ((nir_c + red_edge_c) > 0.02)
+        if scl_mask is not None:
+            v_re &= ~scl_mask
+        if v_re.sum() >= 2:
+            with np.errstate(invalid="ignore", divide="ignore"):
+                ndre = round(max(-1.0, min(1.0,
+                    float(((nir_c - red_edge_c) / (nir_c + red_edge_c + 1e-9))[v_re].mean()))), 3)
+            entry["ndre"] = ndre
 
     return entry
 
@@ -493,9 +508,10 @@ def _read_canchas_rasterio(item, src: dict) -> dict[str, dict]:
         except KeyError:
             return None
 
-    blue_url  = _opt("blue")
-    swir1_url = _opt("swir1")
-    scl_url   = _opt("scl")
+    blue_url     = _opt("blue")
+    swir1_url    = _opt("swir1")
+    red_edge_url = _opt("red_edge")  # B05 Sentinel-2 705nm — NDRE real
+    scl_url      = _opt("scl")
 
     # SCL classes to discard: no_data, defective, cloud shadow, medium cloud, high cloud, cirrus
     _SCL_BAD = frozenset({0, 1, 3, 8, 9, 10})
@@ -507,9 +523,10 @@ def _read_canchas_rasterio(item, src: dict) -> dict[str, dict]:
         s_nir   = stack.enter_context(rasterio.open(nir_url))
         s_red   = stack.enter_context(rasterio.open(red_url))
         s_green = stack.enter_context(rasterio.open(green_url))
-        s_blue  = stack.enter_context(rasterio.open(blue_url))  if blue_url  else None
-        s_swir1 = stack.enter_context(rasterio.open(swir1_url)) if swir1_url else None
-        s_scl   = stack.enter_context(rasterio.open(scl_url))   if scl_url   else None
+        s_blue     = stack.enter_context(rasterio.open(blue_url))     if blue_url     else None
+        s_swir1    = stack.enter_context(rasterio.open(swir1_url))    if swir1_url    else None
+        s_red_edge = stack.enter_context(rasterio.open(red_edge_url)) if red_edge_url else None
+        s_scl      = stack.enter_context(rasterio.open(scl_url))      if scl_url      else None
 
         crs = s_nir.crs
 
@@ -556,9 +573,16 @@ def _read_canchas_rasterio(item, src: dict) -> dict[str, dict]:
                             s_swir1.read(1, window=_win(s_swir1)).astype("float32"), mode)
                     except Exception:
                         pass
+                red_edge_r = None
+                if s_red_edge is not None:
+                    try:
+                        red_edge_r = _to_refl(
+                            s_red_edge.read(1, window=_win(s_red_edge)).astype("float32"), mode)
+                    except Exception:
+                        pass
 
                 entry = _compute_indices(nir_r, red_r, green_r, blue_r, swir1_r,
-                                         scl_mask, mode)
+                                         scl_mask, mode, red_edge_c=red_edge_r)
                 if entry is None:
                     log.warning("ndvi_real: %s — cobertura insuficiente post-clean", cid)
                     continue
