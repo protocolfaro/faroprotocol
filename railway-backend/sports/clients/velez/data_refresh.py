@@ -136,7 +136,9 @@ def _fetch_open_meteo() -> dict:
         "https://api.open-meteo.com/v1/forecast"
         f"?latitude={LAT}&longitude={LON}"
         "&hourly=precipitation_probability,wind_speed_10m,et0_fao_evapotranspiration"
-        ",soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,temperature_2m,relative_humidity_2m"
+        ",soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_moisture_3_to_9cm"
+        ",soil_temperature_0cm,soil_temperature_6cm,soil_temperature_18cm"
+        ",temperature_2m,relative_humidity_2m"
         "&timezone=America%2FArgentina%2FBuenos_Aires&past_days=2&forecast_days=7"
     )
     result = _fetch_json(url, timeout=20)
@@ -359,6 +361,14 @@ def compute_weather_live(nasa, soil, hourly_resp, ecostress, smap,
 
     sm3  = [v for v in (h.get("soil_moisture_1_to_3cm") or [])[:24] if v is not None]
     hum3 = round(sum(sm3)/len(sm3)*100, 1) if sm3 else hum_pct
+    sm9  = [v for v in (h.get("soil_moisture_3_to_9cm") or [])[:24] if v is not None]
+    hum9 = round(sum(sm9)/len(sm9)*100, 1) if sm9 else hum3
+    st0  = [v for v in (h.get("soil_temperature_0cm") or [])[:24] if v is not None]
+    st6  = [v for v in (h.get("soil_temperature_6cm") or [])[:24] if v is not None]
+    st18 = [v for v in (h.get("soil_temperature_18cm") or [])[:24] if v is not None]
+    temp_suelo_0cm  = round(sum(st0)/len(st0), 1) if st0 else None
+    temp_suelo_6cm  = round(sum(st6)/len(st6), 1) if st6 else None
+    temp_suelo_18cm = round(sum(st18)/len(st18), 1) if st18 else None
 
     hora_riego,     dia_riego = _best_riego_hour(h)
     hora_corte                = _best_corte_hour(h)
@@ -395,6 +405,10 @@ def compute_weather_live(nasa, soil, hourly_resp, ecostress, smap,
         "hora_corte_optima": hora_corte,
         "humedad_suelo_pct": hum_pct, "humedad_suelo_estado": hum_est,
         "humedad_subsuperficial_pct": hum3,
+        "humedad_9cm_pct": hum9,
+        "temp_suelo_0cm": temp_suelo_0cm,
+        "temp_suelo_6cm": temp_suelo_6cm,
+        "temp_suelo_18cm": temp_suelo_18cm,
         "suelo_tipo": "Suelo pesado", "suelo_clay_pct": clay_pct, "suelo_sand_pct": sand_pct,
         "suelo_whc_mm": int(whc) if whc else 42,
         "gdd_acumulado_7d": gdd_7d, "gdd_rate_diario": gdd_rate,
@@ -721,6 +735,23 @@ def run_refresh() -> dict:
                         fuente="van-genuchten-proxy · open-meteo",
                     )
                     log.info("soil_metrics: INSERT OK (Van Genuchten proxy θ=%.3f)", _theta)
+                    _vo_canchas = ["1fa","2fa","3fa","4fa","5fa","6fa","7fa","8fa","9fa","10fa","1fp","2fp"]
+                    _h_suc_val = float(_hydro.get("matric_potential_cm") or 0)
+                    for _cid in _vo_canchas:
+                        try:
+                            _ins_sm(
+                                venue_id="amalfitani",
+                                cancha_id=_cid,
+                                is_hibrido=(_cid == "1fa"),
+                                sar_vv_db=_sar_vv,
+                                sar_vh_db=_sar_vh,
+                                theta_soil=_theta,
+                                h_suction_cm=_h_suc_val,
+                                fuente="van-genuchten-proxy · open-meteo · cancha-vo",
+                            )
+                        except Exception:
+                            pass
+                    log.info("soil_metrics VO: INSERT OK para %d canchas", len(_vo_canchas))
                 except Exception as _sm_exc:
                     log.warning("soil_metrics write (non-fatal): %s", _sm_exc)
             except Exception as _ve:
