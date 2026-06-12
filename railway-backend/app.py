@@ -854,6 +854,64 @@ def velez_panel_roger_canonical():
         return jsonify({"error": str(e), "_assembled_at": None}), 500
 
 
+@app.route("/velez/panel-roger", methods=["GET"])
+def velez_panel_roger():
+    """
+    Endpoint optimizado para el panel Roger — solo datos relevantes para el canchero.
+    Retorna: roger_canchas (Amalfitani + 12 VO unificadas), weather_live, hermes,
+             tareas_semana, heatmaps_meta, qa_alerts recientes.
+    Más liviano que /panel-roger-canonical — solo los campos que necesita el panel.
+    """
+    try:
+        if _VELEZ_PATH not in sys.path:
+            sys.path.insert(0, _VELEZ_PATH)
+        from faro_assembler import assemble_report
+        vd = assemble_report("amalfitani")
+
+        roger = vd.get("usuarios", {}).get("roger", {})
+
+        # QA alerts recientes de Supabase (últimas 48h)
+        qa_alerts = []
+        try:
+            import velez_supabase as _vs
+            from datetime import datetime as _dt, timezone as _tz, timedelta as _td
+            import requests as _rq
+            _since = (_dt.now(_tz.utc) - _td(hours=48)).isoformat()
+            _url = (f"{_vs._base()}/rest/v1/qa_alerts"
+                    f"?created_at=gte.{_since}&order=created_at.desc&limit=20")
+            _r = _rq.get(_url, headers=_vs._hdrs(), timeout=6)
+            if _r.status_code == 200:
+                qa_alerts = _r.json()
+        except Exception as _qe:
+            log.debug("panel-roger: qa_alerts (non-fatal): %s", _qe)
+
+        payload = {
+            # Vista unificada Amalfitani + 12 canchas VO con todos los campos científicos
+            "roger_canchas":  vd.get("roger_canchas", []),
+            # Clima
+            "weather_live":   vd.get("weather_live", {}),
+            # Hermes — consolidado venue + por cancha
+            "hermes":         vd.get("hermes", {}),
+            # Tareas semanales de Roger
+            "tareas_semana":  roger.get("tareas_semana", []),
+            # Metadatos de los heatmaps
+            "heatmaps_meta":  roger.get("heatmaps_meta", {}),
+            "heatmaps":       roger.get("heatmaps", {}),
+            # Alertas QA del watchdog
+            "qa_alerts":      qa_alerts,
+            # Meta
+            "_assembled_at":  vd.get("_assembled_at"),
+            "meta":           vd.get("meta", {}),
+        }
+        resp = jsonify(payload)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["Cache-Control"] = "no-store"
+        return resp
+    except Exception as e:
+        log.warning("/velez/panel-roger error: %s", e)
+        return jsonify({"error": str(e), "_assembled_at": None}), 500
+
+
 @app.route("/velez/amalfitani-geojson", methods=["GET"])
 def velez_amalfitani_geojson():
     """GeoJSON FeatureCollection — ALL system canchas with correct coordinates.
