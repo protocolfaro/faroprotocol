@@ -45,10 +45,18 @@ class CanchaReport(TypedDict, total=False):
     theta_20cm: Optional[float]
     # SMAP 9km — faro_ecostress
     theta_smap: Optional[float]
+    # Red-edge Sentinel-2 B05 — ndvi_real.py
+    ndre: Optional[float]             # NDRE real = (B08-B05)/(B08+B05) — sensible a nitrógeno
     # ESA super-resolución 2.5m — faro_superres
     ndvi_2_5m: Optional[float]
     bsi_2_5m: Optional[float]
     ndwi_2_5m: Optional[float]
+    # Hermes por cancha individual — faro_assembler
+    humedad_estimada: Optional[float]   # theta corregido por ET0 (corrección turca)
+    hermes_alertas: Optional[list]      # alertas específicas de esta cancha
+    hermes_confianza: Optional[float]   # 0-1
+    # Venue de la cancha (liniers | villa_olimpica)
+    venue: Optional[str]
 
 
 class SectorReport(TypedDict, total=False):
@@ -85,6 +93,13 @@ class WeatherLive(TypedDict, total=False):
     smith_kerns_pct: Optional[float]
     # ECOSTRESS — faro_ecostress
     et_ecostress_mm: Optional[float]
+    # Open-Meteo soil layers (hourly NWP)
+    humedad_9cm_pct: Optional[float]      # soil_moisture_3_to_9cm
+    temp_suelo_0cm: Optional[float]       # soil_temperature_0cm °C
+    temp_suelo_6cm: Optional[float]       # soil_temperature_6cm °C
+    temp_suelo_18cm: Optional[float]      # soil_temperature_18cm °C
+    # CLMS LST (Copernicus hourly, 3km)
+    temp_superficie_lst_c: Optional[float]  # temperatura superficial pasto real
     # Índices ópticos por cancha — formato velez_data.json
     gndvi_por_cancha: Optional[dict]
 
@@ -111,5 +126,7 @@ class VelezReport(TypedDict, total=False):
     weather_live: Optional[WeatherLive]
     sectores: Optional[dict]          # {sector_id: SectorReport}
     usuarios: Optional[dict]
+    # Vista unificada Roger: Amalfitani + 12 canchas VO — faro_assembler._build_roger_canchas
+    roger_canchas: Optional[list]   # lista de CanchaReport con venue=liniers|villa_olimpica
     # Vista Hermes pre-calculada
     hermes: Optional[HermesView]
