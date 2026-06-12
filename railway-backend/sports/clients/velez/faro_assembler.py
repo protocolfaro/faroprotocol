@@ -100,7 +100,7 @@ def _apply_supabase_overlay(vd: dict) -> None:
 
 
 def _apply_hermes(vd: dict, venue_id: str) -> None:
-    """3. hermes_consolidate → vd['hermes'] + campos clave en weather_live."""
+    """3. hermes_consolidate → vd['hermes'] + campos por cancha en weather_live.    Corre una vez a nivel venue + una vez por cancha de VO para alertas individuales."""
     try:
         _here    = os.path.dirname(os.path.abspath(__file__))
         _agents  = os.path.normpath(os.path.join(_here, "..", "..", "..", "agents"))
@@ -129,6 +129,26 @@ def _apply_hermes(vd: dict, venue_id: str) -> None:
             wl["riego_min_sector"] = clim["riego_min"]
         log.info("assembler: hermes OK (conf=%.2f fuentes=%s)",
                  hc.get("confianza_consolidada", 0), hc.get("fuentes_activas", []))
+        # Hermes por cancha individual — alertas específicas por 1FA-10FA, 1FP, 2FP
+        _hermes_por_cancha: dict = {}
+        _canchas_list = vd.get("sectores", {}).get("canchero", {}).get("canchas", [])
+        for _c in _canchas_list:
+            _cid = _c.get("id", "")
+            if not _cid:
+                continue
+            try:
+                _hc = hermes_consolidate(venue_id, _cid)
+                _hermes_por_cancha[_cid] = {
+                    "humedad_estimada":      _hc.get("humedad_estimada"),
+                    "confianza":             _hc.get("confianza_consolidada"),
+                    "alertas":               _hc.get("alertas", []),
+                    "fuentes_activas":       _hc.get("fuentes_activas", []),
+                }
+            except Exception as _he:
+                log.debug("assembler: hermes cancha %s (non-fatal): %s", _cid, _he)
+        if _hermes_por_cancha:
+            vd["hermes"]["por_cancha"] = _hermes_por_cancha
+            log.info("assembler: hermes por cancha OK (%d canchas)", len(_hermes_por_cancha))
     except Exception as e:
         log.warning("assembler: hermes (non-fatal): %s", e)
         vd.setdefault("hermes", {})
@@ -293,6 +313,51 @@ def _apply_piletas_overlay(vd: dict) -> None:
         log.warning("assembler: piletas overlay (non-fatal): %s", e)
 
 
+def _build_roger_canchas(vd: dict) -> list:
+    """
+    Vista unificada Roger: Amalfitani + 12 canchas VO en una sola lista.
+    Cada entrada tiene todos los campos científicos del schema CanchaReport.
+    Amalfitani viene de sectores.estadio, VO de sectores.canchero.canchas.
+    """
+    roger_canchas: list = []
+
+    # Amalfitani como primera cancha
+    estadio = vd.get("sectores", {}).get("estadio", {})
+    hermes_pc = vd.get("hermes", {}).get("por_cancha", {})
+    amalf_hermes = hermes_pc.get("amalfitani", {})
+    roger_canchas.append({
+        "id":                    "amalfitani",
+        "nombre":                "Estadio Amalfitani",
+        "venue":                 "liniers",
+        "score":                 estadio.get("score"),
+        "score_prev":            estadio.get("score_prev"),
+        "sem":                   estadio.get("sem", "amarillo"),
+        "detalle":               estadio.get("detalle", ""),
+        "tipo_cesped":           "hibrido",
+        # Científicos del assembler (si existen en la lista canchero o en enriquecimiento)
+        **{k: v for k, v in (
+            vd.get("usuarios", {}).get("roger", {}).get("heatmaps", {}).get("amalfitani") or {}
+        ).items() if k not in ("archivo", "detalle", "texto")},
+        # Hermes individual
+        "humedad_estimada":      amalf_hermes.get("humedad_estimada"),
+        "hermes_alertas":        amalf_hermes.get("alertas", []),
+        "hermes_confianza":      amalf_hermes.get("confianza"),
+    })
+
+    # 12 canchas Villa Olímpica
+    for c in vd.get("sectores", {}).get("canchero", {}).get("canchas", []):
+        cid = c.get("id", "")
+        c_hermes = hermes_pc.get(cid, {})
+        entry = dict(c)
+        entry["venue"] = "villa_olimpica"
+        entry["humedad_estimada"] = c_hermes.get("humedad_estimada")
+        entry["hermes_alertas"]   = c_hermes.get("alertas", [])
+        entry["hermes_confianza"] = c_hermes.get("confianza")
+        roger_canchas.append(entry)
+
+    return roger_canchas
+
+
 def assemble_report(venue_id: str = "amalfitani") -> dict:
     """
     Ensambla el VelezReport canónico.
@@ -306,8 +371,10 @@ def assemble_report(venue_id: str = "amalfitani") -> dict:
     _apply_surface_rules(vd)
     _apply_solar_overlay(vd)
     _apply_piletas_overlay(vd)
+    # Vista unificada Roger: Amalfitani + 12 canchas VO con todos los campos científicos
+    vd["roger_canchas"] = _build_roger_canchas(vd)
     vd["_assembled_at"] = datetime.now(timezone.utc).isoformat()
     vd["_venue_id"]     = venue_id
-    log.info("assembler: reporte ensamblado para %s [%s]",
-             venue_id, vd.get("_assembled_at", ""))
+    log.info("assembler: reporte ensamblado para %s — %d roger_canchas [%s]",
+             venue_id, len(vd.get("roger_canchas", [])), vd.get("_assembled_at", ""))
     return vd
