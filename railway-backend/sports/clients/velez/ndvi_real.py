@@ -250,7 +250,17 @@ def _compute_indices(
         gndvi = round(ndvi * 0.93, 3)
 
     nst, nrec = _n_status(gndvi)
-    entry: dict = {"ndvi": ndvi, "gndvi": gndvi, "n_status": nst, "n_rec": nrec}
+    # Array 2D normalizado [0-1] para heatmap_gen — pixel-level real del satélite
+    ndvi_2d_raw = ((nir_c - red_c) / (nir_c + red_c + 1e-9))
+    ndvi_2d_raw = np.clip(ndvi_2d_raw, -1.0, 1.0)
+    if scl_mask is not None:
+        ndvi_2d_raw[scl_mask] = np.nan
+    # Normalizar a [0,1] para colormap (vmin=0.10, vmax=0.65 igual que heatmap_gen)
+    ndvi_2d_norm = np.clip((ndvi_2d_raw - 0.10) / (0.65 - 0.10), 0.0, 1.0)
+    # Serializar como lista de listas compacta (float16 para no inflar el JSON)
+    ndvi_2d_list = ndvi_2d_norm.astype(np.float16).tolist()
+    entry: dict = {"ndvi": ndvi, "gndvi": gndvi, "n_status": nst, "n_rec": nrec,
+                   "ndvi_2d": ndvi_2d_list}
     if coverage is not None:
         entry["coverage_pct"] = coverage
 
