@@ -607,7 +607,9 @@ def _render_weather_block(wl: dict) -> str:
 
 
 def _render_cancha_sections(canchas: list, hm: dict) -> str:
-    """HTML con canchas agrupadas por semáforo. Usa campos del cancha dict (ya enriquecido)."""
+    """HTML con canchas agrupadas por semáforo. Amalfitani separado de VO."""
+    amalfitani_list = [c for c in canchas if c.get("id") == "amalfitani"]
+    canchas         = [c for c in canchas if c.get("id") != "amalfitani"]
     def _li(c):
         cid  = c.get("id", "")
         hm_e = hm.get(cid, {}) if isinstance(hm.get(cid), dict) else {}
@@ -640,6 +642,22 @@ def _render_cancha_sections(canchas: list, hm: dict) -> str:
     if optimas:
         html += (f'<h3 style="color:#27ae60">Estado Óptimo</h3>'
                  f'<ul style="font-size:14px;line-height:1.8">{"".join(_li(c) for c in optimas)}</ul>')
+    if amalfitani_list:
+        am     = amalfitani_list[0]
+        am_col = _SEM_COLOR.get(am.get("sem","amarillo"), "#f0b429")
+        am_lbl = _SEM_LABEL.get(am.get("sem","amarillo"), "ATENCIÓN")
+        am_hum = am.get("humedad_estimada")
+        am_hum_html = f" · Humedad estimada: <b>{am_hum:.3f} m³/m³</b>" if am_hum else ""
+        am_alertas = am.get("hermes_alertas", [])
+        am_al_html = "".join(f'<li style="color:#f0b429">{a}</li>' for a in am_alertas[:3])
+        html += (
+            f'<h3 style="color:{am_col}">Estadio Amalfitani (Liniers) — {am_lbl}</h3>'
+            f'<ul style="font-size:14px;line-height:1.8">'
+            f'<li>Score: <b>{am.get("score","—")}/100</b>{am_hum_html}<br>'
+            f'<span style="font-size:13px;color:#ccc">{am.get("detalle","")}</span></li>'
+            + am_al_html +
+            f'</ul>'
+        )
     return html
 
 
@@ -680,7 +698,8 @@ def _satellite_age_warning(vd: dict) -> str:
 def _body_roger(vd: dict, panel_url: str = "") -> str:
     sectores   = vd.get("sectores", {})
     u          = vd.get("usuarios", {}).get("roger", {})
-    canchas    = sectores.get("canchero", {}).get("canchas", [])
+    # roger_canchas = vista unificada Amalfitani (Liniers) + 12 VO
+    canchas    = vd.get("roger_canchas") or sectores.get("canchero", {}).get("canchas", [])
     poli       = sectores.get("poli", {})
     agro       = sectores.get("agro", {})
     wl         = vd.get("weather_live", {})
