@@ -168,20 +168,41 @@ def generate_all(ipos_results: dict, semana_label: str, ndvi_map: dict = None) -
         txt   = data["texto"]
 
         # NDVI: use real satellite value when available, else derive from IPOS
-        ndvi_base = (ndvi_map or {}).get(cid) or max(0.18, 0.72 - (ipos / 350.0) * 0.54)
+        cid_data  = (ndvi_map or {}).get(cid) or {}
+        if isinstance(cid_data, dict):
+            ndvi_base  = cid_data.get("ndvi") or max(0.18, 0.72 - (ipos / 350.0) * 0.54)
+            ndvi_2d_in = cid_data.get("ndvi_2d")  # lista de listas [0-1] real del satélite
+        else:
+            ndvi_base  = float(cid_data) if cid_data else max(0.18, 0.72 - (ipos / 350.0) * 0.54)
+            ndvi_2d_in = None
         sha = _sha(cid, ndvi_base, ipos, semana_label, ts)
         verify_hashes[sha] = {
             "cancha": label, "semana": semana_label,
             "ipos": ipos, "ndvi": round(ndvi_base, 4),
             "semaforo": sem,
             "fecha_generacion": ts,
+            "fuente_array": "real_s2" if ndvi_2d_in else "sintetico",
         }
 
         rows = max(4, round(H_m/10)+1)
         cols = max(5, round(W_m/10)+1)
         seed = abs(hash(cid)) % (2**31)
 
-        ndvi_g = _ndvi_grid(rows, cols, ndvi_base, seed)
+        # Usar array real del satélite si está disponible
+        if ndvi_2d_in is not None:
+            try:
+                arr = np.array(ndvi_2d_in, dtype=np.float32)
+                # Redimensionar al tamaño canónico de la grilla
+                from scipy.ndimage import zoom as _zoom2
+                if arr.shape != (rows, cols):
+                    zr = rows / max(1, arr.shape[0])
+                    zc = cols / max(1, arr.shape[1])
+                    arr = _zoom2(arr, (zr, zc), order=1)
+                ndvi_g = np.clip(arr, 0.0, 1.0)
+            except Exception:
+                ndvi_g = _ndvi_grid(rows, cols, ndvi_base, seed)
+        else:
+            ndvi_g = _ndvi_grid(rows, cols, ndvi_base, seed)
         use_g  = _usage_overlay(rows, cols, ipos)
 
         fig = Figure(figsize=(W_PX/DPI, H_PX/DPI), dpi=DPI)
