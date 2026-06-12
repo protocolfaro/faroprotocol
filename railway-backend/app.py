@@ -1201,15 +1201,22 @@ def _run_startup_migrations():
     if db_url.startswith("postgres://"):
         db_url = db_url.replace("postgres://", "postgresql://", 1)
     migration_path = os.path.join(_HERE, "migrations", "fix_data_lake_schema.sql")
+    migration_june2026 = os.path.join(_HERE, "migrations", "add_june2026_columns.sql")
     try:
         from sqlalchemy import create_engine, text
         engine = create_engine(db_url, connect_args={"connect_timeout": 10})
-        sql = open(migration_path, encoding="utf-8").read()
-        stmts = [s.strip() for s in sql.split(";") if s.strip() and not s.strip().startswith("--")]
-        with engine.begin() as conn:
-            for stmt in stmts:
-                conn.execute(text(stmt))
-        log.info("startup migrations: OK — data lake schema actualizado")
+        for mpath in [migration_path, migration_june2026]:
+            if not os.path.exists(mpath):
+                continue
+            sql = open(mpath, encoding="utf-8").read()
+            stmts = [s.strip() for s in sql.split(";") if s.strip() and not s.strip().startswith("--")]
+            with engine.begin() as conn:
+                for stmt in stmts:
+                    try:
+                        conn.execute(text(stmt))
+                    except Exception as _se:
+                        log.debug("migration stmt skip (non-fatal): %s", _se)
+        log.info("startup migrations: OK — data lake schema actualizado (incluyendo jun2026)")
     except Exception as exc:
         log.warning("startup migrations (non-fatal): %s — ejecutar fix_data_lake_schema.sql manualmente", exc)
 
