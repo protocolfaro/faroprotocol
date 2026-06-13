@@ -161,10 +161,16 @@ _STAC_SOURCES = [
 ]
 
 # Rondas progresivas: (max_cloud_pct, ventana_dias)
+# Rondas progresivas de búsqueda: (max_cloud_pct, ventana_dias)
+# Invierno austral (jun-ago BsAs): nubosidad alta → ampliar ventana y umbral
+import datetime as _dt
+_MES = _dt.date.today().month
+_INVIERNO = _MES in (5, 6, 7, 8)
 _ROUNDS = [
-    (20, 7),
-    (35, 14),
-    (50, 30),
+    (25,  7),   # Ronda 1: imagen limpia reciente
+    (45, 14),   # Ronda 2: algo de nubes, 2 semanas
+    (65, 30),   # Ronda 3: invierno — mejor imagen parcialmente nublada que dato viejo
+    (80, 45) if _INVIERNO else (65, 30),   # Ronda 4: solo en invierno — 45 días
 ]
 
 
