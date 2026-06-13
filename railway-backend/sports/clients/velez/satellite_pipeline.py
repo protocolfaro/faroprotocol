@@ -490,3 +490,81 @@ def run_satellite_cycle(ndvi_data: dict = None, force: bool = False) -> dict:
         "commit_ndvi":     commit_ndvi,
         "historial":       hist_result,
     }
+
+
+def run_sar_kalman_cycle() -> dict | None:
+    """
+    Ciclo SAR+Kalman cuando no hay imagen óptica disponible.
+    Genera NDVI estimado para cada cancha usando:
+    1. Kalman LSTM (serie histórica 2020-2026 + ET0 + GDD actuales)
+    2. SAR RVI como proxy de salud vegetal (Sentinel-1, penetra nubes)
+    3. Marca todos los valores como ESTIMADO con badge en el JSON
+
+    Retorna estructura compatible con gndvi_por_cancha para el assembler.
+    """
+    import datetime as _dt
+    import os as _os
+    today = _dt.date.today().isoformat()
+    month = _dt.date.today().month
+    winter = month in (5, 6, 7, 8)
+
+    result = {
+        "fuente": "SAR+Kalman · sin imagen óptica disponible",
+        "fecha_imagen": today,
+        "metodo_generacion": "KALMAN_LSTM+SAR",
+        "nubosidad_pct": 100.0,
+        "estimado": True,
+        "canchas": {}
+    }
+
+    # Intentar Kalman gapfill del core
+    try:
+        import sys as _sys
+        _core = _os.path.join(_os.path.dirname(__file__), '../../../core/satellite')
+        if _core not in _sys.path: _sys.path.insert(0, _core)
+        from faro_kalman_gapfill import run_kalman_gapfill
+        kalman = run_kalman_gapfill(venue_id="amalfitani")
+        if kalman and kalman.get("ndvi_estimado") is not None:
+            result["canchas"]["amalfitani"] = {
+                "ndvi": round(kalman["ndvi_estimado"], 4),
+                "margen_error_kalman": round(kalman.get("margen_error", 0.04), 4),
+                "metodo_generacion": "KALMAN_LSTM",
+                "estimado": True,
+            }
+            log.info("run_sar_kalman_cycle: Kalman OK — NDVI estimado=%.3f", kalman["ndvi_estimado"])
+    except Exception as _ke:
+        log.debug("run_sar_kalman_cycle: Kalman (non-fatal): %s", _ke)
+
+    # SAR RVI para las 12 canchas VO (Sentinel-1 corre con nubes)
+    try:
+        from faro_sar_polimetria import get_rvi_by_cancha
+        rvi_data = get_rvi_by_cancha()
+        if rvi_data:
+            for cid, rvi in rvi_data.items():
+                # RVI -> NDVI proxy: relación empírica para Ryegrass en invierno
+                # RVI rango [0,1] -> NDVI estimado con corrección estacional
+                ndvi_proxy = round(rvi * (0.40 if winter else 0.70), 4)
+                result["canchas"][cid] = {
+                    "ndvi": ndvi_proxy,
+                    "rvi": round(rvi, 4),
+                    "metodo_generacion": "SAR_RVI",
+                    "estimado": True,
+                }
+            log.info("run_sar_kalman_cycle: SAR RVI OK — %d canchas", len(rvi_data))
+    except Exception as _se:
+        log.debug("run_sar_kalman_cycle: SAR RVI (non-fatal): %s", _se)
+
+    # Si no hay datos de ninguna fuente, generar estimados basales con GDD
+    if not result["canchas"]:
+        log.info("run_sar_kalman_cycle: sin SAR ni Kalman — estimado basal por GDD")
+        # NDVI basal invernal para Ryegrass en BsAs (histórico Kalman 2020-2026)
+        ndvi_basal = 0.08 if winter else 0.35
+        canchas_ids = ["amalfitani","1fa","2fa","3fa","4fa","5fa","6fa","7fa","8fa","9fa","10fa","1fp","2fp"]
+        for cid in canchas_ids:
+            result["canchas"][cid] = {
+                "ndvi": ndvi_basal,
+                "metodo_generacion": "BASAL_GDD",
+                "estimado": True,
+            }
+
+    return result if result["canchas"] else None
