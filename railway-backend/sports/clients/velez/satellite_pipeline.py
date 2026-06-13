@@ -15,10 +15,49 @@ Se llama desde:
   - velez_scheduler.run_weekly_job() → lunes 10:00 UTC como fallback garantizado
 """
 from __future__ import annotations
-import base64, json, logging
+import base64, json, logging, sys, os
 from datetime import date, datetime, timezone
 
 import requests
+
+# ── Motor compartido Faro Sports ──────────────────────────────────────────
+# Importar desde sports/modules/ — mejoras acá se propagan a todos los clientes
+_SPORTS_MODULES = os.path.join(os.path.dirname(__file__), '../../..')
+if _SPORTS_MODULES not in sys.path:
+    sys.path.insert(0, _SPORTS_MODULES)
+
+try:
+    from sports.modules.faro_modis       import fetch_modis_ndvi
+    from sports.modules.faro_starfm      import compute_starfm_ndvi
+    from sports.modules.faro_monitor     import run_velez_monitor
+    from sports.modules.faro_autocorrect import record_module_result, get_degraded_modules
+    from sports.modules.faro_source_scout import run_source_scout
+    _MOTOR_OK = True
+    logging.getLogger(__name__).info("motor sports/modules: OK")
+except ImportError as _e:
+    _MOTOR_OK = False
+    logging.getLogger(__name__).warning("motor sports/modules: %s — modo standalone", _e)
+    # Fallbacks no-op para que el pipeline siga corriendo
+    def fetch_modis_ndvi(*a, **k): return None
+    def compute_starfm_ndvi(*a, **k): return None
+    def run_velez_monitor(*a, **k): return {}
+    def record_module_result(*a, **k): pass
+    def get_degraded_modules(*a, **k): return []
+    def run_source_scout(*a, **k): return {}
+
+# ── baseline fenológico del core ──────────────────────────────────────────
+try:
+    _CORE = os.path.join(os.path.dirname(__file__), '../../../core/satellite')
+    if _CORE not in sys.path:
+        sys.path.insert(0, _CORE)
+    from field_timeseries import detect_anomaly, get_baseline
+    _BASELINE_OK = True
+    logging.getLogger(__name__).info("core/field_timeseries: OK")
+except ImportError as _e2:
+    _BASELINE_OK = False
+    logging.getLogger(__name__).warning("core/field_timeseries: %s", _e2)
+    def detect_anomaly(*a, **k): return None
+    def get_baseline(*a, **k): return None
 
 log = logging.getLogger(__name__)
 
