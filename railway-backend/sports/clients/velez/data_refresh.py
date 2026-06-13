@@ -666,13 +666,28 @@ def run_refresh() -> dict:
 
         try:
             ndvi_data = ndvi_real.fetch_ndvi()
+            # Con o sin imagen óptica, correr satellite_pipeline
+            # Sin imagen: usa SAR + Kalman para estimados por cancha
+            import satellite_pipeline
             if ndvi_data:
                 weather["gndvi_por_cancha"] = ndvi_data
+                log.info("data_refresh: imagen óptica disponible — pipeline completo")
                 try:
-                    import satellite_pipeline
                     satellite_pipeline.run_satellite_cycle(ndvi_data)
                 except Exception as _sp_err:
                     log.warning("satellite_pipeline (non-fatal): %s", _sp_err)
+            else:
+                log.info("data_refresh: sin imagen óptica — modo SAR+Kalman")
+                try:
+                    # Generar estimados por cancha con SAR y Kalman
+                    # marca todos los valores como ESTIMADO en el JSON
+                    sar_kalman_data = satellite_pipeline.run_sar_kalman_cycle()
+                    if sar_kalman_data:
+                        weather["gndvi_por_cancha"] = sar_kalman_data
+                        log.info("data_refresh: SAR+Kalman OK — %d canchas estimadas",
+                                 len(sar_kalman_data.get('canchas', {})))
+                except Exception as _sk_err:
+                    log.warning("SAR+Kalman cycle (non-fatal): %s", _sk_err)
         except Exception as _ndvi_err:
             log.warning("ndvi_real (non-fatal): %s", _ndvi_err)
         # ── Physics prescriptions (faro_analytics_physics) ───────────────────
