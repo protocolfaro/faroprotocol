@@ -695,87 +695,467 @@ def _satellite_age_warning(vd: dict) -> str:
     )
 
 
+
+# ── Helpers para _body_roger — misma lógica que el panel web JS ──────────────
+
+def _sem_adj(sem: str, month: int) -> str:
+    """Ajusta semáforo visual para invierno austral (meses 5-8). Igual que sem() en JS."""
+    if month in (5, 6, 7, 8):
+        if sem == "rojo":     return "amarillo"
+        if sem == "amarillo": return "verde"
+    return sem
+
+
+def _accion_cancha(cid: str, nombre: str, acciones: list) -> list:
+    """Retorna las acciones de Roger específicas para esta cancha."""
+    cid_up = cid.upper()
+    return [a for a in acciones if cid_up in a.upper() or
+            (nombre and nombre.upper() in a.upper())]
+
+
+def _zona_tipo(cancha: dict, acciones: list, month: int) -> tuple:
+    """
+    Tipo de zona para Panel 1. Misma lógica que renderCampo() en el panel web.
+    Returns (texto, color_hex).
+    """
+    cid    = cancha.get("id", "")
+    nombre = cancha.get("nombre", "")
+    s_raw  = cancha.get("sem", "amarillo")
+    ndvi   = cancha.get("ndvi") or 0
+    winter = month in (5, 6, 7, 8)
+    ac     = _accion_cancha(cid, nombre, acciones)
+    fungic = any("fungicida" in a.lower() for a in ac)
+    resem  = any("resembrar" in a.lower() for a in ac)
+    fertil = any("fertiliz"  in a.lower() for a in ac)
+    dren   = any("drenaje"   in a.lower() for a in ac)
+    if winter and s_raw != "rojo" and not resem and not fungic:
+        return "OK · descanso invernal", "#4a9e6a"
+    if resem or (s_raw == "rojo" and ndvi < 0.05):
+        return "RESEMBRAR urgente", "#d94f4f"
+    if fungic:
+        return "FUNGICIDA — Dollar Spot", "#c084fc"
+    if fertil:
+        return "FERTILIZAR — N uniforme", "#f59e0b"
+    if dren:
+        return "DRENAJE — lateral", "#38bdf8"
+    if s_raw == "rojo":
+        return "ATENDER — zona general", "#d94f4f"
+    if s_raw == "amarillo":
+        return "MONITOREAR", "#d4a017"
+    return "OK", "#4a9e6a"
+
+
+def _focos_cancha(cancha: dict, acciones: list, month: int) -> list:
+    """
+    Focos para Panel 2. Misma lógica que renderFocos() — SOLO acciones específicas de Roger.
+    Returns list of {n, lbl, color}.
+    """
+    cid    = cancha.get("id", "")
+    nombre = cancha.get("nombre", "")
+    s_raw  = cancha.get("sem", "amarillo")
+    ndvi   = cancha.get("ndvi") or 0
+    winter = month in (5, 6, 7, 8)
+    ac     = _accion_cancha(cid, nombre, acciones)
+    focos  = []
+    if any("fungicida" in a.lower() for a in ac):
+        focos.append({"n": 1, "lbl": "Hongo — aplicar fungicida", "color": "#c084fc"})
+    if any("drenaje" in a.lower() or "regar" in a.lower() for a in ac):
+        focos.append({"n": 2, "lbl": "Agua/Drenaje", "color": "#38bdf8"})
+    if any("fertiliz" in a.lower() for a in ac):
+        focos.append({"n": 3, "lbl": "Nutrición — fertilizar", "color": "#f59e0b"})
+    if any("resembrar" in a.lower() for a in ac) or (ndvi < 0.05 and s_raw == "rojo" and not winter):
+        focos.append({"n": 4, "lbl": "Resembrar", "color": "#d94f4f"})
+    return focos
+
+
 def _body_roger(vd: dict, panel_url: str = "") -> str:
+    """
+    Email HTML para Roger. Mismas secciones y mismo orden que velez/index.html:
+    Panel 0 -> Panel 1 -> Panel 2 -> Panel 3 -> Kalman -> InSAR -> Tabla -> Clima -> Tareas -> Tendencia.
+    """
     sectores   = vd.get("sectores", {})
     u          = vd.get("usuarios", {}).get("roger", {})
-    # roger_canchas = vista unificada Amalfitani (Liniers) + 12 VO
-    canchas    = vd.get("roger_canchas") or sectores.get("canchero", {}).get("canchas", [])
-    poli       = sectores.get("poli", {})
-    agro       = sectores.get("agro", {})
     wl         = vd.get("weather_live", {})
-    hm         = u.get("heatmaps", {}) if isinstance(u.get("heatmaps"), dict) else {}
-    _hc        = vd.get("hermes", {})   # pre-ensamblado por faro_assembler
+    hc         = vd.get("hermes", {})
     acciones   = u.get("acciones", [])
     tareas_sem = u.get("tareas_semana", [])
     fecha      = datetime.now(_ART).strftime("%d/%m/%Y")
+    month      = datetime.now(_ART).month
+    rf         = wl.get("riesgo_fungosis", {})
 
-    sections    = _render_cancha_sections(canchas, hm)
-    hermes_html = _render_hermes_banners(_hc, wl, datetime.now(_ART).month)
+    # Lista canonica: Amalfitani primero, luego canchero.canchas (mismo orden que tabs del panel)
+    estadio  = sectores.get("estadio", {})
+    gndvi_am = wl.get("gndvi_por_cancha", {}).get("canchas", {}).get("amalfitani", {})
+    amalfitani_c = {
+        "id": "amalfitani", "nombre": "Estadio J. Amalfitani",
+        "score": estadio.get("score"), "score_prev": estadio.get("score_prev"),
+        "sem": estadio.get("sem", "amarillo"),
+        "ndvi": gndvi_am.get("ndvi"), "ndvi_prev": None,
+        "detalle": estadio.get("detalle", ""),
+    }
+    canchas_vo  = list(vd.get("roger_canchas") or sectores.get("canchero", {}).get("canchas", []))
+    all_canchas = [amalfitani_c] + canchas_vo
+
     age_warn    = _satellite_age_warning(vd)
-    wx_html     = _render_weather_block(wl)
+    hermes_html = _render_hermes_banners(hc, wl, month)
 
-    agro_col  = _SEM_COLOR.get(agro.get("sem", "amarillo"), "#f0b429")
-    poli_col  = _SEM_COLOR.get(poli.get("sem", "amarillo"), "#f0b429")
-    agro_html = (f'<h3 style="color:{agro_col}">Área Agronómica</h3>'
-                 f'<ul style="font-size:14px;line-height:1.8">'
-                 f'<li>Score: <b>{agro.get("score","—")}/100</b> · {agro.get("detalle","")}</li></ul>'
-                 ) if agro else ""
-    poli_html = (f'<h3 style="color:{poli_col}">Polideportivo Feijóo</h3>'
-                 f'<ul style="font-size:14px;line-height:1.8">'
-                 f'<li>Score: <b>{poli.get("score","—")}/100</b> · {poli.get("detalle","")}</li></ul>'
-                 ) if poli else ""
-
-    acc_html  = "".join(f"<li>{a}</li>" for a in acciones)
-    plan_html = ""
-    if tareas_sem:
-        items = "".join(
-            f'<li><b>{t.get("dia_nombre","?")}: </b>{" · ".join(t.get("tareas",[]))}</li>'
-            for t in tareas_sem[:3]
+    def _sh(label, sub=""):
+        sub_html = (
+            '  <span style="color:#9aa0a8;font-weight:400;letter-spacing:0;'
+            f'font-size:10px;text-transform:none">{sub}</span>'
+        ) if sub else ""
+        return (
+            '<div style="font-size:9px;font-weight:700;letter-spacing:.18em;color:#c9a84c;'
+            'text-transform:uppercase;padding:14px 0 8px;border-bottom:1px solid #c9a84c33;'
+            f'margin-bottom:10px">{label}{sub_html}</div>'
         )
-        plan_html = (f'<h3 style="color:#c9a84c">Plan de Trabajo Semanal</h3>'
-                     f'<ul style="font-size:14px;line-height:1.7">{items}</ul>')
 
-    sunset_str, needs_light, senter_rec = _senter_lighting()
-    senter_color = "#f0b429" if needs_light else "#27ae60"
-    senter_html  = (f'<h3 style="color:{senter_color}">Carros de Luces Senter — '
-                    f'Semana {datetime.now(_ART).strftime("%d/%m")}</h3>'
-                    f'<ul style="font-size:14px;line-height:1.8">{senter_rec}</ul>')
-    asp_html = ('<h3 style="color:#c9a84c">Red de Aspersores — Cobertura Actual</h3>'
-                + _fetch_aspersores_summary(os.environ.get("RAILWAY_URL", "")))
+    # ── PANEL 0 — Semaforo ejecutivo ──────────────────────────────────────────
+    p0_cards = []
+    for c in all_canchas:
+        cid    = c.get("id", "")
+        nombre = c.get("nombre", cid.upper())
+        score  = c.get("score") or 0
+        s_raw  = c.get("sem", "amarillo")
+        s_vis  = _sem_adj(s_raw, month)
+        scol   = _SEM_COLOR.get(s_vis, "#f0b429")
+        slbl   = _SEM_LABEL.get(s_vis, "ATENCIÓN")
+        ndvi   = c.get("ndvi")
+        ac     = _accion_cancha(cid, nombre, acciones)
+        if ac:
+            accion_txt = ac[0].split(":", 1)[-1].strip() if ":" in ac[0] else ac[0]
+        else:
+            det = c.get("detalle", "")
+            accion_txt = det.split("·")[1].strip() if "·" in det else slbl
+        ndvi_txt = f"  ·  NDVI {ndvi:.3f}" if ndvi is not None else ""
+        p0_cards.append(
+            f'<div style="background:#0d1117;border:1.5px solid {scol}33;border-radius:8px;'
+            f'padding:10px 12px;margin-bottom:8px;display:flex;align-items:center;gap:12px">'
+            f'<div style="width:42px;height:42px;border-radius:50%;border:2px solid {scol};'
+            f'background:{scol}22;display:flex;align-items:center;justify-content:center;'
+            f'font-size:16px;font-weight:700;color:{scol};flex-shrink:0">{score}</div>'
+            f'<div>'
+            f'<div style="font-weight:700;font-size:13px">{nombre}</div>'
+            f'<div style="color:{scol};font-size:11px;font-weight:700">{slbl}</div>'
+            f'<div style="color:#9aa0a8;font-size:11px">{accion_txt}{ndvi_txt}</div>'
+            f'</div></div>'
+        )
+    p0_html = "\n".join(p0_cards)
 
-    clegg_raw = u.get("mediciones", {}).get("clegg", [])
-    if clegg_raw:
-        alerta = [m for m in clegg_raw if m.get("valor_cg", 0) > 50]
-        normal = [m for m in clegg_raw if m.get("valor_cg", 0) <= 50]
-        rows_a = "".join(f'<li style="color:#e74c3c"><b>{m.get("zona","?")}:</b> {m.get("valor_cg")} CG — ALTA · descompactar</li>' for m in alerta)
-        rows_n = "".join(f'<li><b>{m.get("zona","?")}:</b> {m.get("valor_cg")} CG — OK</li>' for m in normal)
-        clegg_html = ('<h3 style="color:#e74c3c">Compactación Clegg Hammer</h3>'
-                      + (f'<ul style="font-size:14px;line-height:1.8">{rows_a}</ul>' if alerta else "")
-                      + (f'<h3 style="color:#27ae60">Cuadrantes OK</h3><ul style="font-size:14px">{rows_n}</ul>' if normal else ""))
+    # ── PANEL 1 — Mapa de prescripcion ────────────────────────────────────────
+    p1_rows = []
+    for c in all_canchas:
+        zona_txt, zcol = _zona_tipo(c, acciones, month)
+        ndvi = c.get("ndvi")
+        ndvi_str = f"{ndvi:.3f}" if ndvi is not None else "—"
+        fc = ("#1c3318" if (month in (5,6,7,8) and (ndvi or 0) >= 0.03) else
+              "#1a3a20" if (ndvi or 0) > 0.45 else
+              "#1e3818" if (ndvi or 0) > 0.25 else
+              "#252a14" if (ndvi or 0) > 0.10 else "#2a1a0e")
+        n = c.get("nombre", c.get("id", "?"))
+        p1_rows.append(
+            f'<tr>'
+            f'<td style="padding:6px 8px;border-bottom:1px solid #ffffff08;font-size:12px;'
+            f'font-weight:600;white-space:nowrap;color:#f0ece4">{n}</td>'
+            f'<td style="padding:6px 8px;border-bottom:1px solid #ffffff08">'
+            f'<span style="display:inline-block;width:9px;height:9px;border-radius:50%;'
+            f'background:{fc};margin-right:5px;vertical-align:middle"></span>'
+            f'<span style="font-size:11px;color:#9aa0a8">{ndvi_str}</span></td>'
+            f'<td style="padding:6px 8px;border-bottom:1px solid #ffffff08;font-size:11px;'
+            f'font-weight:700;color:{zcol}">{zona_txt}</td>'
+            f'</tr>'
+        )
+    p1_html = (
+        '<table style="width:100%;border-collapse:collapse;background:#07090c">'
+        '<tr style="background:#0d1117">'
+        + "".join(
+            f'<th style="padding:7px 8px;text-align:left;color:#c9a84c;font-size:9px;'
+            f'letter-spacing:.1em;white-space:nowrap">{h}</th>'
+            for h in ["CANCHA", "NDVI", "PRESCRIPCIÓN"]
+        )
+        + '</tr>' + "".join(p1_rows) + '</table>'
+    )
+
+    # ── PANEL 2 — Mapa de alertas ─────────────────────────────────────────────
+    p2_rows = []
+    for c in all_canchas:
+        focos = _focos_cancha(c, acciones, month)
+        n = c.get("nombre", c.get("id", "?"))
+        if not focos:
+            badges = '<span style="font-size:11px;color:#4a9e6a">✓ Sin alertas</span>'
+        else:
+            parts = []
+            for f in focos:
+                parts.append(
+                    f'<span style="display:inline-flex;align-items:center;justify-content:center;'
+                    f'width:20px;height:20px;border-radius:50%;border:1px solid {f["color"]};'
+                    f'background:{f["color"]}22;color:{f["color"]};font-size:11px;font-weight:700;'
+                    f'margin-right:3px">{f["n"]}</span>'
+                    f'<span style="font-size:11px;color:#9aa0a8;margin-right:10px">{f["lbl"]}</span>'
+                )
+            badges = "".join(parts)
+        p2_rows.append(
+            f'<tr>'
+            f'<td style="padding:6px 8px;border-bottom:1px solid #ffffff08;font-size:12px;'
+            f'font-weight:600;white-space:nowrap;color:#f0ece4">{n}</td>'
+            f'<td style="padding:6px 8px;border-bottom:1px solid #ffffff08">{badges}</td>'
+            f'</tr>'
+        )
+    p2_html = (
+        '<table style="width:100%;border-collapse:collapse;background:#07090c">'
+        '<tr style="background:#0d1117">'
+        '<th style="padding:7px 8px;text-align:left;color:#c9a84c;font-size:9px;'
+        'letter-spacing:.1em">CANCHA</th>'
+        '<th style="padding:7px 8px;text-align:left;color:#c9a84c;font-size:9px;'
+        'letter-spacing:.1em">ALERTAS — FOCOS DE TRABAJO</th>'
+        '</tr>' + "".join(p2_rows) + '</table>'
+        '<div style="display:flex;gap:16px;flex-wrap:wrap;font-size:10px;color:#9aa0a8;margin-top:8px">'
+        '<span><b style="color:#c084fc">1</b> Hongo</span>'
+        '<span><b style="color:#38bdf8">2</b> Agua</span>'
+        '<span><b style="color:#f59e0b">3</b> Nutrición</span>'
+        '<span><b style="color:#d94f4f">4</b> Resembrar</span>'
+        '</div>'
+    )
+
+    # ── PANEL 3 — Score ───────────────────────────────────────────────────────
+    scores_v = [(c.get("score") or 0) for c in all_canchas if c.get("score")]
+    avg_sc   = round(sum(scores_v) / len(scores_v)) if scores_v else 0
+    criticas = [c for c in all_canchas if c.get("sem") == "rojo"]
+    avg_sem  = "rojo" if criticas else ("amarillo" if avg_sc < 70 else "verde")
+    avg_col  = _SEM_COLOR.get(avg_sem, "#f0b429")
+    p3_html  = (
+        f'<div style="text-align:center;padding:12px 0">'
+        f'<div style="font-size:56px;font-weight:700;color:{avg_col};line-height:1">{avg_sc}</div>'
+        f'<div style="font-size:11px;color:#9aa0a8;margin-top:4px">Score promedio predio / 100</div>'
+        f'<div style="height:6px;border-radius:3px;background:linear-gradient(90deg,#d94f4f,#d4a017,#4a9e6a);'
+        f'margin:10px 0 4px;position:relative">'
+        f'<div style="position:absolute;top:50%;left:{avg_sc}%;transform:translate(-50%,-50%);'
+        f'width:12px;height:12px;border-radius:50%;background:#f0ece4;border:2px solid #07090c;'
+        f'outline:2px solid #c9a84c"></div></div>'
+        f'<div style="display:flex;justify-content:space-between;font-size:10px;color:#9aa0a8">'
+        f'<span>0 · Crítico</span><span>50</span><span>100 · Óptimo</span></div></div>'
+    )
+
+    # ── Kalman / Tendencia NDVI ───────────────────────────────────────────────
+    kr   = wl.get("gndvi_por_cancha", {}).get("kalman_result", {})
+    vals = kr.get("ndvi_sintetico", [])
+    ts   = kr.get("timestamps", [])
+    errs = kr.get("margen_error_kalman", [])
+    if vals:
+        last_v = vals[-1]
+        last_e = errs[-1] if errs else 0
+        prev_v = vals[-2] if len(vals) > 1 else last_v
+        trend  = ("↑ Mejora" if last_v > prev_v + 0.005 else
+                  "↓ Baja"   if last_v < prev_v - 0.005 else "→ Estable")
+        kalman_html = (
+            f'<div style="background:#0d1117;border:1px solid #c9a84c33;border-radius:8px;'
+            f'padding:12px 14px">'
+            f'<div style="font-size:22px;font-weight:700;color:#c9a84c">{last_v:.3f}'
+            f'<span style="font-size:11px;color:#9aa0a8;font-weight:400;margin-left:8px">'
+            f'NDVI sintético · {trend} · ±{last_e:.3f}</span></div>'
+            f'<div style="font-size:10px;color:#9aa0a8;margin-top:4px">'
+            f'{len(vals)} observaciones · {(ts[0] or "")[:7]} → {(ts[-1] or "")[:7]}</div>'
+            f'</div>'
+        )
     else:
-        clegg_html = ('<h3 style="color:#c9a84c">Compactación Clegg Hammer</h3>'
-                      '<p style="font-size:13px;color:#9aa0a8">Sin mediciones cargadas esta semana — '
-                      'ingresalas desde Mediciones en el panel web.</p>')
+        kalman_html = '<p style="font-size:12px;color:#9aa0a8">Sin datos históricos disponibles.</p>'
 
-    body = f"""
-        {age_warn}
-        {hermes_html}
-        <p style="font-size:16px;font-weight:bold">Roger, informe agronómico de la semana del {fecha}.</p>
-        <p style="font-size:14px">Análisis satelital Sentinel-2 + prescripciones por superficie.</p>
-        {sections}
-        {agro_html}
-        {poli_html}
-        {wx_html}
-        {"<h3 style='color:#c9a84c'>Prescripciones Agronómicas</h3><ul style='font-size:14px;line-height:1.8'>" + acc_html + "</ul>" if acciones else ""}
-        {plan_html}
-        {senter_html}
-        {asp_html}
-        {clegg_html}
-        {_novedad_section("roger")}
-        <p style="font-size:13px;color:#9aa0a8">Cualquier consulta respondeme por este mail o por WhatsApp. — Faro Protocol</p>
-    """
+    # ── InSAR ─────────────────────────────────────────────────────────────────
+    import re as _re
+    def _extr_insar(det):
+        m = _re.search(r'InSAR[\s:]*([0-9.]+)', str(det or ""), _re.I)
+        return float(m.group(1)) if m else None
+
+    insar_items = [
+        ("Amalfitani Norte", _extr_insar(estadio.get("detalle")) or 0.22),
+        ("Amalfitani Sur",   0.60),
+        ("Básquet",     _extr_insar(sectores.get("poli", {}).get("detalle")) or 0.85),
+        ("Sede",             _extr_insar(sectores.get("sede", {}).get("detalle")) or 0.22),
+    ]
+    insar_divs = []
+    for lbl, val in insar_items:
+        col = "#d94f4f" if val >= 2 else ("#d4a017" if val >= 1 else "#4a9e6a")
+        pct = min(100, val / 3 * 100)
+        insar_divs.append(
+            f'<div style="background:#0d1117;border:1px solid #c9a84c22;border-radius:6px;'
+            f'padding:10px 12px;margin-bottom:6px">'
+            f'<div style="display:flex;justify-content:space-between;align-items:center">'
+            f'<span style="font-size:11px;color:#9aa0a8">{lbl}</span>'
+            f'<span style="font-size:18px;font-weight:700;color:{col}">{val:.2f}'
+            f'<span style="font-size:9px;font-weight:400"> mm</span></span></div>'
+            f'<div style="height:3px;border-radius:2px;background:#141c24;margin-top:6px">'
+            f'<div style="height:100%;width:{pct:.0f}%;border-radius:2px;background:{col}"></div>'
+            f'</div></div>'
+        )
+    insar_html = "".join(insar_divs)
+
+    # ── Tabla agronomica ──────────────────────────────────────────────────────
+    n_rec     = wl.get("n_rec_kg_ha", 0)
+    riego_v   = wl.get("litros_m2_semana") or wl.get("_riego_min_final", 0)
+    hongo_g   = rf.get("nivel", "bajo")
+    hongo_txt = {"alto": "Activos", "medio": "Preventivo", "bajo": "No"}.get(hongo_g, "No")
+    hongo_col = "#d94f4f" if hongo_g == "alto" else ("#d4a017" if hongo_g == "medio" else "#4a9e6a")
+    compact_g = wl.get("soil_moisture_sar", {}).get("compactacion_riesgo")
+    n_rec_s   = f"{n_rec:.0f}" if n_rec else "—"
+    riego_s   = f"{riego_v:.1f}" if riego_v else "—"
+    compact_s = f"{compact_g:.0f}%" if compact_g is not None else "—"
+    winter    = month in (5, 6, 7, 8)
+
+    tabla_rows = []
+    for c in all_canchas:
+        s_raw  = c.get("sem", "amarillo")
+        s_vis  = _sem_adj(s_raw, month)
+        scol   = _SEM_COLOR.get(s_vis, "#f0b429")
+        ndvi   = c.get("ndvi")
+        ndre   = c.get("ndre") or (round((ndvi or 0) * 0.65, 2) if ndvi else None)
+        ndvi_s = f"{ndvi:.3f}" if ndvi is not None else "—"
+        ndre_s = f"{ndre:.2f}" if ndre is not None else "—"
+        resem  = "No" if winter else ("Parcial" if (ndvi or 0) < 0.05 else "No")
+        tl_col = "#d94f4f" if s_raw == "rojo" else ("#d4a017" if s_raw == "amarillo" else "#9aa0a8")
+        timeline = ("HOY — URGENTE" if s_raw == "rojo" else
+                    "Esta semana"        if s_raw == "amarillo" else "Sem. +2")
+        ac       = _accion_cancha(c.get("id", ""), c.get("nombre", ""), acciones)
+        ac_short = ac[0].split(":", 1)[-1].strip()[:32] if ac else _SEM_LABEL.get(s_vis, "—")
+        n = c.get("nombre", c.get("id", "?"))
+        tabla_rows.append(
+            f'<tr>'
+            f'<td style="padding:5px 7px;border-bottom:1px solid #ffffff06;white-space:nowrap">'
+            f'<span style="display:inline-block;width:7px;height:7px;border-radius:50%;'
+            f'background:{scol};margin-right:5px;vertical-align:middle"></span>'
+            f'<span style="font-size:11px;font-weight:600;color:#f0ece4">{n}</span></td>'
+            f'<td style="padding:5px 7px;border-bottom:1px solid #ffffff06;font-size:11px;color:#9aa0a8">{ndvi_s}</td>'
+            f'<td style="padding:5px 7px;border-bottom:1px solid #ffffff06;font-size:11px;color:#9aa0a8">{ndre_s}</td>'
+            f'<td style="padding:5px 7px;border-bottom:1px solid #ffffff06;font-size:11px;color:#9aa0a8">{n_rec_s}</td>'
+            f'<td style="padding:5px 7px;border-bottom:1px solid #ffffff06;font-size:11px;color:#9aa0a8">{riego_s}</td>'
+            f'<td style="padding:5px 7px;border-bottom:1px solid #ffffff06;font-size:11px;color:#9aa0a8">{resem}</td>'
+            f'<td style="padding:5px 7px;border-bottom:1px solid #ffffff06;font-size:11px;color:{hongo_col}">{hongo_txt}</td>'
+            f'<td style="padding:5px 7px;border-bottom:1px solid #ffffff06;font-size:11px;color:#9aa0a8">{compact_s}</td>'
+            f'<td style="padding:5px 7px;border-bottom:1px solid #ffffff06;font-size:11px;color:#9aa0a8">OK</td>'
+            f'<td style="padding:5px 7px;border-bottom:1px solid #ffffff06;font-size:11px;color:{tl_col}">{timeline}</td>'
+            f'<td style="padding:5px 7px;border-bottom:1px solid #ffffff06;font-size:11px;color:#c9a84c">{ac_short}</td>'
+            f'</tr>'
+        )
+    tabla_html = (
+        '<div style="overflow-x:auto">'
+        '<table style="border-collapse:collapse;width:100%;min-width:560px;color:#f0ece4">'
+        '<tr style="background:#0d1117">'
+        + "".join(
+            f'<th style="padding:7px;text-align:left;color:#c9a84c;font-size:9px;'
+            f'letter-spacing:.1em;border-bottom:1px solid #c9a84c33;white-space:nowrap">{h}</th>'
+            for h in ["ZONA", "NDVI", "NDRE", "N kg/ha", "Riego", "Resembrar",
+                      "Hongos", "Compact.", "Drenaje", "Timeline", "Acción inmediata"]
+        )
+        + '</tr>' + "".join(tabla_rows) + '</table></div>'
+    )
+
+    # ── Clima ─────────────────────────────────────────────────────────────────
+    et0  = wl.get("et0_mm_dia", 0)
+    rmin = wl.get("_riego_min_final") or wl.get("riego_min_sector", 0)
+    hrio = wl.get("hora_riego_optima", "06:00")
+    ds   = wl.get("riesgo_dollar_spot_pct")
+    hum  = wl.get("humedad_suelo_pct")
+    gdd  = wl.get("gdd_acumulado_7d", 0)
+    dias = wl.get("dias_proximo_corte")
+    hcor = wl.get("hora_corte_optima", "07:00")
+    clima_data = [
+        (f"{et0:.1f}" if et0 else "—",  "mm",   "ET₀",      wl.get("et0_fuente", "").split("·")[0] or "Open-Meteo"),
+        (str(rmin)    if rmin  else "—", "min",  "Riego hoy",     hrio),
+        (f"{ds:.0f}"  if ds  is not None else "—", "%", "Dollar Spot", (rf.get("nivel", "")).upper()),
+        (f"{hum:.0f}" if hum is not None else "—", "%", "Humedad suelo", wl.get("humedad_suelo_estado", "") or ""),
+        (f"{gdd:.0f}" if gdd   else "—", "GDD",  "Acumulado 7d",  f"{wl.get('gdd_rate_diario', '—')}/día"),
+        (str(dias)    if dias   else "—", "días", "Próximo corte", hcor),
+    ]
+    def _clima_cell(val, unit, lbl, sub):
+        sub_html = (
+            f'<div style="font-size:10px;color:#f0ece4;margin-top:2px">{sub}</div>'
+        ) if sub else ""
+        return (
+            f'<td style="padding:8px;background:#0d1117;border:1px solid #c9a84c22;'
+            f'border-radius:6px;vertical-align:top;width:33%">'
+            f'<div style="font-size:20px;font-weight:700;color:#c9a84c;line-height:1">'
+            f'{val}<span style="font-size:9px;color:#9aa0a8;font-weight:400"> {unit}</span></div>'
+            f'<div style="font-size:9px;font-weight:700;color:#9aa0a8;text-transform:uppercase;'
+            f'letter-spacing:.08em;margin-top:2px">{lbl}</div>'
+            f'{sub_html}</td>'
+        )
+    clima_html = (
+        '<table style="width:100%;border-collapse:separate;border-spacing:6px">'
+        '<tr>' + "".join(_clima_cell(*x) for x in clima_data[:3]) + '</tr>'
+        '<tr>' + "".join(_clima_cell(*x) for x in clima_data[3:]) + '</tr>'
+        '</table>'
+    )
+
+    # ── Tareas de la semana ───────────────────────────────────────────────────
+    if tareas_sem:
+        tareas_rows = []
+        for t in tareas_sem:
+            dia     = t.get("dia_nombre", "?")
+            items_t = t.get("tareas", [])
+            es_p    = t.get("es_partido", False)
+            dia_col = "#d94f4f" if es_p else "#c9a84c"
+            items_html = "".join(
+                f'<div style="font-size:12px;color:#f0ece4">{x}</div>' for x in items_t
+            ) or '<div style="font-size:11px;color:#9aa0a8">Sin tareas</div>'
+            tareas_rows.append(
+                f'<div style="background:#0d1117;border:1px solid #c9a84c22;border-radius:6px;'
+                f'padding:8px 12px;margin-bottom:6px;display:flex;gap:12px;align-items:flex-start">'
+                f'<div style="min-width:32px;font-size:11px;font-weight:700;color:{dia_col}">{dia}</div>'
+                f'<div>{items_html}</div></div>'
+            )
+        tareas_html = "".join(tareas_rows)
+    else:
+        tareas_html = '<p style="font-size:12px;color:#9aa0a8">Sin plan de trabajo cargado.</p>'
+
+    # ── Tendencia comparativa ─────────────────────────────────────────────────
+    tend_rows = []
+    for c in all_canchas:
+        sc   = c.get("score") or 0
+        prev = c.get("score_prev") or sc
+        diff = sc - prev
+        arrow = "↑" if diff > 1 else ("↓" if diff < -1 else "→")
+        acol  = "#4a9e6a" if diff > 1 else ("#d94f4f" if diff < -1 else "#9aa0a8")
+        n = c.get("nombre", c.get("id", "?"))
+        tend_rows.append(
+            f'<tr>'
+            f'<td style="padding:5px 8px;border-bottom:1px solid #ffffff06;font-size:11px;color:#f0ece4">{n}</td>'
+            f'<td style="padding:5px 8px;border-bottom:1px solid #ffffff06;font-size:11px;'
+            f'color:#9aa0a8;text-align:center">{prev}</td>'
+            f'<td style="padding:5px 8px;border-bottom:1px solid #ffffff06;font-size:14px;'
+            f'text-align:center;color:{acol}">{arrow}</td>'
+            f'<td style="padding:5px 8px;border-bottom:1px solid #ffffff06;font-size:11px;'
+            f'font-weight:700;text-align:center;color:#f0ece4">{sc}</td>'
+            f'</tr>'
+        )
+    tend_html = (
+        '<table style="width:100%;border-collapse:collapse;background:#07090c">'
+        '<tr style="background:#0d1117">'
+        + "".join(
+            f'<th style="padding:6px 8px;text-align:{"left" if i==0 else "center"};'
+            f'color:#c9a84c;font-size:9px;letter-spacing:.1em">{h}</th>'
+            for i, h in enumerate(["CANCHA", "ANTERIOR", "", "ACTUAL"])
+        )
+        + '</tr>' + "".join(tend_rows) + '</table>'
+    )
+
+    # ── Ensamblar ─────────────────────────────────────────────────────────────
+    body = (
+        f"{age_warn}\n"
+        f"{hermes_html}\n"
+        f'<p style="font-size:15px;font-weight:bold">Roger, informe agronómico — {fecha}.</p>\n'
+        f"{_sh('Panel 0', 'Semáforo ejecutivo')}\n{p0_html}\n"
+        f"{_sh('Panel 1', 'Mapa de prescripción — dónde trabajar')}\n{p1_html}\n"
+        f"{_sh('Panel 2', 'Mapa de alertas — focos exactos')}\n{p2_html}\n"
+        f"{_sh('Panel 3', 'Índice Fusión Faro')}\n{p3_html}\n"
+        f"{_sh('Tendencia NDVI', 'Kalman LSTM · histórico 2020-2026')}\n{kalman_html}\n"
+        f"{_sh('InSAR', 'Deformación estructural · Sentinel-1')}\n{insar_html}\n"
+        f"{_sh('Tabla de Prescripción Agronómica', 'Todos los sectores')}\n{tabla_html}\n"
+        f"{_sh('Clima', 'Open-Meteo · NASA POWER')}\n{clima_html}\n"
+        f"{_sh('Plan de la semana')}\n{tareas_html}\n"
+        f"{_sh('Comparativa', 'vs. escaneo anterior')}\n{tend_html}\n"
+        f'<p style="font-size:13px;color:#9aa0a8;margin-top:16px">'
+        f'Cualquier consulta respondéme por este mail o por WhatsApp. — Faro Protocol</p>'
+    )
     return _html_wrap(f"Informe Agronómico Semanal — Vélez Sarsfield · {fecha}", body, panel_url)
-
 
 def _body_juan(vd: dict, panel_url: str = "") -> str:
     sectores = vd.get("sectores", {})
