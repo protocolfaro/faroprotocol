@@ -1274,6 +1274,37 @@ _run_startup_migrations()
 try:
     _scheduler = _start_scheduler()
     velez_scheduler.register_jobs(_scheduler)
+    # Vélez — monitor autónomo cada 6h desde sports/modules
+    try:
+        import sys as _vsys, os as _vos
+        _sp = _vos.path.join(_vos.path.dirname(__file__), 'sports', 'modules')
+        if _sp not in _vsys.path: _vsys.path.insert(0, _vos.path.dirname(__file__))
+        from sports.modules.faro_monitor import run_velez_monitor
+        def _velez_monitor_job():
+            try:
+                result = run_velez_monitor(venue_id="amalfitani")
+                log.info("Vélez monitor: %d alertas", len(result.get("alerts", [])))
+            except Exception as _vme:
+                log.debug("Vélez monitor job (non-fatal): %s", _vme)
+        _scheduler.add_job(_velez_monitor_job, "cron", hour="6,12,18,0", minute=45,
+                           id="velez_monitor", replace_existing=True)
+        log.info("Vélez monitor autónomo registrado (cada 6h)")
+    except Exception as _vm_err:
+        log.warning("Vélez monitor scheduler: %s", _vm_err)
+    # Vélez — source scout semanal (auto-descubre nuevas fuentes satelitales)
+    try:
+        from sports.modules.faro_source_scout import run_source_scout
+        def _velez_scout_job():
+            try:
+                result = run_source_scout()
+                log.info("source scout: %d fuentes evaluadas", len(result.get("sources", [])))
+            except Exception as _vse:
+                log.debug("source scout job (non-fatal): %s", _vse)
+        _scheduler.add_job(_velez_scout_job, "cron", day_of_week="sun", hour=8, minute=0,
+                           id="velez_source_scout", replace_existing=True)
+        log.info("Vélez source scout registrado (domingos 08:00 UTC)")
+    except Exception as _vs_err:
+        log.warning("Vélez source scout scheduler: %s", _vs_err)
     # Dale Play — check fuentes nuevas cada 3 días
     try:
         import sys as _sys, pathlib as _pathlib
