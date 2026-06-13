@@ -1,145 +1,96 @@
-name: Emails semanales — Vélez Sarsfield
+name: Pipeline diario — Vélez Sarsfield
 
 on:
   schedule:
-    - cron: '0 10 * * 1'   # Lunes 10:00 UTC = 07:00 ART
-  workflow_dispatch:        # Botón manual en GitHub
+    - cron: '0 9 * * *'   # Todos los días 09:00 UTC = 06:00 ART
+    - cron: '0 10 * * 1'  # Lunes 10:00 UTC = emails semanales
+  workflow_dispatch:
+    inputs:
+      force_email:
+        description: 'Forzar envío de email'
+        required: false
+        default: 'false'
 
 jobs:
   pipeline:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     permissions:
       contents: write
 
     steps:
-      # ── Checkout + Python ─────────────────────────────────────────────────
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      # ── FASE A: Dependencias + Ingesta satelital ──────────────────────────
       - name: Instalar dependencias
         run: |
-          pip install requests matplotlib pillow numpy scipy
+          pip install requests matplotlib pillow numpy scipy pystac-client planetary-computer rasterio earthaccess
 
-      - name: Fase A — Ingesta de datos en caliente
+      - name: Fase A — Ingesta satelital diaria
         id: fase_a
         env:
-          RAILWAY_URL:   ${{ secrets.RAILWAY_URL }}
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_URL:        ${{ secrets.RAILWAY_URL }}
+          RAILWAY_TOKEN:      ${{ secrets.RAILWAY_TOKEN }}
+          NASA_EARTHDATA_USER: ${{ secrets.NASA_EARTHDATA_USER }}
+          NASA_EARTHDATA_PASS: ${{ secrets.NASA_EARTHDATA_PASS }}
+          SUPABASE_URL:       ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:       ${{ secrets.SUPABASE_KEY }}
         run: |
           cd railway-backend/sports/clients/velez
-          python data_refresh.py || echo "[WARN] data_refresh falló — usando velez_data.json existente"
+          python data_refresh.py || echo "[WARN] data_refresh falló"
           cd ../../..
-
-          if [ -z "$RAILWAY_URL" ]; then
-            echo "RAILWAY_FAIL: RAILWAY_URL no configurada"
-            echo "railway_ok=false" >> "$GITHUB_OUTPUT"
+          
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}"             --max-time 10 "${RAILWAY_URL}/health" 2>/dev/null || echo "000")
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "railway_ok=true" >> "$GITHUB_OUTPUT"
           else
-            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-              --max-time 10 "${RAILWAY_URL}/health" 2>/dev/null || echo "000")
-            if [ "$HTTP_CODE" = "200" ]; then
-              echo "RAILWAY_OK: HTTP ${HTTP_CODE}"
-              echo "railway_ok=true" >> "$GITHUB_OUTPUT"
-            else
-              echo "RAILWAY_FAIL: HTTP ${HTTP_CODE}"
-              echo "railway_ok=false" >> "$GITHUB_OUTPUT"
-            fi
+            echo "railway_ok=false" >> "$GITHUB_OUTPUT"
+          fi
+          
+          # Detectar si es lunes para emails
+          DOW=$(date +%u)
+          if [ "$DOW" = "1" ] || [ "${{ github.event.inputs.force_email }}" = "true" ]; then
+            echo "send_email=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "send_email=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Alerta Railway — email
-        if: steps.fase_a.outputs.railway_ok != 'true'
-        env:
-          GMAIL_USER:     protocolfaro@gmail.com
-          GMAIL_APP_PASS: ${{ secrets.GMAIL_APP_PASS }}
-          RAILWAY_URL:    ${{ secrets.RAILWAY_URL }}
-        run: |
-          python3 << 'PYEOF'
-          import smtplib, os
-          from email.message import EmailMessage
-          try:
-              url = os.environ.get('RAILWAY_URL', '(no configurada)')
-              msg = EmailMessage()
-              msg['Subject'] = 'ALERTA Faro Protocol — Railway no respondió, pipeline cancelado'
-              msg['From']    = os.environ['GMAIL_USER']
-              msg['To']      = os.environ['GMAIL_USER']
-              msg.set_content(
-                  f"Railway URL no respondió HTTP 200.\n\n"
-                  f"URL consultada: {url}/health\n\n"
-                  f"Las Fases B (regenerar PNGs) y C (enviar emails) fueron canceladas.\n"
-                  f"Los destinatarios de Vélez NO recibirán su reporte esta semana.\n\n"
-                  f"Revisar Railway dashboard."
-              )
-              with smtplib.SMTP_SSL('smtp.gmail.com', 465) as s:
-                  s.login(os.environ['GMAIL_USER'], os.environ.get('GMAIL_APP_PASS', ''))
-                  s.send_message(msg)
-              print("Alerta email enviado a protocolfaro@gmail.com")
-          except Exception as e:
-              print(f"Email error (no crítico): {e}")
-          PYEOF
-
-      # ── FASE B: Histórico + Regeneración de PNGs ─────────────────────────
-      - name: Fase B — Registro histórico semanal
-        if: steps.fase_a.outputs.railway_ok == 'true'
-        run: |
-          cd railway-backend
-          python -c "
-          import sys, json
-          from pathlib import Path
-          sys.path.insert(0, 'sports/clients/velez')
-          vd = json.loads((Path('..') / 'velez' / 'velez_data.json').read_text(encoding='utf-8'))
-          import historico
-          p = historico.write_weekly_snapshot(vd)
-          print('Historico OK:', p)
-          " || echo "[WARN] historico falló"
-          cd ..
-
-      - name: Fase B — Regenerar PNGs frescos (headless)
+      - name: Fase B — Regenerar PNGs
         if: steps.fase_a.outputs.railway_ok == 'true'
         env:
           MPLBACKEND: Agg
         run: |
           cd railway-backend/sports/clients/velez
-          python render_reports.py || echo "[WARN] render_reports falló — PNGs existentes mantenidos"
+          python render_reports.py || echo "[WARN] render_reports falló"
           cd ../../..
 
-      # ── Commit histórico y PNGs actualizados al repo ──────────────────────
-      - name: Commit PNG + CSV histórico
+      - name: Commit cambios diarios
         if: steps.fase_a.outputs.railway_ok == 'true'
         run: |
           git config user.name  "Faro Protocol Bot"
           git config user.email "protocolfaro@gmail.com"
-          git add reportes_velez/*.png historico_velez_protocol.csv 2>/dev/null || true
-          git diff --cached --quiet || git commit -m "chore(auto): reportes PNG + historico semana $(date +%Y-W%V)"
-
-      - name: Push cambios
-        if: steps.fase_a.outputs.railway_ok == 'true'
-        run: |
+          git add velez/velez_data.json velez/heatmaps/*.png historico/ 2>/dev/null || true
+          git diff --cached --quiet || git commit -m "chore(auto): datos diarios $(date +%Y-%m-%d)"
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/protocolfaro/faroprotocol.git
-          git push origin main
+          git push origin main || echo "[WARN] push falló"
 
-      # ── FASE C: Despacho de correos ───────────────────────────────────────
-      - name: Fase C — Enviar reportes semanales
-        if: steps.fase_a.outputs.railway_ok == 'true'
+      - name: Fase C — Emails semanales (solo lunes)
+        if: steps.fase_a.outputs.send_email == 'true'
         env:
-          GMAIL_USER:    protocolfaro@gmail.com
+          GMAIL_USER:     protocolfaro@gmail.com
           GMAIL_APP_PASS: ${{ secrets.GMAIL_APP_PASS }}
-          RAILWAY_URL:   ${{ secrets.RAILWAY_URL }}
-          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
+          RAILWAY_URL:    ${{ secrets.RAILWAY_URL }}
+          BREVO_API_KEY:  ${{ secrets.BREVO_API_KEY }}
         run: python railway-backend/sports/clients/velez/velez_scheduler.py
 
-      # ── Resumen ───────────────────────────────────────────────────────────
-      - name: Resumen del pipeline
+      - name: Resumen
         if: always()
         run: |
-          echo "=== Pipeline Faro Protocol completado ==="
-          echo "Railway OK: ${{ steps.fase_a.outputs.railway_ok }}"
-          ls -lh reportes_velez/*.png 2>/dev/null || echo "Sin PNGs en reportes_velez/"
-          [ -f historico_velez_protocol.csv ] && \
-            echo "historico: $(wc -l < historico_velez_protocol.csv) filas" || \
-            echo "historico: archivo no encontrado"
+          echo "=== Pipeline Faro Protocol $(date +%Y-%m-%d) ==="
+          echo "Railway: ${{ steps.fase_a.outputs.railway_ok }}"
+          echo "Email:   ${{ steps.fase_a.outputs.send_email }}"
