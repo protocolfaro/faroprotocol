@@ -311,3 +311,82 @@ def gap_fill_today(venue_id: str = "amalfitani",
     except Exception as exc:
         log.warning("kalman gap_fill_today: %s", exc)
         return None
+
+
+def gap_fill_all_canchas(vd: dict) -> dict:
+    """
+    Extends the Amalfitani Kalman model to all Villa Olímpica canchas.
+
+    Uses today's Kalman estimate for Amalfitani as a "venue condition" anchor:
+        today_ndvi[c] = last_ndvi[c] × (amalf_today / seasonal_predict(model, today))
+
+    If the venue is tracking the seasonal curve (correction ≈ 1.0), this preserves
+    each cancha's last known NDVI. If conditions are better or worse than the seasonal
+    baseline, all canchas are scaled proportionally — same grass type, same microclimate.
+
+    Args:
+        vd: full velez_data.json dict (read before calling to avoid double GitHub fetch).
+
+    Returns:
+        {cid: {"ndvi", "margen_error_kalman", "metodo_generacion": "KALMAN_LSTM_EXTENDED"}}
+        Empty dict if the Kalman anchor or seasonal model is unavailable.
+    """
+    today = date.today()
+
+    # ── 1. Anchor: amalfitani Kalman today ──────────────────────────────────
+    amalf_result = gap_fill_today(venue_id="amalfitani")
+    if amalf_result is None:
+        log.warning("gap_fill_all_canchas: amalfitani Kalman unavailable — skipping")
+        return {}
+
+    amalf_canchas = amalf_result.get("canchas", {})
+    amalf_key     = next(iter(amalf_canchas), None)
+    if not amalf_key:
+        return {}
+
+    amalf_today_ndvi = float(amalf_canchas[amalf_key]["ndvi"])
+    amalf_margen     = float(amalf_canchas[amalf_key]["margen_error_kalman"])
+
+    # ── 2. Seasonal model (fresh result first, stored vd as fallback) ────────
+    seasonal_model = (
+        amalf_result.get("kalman_result", {}).get("seasonal_model")
+        or (vd.get("weather_live", {})
+               .get("gndvi_por_cancha", {})
+               .get("kalman_result", {})
+               .get("seasonal_model"))
+    )
+    if seasonal_model is None:
+        log.warning("gap_fill_all_canchas: no seasonal model — skipping")
+        return {}
+
+    # Correction factor: how much today's real conditions deviate from seasonal baseline
+    seasonal_today   = max(0.02, seasonal_predict(seasonal_model, today))
+    amalf_correction = amalf_today_ndvi / seasonal_today
+
+    # ── 3. Extend to each cancha at Villa Olímpica ───────────────────────────
+    _VO = ["1fa","2fa","3fa","4fa","5fa","6fa","7fa","8fa","9fa","10fa","1fp","2fp"]
+    heatmaps = vd.get("usuarios", {}).get("roger", {}).get("heatmaps", {})
+    out: dict = {}
+
+    for cid in _VO:
+        hm = heatmaps.get(cid)
+        if not isinstance(hm, dict):
+            continue
+        last_ndvi = hm.get("ndvi")
+        if not last_ndvi or last_ndvi <= 0:
+            continue
+
+        today_ndvi   = float(np.clip(last_ndvi * amalf_correction, 0.02, 0.95))
+        today_margen = float(min(0.20, amalf_margen * 1.8))  # extended model → higher uncertainty
+
+        out[cid] = {
+            "ndvi":                round(today_ndvi, 3),
+            "margen_error_kalman": round(today_margen, 4),
+            "metodo_generacion":   "KALMAN_LSTM_EXTENDED",
+        }
+
+    log.info(
+        "gap_fill_all_canchas: %d canchas · amalf=%.3f · corr=%.3f · seasonal=%.3f",
+        len(out), amalf_today_ndvi, amalf_correction, seasonal_today,
+    )
+    return out

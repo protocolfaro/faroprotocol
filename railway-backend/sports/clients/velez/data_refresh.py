@@ -485,9 +485,11 @@ def _update_tareas_dates(cfg: dict) -> None:
 
 
 def push_weather_update(weather_live: dict) -> str:
-    """Write weather_live + roger physics prescriptions to GitHub. Supabase primary for weather_live."""
-    # Extract physics prescriptions before Supabase write (they go only to GitHub JSON)
+    """Write weather_live + roger acciones/kpis to GitHub. Supabase primary for weather_live."""
+    # Extract engine outputs before Supabase write (they go only to GitHub JSON)
     physics_acc = weather_live.pop("_physics_acciones_roger", [])
+    field_acc   = weather_live.pop("_field_acciones_roger", [])
+    roger_kpis  = weather_live.pop("_roger_kpis", [])
 
     try:
         import velez_supabase as _vs
@@ -508,14 +510,20 @@ def push_weather_update(weather_live: dict) -> str:
     cfg["updated_at"] = ts
     _update_tareas_dates(cfg)
 
-    # Inject physics prescriptions into roger.acciones (remove stale, prepend fresh)
-    if physics_acc:
-        roger = cfg.setdefault("usuarios", {}).setdefault("roger", {})
+    # Inject acciones + kpis into roger section
+    roger = cfg.setdefault("usuarios", {}).setdefault("roger", {})
+    if field_acc:
+        # acciones_engine generated a complete set (includes physics prefix) — replace all
+        roger["acciones"] = field_acc
+    elif physics_acc:
+        # Fallback: only physics available — keep existing field acciones, update physics
         existing = [a for a in roger.get("acciones", [])
                     if not (a.startswith("Ventana de corte:") or
                             a.startswith("Prescripción riego") or
                             a.startswith("Riego SAR:"))]
         roger["acciones"] = physics_acc + existing
+    if roger_kpis:
+        roger["kpis"] = roger_kpis
 
     payload = {
         "message": f"data refresh: weather+physics [{ts}]",
@@ -631,7 +639,8 @@ def run_refresh() -> dict:
     try:
         raw = asyncio.run(_fetch_all_async())
 
-        # Read velez_data.json for shadow_maps and config_velez.json for aspersores
+        # Read velez_data.json for shadow_maps, Kalman gap-fill, and acciones_engine
+        vd: dict = {}
         shadow_pct_by_cancha = {}
         aspersores_cfg       = None
         try:
@@ -690,6 +699,20 @@ def run_refresh() -> dict:
                     log.warning("SAR+Kalman cycle (non-fatal): %s", _sk_err)
         except Exception as _ndvi_err:
             log.warning("ndvi_real (non-fatal): %s", _ndvi_err)
+        # ── Multi-cancha Kalman gap-fill (extend Amalfitani model to all VO canchas) ──
+        try:
+            import faro_kalman_gapfill as _kgf
+            _kalman_all = _kgf.gap_fill_all_canchas(vd)
+            if _kalman_all:
+                _gpc = weather.setdefault("gndvi_por_cancha", {})
+                _gpc_canchas = _gpc.setdefault("canchas", {}) if isinstance(_gpc, dict) else {}
+                for _cid, _kdata in _kalman_all.items():
+                    if _cid not in _gpc_canchas:  # don't overwrite real satellite data
+                        _gpc_canchas[_cid] = _kdata
+                weather["_kalman_heatmaps"] = _kalman_all  # pass to acciones_engine below
+                log.info("gap_fill_all_canchas: %d canchas via Kalman LSTM Extended", len(_kalman_all))
+        except Exception as _kgf_err:
+            log.warning("gap_fill_all_canchas (non-fatal): %s", _kgf_err)
         # ── Physics prescriptions (faro_analytics_physics) ───────────────────
         try:
             import sys as _sys
@@ -805,6 +828,26 @@ def run_refresh() -> dict:
                           "Verificar /velez/diag-supabase y ejecutar fix_data_lake_schema.sql")
         except Exception as _cm_exc:
             log.error("climate_metrics write FAILED: %s", _cm_exc)
+        # ─────────────────────────────────────────────────────────────────────
+        # ── acciones_engine: generar acciones Roger + KPIs dinámicos ────────
+        try:
+            import acciones_engine as _ae
+            # Merge heatmaps from vd with any Kalman estimates for the full picture
+            _hm_base    = vd.get("usuarios", {}).get("roger", {}).get("heatmaps", {})
+            _hm_kalman  = weather.get("_kalman_heatmaps", {})
+            _heatmaps   = {**_hm_kalman, **_hm_base}  # real data takes priority
+            _canchas_vd = (vd.get("sectores", {}).get("canchero", {}).get("canchas", [])
+                           or vd.get("canchas", []))
+            _phys_for_ae = weather.get("_physics_acciones_roger", [])
+            _ae_acciones = _ae.generate_acciones(weather, _heatmaps, _phys_for_ae)
+            _ae_kpis     = _ae.generate_kpis(_heatmaps, _canchas_vd, weather)
+            weather["_field_acciones_roger"] = _ae_acciones
+            weather["_roger_kpis"]           = _ae_kpis
+            weather.pop("_kalman_heatmaps", None)  # internal — not persisted in weather_live
+            log.info("acciones_engine: %d acciones · %d kpis generados",
+                     len(_ae_acciones), len(_ae_kpis))
+        except Exception as _ae_err:
+            log.warning("acciones_engine (non-fatal): %s", _ae_err)
         # ─────────────────────────────────────────────────────────────────────
         commit_url = push_weather_update(weather)
         # Paperclip: monitor inteligente del venue — al final del ciclo diario

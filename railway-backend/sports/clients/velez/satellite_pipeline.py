@@ -273,20 +273,25 @@ def run_satellite_cycle(ndvi_data: dict = None, force: bool = False) -> dict:
 
     img_date = ndvi_data.get("fecha_imagen", "?")
 
-    # 2. Sanity check: rechazar imagen con NDVI mediano < 0.12 (artefacto probable)
-    # Valores 0.03–0.10 son suelo desnudo, no pasto — indican niebla/sombra no detectada.
+    # 2. Sanity check: rechazar imágenes con NDVI mediano anómalamente bajo.
+    # El umbral es ESTACIONAL — en invierno (Jun-Ago) la bermuda/kikuyo entra en dormancia
+    # y NDVI 0.04-0.10 es FISIOLÓGICAMENTE NORMAL, no un artefacto.
+    # Las fuentes sintéticas (Kalman) ya aplican el modelo estacional — no se rechazan.
     _ndvi_vals = sorted(
         v["ndvi"] for v in ndvi_data.get("canchas", {}).values()
         if isinstance(v.get("ndvi"), (int, float))
     )
-    _median_ndvi = _ndvi_vals[len(_ndvi_vals) // 2] if len(_ndvi_vals) >= 8 else None
+    _median_ndvi  = _ndvi_vals[len(_ndvi_vals) // 2] if len(_ndvi_vals) >= 8 else None
+    _is_synthetic = "kalman" in str(ndvi_data.get("fuente", "")).lower()
+    _m            = date.today().month
+    _ndvi_floor   = (0.04 if _m in (6, 7, 8) else 0.05 if _m in (5, 9) else 0.10)
 
-    if _median_ndvi is not None and _median_ndvi < 0.12:
+    if not _is_synthetic and _median_ndvi is not None and _median_ndvi < _ndvi_floor:
         log.warning(
-            "satellite_pipeline: imagen %s RECHAZADA — NDVI mediano %.3f < 0.12 "
-            "(artefacto probable: niebla/sombra de nube no detectada) — "
+            "satellite_pipeline: imagen %s RECHAZADA — NDVI mediano %.3f < %.2f "
+            "(mes %d, artefacto probable: niebla/sombra no detectada) — "
             "manteniendo último ciclo válido",
-            img_date, _median_ndvi,
+            img_date, _median_ndvi, _ndvi_floor, _m,
         )
         _record_run(_run_ts, img_date, _median_ndvi, False, skipped_reason="ndvi_anomaly")
         return {
@@ -294,8 +299,9 @@ def run_satellite_cycle(ndvi_data: dict = None, force: bool = False) -> dict:
             "fecha_imagen": img_date, "median_ndvi": _median_ndvi,
         }
 
-    # 3. Verificar si esta imagen ya fue procesada (usar >= para no re-procesar misma fecha)
-    if not force:
+    # 3. Verificar si esta imagen ya fue procesada (usar >= para no re-procesar misma fecha).
+    # Las fuentes sintéticas (Kalman) generan un valor nuevo cada día — siempre procesar.
+    if not force and not _is_synthetic:
         last = _last_processed_date()
         if last and last >= img_date:
             log.info("satellite_pipeline: imagen %s ya procesada (última: %s) — omitido", img_date, last)
