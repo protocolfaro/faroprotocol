@@ -496,6 +496,7 @@ def analyze_cancha(
     delta_5d  = _delta(ts, days_back=10,  index="ndvi")  # S2 revisit ~5-10d
     delta_30d = _delta(ts, days_back=30,  index="ndvi")
     tendencia = _tendencia_slope(ts, days_back=14)
+    ipos      = float(hm.get("ipos") or 0.0)
 
     # Deteccion de eventos
     eventos: list[dict] = []
@@ -520,15 +521,22 @@ def analyze_cancha(
     # Alertas para Roger
     alertas_roger = _build_alertas(cid, eventos, anomalia, delta_5d, tendencia, m)
 
+    # Estado operativo y prescripcion (fusion optico + SAR proxy + clima)
+    estado       = _compute_estado_detectado(ts, hm, et0, sm, ipos, m)
+    prescripcion = _generar_prescripcion(cid, hm, weather_live, estado, eventos, m)
+    _save_estado_supabase("amalfitani", cid, estado, prescripcion)
+
     return {
-        "cid":                  cid,
-        "n_observaciones":      len(ts),
-        "delta_5d":             delta_5d,
-        "delta_30d":            delta_30d,
-        "tendencia_14d":        tendencia,
-        "anomalia_historica":   anomalia,
-        "eventos":              eventos,
-        "alertas_roger":        alertas_roger,
+        "cid":                    cid,
+        "n_observaciones":        len(ts),
+        "delta_5d":               delta_5d,
+        "delta_30d":              delta_30d,
+        "tendencia_14d":          tendencia,
+        "anomalia_historica":     anomalia,
+        "eventos":                eventos,
+        "alertas_roger":          alertas_roger,
+        "estado_detectado":       estado,
+        "prescripcion_operativa": prescripcion,
     }
 
 
@@ -566,10 +574,12 @@ def analyze_all(
             log.warning("temporal_eye: analyze_cancha %s failed: %s", cid, exc)
 
     results["_resumen"] = {
-        "n_canchas":     len(results) - 1,
-        "eventos_total": sum(event_counts.values()),
-        "tipos":         event_counts,
-        "alertas_roger": all_alertas[:12],
+        "n_canchas":      len(results) - 1,
+        "eventos_total":  sum(event_counts.values()),
+        "tipos":          event_counts,
+        "alertas_roger":  all_alertas[:12],
+        "estados":        {c: results[c]["estado_detectado"]       for c in results if c != "_resumen"},
+        "prescripciones": {c: results[c]["prescripcion_operativa"] for c in results if c != "_resumen"},
     }
     log.info(
         "temporal_eye: %d canchas · %d eventos (%s)",
@@ -580,97 +590,170 @@ def analyze_all(
     return results
 
 
-# ── Backfill historico (correr una vez) ───────────────────────────────────────
+# ── Estado detectado (fusion optico + SAR proxy + clima) ──────────────────────
 
-def backfill_historical_ndvi(
-    venue_id:  str  = "amalfitani",
-    start_year: int = 2017,   # S2A+2B full dual coverage
-    max_scenes: int = 500,    # cap para no agotar la API
-) -> int:
+def _compute_estado_detectado(
+    ts: list[dict], hm: dict, et0: float, sm_pct: float, ipos: float, month: int
+) -> str:
     """
-    Descarga historia S2 desde Planetary Computer y la inserta en Supabase.
-    Correr UNA VEZ para backfill. Las siguientes ejecuciones pueden omitir
-    fechas ya presentes (upsert por fecha).
+    Clasifica el estado operativo de la cancha cruzando:
+      - Optico Kalman: tendencia NDVI (salud foliar)
+      - SAR proxy (BSI delta): perturbacion fisica del suelo (rugosidad)
+        BSI alto = suelo expuesto = aireacion / verticut / resiembra reciente
+      - Clima: ET0 + SM (estres hidrico)
 
-    Returns: numero de escenas insertadas.
+    Returns: 'normal' | 'resiembra_activa' | 'stress_hidrico' | 'compactacion'
+    """
+    delta_ndvi = _delta(ts, 14, "ndvi") or 0.0
+    delta_bsi  = _delta(ts, 14, "bsi")  or 0.0
+    slope_ndvi = _tendencia_slope(ts, 7)  or 0.0
+    bsi_now    = float(hm.get("bsi") or 0.0)
+
+    # Resiembra / intervencion mecanica: BSI subio + NDVI cayo
+    # (BSI proxy para rugosidad SAR Banda L — suelo expuesto = alta dispersion)
+    if delta_bsi > 0.05 and delta_ndvi < -0.05:
+        return "resiembra_activa"
+
+    # Estres hidrico: NDVI declinando + ET0 alta + suelo seco
+    if slope_ndvi < -0.003 and et0 >= 4.5 and sm_pct < 25.0:
+        return "stress_hidrico"
+
+    # Compactacion: BSI persistentemente alto + SM bajo + uso historico alto
+    if bsi_now > 0.12 and sm_pct < 20.0 and ipos > 150:
+        return "compactacion"
+
+    return "normal"
+
+
+def _generar_prescripcion(
+    cid: str,
+    hm: dict,
+    weather_live: dict,
+    estado: str,
+    eventos: list[dict],
+    month: int,
+) -> str:
+    """
+    Genera orden de trabajo directa y masticada para el canchero.
+    Idioma sin tildes para evitar encoding issues en cualquier sistema.
+    """
+    lbl     = cid.upper()
+    ndvi    = float(hm.get("ndvi") or 0.5)
+    ipos    = float(hm.get("ipos") or 0.0)
+    et0     = float(weather_live.get("et0_mm_dia") or 3.5)
+    deficit = float(weather_live.get("deficit_hidrico_mm") or 0.0)
+    hora_r  = str(weather_live.get("hora_riego_optima") or "06:00")
+    hora_c  = str(weather_live.get("hora_corte_optima") or "07:00")
+    sm_pct  = float(weather_live.get("humedad_suelo_pct") or 20.0)
+    fung    = weather_live.get("riesgo_fungosis") or {}
+    fung_n  = str(fung.get("nivel") or "bajo")
+    sk_pct  = float(weather_live.get("riesgo_dollar_spot_pct") or 0.0)
+    h_fav   = int(fung.get("horas_favorables_48h") or 0)
+    gdd_r   = float(weather_live.get("gdd_rate_diario") or 0.0)
+    is_win  = month in _WINTER_MONTHS
+
+    # Prioridad 1: intervencion mecanica activa (resiembra / verticut / aireacion)
+    if estado == "resiembra_activa":
+        return (
+            f"Cancha {lbl}: Mantener humedad alta — riego 4mm cada 48hs — "
+            f"intervencion mecanica detectada (BSI+NDVI), evitar pisada hasta NDVI > 0.25"
+        )
+
+    # Prioridad 2: compactacion
+    if estado == "compactacion":
+        return (
+            f"Cancha {lbl}: Aerificacion urgente recomendada + riego profundo post-tarea — "
+            f"suelo compactado detectado (BSI={hm.get('bsi', 0):.2f}, SM={sm_pct:.0f}%)"
+        )
+
+    # Prioridad 3: quemado de urea detectado por temporal eye
+    urea_ev = next((e for e in eventos if e.get("tipo") == "QUEMADO_UREA"), None)
+    if urea_ev:
+        conf_pct = int((urea_ev.get("confianza") or 0) * 100)
+        return (
+            f"Cancha {lbl}: Suspender fertilizacion N — quemado urea detectado ({conf_pct}% conf) — "
+            f"regar 6mm para lixiviar exceso, esperar recuperacion NDVI antes de reiniciar"
+        )
+
+    # Prioridad 4: estres hidrico activo
+    if estado == "stress_hidrico":
+        mm = min(deficit + 3.0, 10.0)
+        return (
+            f"Cancha {lbl}: Riego urgente {mm:.0f}mm antes de las {hora_r} — "
+            f"estres hidrico activo (ET0={et0:.1f}mm/dia, suelo {sm_pct:.0f}% humedad)"
+        )
+
+    # Prioridad 5: riesgo fungico alto
+    if fung_n == "alto" and sk_pct > 40:
+        return (
+            f"Cancha {lbl}: Aplicar fungicida sistemico antes de las 10:00hs — "
+            f"riesgo biologico {sk_pct:.0f}% Dollar Spot, {h_fav}h condiciones favorables 48h"
+        )
+
+    # Prioridad 6: deficit hidrico significativo
+    if deficit > 5.0:
+        mm = round(min(deficit * 0.8, 8.0))
+        return (
+            f"Cancha {lbl}: Riego de {mm}mm antes de las {hora_r} — "
+            f"deficit hidrico {deficit:.1f}mm, ET0={et0:.1f}mm/dia"
+        )
+
+    # Prioridad 7: IPOS extremo
+    if ipos > 300:
+        return (
+            f"Cancha {lbl}: DESCANSO — {ipos:.0f} pers.h acumuladas esta semana, NDVI={ndvi:.3f} — "
+            f"cerrar hasta recuperacion minima (48hs)"
+        )
+
+    # Riesgo fungico medio con suelo humedo
+    if fung_n == "medio" and sm_pct > 30:
+        return (
+            f"Cancha {lbl}: Monitorear hongos — {sk_pct:.0f}% Dollar Spot, suelo humedo ({sm_pct:.0f}%) — "
+            f"aplicar fungicida si aparecen manchas amarillas"
+        )
+
+    # Ventana de corte optima (fuera de invierno)
+    if gdd_r >= 3.0 and not is_win and ndvi > 0.30:
+        return (
+            f"Cancha {lbl}: Ventana de corte disponible desde {hora_c} — "
+            f"GDD={gdd_r:.1f}/dia, NDVI={ndvi:.3f}, condiciones optimas"
+        )
+
+    # Invierno sin alertas
+    if is_win:
+        return (
+            f"Cancha {lbl}: Dormancia invernal — NDVI={ndvi:.3f} (normal Jun-Ago) — "
+            f"sin intervencion urgente hoy"
+        )
+
+    # Default
+    return (
+        f"Cancha {lbl}: Sin intervencion urgente — NDVI={ndvi:.3f}, IPOS={ipos:.0f} — "
+        f"monitoreo estandar"
+    )
+
+
+def _save_estado_supabase(venue_id: str, cid: str, estado: str, prescripcion: str) -> bool:
+    """
+    Persiste estado_detectado + prescripcion_operativa en Supabase tabla cancha_estados.
+    Silencioso si la tabla no existe aun.
     """
     try:
-        import pystac_client
-        import planetary_computer as pc
         import velez_supabase as _vs
-    except ImportError as exc:
-        log.error("backfill: dependencias faltantes: %s", exc)
-        return 0
-
-    LAT, LON = -34.6375, -58.5215
-    bbox = [LON - 0.035, LAT - 0.035, LON + 0.035, LAT + 0.035]
-
-    catalog = pystac_client.Client.open(
-        "https://planetarycomputer.microsoft.com/api/stac/v1",
-        modifier=pc.sign_inplace,
-    )
-    search = catalog.search(
-        collections=["sentinel-2-l2a"],
-        bbox=bbox,
-        datetime=f"{start_year}-01-01/{date.today().isoformat()}",
-        query={"eo:cloud_cover": {"lt": 20}},
-        max_items=max_scenes,
-    )
-
-    inserted = 0
-    for item in search.items():
-        try:
-            fecha = item.datetime.date().isoformat()
-            import rasterio, numpy as np_
-            from rasterio.windows import from_bounds
-
-            signed = pc.sign(item)
-            b4_url  = signed.assets["B04"].href   # Red
-            b8_url  = signed.assets["B08"].href   # NIR
-            b11_url = signed.assets.get("B11", signed.assets.get("SWIR16", None))
-            b3_url  = signed.assets["B03"].href   # Green
-
-            def _read_mean(url):
-                with rasterio.open(url) as src:
-                    win = from_bounds(*bbox, src.transform)
-                    data = src.read(1, window=win).astype(float)
-                    data[data == 0] = np_.nan
-                    return float(np_.nanmean(data)) / 10000.0  # L2A scale factor
-
-            b4 = _read_mean(b4_url)
-            b8 = _read_mean(b8_url)
-            b3 = _read_mean(b3_url)
-
-            ndvi  = (b8 - b4) / max(1e-9, b8 + b4)
-            gndvi = (b8 - b3) / max(1e-9, b8 + b3)
-            ndwi  = (b3 - b8) / max(1e-9, b3 + b8)
-
-            bsi = None
-            if b11_url:
-                b11 = _read_mean(b11_url.href if hasattr(b11_url, "href") else b11_url)
-                bsi = ((b11 + b4) - (b8 + b3)) / max(1e-9, (b11 + b4) + (b8 + b3))
-
-            # Insertar para cada cancha VO (misma imagen, distintas coords se refinarán con polígono real)
-            for cid in _VO_ORDER:
-                _vs.insert_vegetation_metrics(
-                    venue_id=venue_id,
-                    cancha_id=cid,
-                    fecha_imagen=fecha,
-                    ndvi=round(ndvi, 4),
-                    gndvi=round(gndvi, 4),
-                    ndwi=round(ndwi, 4),
-                    bsi=round(bsi, 4) if bsi else None,
-                    metodo_generacion="S2_BACKFILL_TILE",
-                    fuente="sentinel-2-l2a · Planetary Computer · backfill",
-                )
-            inserted += 1
-            log.info("backfill: %s NDVI=%.3f insertado", fecha, ndvi)
-        except Exception as exc:
-            log.warning("backfill: escena %s fallida: %s",
-                        getattr(item, "datetime", "?"), exc)
-
-    log.info("backfill: %d escenas insertadas", inserted)
-    return inserted
+        if not _vs._ok():
+            return False
+        client = _vs._client()
+        client.table("cancha_estados").upsert({
+            "venue_id":               venue_id,
+            "cancha_id":              cid,
+            "fecha":                  date.today().isoformat(),
+            "estado_detectado":       estado,
+            "prescripcion_operativa": prescripcion,
+        }, on_conflict="venue_id,cancha_id,fecha").execute()
+        return True
+    except Exception as exc:
+        log.debug("_save_estado_supabase %s/%s: %s", venue_id, cid, exc)
+        return False
 
 
 # ── CLI de diagnostico ────────────────────────────────────────────────────────
@@ -679,12 +762,6 @@ if __name__ == "__main__":
     import json, sys
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s [%(levelname)s] %(message)s")
-    mode = sys.argv[1] if len(sys.argv) > 1 else "analyze"
-
-    if mode == "backfill":
-        n = backfill_historical_ndvi(start_year=2017, max_scenes=100)
-        print(f"Backfill: {n} escenas insertadas")
-        sys.exit(0)
 
     # Analisis demo sin Supabase (usa valores de ejemplo)
     demo_heatmaps = {

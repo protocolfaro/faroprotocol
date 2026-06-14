@@ -490,6 +490,7 @@ def push_weather_update(weather_live: dict) -> str:
     physics_acc = weather_live.pop("_physics_acciones_roger", [])
     field_acc   = weather_live.pop("_field_acciones_roger", [])
     roger_kpis  = weather_live.pop("_roger_kpis", [])
+    prescs_op   = weather_live.pop("_prescripciones_operativas", {})
 
     try:
         import velez_supabase as _vs
@@ -519,11 +520,21 @@ def push_weather_update(weather_live: dict) -> str:
         # Fallback: only physics available — keep existing field acciones, update physics
         existing = [a for a in roger.get("acciones", [])
                     if not (a.startswith("Ventana de corte:") or
-                            a.startswith("Prescripción riego") or
+                            a.startswith("Prescripcion riego") or
                             a.startswith("Riego SAR:"))]
         roger["acciones"] = physics_acc + existing
     if roger_kpis:
         roger["kpis"] = roger_kpis
+
+    # Inject prescripcion_operativa per cancha (non-breaking new field)
+    if prescs_op:
+        _hm = roger.setdefault("heatmaps", {})
+        for _cid, _presc in prescs_op.items():
+            _hm.setdefault(_cid, {})["prescripcion_operativa"] = _presc
+        for _c in (cfg.get("sectores", {}).get("canchero", {}).get("canchas", []) or []):
+            if _c.get("id") in prescs_op:
+                _c["prescripcion_operativa"] = prescs_op[_c["id"]]
+        log.info("push_weather_update: %d prescripciones_operativas inyectadas en JSON", len(prescs_op))
 
     payload = {
         "message": f"data refresh: weather+physics [{ts}]",
@@ -723,10 +734,14 @@ def run_refresh() -> dict:
             _eye_results = _fte.analyze_all(_hm_eye, weather, month=date.today().month)
             weather["_temporal_eye"] = _eye_results
             _eye_resumen = _eye_results.get("_resumen", {})
-            log.info("faro_temporal_eye: %d eventos · %d canchas · tipos=%s",
+            _prescs = _eye_resumen.get("prescripciones", {})
+            if _prescs:
+                weather["_prescripciones_operativas"] = _prescs
+            log.info("faro_temporal_eye: %d eventos · %d canchas · tipos=%s · %d prescs",
                      _eye_resumen.get("eventos_total", 0),
                      _eye_resumen.get("n_canchas", 0),
-                     _eye_resumen.get("tipos", {}))
+                     _eye_resumen.get("tipos", {}),
+                     len(_prescs))
         except Exception as _fte_err:
             log.warning("faro_temporal_eye (non-fatal): %s", _fte_err)
         # ── Physics prescriptions (faro_analytics_physics) ───────────────────
