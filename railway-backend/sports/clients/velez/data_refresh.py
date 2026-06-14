@@ -528,8 +528,8 @@ def push_weather_update(weather_live: dict) -> str:
         roger["kpis"] = roger_kpis
 
     # Inject prescripcion_operativa + estado_detectado per cancha (non-breaking new fields)
+    _hm = roger.setdefault("heatmaps", {})
     if prescs_op or estados_op:
-        _hm = roger.setdefault("heatmaps", {})
         for _cid, _presc in prescs_op.items():
             _hm.setdefault(_cid, {})["prescripcion_operativa"] = _presc
         for _cid, _est in estados_op.items():
@@ -542,6 +542,31 @@ def push_weather_update(weather_live: dict) -> str:
                 _c["estado_detectado"] = estados_op[_cid]
         log.info("push_weather_update: %d prescs + %d estados inyectados en JSON",
                  len(prescs_op), len(estados_op))
+    # Fallback: compute estado_detectado directly from current heatmap data
+    # if temporal eye didn't produce it (no time series) — ensures field always present
+    _sm_pct = float(weather_live.get("humedad_suelo_pct") or 20.0)
+    _m_now  = today_d.month
+    _ndvi_crisis = {1:0.14,2:0.14,3:0.11,4:0.09,5:0.06,6:0.04,7:0.04,8:0.05,
+                    9:0.08,10:0.11,11:0.13,12:0.14}
+    _nd_thr = _ndvi_crisis.get(_m_now, 0.10)
+    for _cid, _hme in _hm.items():
+        if not isinstance(_hme, dict) or _hme.get("estado_detectado"):
+            continue
+        _ndvi = float(_hme.get("ndvi") or 0.5)
+        _ipos = float(_hme.get("ipos") or 0.0)
+        _bsi  = float(_hme.get("bsi")  or 0.0)
+        if _bsi > 0.12 and _sm_pct < 20.0 and _ipos > 150:
+            _est_fb = "compactacion"
+        elif _ndvi < _nd_thr and _sm_pct < 25.0:
+            _est_fb = "stress_hidrico"
+        else:
+            _est_fb = "normal"
+        _hme["estado_detectado"] = _est_fb
+    # Mirror estado_detectado to canchas list
+    for _c in (cfg.get("sectores", {}).get("canchero", {}).get("canchas", []) or []):
+        _cid = _c.get("id")
+        if _cid and _hm.get(_cid, {}).get("estado_detectado") and not _c.get("estado_detectado"):
+            _c["estado_detectado"] = _hm[_cid]["estado_detectado"]
 
     payload = {
         "message": f"data refresh: weather+physics [{ts}]",
