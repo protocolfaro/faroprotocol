@@ -48,21 +48,27 @@ def generate_acciones(
     heatmaps: dict,
     physics_acciones: list[str],
     month: Optional[int] = None,
+    temporal_eye: dict = None,
 ) -> list[str]:
     """
     Genera lista de acciones para Roger ordenadas por severidad.
 
     physics_acciones:  [ventana de corte, riego SAR] — van primero.
+    temporal_eye:      resultado de faro_temporal_eye.analyze_all() — alertas de eventos.
 
-    Reglas (P1 > P2 > P3 > P4 > P5 > P6):
-      P1  IPOS ≥ 350 → descanso urgente
-      P2  IPOS ≥ 100 + NDVI < crisis → deterioro activo bajo carga
-      P3  Riesgo fungosis ALTO → fungicida HOY (todas canchas)
-      P4  NDVI < crisis + descansada → daño no relacionado a uso
-      P5  Riesgo fungosis MEDIO → monitoreo + canchas específicas
-      P6  GNDVI < 0.28 + no invierno → fertilizar N
-      P7  NDVI < 0.06 + descanso + primavera → resembrar
-      P8  Invierno sin alertas → mantenimiento estructural
+    Reglas (P1 > P2 > P2.5 > P3 > P3.5 > P4 > P4.5 > P5 > P6 > P7 > P8 > P_info):
+      P1    IPOS ≥ 350 → descanso urgente
+      P2    IPOS ≥ 100 + NDVI < crisis → deterioro activo bajo carga
+      P2.5  Quemado urea detectado (temporal eye)
+      P3    Riesgo fungosis ALTO → fungicida HOY (todas canchas)
+      P3.5  Estrés hídrico detectado (temporal eye)
+      P4    NDVI < crisis + descansada → daño no relacionado a uso
+      P4.5  Enfermedad posible detectada (temporal eye)
+      P5    Riesgo fungosis MEDIO → monitoreo + canchas específicas
+      P6    GNDVI < 0.28 + no invierno → fertilizar N
+      P7    NDVI < 0.06 + descanso + primavera → resembrar
+      P8    Invierno sin alertas → mantenimiento estructural
+      Pinfo Riego/corte/fertilización confirmados (informacional)
     """
     m = month or date.today().month
     is_winter = m in _WINTER
@@ -73,6 +79,19 @@ def generate_acciones(
     fung_set   = set(fung.get("canchas_en_riesgo", []))
     sk_pct     = weather_live.get("riesgo_dollar_spot_pct", 0)
     h_fav      = fung.get("horas_favorables_48h", 0)
+
+    # ── Temporal eye: split alerts by urgency ─────────────────────────────────
+    _eye_urgent = []  # P2.5 QUEMADO, P3.5 STRESS, P4.5 ENFERMEDAD
+    _eye_info   = []  # RIEGO, CORTE, FERTILIZACION, baseline historica
+    if temporal_eye:
+        _eye_raw = temporal_eye.get("_resumen", {}).get("alertas_roger", [])
+        for _a in _eye_raw:
+            _a_lo = _a.lower()
+            if any(k in _a_lo for k in ("quemado urea", "estres hidrico",
+                                        "enfermedad activa", "alerta quemado")):
+                _eye_urgent.append(_a)
+            else:
+                _eye_info.append(_a)
 
     p1_limite, p2_activo, p4_danio = [], [], []
     p5_fung_medio, p6_nitro, p7_resembrar = [], [], []
@@ -135,6 +154,10 @@ def generate_acciones(
             f"{lbl}: NDVI {ndvi:.3f}{src} crítico bajo {ipos:.0f} pers·h esta semana — {rec}"
         )
 
+    # P2.5: quemado urea / estrés hídrico crítico (temporal eye)
+    for _a in _eye_urgent[:2]:
+        acciones.append(_a)
+
     # P3
     if fung_all_urgent:
         acciones.append(
@@ -180,6 +203,10 @@ def generate_acciones(
             f"Mantenimiento invernal — NDVI en dormancia Jun–Ago (estacional) · "
             f"aerificar + compactar + preparar suelo para reactivación primaveral"
         )
+
+    # Pinfo: riego confirmado / corte reciente / fertilización / anomalía histórica
+    for _a in _eye_info[:2]:
+        acciones.append(_a)
 
     return acciones[:9]  # cap: panel legible
 

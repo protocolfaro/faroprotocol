@@ -713,6 +713,22 @@ def run_refresh() -> dict:
                 log.info("gap_fill_all_canchas: %d canchas via Kalman LSTM Extended", len(_kalman_all))
         except Exception as _kgf_err:
             log.warning("gap_fill_all_canchas (non-fatal): %s", _kgf_err)
+        # ── Temporal eye: event detection from satellite time series ─────────
+        try:
+            import faro_temporal_eye as _fte
+            _hm_eye = {
+                **weather.get("_kalman_heatmaps", {}),
+                **vd.get("usuarios", {}).get("roger", {}).get("heatmaps", {}),
+            }
+            _eye_results = _fte.analyze_all(_hm_eye, weather, month=date.today().month)
+            weather["_temporal_eye"] = _eye_results
+            _eye_resumen = _eye_results.get("_resumen", {})
+            log.info("faro_temporal_eye: %d eventos · %d canchas · tipos=%s",
+                     _eye_resumen.get("eventos_total", 0),
+                     _eye_resumen.get("n_canchas", 0),
+                     _eye_resumen.get("tipos", {}))
+        except Exception as _fte_err:
+            log.warning("faro_temporal_eye (non-fatal): %s", _fte_err)
         # ── Physics prescriptions (faro_analytics_physics) ───────────────────
         try:
             import sys as _sys
@@ -839,7 +855,9 @@ def run_refresh() -> dict:
             _canchas_vd = (vd.get("sectores", {}).get("canchero", {}).get("canchas", [])
                            or vd.get("canchas", []))
             _phys_for_ae = weather.get("_physics_acciones_roger", [])
-            _ae_acciones = _ae.generate_acciones(weather, _heatmaps, _phys_for_ae)
+            _eye_ctx     = weather.get("_temporal_eye", {})
+            _ae_acciones = _ae.generate_acciones(weather, _heatmaps, _phys_for_ae,
+                                                  temporal_eye=_eye_ctx)
             _ae_kpis     = _ae.generate_kpis(_heatmaps, _canchas_vd, weather)
             weather["_field_acciones_roger"] = _ae_acciones
             weather["_roger_kpis"]           = _ae_kpis
