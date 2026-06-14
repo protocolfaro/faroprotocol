@@ -2,490 +2,352 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Faro OS · Vélez Sarsfield</title>
-<link href="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.css" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600&family=Epilogue:wght@300;400;600;800&display=swap" rel="stylesheet">
-<script src="https://unpkg.com/deck.gl@^9.0.0/dist.min.js"></script>
-<script src="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.js"></script>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Faro &middot; Velez</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&family=Epilogue:wght@400;600&display=swap" rel="stylesheet">
 <style>
-:root {
-    --bg: #0a0a0a;
-    --card: rgba(18,20,23,0.88);
-    --border: rgba(38,43,53,0.5);
-    --gold: #c9a84c;
-    --red: #E53E3E;
-    --muted: #9ca3af;
-    --text: #f3f4f6;
+:root{
+  --bg:#07090c;
+  --bg2:#0e1218;
+  --gold:#c9a84c;
+  --whi:#f0ece4;
+  --dim:#8a8580;
 }
-body { margin:0; background:var(--bg); font-family:'Epilogue',sans-serif; color:var(--text); overflow:hidden; }
-#map { position:absolute; top:0; left:0; width:100%; height:100%; z-index:1; }
-#hud { position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:10; display:flex; flex-direction:column; justify-content:space-between; }
-header { background:linear-gradient(to bottom,rgba(10,10,10,.95) 60%,transparent); padding:20px; pointer-events:auto; }
-h1 { font-family:'Cormorant Garamond',serif; font-size:22px; margin:0; text-transform:uppercase; letter-spacing:1px; }
-.venue-bar { display:flex; gap:8px; overflow-x:auto; margin-top:12px; scrollbar-width:none; }
-.venue-bar::-webkit-scrollbar { display:none; }
-.vbtn { background:rgba(20,22,26,.8); border:1px solid var(--border); color:var(--muted); padding:8px 14px; font-size:11px; font-weight:600; text-transform:uppercase; border-radius:4px; cursor:pointer; white-space:nowrap; font-family:'Epilogue',sans-serif; transition:all .2s; pointer-events:auto; }
-.vbtn:hover { border-color:var(--gold); color:#fff; }
-.vbtn.active { background:rgba(201,168,76,.15); border-color:var(--gold); color:var(--gold); }
-.right-panel { position:absolute; top:130px; right:16px; display:flex; flex-direction:column; gap:10px; max-width:210px; pointer-events:auto; z-index:10; }
-.card { background:var(--card); border:1px solid var(--border); backdrop-filter:blur(12px); padding:14px; border-radius:6px; }
-.card h2 { font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); border-left:2px solid var(--gold); padding-left:6px; margin:0 0 10px; }
-.lchk { display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:8px; cursor:pointer; color:var(--muted); }
-.lchk input { display:none; }
-.lchk .box { width:11px; height:11px; border:1px solid var(--border); border-radius:2px; flex-shrink:0; }
-.lchk input:checked + .box { background:var(--gold); border-color:var(--gold); }
-.lchk input:checked ~ span { color:#fff; font-weight:600; }
-.fslider { width:100%; accent-color:var(--gold); margin-top:6px; }
-.slbl { display:flex; justify-content:space-between; font-size:9px; color:var(--muted); margin-top:3px; }
-footer { background:linear-gradient(to top,rgba(10,10,10,1) 70%,transparent); padding:20px; pointer-events:auto; }
-.footer-row { display:flex; gap:20px; align-items:flex-start; }
-.kpi { min-width:85px; }
-.kval { font-size:22px; font-weight:800; }
-.klbl { font-size:9px; text-transform:uppercase; color:var(--muted); letter-spacing:.5px; }
-.bar-bg { width:100%; height:3px; background:#222; border-radius:2px; margin-top:4px; }
-.bar-fill { height:100%; background:var(--gold); border-radius:2px; transition:width .4s; }
-.terminal { flex:1; font-size:12px; line-height:1.65; border-left:2px solid rgba(255,255,255,.08); padding-left:14px; max-height:90px; overflow:hidden; }
-.terminal strong { color:#fff; }
-.alert { color:var(--red); }
-#banner { position:absolute; top:115px; left:50%; transform:translateX(-50%); background:rgba(229,62,62,.12); border:1px solid var(--red); padding:5px 14px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; border-radius:20px; display:none; backdrop-filter:blur(8px); white-space:nowrap; z-index:20; }
-.map-toggle { position:absolute; top:115px; left:16px; display:flex; gap:6px; pointer-events:auto; z-index:20; }
-.mtbtn { background:rgba(18,20,23,.85); border:1px solid var(--border); color:var(--muted); padding:5px 12px; font-size:10px; font-weight:600; border-radius:4px; cursor:pointer; font-family:'Epilogue',sans-serif; transition:all .15s; }
-.mtbtn.active { border-color:var(--gold); color:var(--gold); }
-@media(min-width:768px) { .footer-row { align-items:center; } }
-@keyframes pulse { 50%{opacity:.6} }
-.pulse { animation:pulse 2s infinite; }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:var(--bg)}
+body{
+  display:grid;
+  grid-template-rows:50px 1fr;
+  color:var(--whi);
+  font-family:'Epilogue',sans-serif;
+}
+
+/* ── NAV ──────────────────────────────────────────────────────────────────── */
+.nav{
+  display:flex;
+  align-items:center;
+  gap:0;
+  overflow-x:auto;
+  overflow-y:hidden;
+  scrollbar-width:none;
+  padding:0 12px;
+  border-bottom:1px solid rgba(201,168,76,.14);
+  background:var(--bg);
+}
+.nav::-webkit-scrollbar{display:none}
+.tab{
+  flex-shrink:0;
+  background:none;
+  border:none;
+  border-bottom:2px solid transparent;
+  color:var(--dim);
+  font-family:'Epilogue',sans-serif;
+  font-size:11px;
+  font-weight:600;
+  letter-spacing:.07em;
+  text-transform:uppercase;
+  padding:0 11px;
+  height:50px;
+  white-space:nowrap;
+  cursor:pointer;
+  transition:color .2s,border-color .2s;
+  -webkit-tap-highlight-color:transparent;
+}
+.tab:hover{color:var(--whi)}
+.tab.active{color:var(--gold);border-bottom-color:var(--gold)}
+
+/* ── MAIN GRID ────────────────────────────────────────────────────────────── */
+.main{
+  display:grid;
+  grid-template-rows:55fr 30fr 15fr;
+  padding:12px 14px 8px;
+  gap:10px;
+  overflow:hidden;
+}
+
+/* ── ELEMENT 1: CAMPO SVG ─────────────────────────────────────────────────── */
+.field-wrap{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+  min-height:0;
+}
+.field-svg{
+  display:block;
+  width:auto;
+  height:100%;
+  max-width:100%;
+}
+.zone{
+  transition:fill 200ms ease;
+}
+
+/* ── ELEMENT 2: LA ORDEN ──────────────────────────────────────────────────── */
+.orden-box{
+  background:var(--bg2);
+  border:1px solid var(--gold);
+  padding:13px 16px;
+  display:flex;
+  align-items:center;
+  overflow:hidden;
+  min-height:0;
+}
+#orden{
+  font-family:'Cormorant Garamond',serif;
+  font-size:22px;
+  font-weight:700;
+  color:var(--whi);
+  line-height:1.35;
+  overflow:hidden;
+  display:-webkit-box;
+  -webkit-line-clamp:5;
+  -webkit-box-orient:vertical;
+}
+
+/* ── ELEMENT 3: DOS NUMEROS ───────────────────────────────────────────────── */
+.nums-row{
+  display:flex;
+  align-items:center;
+  min-height:0;
+}
+#nums{
+  font-size:13px;
+  font-weight:400;
+  color:var(--dim);
+  letter-spacing:.04em;
+}
 </style>
 </head>
 <body>
 
-<div id="map"></div>
+<!-- NAV TABS -->
+<nav class="nav">
+  <button class="tab active" onclick="switchCancha('amalfitani',this)">Amalfitani</button>
+  <button class="tab" onclick="switchCancha('1fp',this)">1FP</button>
+  <button class="tab" onclick="switchCancha('2fp',this)">2FP</button>
+  <button class="tab" onclick="switchCancha('1fa',this)">1FA</button>
+  <button class="tab" onclick="switchCancha('2fa',this)">2FA</button>
+  <button class="tab" onclick="switchCancha('3fa',this)">3FA</button>
+  <button class="tab" onclick="switchCancha('4fa',this)">4FA</button>
+  <button class="tab" onclick="switchCancha('5fa',this)">5FA</button>
+  <button class="tab" onclick="switchCancha('6fa',this)">6FA</button>
+  <button class="tab" onclick="switchCancha('7fa',this)">7FA</button>
+  <button class="tab" onclick="switchCancha('8fa',this)">8FA</button>
+  <button class="tab" onclick="switchCancha('9fa',this)">9FA</button>
+  <button class="tab" onclick="switchCancha('10fa',this)">10FA</button>
+</nav>
 
-<div id="hud">
-  <header>
-    <div style="display:flex;justify-content:space-between;align-items:baseline">
-      <h1>Faro <span style="font-family:Epilogue;font-weight:300;font-size:13px;color:var(--gold)">OS</span></h1>
-      <span id="surface-badge" style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--muted)"></span>
-    </div>
-    <div class="venue-bar">
-      <button class="vbtn active" onclick="switchVenue('amalfitani',this)">Amalfitani</button>
-      <button class="vbtn" onclick="switchVenue('villa_olimpica',this)">Villa Olímpica</button>
-      <button class="vbtn" onclick="switchVenue('polideportivo',this)">Polideportivo</button>
-      <button class="vbtn" onclick="switchVenue('paneles_solares',this)">Paneles Solares</button>
-      <button class="vbtn" onclick="switchVenue('sede',this)">Sede</button>
-      <button class="vbtn" onclick="switchVenue('piletas',this)">Piletas</button>
-    </div>
-  </header>
+<main class="main">
 
-  <div id="banner">⚠️ Datos ópticos congelados — Radar SAR activo</div>
+  <!-- ELEMENT 1: SVG FIELD -->
+  <div class="field-wrap">
+    <!--
+      ViewBox 210x300 — campo en retrato (3 filas x 2 cols)
+      Norte = arriba (y=0..100), Central = medio (y=100..200), Sur = abajo (y=200..300)
+      Izquierda = x=0..105, Derecha = x=105..210
+    -->
+    <svg class="field-svg" viewBox="0 0 210 300"
+         xmlns="http://www.w3.org/2000/svg"
+         preserveAspectRatio="xMidYMid meet">
 
-  <div class="map-toggle">
-    <button class="mtbtn active" id="btn-dark" onclick="setBasemap('dark')">Oscuro</button>
-    <button class="mtbtn" id="btn-sat" onclick="setBasemap('satellite')">Satélite</button>
+      <!-- 6 COLOR ZONES -->
+      <rect class="zone" id="znw" x="0"   y="0"   width="105" height="100" fill="#1c3318"/>
+      <rect class="zone" id="zne" x="105" y="0"   width="105" height="100" fill="#1c3318"/>
+      <rect class="zone" id="zcw" x="0"   y="100" width="105" height="100" fill="#1c3318"/>
+      <rect class="zone" id="zce" x="105" y="100" width="105" height="100" fill="#1c3318"/>
+      <rect class="zone" id="zsw" x="0"   y="200" width="105" height="100" fill="#1c3318"/>
+      <rect class="zone" id="zse" x="105" y="200" width="105" height="100" fill="#1c3318"/>
+
+      <!-- FIELD MARKINGS — thin white, semi-transparent -->
+      <!-- Outer border -->
+      <rect x="1" y="1" width="208" height="298"
+            fill="none" stroke="rgba(255,255,255,.22)" stroke-width="1.2"/>
+      <!-- Halfway line -->
+      <line x1="1" y1="150" x2="209" y2="150"
+            stroke="rgba(255,255,255,.22)" stroke-width="1"/>
+      <!-- Centre circle -->
+      <circle cx="105" cy="150" r="26"
+              fill="none" stroke="rgba(255,255,255,.18)" stroke-width="1"/>
+      <!-- Centre spot -->
+      <circle cx="105" cy="150" r="2" fill="rgba(255,255,255,.25)"/>
+
+      <!-- Penalty area — Norte -->
+      <rect x="42" y="1" width="126" height="44"
+            fill="none" stroke="rgba(255,255,255,.16)" stroke-width="1"/>
+      <!-- Goal area — Norte -->
+      <rect x="65" y="1" width="80" height="17"
+            fill="none" stroke="rgba(255,255,255,.13)" stroke-width="1"/>
+      <!-- Penalty spot — Norte -->
+      <circle cx="105" cy="35" r="1.8" fill="rgba(255,255,255,.22)"/>
+      <!-- Penalty arc — Norte (outside box) -->
+      <path d="M 74,45 A 32,32 0 0,0 136,45"
+            fill="none" stroke="rgba(255,255,255,.13)" stroke-width="1"/>
+
+      <!-- Penalty area — Sur -->
+      <rect x="42" y="255" width="126" height="44"
+            fill="none" stroke="rgba(255,255,255,.16)" stroke-width="1"/>
+      <!-- Goal area — Sur -->
+      <rect x="65" y="282" width="80" height="17"
+            fill="none" stroke="rgba(255,255,255,.13)" stroke-width="1"/>
+      <!-- Penalty spot — Sur -->
+      <circle cx="105" cy="265" r="1.8" fill="rgba(255,255,255,.22)"/>
+      <!-- Penalty arc — Sur (outside box) -->
+      <path d="M 74,255 A 32,32 0 0,1 136,255"
+            fill="none" stroke="rgba(255,255,255,.13)" stroke-width="1"/>
+
+      <!-- Corner arcs -->
+      <path d="M 1,8 A 7,7 0 0,1 8,1"
+            fill="none" stroke="rgba(255,255,255,.11)" stroke-width="1"/>
+      <path d="M 202,1 A 7,7 0 0,1 209,8"
+            fill="none" stroke="rgba(255,255,255,.11)" stroke-width="1"/>
+      <path d="M 1,292 A 7,7 0 0,0 8,299"
+            fill="none" stroke="rgba(255,255,255,.11)" stroke-width="1"/>
+      <path d="M 202,299 A 7,7 0 0,0 209,292"
+            fill="none" stroke="rgba(255,255,255,.11)" stroke-width="1"/>
+
+      <!-- Zone divider line (vertical centre) — subtle, thin -->
+      <line x1="105" y1="1" x2="105" y2="299"
+            stroke="rgba(255,255,255,.07)" stroke-width=".8"/>
+      <!-- Zone divider lines (horizontal thirds) -->
+      <line x1="1" y1="100" x2="209" y2="100"
+            stroke="rgba(255,255,255,.07)" stroke-width=".8"/>
+      <line x1="1" y1="200" x2="209" y2="200"
+            stroke="rgba(255,255,255,.07)" stroke-width=".8"/>
+    </svg>
   </div>
 
-  <div class="right-panel">
-    <div class="card" id="layer-card">
-      <h2>Capas Activas</h2>
-      <div id="layer-list"></div>
-    </div>
-    <div class="card" id="slider-card" style="display:none">
-      <h2 id="slider-title">Control</h2>
-      <div id="slider-body"></div>
-    </div>
+  <!-- ELEMENT 2: LA ORDEN -->
+  <div class="orden-box">
+    <p id="orden">El sistema esta analizando los datos de esta madrugada.</p>
   </div>
 
-  <footer>
-    <div class="footer-row">
-      <div class="kpi">
-        <div class="klbl">Score</div>
-        <div class="kval" id="score-val">--</div>
-        <div class="bar-bg"><div class="bar-fill" id="score-bar" style="width:0"></div></div>
-      </div>
-      <div class="kpi" id="kpi2" style="display:none">
-        <div class="klbl" id="kpi2-lbl"></div>
-        <div class="kval" id="kpi2-val"></div>
-      </div>
-      <div class="terminal" id="terminal">Conectando con Faro OS…</div>
-    </div>
-  </footer>
-</div>
+  <!-- ELEMENT 3: DOS NUMEROS -->
+  <div class="nums-row">
+    <span id="nums"></span>
+  </div>
+
+</main>
 
 <script>
-// ── COORDENADAS REALES VÉLEZ ──────────────────────────────────────────────
-const VENUES = {
-    amalfitani:     { lng:-58.5288, lat:-34.6379, zoom:17.5 },
-    villa_olimpica: { lng:-58.7193, lat:-34.6221, zoom:15.5 },
-    polideportivo:  { lng:-58.5135, lat:-34.6333, zoom:17.5 },
-    paneles_solares:{ lng:-58.522200, lat:-34.636800, zoom:19   },
-    sede:           { lng:-58.523912, lat:-34.634620, zoom:18.5 },
-    piletas:        { lng:-58.520900, lat:-34.637800, zoom:18.5 }
+/* ── CONFIG ──────────────────────────────────────────────────────────────── */
+const ENDPOINT = 'https://faroprotocol-production-45fd.up.railway.app/velez/panel-roger';
+const FALLBACK  = '../velez_data.json';
+
+const ESTADO_COLORS = {
+  normal:           '#1c3318',
+  stress_hidrico:   'rgba(212,160,23,.35)',
+  resiembra_activa: 'rgba(217,79,79,.40)',
+  compactacion:     'rgba(139,69,19,.35)',
+  fungosis:         'rgba(192,132,252,.30)',
 };
 
-// ── CAPAS POR TIPO DE SUPERFICIE ─────────────────────────────────────────
-const SURFACE_LAYERS = {
-    natural:        ['ndvi','sar','temperatura','clima','fungosis'],
-    hibrido:        ['ndvi','sar','temperatura','clima','fungosis'],
-    sintetico:      ['sar','temperatura','insar'],
-    polvo_ladrillo: ['sar','temperatura','insar'],
-    indoor:         ['insar','temperatura'],
-    fotovoltaico:   ['temperatura','clima'],
-    acuatico:       ['temperatura','clima']
-};
+/* ── STATE ───────────────────────────────────────────────────────────────── */
+let _heatmaps = {};   // {cid: {estado_detectado, prescripcion_operativa, ndvi, ...}}
+let _canchas  = [];   // array from canchero list (fallback)
+let _estadio  = {};   // Amalfitani sector (fallback)
+let _weather  = {};
+let _active   = 'amalfitani';
 
-const LAYER_LABELS = {
-    ndvi:        'NDVI Vegetativo',
-    sar:         'SAR Compactación',
-    temperatura: 'Temperatura Landsat',
-    insar:       'InSAR Estructural',
-    clima:       'Clima Open-Meteo',
-    fungosis:    'Riesgo Dollar Spot',
-    dale_play:   'Dale Play Recovery'
-};
-
-let map, deckOverlay, canonical, geojson;
-let currentVenue = 'amalfitani';
-let activeL = { ndvi:true, sar:true, temperatura:false, insar:false, clima:false, fungosis:false, dale_play:false };
-let richDepth = 1;  // 0=5cm  1=10cm  2=20cm
-let showDay   = 0;  // días desde el show (0=hoy)
-const RAILWAY = 'https://faroprotocol-production-45fd.up.railway.app';
-
-// ── INIT ─────────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', async () => {
-    map = new maplibregl.Map({
-        container: 'map',
-        style: 'https://tiles.openfreemap.org/styles/dark',
-        center: [VENUES.amalfitani.lng, VENUES.amalfitani.lat],
-        zoom:  VENUES.amalfitani.zoom,
-        pitch: 45, bearing: -15,
-        attributionControl: false
-    });
-
-    // Un solo canvas WebGL — deck.gl como overlay sobre MapLibre
-    deckOverlay = new deck.MapboxOverlay({ interleaved: true, layers: [] });
-    map.addControl(deckOverlay);
-    map.on('load', async () => {
-        // Satélite ArcGIS World Imagery — sin API key
-        map.addSource('arcgis-sat', {
-            type: 'raster',
-            tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
-            tileSize: 256, maxzoom: 19
-        });
-        map.addLayer({ id:'sat-layer', type:'raster', source:'arcgis-sat', layout:{ visibility:'none' } });
-
-        // Cargar datos del assembler — triple fallback
-        try {
-            const [c, g] = await Promise.all([
-                fetch(`${RAILWAY}/velez/panel-roger-canonical`).then(r => r.ok ? r.json() : Promise.reject(r.status)),
-                fetch(`${RAILWAY}/velez/amalfitani-geojson`).then(r => r.ok ? r.json() : Promise.reject(r.status))
-            ]);
-            canonical = c;
-            geojson   = g;
-        } catch(_) {
-            canonical = null;
-            geojson   = { type:'FeatureCollection', features:[] };
-        }
-
-        renderUI();
-        renderLayers();
-    });
-});
-
-// ── BASEMAP TOGGLE ───────────────────────────────────────────────────────
-function setBasemap(mode) {
-    document.getElementById('btn-dark').classList.toggle('active', mode === 'dark');
-    document.getElementById('btn-sat').classList.toggle('active',  mode === 'satellite');
-    if (!map || !map.getLayer('sat-layer')) return;
-    map.setLayoutProperty('sat-layer', 'visibility', mode === 'satellite' ? 'visible' : 'none');
+/* ── FIELD PAINT ─────────────────────────────────────────────────────────── */
+function _colorFor(estado) {
+  return ESTADO_COLORS[estado] || '#1c3318';
 }
 
-// ── VENUE SWITCH ─────────────────────────────────────────────────────────
-function switchVenue(v, btn) {
-    currentVenue = v;
-    // Reset sliders al cambiar venue
-    richDepth = 1;
-    showDay   = 0;
-    // Reset active layers a default sensato
-    activeL = { ndvi:true, sar:true, temperatura:false, insar:false, clima:false, fungosis:false, dale_play:false };
-
-    document.querySelectorAll('.vbtn').forEach(b => b.classList.remove('active'));
-    if (btn) btn.classList.add('active');
-
-    const c = VENUES[v];
-    if (c && map) {
-        map.flyTo({ center:[c.lng, c.lat], zoom:c.zoom, pitch:45, bearing:-15, duration:1800 });
-    }
-    renderUI();
-    renderLayers();
+function _paintField(estado) {
+  const c = _colorFor(estado || 'normal');
+  document.querySelectorAll('.zone').forEach(el => { el.style.fill = c; });
 }
 
-// ── RENDER UI (HUD + layer selector) ─────────────────────────────────────
-function renderUI() {
-    if (!canonical) {
-        document.getElementById('terminal').innerHTML = 'Sin conexión con el assembler. Reintentando…';
-        return;
-    }
-
-    // Score — buscar en múltiples rutas del canonical
-    const estadioS = canonical?.sectores?.estadio ?? {};
-    const cancheroS = canonical?.sectores?.canchero ?? {};
-    const venueS   = canonical?.sectores?.[currentVenue] ?? {};
-    const score = venueS.score ?? estadioS.score ?? cancheroS.score ?? 0;
-
-    // Tipo de superficie para este venue
-    const hm = canonical?.usuarios?.roger?.heatmaps ?? {};
-    const surface = hm[currentVenue]?.tipo_superficie
-                 ?? canonical?.canchas?.[currentVenue]?.tipo_superficie
-                 ?? 'natural';
-
-    // Nubosidad — datos ópticos congelados si última imagen > 7 días
-    const ageRaw = canonical?.satellite?.age_days;
-    const nuboso  = ageRaw != null && Number(ageRaw) > 7;
-
-    document.getElementById('surface-badge').textContent = surface.toUpperCase().replace(/_/g,' ');
-    document.getElementById('score-val').textContent     = score || '--';
-    document.getElementById('score-bar').style.width     = `${score || 0}%`;
-    document.getElementById('banner').style.display      = nuboso ? 'block' : 'none';
-
-    // Terminal — Hermes prescripción real
-    const clim   = canonical?.hermes?.climate ?? {};
-    const alerts = Array.isArray(canonical?.hermes?.alertas_fisicas) ? canonical.hermes.alertas_fisicas : [];
-    const termLines = [];
-    if (clim.et0_mm_dia        != null) termLines.push(`<strong>ET₀:</strong> ${clim.et0_mm_dia} mm/día`);
-    if (clim.deficit_hidrico_mm != null) termLines.push(`<strong>Déficit:</strong> ${clim.deficit_hidrico_mm} mm`);
-    if (clim.smith_kerns_pct   != null) termLines.push(`<strong>Dollar Spot:</strong> ${clim.smith_kerns_pct}%`);
-    if (clim.ventana_corte)              termLines.push(`<strong>Corte:</strong> ${clim.ventana_corte}`);
-    if (clim.riego_min)                  termLines.push(`<strong>Riego:</strong> ${clim.riego_min} min`);
-    alerts.slice(0,2).forEach(a => {
-        const msg = typeof a === 'string' ? a : (a.mensaje ?? JSON.stringify(a));
-        termLines.push(`<span class="alert">⚠ ${msg}</span>`);
-    });
-    document.getElementById('terminal').innerHTML = termLines.length
-        ? termLines.join('<br>')
-        : 'Sistema operativo. Sin alertas activas.';
-
-    // KPI secundario — InSAR si está disponible
-    const kpi2    = document.getElementById('kpi2');
-    const detalle = typeof venueS.detalle === 'string' ? venueS.detalle
-                  : (typeof estadioS.detalle === 'string' ? estadioS.detalle : '');
-    const insarM  = detalle.match(/InSAR\s*([\d.]+)\s*mm/i);
-    if (insarM) {
-        kpi2.style.display = 'block';
-        document.getElementById('kpi2-lbl').textContent = 'InSAR';
-        document.getElementById('kpi2-val').textContent = `${insarM[1]}mm`;
-    } else {
-        kpi2.style.display = 'none';
-    }
-
-    // Layer selector — solo capas disponibles para esta superficie
-    const availLayers = SURFACE_LAYERS[surface] ?? SURFACE_LAYERS.natural;
-    const hasShow     = canonical?.show_activo === true;
-    const finalLayers = (hasShow && currentVenue === 'amalfitani')
-        ? [...availLayers, 'dale_play']
-        : availLayers;
-
-    document.getElementById('layer-list').innerHTML = finalLayers.map(lk => `
-        <label class="lchk">
-            <input type="checkbox" id="chk-${lk}" ${activeL[lk] ? 'checked' : ''}
-                   onchange="toggleLayer('${lk}')">
-            <span class="box"></span>
-            <span>${LAYER_LABELS[lk] ?? lk}</span>
-        </label>`
-    ).join('');
-
-    // Slider card — Richards si humedad activa y hay datos; Dale Play si show activo
-    const sc = document.getElementById('slider-card');
-    const sb = document.getElementById('slider-body');
-    const hasTheta = geojson?.features?.some(f => f.properties?.theta_5cm != null) ?? false;
-
-    if (activeL.temperatura && finalLayers.includes('temperatura') && hasTheta) {
-        sc.style.display = 'block';
-        document.getElementById('slider-title').textContent = 'Profundidad Hidráulica';
-        sb.innerHTML = `
-            <input type="range" class="fslider" min="0" max="2" step="1" value="${richDepth}"
-                   oninput="richDepth=+this.value; renderLayers()">
-            <div class="slbl"><span>5 cm</span><span>10 cm</span><span>20 cm</span></div>`;
-    } else if (activeL.dale_play && hasShow) {
-        sc.style.display = 'block';
-        document.getElementById('slider-title').textContent = 'Recovery Post-Show';
-        sb.innerHTML = `
-            <input type="range" class="fslider" min="0" max="35" step="1" value="${showDay}"
-                   oninput="showDay=+this.value; renderLayers()">
-            <div class="slbl"><span>Día 0</span><span>Día ${showDay}</span><span>Día 35</span></div>`;
-    } else {
-        sc.style.display = 'none';
-    }
+/* ── DATA GETTERS ────────────────────────────────────────────────────────── */
+function _getHeatmap(cid) {
+  return _heatmaps[cid] || {};
 }
 
-function toggleLayer(lk) {
-    const el = document.getElementById('chk-' + lk);
-    if (el) activeL[lk] = el.checked;
-    renderLayers();
+function _getCancha(cid) {
+  // First check canchas list (has prescripcion_operativa injected by backend)
+  const found = _canchas.find(c => c.id === cid);
+  if (found) return found;
+  // Amalfitani lives in estadio sector
+  if (cid === 'amalfitani') return _estadio;
+  return {};
 }
 
-// Centroid of a GeoJSON Feature (Point or Polygon ring avg)
-function geomCenter(f) {
-    if (f.geometry?.type === 'Point') return f.geometry.coordinates;
-    const ring = f.geometry?.coordinates?.[0];
-    if (!ring || ring.length < 3) return [VENUES[currentVenue].lng, VENUES[currentVenue].lat];
-    const pts = (ring[0][0] === ring[ring.length-1][0] && ring[0][1] === ring[ring.length-1][1])
-        ? ring.slice(0, -1) : ring;
-    const n = pts.length;
-    return [pts.reduce((s,c) => s+c[0], 0)/n, pts.reduce((s,c) => s+c[1], 0)/n];
+function _getEstado(cid) {
+  return _getHeatmap(cid).estado_detectado
+      || _getCancha(cid).estado_detectado
+      || null;
 }
 
-// ── RENDER LAYERS (deck.gl) ──────────────────────────────────────────────
-function renderLayers() {
-    if (!deckOverlay) return;
-    const layers   = [];
-    const features = geojson?.features ?? [];
-
-    // Sin features → limpiar overlay, sin error
-    if (features.length === 0) {
-        deckOverlay.setProps({ layers: [] });
-        return;
-    }
-
-    // NDVI — HeatmapLayer con pesos reales
-    if (activeL.ndvi) {
-        const pts = features
-            .filter(f => f.properties?.ndvi != null)
-            .map(f => ({ pos: geomCenter(f), w: f.properties.ndvi }));
-        if (pts.length > 0) {
-            layers.push(new deck.HeatmapLayer({
-                id: 'ndvi-heat',
-                data: pts,
-                getPosition: d => d.pos,
-                getWeight:   d => d.w,
-                radiusPixels: 40,
-                colorRange: [[229,62,62,255],[234,179,8,255],[34,197,94,255]]
-            }));
-        }
-    }
-
-    // SAR — GeoJsonLayer polígonos con entropía real
-    if (activeL.sar) {
-        const polys = features.filter(f =>
-            f.geometry?.type === 'Polygon' && f.properties?.entropia_h != null
-        );
-        if (polys.length > 0) {
-            layers.push(new deck.GeoJsonLayer({
-                id: 'sar-poly',
-                data: { type:'FeatureCollection', features: polys },
-                filled: true,
-                getFillColor: f => {
-                    const h = f.properties.entropia_h;
-                    if (h < 0.3) return [229,62,62,160];
-                    if (h < 0.5) return [234,179,8,140];
-                    return [34,197,94,120];
-                },
-                getLineColor: [201,168,76,80],
-                getLineWidth: 1,
-                lineWidthMinPixels: 1
-            }));
-        }
-    }
-
-    // HUMEDAD SUELO (Richards) — ColumnLayer 3D por profundidad
-    if (activeL.temperatura) {
-        const depthKey = ['theta_5cm','theta_10cm','theta_20cm'][richDepth] ?? 'theta_10cm';
-        const cols     = features.filter(f => f.properties?.[depthKey] != null);
-        if (cols.length > 0) {
-            layers.push(new deck.ColumnLayer({
-                id: 'richards-col',
-                data: cols,
-                getPosition: f => geomCenter(f),
-                getElevation:  f => (f.properties[depthKey] ?? 0) * 200,
-                getFillColor:  [14,165,233,180],
-                radius:        3,
-                extruded:      true,
-                elevationScale: 1
-            }));
-        }
-    }
-
-    // InSAR — ScatterplotLayer punto único con valor real del canonical
-    if (activeL.insar) {
-        const detalle = canonical?.sectores?.estadio?.detalle
-                     ?? canonical?.sectores?.[currentVenue]?.detalle ?? '';
-        const m = typeof detalle === 'string' ? detalle.match(/InSAR\s*([\d.]+)\s*mm/i) : null;
-        if (m) {
-            layers.push(new deck.ScatterplotLayer({
-                id: 'insar-pts',
-                data: [{ pos:[VENUES[currentVenue].lng, VENUES[currentVenue].lat], v: m[1] }],
-                getPosition:  d => d.pos,
-                getRadius:    8,
-                radiusMinPixels: 8,
-                getFillColor: [229,62,62,220],
-                pickable: true,
-                onClick: info => {
-                    if (info.object) {
-                        document.getElementById('terminal').innerHTML =
-                            `<strong>InSAR:</strong> Deformación estructural ${info.object.v} mm detectada.`;
-                    }
-                }
-            }));
-        }
-    }
-
-    // Fungosis — ScatterplotLayer canchas en riesgo Dollar Spot
-    if (activeL.fungosis) {
-        const crList = canonical?.weather_live?.riesgo_fungosis?.canchas_en_riesgo ?? [];
-        if (crList.length > 0) {
-            const riskPts = features
-                .filter(f => {
-                    const cid = f.properties?.cancha_id ?? f.properties?.id;
-                    return cid != null && crList.includes(cid);
-                })
-                .map(f => ({
-                    pos: f.geometry?.type === 'Point'
-                        ? f.geometry.coordinates
-                        : [f.properties.lng ?? VENUES[currentVenue].lng,
-                           f.properties.lat ?? VENUES[currentVenue].lat]
-                }));
-            if (riskPts.length > 0) {
-                layers.push(new deck.ScatterplotLayer({
-                    id: 'fungosis-pts',
-                    data: riskPts,
-                    getPosition:  d => d.pos,
-                    getRadius:    12,
-                    radiusMinPixels: 10,
-                    getFillColor: [234,179,8,200],
-                    stroked:      true,
-                    getLineColor: [229,62,62,200],
-                    getLineWidth: 1,
-                    lineWidthMinPixels: 1,
-                    pickable: true,
-                    onClick: () => {
-                        const sk = canonical?.weather_live?.smith_kerns_pct
-                                ?? canonical?.hermes?.climate?.smith_kerns_pct;
-                        document.getElementById('terminal').innerHTML =
-                            `<span class="alert">⚠ Dollar Spot activo${sk != null ? ` — Smith-Kerns ${sk}%` : ''}</span>`;
-                    }
-                }));
-            }
-        }
-    }
-
-    // Dale Play — TripsLayer animación recovery post-show
-    if (activeL.dale_play && canonical?.show_memory) {
-        const mem = canonical.show_memory;
-        if (Array.isArray(mem?.recovery_path) && mem.recovery_path.length > 0) {
-            layers.push(new deck.TripsLayer({
-                id: 'recovery-trips',
-                data: mem.recovery_path,
-                getPath:       d => d.path,
-                getTimestamps: d => d.timestamps,
-                getColor:      [229,62,62,220],
-                currentTime:   showDay,
-                trailLength:   3,
-                widthMinPixels: 2
-            }));
-        }
-    }
-
-    deckOverlay.setProps({ layers });
+function _getPrescripcion(cid) {
+  return _getCancha(cid).prescripcion_operativa
+      || _getHeatmap(cid).prescripcion_operativa
+      || null;
 }
+
+/* ── RENDER ──────────────────────────────────────────────────────────────── */
+function _renderNums() {
+  const hum  = _weather.humedad_suelo_pct;
+  const temp = (_weather.temp_superficie_lst_c != null)
+               ? _weather.temp_superficie_lst_c
+               : (_weather.temp_suelo_0cm != null ? _weather.temp_suelo_0cm : null);
+  const parts = [];
+  if (hum  != null) parts.push('HUMEDAD: ' + hum + '%');
+  if (temp != null) parts.push('SUPERFICIE: ' + temp + '°C');
+  document.getElementById('nums').textContent = parts.join(' · ');
+}
+
+function switchCancha(cid, btn) {
+  _active = cid;
+  // Update tabs
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  // Paint field
+  _paintField(_getEstado(cid));
+  // Prescription
+  document.getElementById('orden').textContent =
+    _getPrescripcion(cid) || 'El sistema esta analizando los datos de esta madrugada.';
+  // Numbers (same weather for all canchas)
+  _renderNums();
+}
+
+/* ── NORMALISE: handle both endpoint and fallback JSON formats ────────────── */
+function _normalise(raw) {
+  // Endpoint format: {heatmaps, roger_canchas, weather_live, ...}
+  if (raw.heatmaps || raw.roger_canchas) {
+    _heatmaps = raw.heatmaps || {};
+    _canchas  = raw.roger_canchas || [];
+    _estadio  = {};  // not returned by endpoint — use heatmaps['amalfitani']
+    _weather  = raw.weather_live || {};
+  } else {
+    // Full velez_data.json fallback
+    _heatmaps = (raw.usuarios && raw.usuarios.roger && raw.usuarios.roger.heatmaps) || {};
+    _canchas  = (raw.sectores && raw.sectores.canchero && raw.sectores.canchero.canchas) || [];
+    _estadio  = (raw.sectores && raw.sectores.estadio) || {};
+    _weather  = raw.weather_live || {};
+  }
+}
+
+/* ── FETCH ───────────────────────────────────────────────────────────────── */
+async function _load() {
+  let raw = null;
+  try {
+    const r = await fetch(ENDPOINT, { cache: 'no-cache' });
+    if (!r.ok) throw new Error(r.status);
+    raw = await r.json();
+  } catch (_) {
+    try {
+      const r2 = await fetch(FALLBACK, { cache: 'no-cache' });
+      raw = await r2.json();
+    } catch (_2) {
+      raw = {};
+    }
+  }
+  _normalise(raw);
+  switchCancha(_active, null);
+}
+
+_load();
 </script>
 </body>
 </html>
