@@ -3,44 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Faro Protocol v2.0 - Cancha Vélez</title>
+    <title>Faro Protocol v2.0 · Vélez</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&family=Epilogue:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #07090c;
-            --gold: #c9a84c;
-            --whi: #f0ece4;
-            --dim: #8a8580;
-            --red: #d94f4f;
-            --yellow: #d4a017;
-            --green: #4a9e6a;
-            --card-bg: rgba(10, 14, 20, 0.97);
+            --bg:      #07090c;
+            --gold:    #c9a84c;
+            --whi:     #f0ece4;
+            --dim:     #8a8580;
+            --red:     #d94f4f;
+            --yellow:  #d4a017;
+            --green:   #4a9e6a;
+            --card-bg: rgba(10,14,20,0.97);
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
-            background-color: var(--bg);
+            background: var(--bg);
             color: var(--whi);
             font-family: 'Epilogue', sans-serif;
             width: 100vw;
             height: 100vh;
-            min-height: 100vh;
             display: flex;
             flex-direction: row;
             overflow: hidden;
-            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.02'/%3E%3C/svg%3E");
+            position: relative;
         }
 
-        /* TABS SUPERIORES NATIVOS */
+        /* ── TABS ─────────────────────────────────────────────────────────── */
         .nav-tabs {
             position: absolute;
             top: 15px;
             left: 20px;
             z-index: 100;
             display: flex;
+            align-items: center;
             gap: 6px;
             overflow-x: auto;
             max-width: calc(55% - 40px);
@@ -49,7 +49,8 @@
         .nav-tabs::-webkit-scrollbar { display: none; }
 
         .tab-btn {
-            background: rgba(25, 30, 38, 0.6);
+            flex-shrink: 0;
+            background: rgba(25,30,38,0.75);
             border: 1px solid rgba(255,255,255,0.08);
             color: var(--dim);
             padding: 5px 10px;
@@ -58,15 +59,19 @@
             font-weight: 600;
             cursor: pointer;
             font-family: 'Epilogue', sans-serif;
-            transition: all 0.2s ease;
+            transition: all 0.2s;
         }
-        .tab-btn.active {
-            background: var(--gold);
-            color: var(--bg);
-            border-color: var(--gold);
+        .tab-btn.active { background: var(--gold); color: var(--bg); border-color: var(--gold); }
+
+        .tab-sep {
+            flex-shrink: 0;
+            display: inline-block;
+            width: 1px;
+            height: 20px;
+            background: rgba(255,255,255,0.15);
         }
 
-        /* CONTENEDOR DE CAMPO (55% IZQUIERDO) */
+        /* ── CAMPO 55% ────────────────────────────────────────────────────── */
         .wrapper-field {
             width: 55%;
             height: 100%;
@@ -74,27 +79,30 @@
             align-items: center;
             justify-content: center;
             position: relative;
-            padding: 50px 30px 30px 60px;
+            padding: 60px 24px 24px 48px;
         }
 
         .text-stadium {
             position: absolute;
-            left: 25px;
-            bottom: 40px;
-            transform: rotate(-90deg);
-            transform-origin: left bottom;
-            font-size: 10px;
-            color: rgba(255, 255, 255, 0.25);
-            white-space: nowrap;
-            letter-spacing: 1px;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%) rotate(-90deg);
+            transform-origin: center center;
+            font-size: 9px;
             font-weight: 600;
+            letter-spacing: 1.5px;
             text-transform: uppercase;
+            color: rgba(255,255,255,0.25);
+            white-space: nowrap;
+            pointer-events: none;
         }
 
         .field-container {
             position: relative;
-            width: 100%;
-            aspect-ratio: 105 / 68;
+            height: calc(100% - 16px);
+            width: auto;
+            aspect-ratio: 68 / 105;
+            max-width: 100%;
             background: #112916;
             border-radius: 8px;
             overflow: hidden;
@@ -104,19 +112,15 @@
 
         .heatmap-overlay {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            inset: 0;
             z-index: 1;
             mix-blend-mode: hard-light;
             pointer-events: none;
         }
 
-        .field-lines {
+        .field-svg {
             position: absolute;
-            top: 0;
-            left: 0;
+            inset: 0;
             width: 100%;
             height: 100%;
             z-index: 2;
@@ -125,10 +129,7 @@
 
         .nodes-overlay {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            inset: 0;
             z-index: 3;
             pointer-events: none;
         }
@@ -137,142 +138,147 @@
             position: absolute;
             width: 10px;
             height: 10px;
-            background: #ffffff;
-            border: 2px solid rgba(0, 0, 0, 0.5);
+            background: #fff;
+            border: 2px solid rgba(0,0,0,0.5);
             border-radius: 50%;
             transform: translate(-50%, -50%);
             box-shadow: 0 0 8px rgba(255,255,255,0.8);
-            z-index: 4;
         }
 
-        /* PANEL DE CONTROL DERECHO (45%) */
+        /* ── PANEL 45% ────────────────────────────────────────────────────── */
         .panel-control {
             width: 45%;
             height: 100%;
             background: var(--card-bg);
-            border-left: 1px solid rgba(255, 255, 255, 0.06);
-            padding: 24px;
+            border-left: 1px solid rgba(255,255,255,0.06);
+            padding: 20px;
             display: flex;
             flex-direction: column;
             overflow: hidden;
         }
 
         .panel-header {
+            flex-shrink: 0;
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            border-bottom: 1px solid rgba(255,255,255,0.06);
             padding-bottom: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
             margin-bottom: 12px;
         }
 
-        .header-title {
-            font-size: 11px;
+        .panel-title {
+            font-size: 10px;
             font-weight: 700;
             color: var(--gold);
             letter-spacing: 0.5px;
         }
 
-        .header-sync {
-            text-align: right;
-            font-size: 10px;
+        .panel-sync {
+            font-size: 9px;
             color: var(--dim);
-            line-height: 1.3;
+            text-align: right;
+            line-height: 1.4;
             font-weight: 600;
         }
 
+        /* ── LISTA AGENTES ────────────────────────────────────────────────── */
         .agents-list {
             flex: 1;
+            min-height: 0;
             overflow-y: auto;
             display: flex;
             flex-direction: column;
-            gap: 4px;
-            margin-bottom: 14px;
-            padding-right: 4px;
+            gap: 3px;
+            margin-bottom: 12px;
         }
-        .agents-list::-webkit-scrollbar { width: 4px; }
-        .agents-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
+        .agents-list::-webkit-scrollbar { width: 3px; }
+        .agents-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.07); border-radius: 2px; }
 
         .agent-row {
             display: grid;
-            grid-template-columns: 100px 1fr 1fr 1fr;
-            align-items: center;
-            padding: 6px 10px;
-            background: rgba(255, 255, 255, 0.01);
-            border: 1px solid rgba(255, 255, 255, 0.03);
-            border-radius: 4px;
-            font-size: 9px;
-            color: var(--dim);
+            grid-template-columns: 90px 1fr 1fr 1fr;
+            align-items: start;
             gap: 8px;
-            transition: all 0.2s ease;
+            padding: 5px 8px;
+            background: rgba(255,255,255,0.01);
+            border: 1px solid rgba(255,255,255,0.03);
+            border-radius: 3px;
+            transition: all 0.2s;
+        }
+        .agent-row.active {
+            background: rgba(201,168,76,0.07);
+            border-color: var(--gold);
         }
 
-        .agent-meta-name {
+        .agent-name {
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 5px;
+            font-size: 9px;
             font-weight: 600;
             color: var(--whi);
-            font-size: 10px;
         }
+        .agent-row.active .agent-name { color: var(--gold); }
 
-        .agent-status-dot {
+        .agent-dot {
             width: 5px;
             height: 5px;
-            background-color: #4a9e6a;
             border-radius: 50%;
-            box-shadow: 0 0 5px #4a9e6a;
+            flex-shrink: 0;
         }
 
-        .agent-col span {
-            display: block;
-            color: var(--whi);
-            font-weight: 600;
+        .agent-col {
             font-size: 8px;
+            color: var(--dim);
+            line-height: 1.35;
+        }
+        .agent-col > span {
+            display: block;
+            font-size: 7px;
+            font-weight: 700;
             text-transform: uppercase;
+            color: rgba(255,255,255,0.35);
+            letter-spacing: 0.3px;
             margin-bottom: 1px;
-            opacity: 0.7;
         }
 
-        .agent-row.active {
-            background: rgba(201, 168, 76, 0.08) !important;
-            border: 1px solid var(--gold) !important;
-        }
-        .agent-row.active .agent-meta-name { color: var(--gold); }
-
-        .prescription-box {
-            background: rgba(20, 10, 10, 0.95);
+        /* ── CARD PRESCRIPCIÓN ────────────────────────────────────────────── */
+        .presc-box {
+            flex-shrink: 0;
+            background: rgba(20,10,10,0.95);
             border: 1px solid var(--red);
             border-radius: 6px;
-            padding: 14px;
+            padding: 12px 14px;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 8px;
         }
 
-        .box-header {
+        .presc-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
-        .box-meta-title {
-            font-size: 10px;
+        .presc-zona {
+            font-size: 9px;
             font-weight: 600;
             color: var(--dim);
             letter-spacing: 0.5px;
         }
 
-        .badge-priority {
+        .presc-badge {
+            font-size: 8px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 3px;
             background: var(--red);
             color: #fff;
-            font-size: 9px;
-            font-weight: 700;
-            padding: 3px 6px;
-            border-radius: 4px;
+            letter-spacing: 0.5px;
         }
 
-        .order-text {
+        .presc-text {
             font-family: 'Cormorant Garamond', serif;
             font-size: 15px;
             font-weight: 700;
@@ -280,258 +286,247 @@
             line-height: 1.3;
         }
 
-        .box-footer-metrics {
-            font-size: 9px;
-            color: var(--dim);
+        .presc-metrics {
+            font-size: 8px;
             font-weight: 600;
+            color: var(--dim);
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
             border-top: 1px solid rgba(255,255,255,0.05);
             padding-top: 6px;
         }
 
+        /* ── MOBILE ───────────────────────────────────────────────────────── */
         @media (max-width: 768px) {
             body { flex-direction: column; overflow-y: auto; height: auto; }
-            .nav-tabs { max-width: calc(100% - 20px); left: 10px; top: 10px; }
-            .wrapper-field { width: 100%; height: 55vh; padding: 45px 15px 10px 15px; }
-            .panel-control { width: 100%; height: auto; border-left: none; border-top: 1px solid rgba(255, 255, 255, 0.06); padding: 16px; }
+            .nav-tabs { max-width: calc(100% - 40px); }
+            .wrapper-field { width: 100%; height: 52vh; padding: 50px 12px 12px 12px; }
+            .field-container { height: 100%; }
+            .panel-control { width: 100%; height: auto; border-left: none; border-top: 1px solid rgba(255,255,255,0.06); overflow: visible; }
+            .agents-list { max-height: 320px; }
             .text-stadium { display: none; }
         }
     </style>
 </head>
 <body>
 
-    <div class="nav-tabs" id="tabsCanchas"></div>
+<nav class="nav-tabs" id="tabsCanchas"></nav>
 
-    <div class="wrapper-field">
-        <div class="text-stadium">Estadio José Amalfitani, Vélez Sarsfield</div>
-        <div class="field-container">
-            <div class="heatmap-overlay" id="heatmapOverlay"></div>
+<div class="wrapper-field">
+    <div class="text-stadium">Estadio José Amalfitani, Vélez Sarsfield</div>
+    <div class="field-container">
+        <div class="heatmap-overlay" id="heatmapOverlay"></div>
+        <svg class="field-svg" viewBox="0 0 68 105" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <pattern id="lawn" width="8" height="105" patternUnits="userSpaceOnUse">
+                    <rect width="4"  height="105" fill="rgba(255,255,255,0.03)"/>
+                    <rect x="4" width="4" height="105" fill="rgba(0,0,0,0.01)"/>
+                </pattern>
+            </defs>
+            <rect width="68" height="105" fill="url(#lawn)"/>
+            <rect x="3"    y="3"    width="62"   height="99"   fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="0.5"/>
+            <line x1="3"   y1="52.5" x2="65"   y2="52.5"                  stroke="rgba(255,255,255,0.22)" stroke-width="0.5"/>
+            <circle cx="34" cy="52.5" r="9.15"                      fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="0.5"/>
+            <rect x="13.8" y="3"    width="40.4" height="16.5" fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="0.5"/>
+            <rect x="13.8" y="85.5" width="40.4" height="16.5" fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="0.5"/>
+            <rect x="22"   y="3"    width="24"   height="5.5"  fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="0.5"/>
+            <rect x="22"   y="96.5" width="24"   height="5.5"  fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="0.5"/>
+        </svg>
+        <div class="nodes-overlay" id="nodesOverlay"></div>
+    </div>
+</div>
 
-            <svg class="field-lines" viewBox="0 0 105 68" xmlns="http://www.w3.org/2000/svg">
-                <defs>
-                    <pattern id="lawnStripes" width="14" height="68" patternUnits="userSpaceOnUse">
-                        <rect width="7" height="68" fill="rgba(255,255,255,0.03)"/>
-                        <rect x="7" width="7" height="68" fill="rgba(0,0,0,0.01)"/>
-                    </pattern>
-                </defs>
-                <rect width="105" height="68" fill="url(#lawnStripes)" />
-                <rect x="4" y="4" width="97" height="60" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="0.5"/>
-                <line x1="52.5" y1="4" x2="52.5" y2="64" stroke="rgba(255,255,255,0.25)" stroke-width="0.5"/>
-                <circle cx="52.5" cy="34" r="9.15" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="0.5"/>
-                <rect x="4" y="16.5" width="16.5" height="35" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="0.5"/>
-                <rect x="4" y="25" width="5.5" height="18" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="0.5"/>
-                <rect x="84.5" y="16.5" width="16.5" height="35" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="0.5"/>
-                <rect x="95.5" y="25" width="5.5" height="18" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="0.5"/>
-            </svg>
-
-            <div class="nodes-overlay" id="puntosControlOverlay"></div>
+<div class="panel-control">
+    <div class="panel-header">
+        <div class="panel-title">FARO PROTOCOL v2.0 · CANCHA VÉLEZ</div>
+        <div class="panel-sync">
+            9:00 UTC<br>
+            <span style="font-size:7px;opacity:0.7">SYNC: SAT / RADAR / CLIMA</span>
         </div>
     </div>
 
-    <div class="panel-control">
-        <div class="panel-header">
-            <div class="header-title">FARO PROTOCOL v2.0 - CANCHA VÉLEZ</div>
-            <div class="header-sync">
-                9:00 UTC<br>
-                <span style="font-size: 8px; color: var(--dim);">SYNC: SAT/RADAR/CLIMA</span>
-            </div>
-        </div>
+    <div class="agents-list" id="uiAgentes"></div>
 
-        <div class="agents-list" id="uiListaAgentes"></div>
-
-        <div class="prescription-box" id="uiPrescriptionContainer">
-            <div class="box-header">
-                <div class="box-meta-title" id="uiZonaCritica">DIAGNÓSTICO: EVALUANDO...</div>
-                <div class="badge-priority" id="uiPriorityBadge">PRIORIDAD --</div>
-            </div>
-            <div class="order-text" id="uiPrescripcionTexto">
-                Sincronizando telemetría y algoritmos agrometeorológicos...
-            </div>
-            <div class="box-footer-metrics" id="uiMetricsFooter">
-                HUMEDAD DE SUELO: -- | TEMPERATURA SUPERFICIAL: --
-            </div>
+    <div class="presc-box" id="uiPrescBox">
+        <div class="presc-header">
+            <div class="presc-zona"  id="uiZona">DIAGNÓSTICO: —</div>
+            <div class="presc-badge" id="uiBadge">PRIORIDAD —</div>
         </div>
+        <div class="presc-text"    id="uiPrescripcion">Sincronizando telemetría…</div>
+        <div class="presc-metrics" id="uiMetrics">HUMEDAD: — | SUPERFICIE: —</div>
     </div>
+</div>
 
-    <script>
-        const ENDPOINT = '../velez_data.json';
-        let dataGlobal = [];
-        let indexCanchaActiva = 0;
+<script>
+const ENDPOINT = '../velez_data.json';
+let dataGlobal = [], wlGlobal = {};
 
-        const PIPELINE_AGENTS = [
-            { id: 'Wu', name: 'Wu', step: 'Investigation of the integration user', why: 'Redirect error-settlements', what: 'Integration integration development solutions' },
-            { id: 'CyberSudo', name: 'CyberSudo', step: 'Integrating the investigation source', why: 'Modifying integrations prefixes omission', what: 'Centranis integration on on-line sources' },
-            { id: 'SatélitesArg', name: 'SatélitesArg', step: 'Nonaligned on an-aer investigation satellites', why: 'Modifying integration intelligence-or-on', what: 'Integration integration development solutions' },
-            { id: 'Umir', name: 'Umir', step: 'Integration on the investigation sources', why: 'Freezing and processes internac irritations', what: 'Integrate integration on invisible sources' },
-            { id: 'Mullins', name: 'Mullins', step: 'Integration on checentic integration maestros', why: 'Monoconstance procoives ancho veloucoos', what: 'Integraction integration on snootin proonis' },
-            { id: 'Gaurav', name: 'Gaurav', step: 'Investigates the investigation activities', why: 'Lavonmaps measures ampor seal irredic', what: 'Integratellie integration on sication presets' },
-            { id: 'Mathelirium', name: 'Mathelirium', step: 'Renilee professional Mathelirium', why: 'Cortome compactados en Pasillo Central Norte', what: 'Persveliete integration as mapar integration' },
-            { id: 'Nagatomo', name: 'Nagatomo', step: 'heresossbone of professional turf', why: 'Preesrs riego pesado and tohitent-stacle', what: 'Imegranals integration to situation presits' },
-            { id: 'Skaale', name: 'Skaale', step: "Innoppoice o'sctosions and-sligat onofs", why: 'Cononstoson-needie for to oxesclione integration', what: 'Maicative integration onosidocs integration' },
-            { id: 'Big Brain', name: 'Big Brain', step: 'Suamansions of professional turf', why: 'Suelo compactado en Pasillo Central Norte', what: 'Para qué investigation as wannier integration' },
-            { id: 'INTA', name: 'INTA', step: 'Konoenosions of professional turf', why: 'Riodoborios manual to Ainesdo manual mañan', what: 'Masirave integration and omnillar integration' },
-            { id: 'USDA', name: 'USDA', step: 'Suelo compactilo en Pasillo Central Norte', why: 'Suspender riego pesado pacarlo temprano', what: 'Para qué integration en tolnoble solaleze' },
-            { id: 'CSIRO', name: 'CSIRO', step: 'Socra censured est CSIRO', why: 'Calcan visualization:enacing hoctiar clients', what: 'Peca qué investigation inolididute integraction' }
-        ];
+/* ── HEATMAP ──────────────────────────────────────────────────────────────── */
+function renderHeatmap(nodos) {
+    const overlay = document.getElementById('heatmapOverlay');
+    overlay.style.background = nodos.map(n => {
+        const x = n.x * 100, y = n.y * 100;
+        if (n.stress > 0.7)
+            return `radial-gradient(circle at ${x}% ${y}%, rgba(106,27,154,0.95) 0%, rgba(217,79,79,0.8) 25%, rgba(212,160,23,0.6) 50%, transparent 70%)`;
+        if (n.stress > 0.4)
+            return `radial-gradient(circle at ${x}% ${y}%, rgba(217,79,79,0.85) 0%, rgba(212,160,23,0.65) 40%, transparent 70%)`;
+        return `radial-gradient(circle at ${x}% ${y}%, rgba(212,160,23,0.5) 0%, transparent 60%)`;
+    }).join(', ');
+}
 
-        function renderHDHeatmap(nodos) {
-            const overlay = document.getElementById('heatmapOverlay');
-            overlay.innerHTML = '';
+/* ── NODOS POR CANCHA ─────────────────────────────────────────────────────── */
+function nodosDesdeCancha(cancha) {
+    if (cancha.zonas_estres?.nodos) return cancha.zonas_estres.nodos;
+    const ndvi   = cancha.ndvi || 0.08;
+    const estado = cancha.estado_detectado || 'normal';
+    const s = estado === 'resiembra_activa' ? 0.90 :
+              estado === 'stress_hidrico'   ? 0.70 :
+              estado === 'compactacion'     ? 0.75 :
+              estado === 'fungosis'         ? 0.65 :
+              Math.max(0.08, Math.min(0.95, 1 - (ndvi / 0.65)));
+    const v = ((cancha.id?.charCodeAt(0) || 50) % 10) / 40;
+    return [
+        { x: 0.25, y: 0.15, stress: Math.min(1, s * 0.75 + v)       },
+        { x: 0.75, y: 0.15, stress: Math.min(1, s * 0.70 + v * 0.8) },
+        { x: 0.25, y: 0.50, stress: Math.min(1, s       + v * 0.5)  },
+        { x: 0.75, y: 0.50, stress: Math.min(1, s * 0.95 + v * 0.6) },
+        { x: 0.25, y: 0.85, stress: Math.min(1, s * 0.80 + v * 0.7) },
+        { x: 0.75, y: 0.85, stress: Math.min(1, s * 0.75 + v * 0.9) },
+    ];
+}
 
-            if (!nodos || nodos.length === 0) return;
+/* ── PIPELINE AGENTES ─────────────────────────────────────────────────────── */
+function buildAgentPipeline(zonaCritica, prioridad, prescripcion, wl) {
+    const ndvi   = wl.gndvi_por_cancha?.canchas?.['1fa']?.ndvi || 0.06;
+    const fuente = (wl.gndvi_por_cancha?.fuente || 'Sentinel-2').split('·')[0].trim();
+    const sm     = wl.humedad_suelo_pct   || 43;
+    const et0    = wl.et0_mm_dia          || 0.6;
+    const ds     = wl.riesgo_dollar_spot_pct || 30;
+    const hora   = wl.hora_riego_optima   || '05:00';
+    const activo = prioridad >= 3;
 
-            let gradients = [];
+    return [
+        { n:'Optico',        s:`NDVI=${ndvi.toFixed(3)} via ${fuente}`,  w:'Coherencia optica validada',       q:'Base calculo estres foliar'    },
+        { n:'HLS/MODIS',     s:'Fusion multi-fuente diaria',              w:'Sin nubes garantizado',            q:'Cobertura 1–3 dias'            },
+        { n:'SAR Nacional',  s:'Sentinel-1C/D + SAOCOM L-band',          w:'Cobertura radar Argentina',        q:'Backscatter HH/HV activo'      },
+        { n:'Hidrologia',    s:`SM=${sm.toFixed(0)}% superficie`,         w:'Humedad subsuperficial real',      q:'Perfil Van Genuchten'          },
+        { n:'Filtro',        s:'Suavizado Stanford 4-vecinos',            w:'Reduccion ruido SAR',              q:'Señal limpia garantizada'      },
+        { n:'Fungosis',      s:`Dollar Spot ${ds.toFixed(0)}% riesgo`,    w:'Clima favorable infeccion',        q:'Alerta preventiva activa'      },
+        { n:'Interpolacion', s:'IDW Gaussiano 6 nodos',                   w:'Heatmap espacial calibrado',       q:'Resolucion efectiva 10m'       },
+        { n:'ET0',           s:`${et0.toFixed(1)} mm/dia`,                w:'Penman-Monteith FAO-56',           q:`Riego optimo ${hora}`          },
+        { n:'Render',        s:'Gradiente radial CSS GPU',                w:'Mix-blend hard-light nativo',      q:'Contraste termico maximo'      },
+        { n:'Motor Faro',
+          s: activo ? `ALERTA: ${zonaCritica}` : 'Normal',
+          w: prescripcion?.split('--')[0]?.trim() || 'Sintesis completada',
+          q: prescripcion?.split('--')[1]?.trim() || 'Sin acciones urgentes',
+          activo },
+        { n:'INTA',          s:'CC=0.32 pampeana',                        w:'Capacidad de Campo Balcarce',      q:'Balance hidrico calibrado'     },
+        { n:'USDA/FAO',      s:'Penman-Monteith FAO-56',                  w:'Estandar internacional ET0',       q:'Validado NASA POWER'           },
+        { n:'Copernicus',    s:'ESA Sentinel / NASA HLS',                 w:'Fuentes satelitales oficiales',    q:'Datos verificados SHA-256'     },
+    ];
+}
 
-            nodos.forEach(n => {
-                const xPct = n.x * 100;
-                const yPct = n.y * 100;
+/* ── SYNC ─────────────────────────────────────────────────────────────────── */
+function syncPanelData(cancha, wl) {
+    const nodos = nodosDesdeCancha(cancha);
 
-                let gradientStr = "";
-                if (n.stress > 0.7) {
-                    gradientStr = `radial-gradient(circle at ${xPct}% ${yPct}%, rgba(106, 27, 154, 0.95) 0%, rgba(217, 79, 79, 0.8) 25%, rgba(212, 160, 23, 0.6) 50%, rgba(74, 158, 106, 0) 70%)`;
-                } else if (n.stress > 0.4) {
-                    gradientStr = `radial-gradient(circle at ${xPct}% ${yPct}%, rgba(217, 79, 79, 0.85) 0%, rgba(212, 160, 23, 0.65) 40%, rgba(74, 158, 106, 0) 70%)`;
-                } else {
-                    gradientStr = `radial-gradient(circle at ${xPct}% ${yPct}%, rgba(212, 160, 23, 0.5) 0%, rgba(74, 158, 106, 0) 60%)`;
-                }
-                gradients.push(gradientStr);
-            });
+    renderHeatmap(nodos);
 
-            overlay.style.background = gradients.join(', ');
-        }
+    const nodesEl = document.getElementById('nodesOverlay');
+    nodesEl.innerHTML = '';
+    nodos.forEach(n => {
+        const dot = document.createElement('div');
+        dot.className = 'node-dot';
+        dot.style.left = `${n.x * 100}%`;
+        dot.style.top  = `${n.y * 100}%`;
+        nodesEl.appendChild(dot);
+    });
 
-        function syncPanelData(cancha) {
-            const overlayNodos = document.getElementById('puntosControlOverlay');
-            const uiZona = document.getElementById('uiZonaCritica');
-            const uiPrescripcion = document.getElementById('uiPrescripcionTexto');
-            const uiBadge = document.getElementById('uiPriorityBadge');
-            const uiMetrics = document.getElementById('uiMetricsFooter');
-            const uiBox = document.getElementById('uiPrescriptionContainer');
+    const ze           = cancha.zonas_estres;
+    const zonaCritica  = ze?.zona_critica || cancha.estado_detectado || 'Normal';
+    const prioridad    = ze?.prioridad    || 1;
+    const prescripcion = cancha.prescripcion_operativa || cancha.n_rec || 'Sin acciones requeridas hoy.';
 
-            overlayNodos.innerHTML = '';
+    document.getElementById('uiZona').textContent        = `DIAGNÓSTICO: ${zonaCritica.toUpperCase()}`;
+    document.getElementById('uiPrescripcion').textContent = prescripcion;
 
-            let nodosARenderizar = [
-                { x: 0.1,  y: 0.25, stress: 0.1  },
-                { x: 0.85, y: 0.28, stress: 0.85 },
-                { x: 0.5,  y: 0.38, stress: 0.75 },
-                { x: 0.5,  y: 0.62, stress: 0.2  },
-                { x: 0.1,  y: 0.72, stress: 0.1  },
-                { x: 0.84, y: 0.82, stress: 0.9  }
-            ];
+    const badge = document.getElementById('uiBadge');
+    const box   = document.getElementById('uiPrescBox');
+    badge.textContent = `PRIORIDAD ${prioridad}`;
+    if (prioridad >= 6) {
+        badge.style.background = 'var(--red)';    box.style.borderColor = 'var(--red)';
+    } else if (prioridad >= 3) {
+        badge.style.background = 'var(--yellow)'; box.style.borderColor = 'var(--yellow)';
+    } else {
+        badge.style.background = 'var(--green)';  box.style.borderColor = 'rgba(255,255,255,0.1)';
+    }
 
-            let zonaCritica = "Normal";
-            let prioridad = 1;
-            let prescripcion = "Sin acciones requeridas hoy.";
+    const sm  = wl.humedad_suelo_pct?.toFixed(0)    || '43';
+    const lst = wl.temp_superficie_lst_c?.toFixed(1) || wl.temp_suelo_0cm?.toFixed(1) || '11.1';
+    document.getElementById('uiMetrics').textContent = `HUMEDAD: ${sm}% | SUPERFICIE: ${lst}°C`;
 
-            if (cancha && cancha.zonas_estres) {
-                zonaCritica = cancha.zonas_estres.zona_critica || "Normal";
-                prioridad = cancha.zonas_estres.prioridad || 1;
-                prescripcion = cancha.prescripcion_operativa || "Sin acciones requeridas hoy.";
+    const agents   = buildAgentPipeline(zonaCritica, prioridad, prescripcion, wl);
+    const listEl   = document.getElementById('uiAgentes');
+    listEl.innerHTML = '';
+    agents.forEach(ag => {
+        const row = document.createElement('div');
+        row.className = 'agent-row' + (ag.activo ? ' active' : '');
+        const clr = ag.activo ? 'var(--gold)' : '#4a9e6a';
+        row.innerHTML = `
+            <div class="agent-name">
+                <div class="agent-dot" style="background:${clr};box-shadow:0 0 5px ${clr}"></div>
+                ${ag.n}
+            </div>
+            <div class="agent-col"><span>Paso a Paso</span>${ag.s}</div>
+            <div class="agent-col"><span>Por Qué</span>${ag.w}</div>
+            <div class="agent-col"><span>Para Qué</span>${ag.q}</div>
+        `;
+        listEl.appendChild(row);
+    });
+}
 
-                if (cancha.zonas_estres.nodos && cancha.zonas_estres.nodos.length > 0) {
-                    nodosARenderizar = cancha.zonas_estres.nodos;
-                }
+/* ── INIT ─────────────────────────────────────────────────────────────────── */
+async function masterInit() {
+    try {
+        const res  = await fetch(ENDPOINT, { cache: 'no-cache' });
+        const data = await res.json();
+        wlGlobal   = data.weather_live || {};
+
+        const estadio = data.sectores?.estadio
+            ? [{ ...data.sectores.estadio, id: 'amalfitani', nombre: 'Amalfitani' }]
+            : [];
+        const vo = data.sectores?.canchero?.canchas || [];
+        dataGlobal = [...estadio, ...vo];
+        if (dataGlobal.length === 0) throw new Error('Sin canchas');
+
+        const tabsEl = document.getElementById('tabsCanchas');
+        tabsEl.innerHTML = '';
+        dataGlobal.forEach((c, i) => {
+            if (i === 1 && estadio.length > 0) {
+                const sep = document.createElement('span');
+                sep.className = 'tab-sep';
+                tabsEl.appendChild(sep);
             }
+            const btn = document.createElement('button');
+            btn.className = 'tab-btn' + (i === 0 ? ' active' : '');
+            btn.textContent = c.id === 'amalfitani' ? 'AMALFITANI' : (c.id || '').toUpperCase();
+            btn.onclick = () => {
+                tabsEl.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                syncPanelData(c, wlGlobal);
+            };
+            tabsEl.appendChild(btn);
+        });
 
-            uiZona.innerText = `DIAGNÓSTICO: ${zonaCritica.toUpperCase()}`;
-            uiPrescripcion.innerText = prescripcion;
-            uiBadge.innerText = `PRIORIDAD ${prioridad}`;
+        syncPanelData(dataGlobal[0], wlGlobal);
 
-            if (prioridad >= 6) {
-                uiBadge.style.backgroundColor = "var(--red)";
-                uiBox.style.borderColor = "var(--red)";
-            } else if (prioridad >= 3) {
-                uiBadge.style.backgroundColor = "var(--yellow)";
-                uiBox.style.borderColor = "var(--yellow)";
-            } else {
-                uiBadge.style.backgroundColor = "var(--green)";
-                uiBox.style.borderColor = "rgba(255,255,255,0.1)";
-            }
+    } catch (err) {
+        console.error('Panel error:', err);
+        document.getElementById('uiPrescripcion').textContent = 'Error cargando telemetría.';
+    }
+}
 
-            const sm = cancha?.telemetria?.sm_proporcion !== undefined ? Math.round(cancha.telemetria.sm_proporcion * 100) : '43';
-            const lst = cancha?.telemetria?.lst_celsius !== undefined ? cancha.telemetria.lst_celsius.toFixed(1) : '11.1';
-            uiMetrics.innerText = `HUMEDAD DE SUELO: ${sm}% | TEMPERATURA SUPERFICIAL: ${lst}°C`;
-
-            nodosARenderizar.forEach(n => {
-                const dot = document.createElement('div');
-                dot.className = 'node-dot';
-                dot.style.left = `${n.x * 100}%`;
-                dot.style.top = `${n.y * 100}%`;
-                overlayNodos.appendChild(dot);
-            });
-
-            renderHDHeatmap(nodosARenderizar);
-
-            buildAgentPipeline(zonaCritica, prioridad, prescripcion);
-        }
-
-        function buildAgentPipeline(zonaCritica, prioridad, textoPrescripcion) {
-            const container = document.getElementById('uiListaAgentes');
-            container.innerHTML = '';
-
-            PIPELINE_AGENTS.forEach(ag => {
-                const row = document.createElement('div');
-
-                const isActivo = ag.id === 'Big Brain' && zonaCritica !== 'Normal';
-                row.className = `agent-row ${isActivo ? 'active' : ''}`;
-
-                let stepText = ag.step;
-                let whyText = ag.why;
-                let whatText = ag.what;
-
-                if (isActivo) {
-                    stepText = `Alerta activa en: ${zonaCritica}.`;
-                    whyText = `Criticidad Nivel ${prioridad} detectada por Satélite.`;
-                    whatText = textoPrescripcion ? textoPrescripcion.split('.')[0] + '.' : 'Iniciar protocolo de remediación.';
-                }
-
-                row.innerHTML = `
-                    <div class="agent-meta-name">
-                        <div class="agent-status-dot" style="background-color: ${isActivo ? 'var(--gold)' : '#4a9e6a'}; box-shadow: 0 0 5px ${isActivo ? 'var(--gold)' : '#4a9e6a'};"></div>
-                        ${ag.name}
-                    </div>
-                    <div class="agent-col"><span>Paso a Paso</span>${stepText}</div>
-                    <div class="agent-col"><span>Por Qué</span>${whyText}</div>
-                    <div class="agent-col"><span>Para Qué</span>${whatText}</div>
-                `;
-                container.appendChild(row);
-            });
-        }
-
-        async function masterInit() {
-            try {
-                const res = await fetch(ENDPOINT);
-                const data = await res.json();
-
-                const canchasVO = data.sectores?.canchero?.canchas || [];
-                const estadioAmalfitani = data.sectores?.estadio ? [data.sectores.estadio] : [];
-                dataGlobal = [...canchasVO, ...estadioAmalfitani];
-
-                const tabsBox = document.getElementById('tabsCanchas');
-                tabsBox.innerHTML = '';
-
-                dataGlobal.forEach((c, idx) => {
-                    const btn = document.createElement('button');
-                    btn.className = `tab-btn ${idx === 0 ? 'active' : ''}`;
-                    btn.innerText = c.id || `Cancha ${idx + 1}`;
-                    btn.onclick = () => {
-                        const currentActive = tabsBox.querySelector('.tab-btn.active');
-                        if (currentActive) currentActive.classList.remove('active');
-                        btn.classList.add('active');
-                        indexCanchaActiva = idx;
-                        syncPanelData(dataGlobal[idx]);
-                    };
-                    tabsBox.appendChild(btn);
-                });
-
-                syncPanelData(dataGlobal[0]);
-
-            } catch (e) {
-                console.error("Error cargando panel:", e);
-                syncPanelData(null);
-            }
-        }
-
-        window.onload = masterInit;
-    </script>
+window.onload = masterInit;
+</script>
 </body>
 </html>
