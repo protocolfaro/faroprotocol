@@ -446,7 +446,7 @@ async def _fetch_all_async() -> dict:
 
 _GH_API   = "https://api.github.com"
 _OWNER    = "protocolfaro"
-_REPO     = "faro-paneles"
+_REPO     = "faroprotocol"
 _BRANCH   = "main"
 _VD_PATH  = "velez/velez_data.json"
 _CFG_PATH = "velez/config_velez.json"
