@@ -267,7 +267,9 @@ def _smtp_send_ipv4(host: str, port: int, user: str, password: str,
     _sock.getaddrinfo = _ipv4_only
     try:
         ctx = ssl.create_default_context()
-        with smtplib.SMTP_SSL(host, port, timeout=timeout, context=ctx) as server:
+        with smtplib.SMTP(host, port, timeout=timeout) as server:
+            server.ehlo()
+            server.starttls(context=ctx)
             server.login(user, password)
             server.sendmail(user, recipients, msg_str)
     finally:
@@ -297,7 +299,7 @@ def send_email(to: str, subject: str, body_html: str,
             encoders.encode_base64(part)
             part.add_header("Content-Disposition", f'attachment; filename="{fn}"')
             msg.attach(part)
-        _smtp_send_ipv4("smtp.gmail.com", 465, GMAIL_USER, GMAIL_PASS,
+        _smtp_send_ipv4("smtp.gmail.com", 587, GMAIL_USER, GMAIL_PASS,
                         recipients, msg.as_string())
         log.info("SMTP enviado a %s: %s", recipients, subject)
         return True
@@ -1834,17 +1836,27 @@ def route_test_email():
     results = {}
     target_email  = data.get("email")
     target_nombre = data.get("nombre")
+    attach_png    = data.get("attach_png", False)
     dest = config.get("destinatarios", [])
     if target_email or target_nombre:
         dest = [d for d in dest if
                 (target_email and d.get("email") == target_email) or
                 (target_nombre and d.get("nombre") == target_nombre)]
+    attachments = []
+    if attach_png:
+        png_path = Path(__file__).parents[4] / "reportes_velez" / "faro_reporte_velez_canchero.png"
+        if png_path.exists():
+            attachments = [("faro_reporte_velez_canchero.png", png_path.read_bytes())]
+            log.info("test_email: adjuntando %s (%dKB)", png_path.name, len(attachments[0][1]) // 1024)
+        else:
+            log.warning("test_email: PNG no encontrado en %s", png_path)
     for d in dest:
         nombre = d.get("nombre", ""); email = d.get("email", "")
         if not nombre or not email:
             continue
         ok = send_email(email, f"TEST · Faro Protocol · {now_str}",
-                        _html_wrap("TEST", f"<p>{nombre} — email de prueba desde Railway.</p>"))
+                        _html_wrap("TEST", f"<p>{nombre} — email de prueba desde Railway.</p>"),
+                        attachments or None)
         results[nombre] = ok
     smtp_configured = bool(GMAIL_PASS)
     return jsonify({
@@ -1852,6 +1864,7 @@ def route_test_email():
         "smtp_configured":  smtp_configured,
         "gmail_user":       GMAIL_USER,
         "destinatarios_n":  len(config.get("destinatarios", [])),
+        "png_adjunto":      bool(attachments),
         "results":          results,
     })
 
