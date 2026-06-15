@@ -572,6 +572,36 @@ def push_weather_update(weather_live: dict) -> str:
         _cid = _c.get("id")
         if _cid and _hm.get(_cid, {}).get("estado_detectado") and not _c.get("estado_detectado"):
             _c["estado_detectado"] = _hm[_cid]["estado_detectado"]
+    # Fallback: synthetic zonas_estres from estado_detectado + ndvi if temporal eye didn't produce it
+    for _cid, _hme in _hm.items():
+        if not isinstance(_hme, dict) or _hme.get("zonas_estres"):
+            continue
+        _ndvi_fb = float(_hme.get("ndvi") or 0.5)
+        _est_fb  = _hme.get("estado_detectado", "normal")
+        _base = (0.85 if _est_fb == "resiembra_activa" else
+                 0.65 if _est_fb == "stress_hidrico"   else
+                 0.70 if _est_fb == "compactacion"      else
+                 0.60 if _est_fb == "fungosis"          else
+                 max(0.1, 1.0 - _ndvi_fb / 0.65))
+        _hme["zonas_estres"] = {
+            "nodos": [
+                {"x": 0.25, "y": 0.15, "stress": round(_base * 0.70, 4), "zona": "Banda Izquierda Norte"},
+                {"x": 0.75, "y": 0.15, "stress": round(_base * 0.65, 4), "zona": "Banda Derecha Norte"},
+                {"x": 0.25, "y": 0.50, "stress": round(_base,        4), "zona": "Pasillo Central Norte"},
+                {"x": 0.75, "y": 0.50, "stress": round(_base * 0.95, 4), "zona": "Pasillo Central Sur"},
+                {"x": 0.25, "y": 0.85, "stress": round(_base * 0.75, 4), "zona": "Banda Izquierda Sur"},
+                {"x": 0.75, "y": 0.85, "stress": round(_base * 0.70, 4), "zona": "Banda Derecha Sur"},
+            ],
+            "zona_critica": "Pasillo Central" if _base > 0.60 else "Normal",
+            "prioridad":    5 if _base > 0.60 else 1,
+            "stress_max":   round(_base, 4),
+            "fuente":       "synthetic-fallback",
+        }
+    # Mirror zonas_estres to canchas list
+    for _c in (cfg.get("sectores", {}).get("canchero", {}).get("canchas", []) or []):
+        _cid = _c.get("id")
+        if _cid and _hm.get(_cid, {}).get("zonas_estres") and not _c.get("zonas_estres"):
+            _c["zonas_estres"] = _hm[_cid]["zonas_estres"]
 
     payload = {
         "message": f"data refresh: weather+physics [{ts}]",
