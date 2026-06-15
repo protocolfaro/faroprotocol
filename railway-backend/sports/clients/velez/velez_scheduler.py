@@ -1789,47 +1789,20 @@ def route_smtp_diag():
 
 
 def route_test_email():
-    from flask import request, jsonify
-    data    = request.get_json(silent=True, force=True) or {}
-    config  = load_config()
-    now_str = datetime.now(_ART).strftime("%d/%m/%Y %H:%M")
-    results = {}
-    target_email  = data.get("email")
-    target_nombre = data.get("nombre")
-    attach_png    = data.get("attach_png", False)
-    dest = config.get("destinatarios", [])
-    if target_email or target_nombre:
-        dest = [d for d in dest if
-                (target_email and d.get("email") == target_email) or
-                (target_nombre and d.get("nombre") == target_nombre)]
-    # Si target_email no está en destinatarios, enviar directo sin filtrar
-    if target_email and not dest:
-        dest = [{"nombre": target_nombre or target_email.split("@")[0], "email": target_email}]
-    attachments = []
-    if attach_png:
-        png_path = Path(__file__).parents[4] / "reportes_velez" / "faro_reporte_velez_canchero.png"
-        if png_path.exists():
-            attachments = [("faro_reporte_velez_canchero.png", png_path.read_bytes())]
-            log.info("test_email: adjuntando %s (%dKB)", png_path.name, len(attachments[0][1]) // 1024)
-        else:
-            log.warning("test_email: PNG no encontrado en %s", png_path)
-    for d in dest:
-        nombre = d.get("nombre", ""); email = d.get("email", "")
-        if not nombre or not email:
-            continue
-        ok = send_email(email, f"TEST · Faro Protocol · {now_str}",
-                        _html_wrap("TEST", f"<p>{nombre} — email de prueba desde Railway.</p>"),
-                        attachments or None)
-        results[nombre] = ok
-    smtp_configured = bool(GMAIL_PASS)
-    return jsonify({
-        "status":           "ok" if results and all(results.values()) else ("partial" if any(results.values()) else "fail"),
-        "smtp_configured":  smtp_configured,
-        "gmail_user":       GMAIL_USER,
-        "destinatarios_n":  len(config.get("destinatarios", [])),
-        "png_adjunto":      bool(attachments),
-        "results":          results,
-    })
+    from flask import jsonify
+    log.info("test_email: iniciando envío a protocolfaro@gmail.com")
+    try:
+        ok = send_email(
+            to="protocolfaro@gmail.com",
+            subject="Faro Protocol — Test SMTP",
+            body_html="<h2>Test OK</h2><p>El sistema de emails funciona correctamente.</p>",
+            attachments=None,
+        )
+        log.info("test_email: send_email returned %s", ok)
+        return jsonify({"ok": ok, "to": "protocolfaro@gmail.com"})
+    except Exception as e:
+        log.error("test_email: excepción — %s", e)
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 
 if __name__ == "__main__":
