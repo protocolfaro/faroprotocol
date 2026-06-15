@@ -93,7 +93,7 @@ def sin_dato_panel(ax, titulo):
     ax.set_facecolor(BG2); ax.set_xlim(0,1); ax.set_ylim(0,1); ax.axis('off')
     ax.add_patch(mpatches.Rectangle((0,0.93),1,0.07,
         transform=ax.transAxes,facecolor=BG3,edgecolor='none'))
-    ax.axhline(0.93, color=GOLD+'55', linewidth=1.5, transform=ax.transAxes)
+    ax.axhline(0.93, color=GOLD+'55', linewidth=1.5)
     ax.text(0.5, 0.963, titulo,
         transform=ax.transAxes, color=GOLD+'99', fontsize=11, fontweight='bold',
         ha='center', va='center', fontfamily='monospace')

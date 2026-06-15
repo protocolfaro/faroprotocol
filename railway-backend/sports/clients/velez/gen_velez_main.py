@@ -95,9 +95,12 @@ if _vd_path:
         if isinstance(_solar.get("score"), (int, float)):
             SOLAR["eff_pct"]   = float(_solar["score"])
             SOLAR["kwh_week"]  = int(120.0 * _solar["score"] / 100 * 7 * 5)
-            SOLAR["fallas"]    = 13
-            SOLAR["atencion"]  = 22
-            SOLAR["ok"]        = 210 - 13 - 22
+            import re as _re
+            _det = _solar.get("detalle", "")
+            _m   = _re.search(r'(\d+)\s*panel', _det)
+            SOLAR["fallas"]   = int(_m.group(1)) if _m else 0
+            SOLAR["atencion"] = _solar.get("atencion", 0)
+            SOLAR["ok"]       = 210 - SOLAR["fallas"] - SOLAR["atencion"]
     except Exception as _e:
         print(f"FARO_VD_PATH main: {_e} — usando datos hardcodeados")
 _out_path = _os.environ.get("FARO_OUT_PATH")
@@ -145,14 +148,18 @@ aten = sum(1 for z in ZONES if z['sem'] == 'amarillo')
 score_color = REDL if crit > 0 else (YELL if aten > 1 else GRNL)
 score_val = 100 - crit*25 - aten*8
 
+_trib_max = max(TRIBUNAS, key=lambda t: t.get('insar', 0)) if TRIBUNAS else {'name':'---','insar':0,'nivel':'verde'}
+_zone_min = min(ZONES, key=lambda z: z.get('score', 100)) if ZONES else {'name':'---','score':50}
+_trib_col = REDL if _trib_max.get('nivel') == 'rojo' else YELL
+_zone_col = REDL if _zone_min.get('score', 100) < 30 else YELL
 kpis = [
     ('SCORE PREDIO', f'{score_val}/100',  score_color),
     ('ZONAS CRÍTICAS', str(crit),          REDL if crit else GRNL),
     ('ZONAS ATENCIÓN', str(aten),          YELL if aten else GRNL),
     ('SOLAR EFIC.',   f'{SOLAR["eff_pct"]}%', YELL),
     ('PRODUCCIÓN',    f'{SOLAR["kwh_week"]:,}\nkWh/sem', GRNL),
-    ('TRIBUNA ALERTA','OESTE\n2.80 mm',   REDL),
-    ('PRÓX. ACCIÓN',  'HOY\nCancha 4',    REDL),
+    ('TRIBUNA ALERTA', f"{_trib_max['name'].upper()}\n{_trib_max.get('insar',0):.2f} mm", _trib_col),
+    ('PRÓX. ACCIÓN',   f"{'HOY' if _zone_min.get('score',100)<30 else 'SEMANA'}\n{_zone_min['name']}", _zone_col),
 ]
 for i, (lbl, val, col) in enumerate(kpis):
     xi = (i + 0.5) / len(kpis)
