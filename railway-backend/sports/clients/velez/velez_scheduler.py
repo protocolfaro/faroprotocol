@@ -29,7 +29,6 @@ _PNG_BASE_URL  = "https://raw.githubusercontent.com/protocolfaro/faro-paneles/ma
 
 GMAIL_USER   = os.environ.get("GMAIL_USER", "protocolfaro@gmail.com")
 GMAIL_PASS   = os.environ.get("GMAIL_APP_PASS", "")
-BREVO_KEY    = os.environ.get("BREVO_API_KEY", "")
 
 _MANUAL_DIR  = Path(__file__).parents[4] / "reportes_velez"
 MANUAL_PATHS: dict = {
@@ -222,41 +221,6 @@ def _get_report_paths(config: dict) -> dict:
     }
 
 
-def _send_via_brevo(to: str, subject: str, body_html: str,
-                    attachments: list = None) -> bool:
-    """Send via Brevo SMTP API (HTTPS/443 — not blocked by Railway).
-    attachments: list of (filename, bytes) tuples.
-    """
-    if not BREVO_KEY:
-        return False
-    payload = {
-        "sender":      {"name": "Faro Protocol", "email": GMAIL_USER},
-        "to":          [{"email": to}],
-        "subject":     subject,
-        "htmlContent": body_html,
-    }
-    if attachments:
-        payload["attachment"] = [
-            {"name": fn, "content": base64.b64encode(data).decode("ascii")}
-            for fn, data in attachments
-        ]
-    try:
-        resp = requests.post(
-            "https://api.brevo.com/v3/smtp/email",
-            headers={"api-key": BREVO_KEY, "Content-Type": "application/json"},
-            json=payload,
-            timeout=30,
-        )
-        if resp.status_code in (200, 201):
-            log.info("Brevo OK -> %s: %s", to, subject)
-            return True
-        log.error("Brevo HTTP %s -> %s: %s", resp.status_code, to, resp.text[:200])
-        return False
-    except Exception as e:
-        log.error("Brevo exception -> %s: %s", to, e)
-        return False
-
-
 def _smtp_send_ipv4(host: str, port: int, user: str, password: str,
                     recipients: list, msg_str: str, timeout: int = 30) -> None:
     """Connect to SMTP forcing IPv4 (fallback when Resend not configured)."""
@@ -278,13 +242,9 @@ def _smtp_send_ipv4(host: str, port: int, user: str, password: str,
 
 def send_email(to: str, subject: str, body_html: str,
                attachments: list = None) -> bool:
-    """Send email. attachments: list of (filename, bytes) tuples."""
-    # Primary: Brevo SMTP API (HTTPS/443 — works on Railway)
-    if BREVO_KEY:
-        return _send_via_brevo(to, subject, body_html, attachments)
-    # Fallback: direct Gmail SMTP (may be blocked by cloud providers)
+    """Send email via Gmail SMTP 587 TLS. attachments: list of (filename, bytes) tuples."""
     if not GMAIL_PASS:
-        log.warning("Email sin configurar: BREVO_API_KEY y GMAIL_APP_PASS ambos vacíos")
+        log.warning("GMAIL_APP_PASS no configurada — email no enviado")
         return False
     try:
         recipients = [r.strip() for r in to.split(",") if r.strip()]
@@ -301,10 +261,10 @@ def send_email(to: str, subject: str, body_html: str,
             msg.attach(part)
         _smtp_send_ipv4("smtp.gmail.com", 587, GMAIL_USER, GMAIL_PASS,
                         recipients, msg.as_string())
-        log.info("SMTP enviado a %s: %s", recipients, subject)
+        log.info("Email enviado a %s: %s", recipients, subject)
         return True
     except Exception as e:
-        log.error("SMTP falló a %s: %s", to, e)
+        log.error("Email falló a %s: %s", to, e)
         return False
 
 
