@@ -1842,6 +1842,9 @@ def route_test_email():
         dest = [d for d in dest if
                 (target_email and d.get("email") == target_email) or
                 (target_nombre and d.get("nombre") == target_nombre)]
+    # Si target_email no está en destinatarios, enviar directo sin filtrar
+    if target_email and not dest:
+        dest = [{"nombre": target_nombre or target_email.split("@")[0], "email": target_email}]
     attachments = []
     if attach_png:
         png_path = Path(__file__).parents[4] / "reportes_velez" / "faro_reporte_velez_canchero.png"
