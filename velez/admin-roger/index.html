@@ -3,19 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Faro &middot; Velez</title>
+    <title>Faro Protocol v2.0 - Cancha Vélez</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&family=Epilogue:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&family=Epilogue:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg:     #07090c;
-            --gold:   #c9a84c;
-            --whi:    #f0ece4;
-            --dim:    #8a8580;
-            --red:    #d94f4f;
+            --bg: #07090c;
+            --gold: #c9a84c;
+            --whi: #f0ece4;
+            --dim: #8a8580;
+            --red: #d94f4f;
             --yellow: #d4a017;
-            --green:  #4a9e6a;
+            --green: #4a9e6a;
+            --card-bg: rgba(10, 14, 20, 0.97);
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -24,38 +25,40 @@
             background-color: var(--bg);
             color: var(--whi);
             font-family: 'Epilogue', sans-serif;
+            width: 100vw;
             height: 100vh;
+            min-height: 100vh;
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
             overflow: hidden;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.02'/%3E%3C/svg%3E");
         }
 
-        /* TABS */
-        .tabs-container {
-            flex-shrink: 0;
-            width: 100%;
+        /* TABS SUPERIORES NATIVOS */
+        .nav-tabs {
+            position: absolute;
+            top: 15px;
+            left: 20px;
+            z-index: 100;
+            display: flex;
+            gap: 6px;
             overflow-x: auto;
+            max-width: calc(55% - 40px);
             white-space: nowrap;
-            background: rgba(25,30,38,.5);
-            border-bottom: 1px solid rgba(255,255,255,.05);
-            padding: 10px 8px;
-            -webkit-overflow-scrolling: touch;
         }
-        .tabs-container::-webkit-scrollbar { display: none; }
+        .nav-tabs::-webkit-scrollbar { display: none; }
 
         .tab-btn {
-            display: inline-block;
-            padding: 7px 14px;
-            margin-right: 6px;
-            background: transparent;
-            border: 1px solid rgba(255,255,255,.1);
+            background: rgba(25, 30, 38, 0.6);
+            border: 1px solid rgba(255,255,255,0.08);
             color: var(--dim);
-            border-radius: 20px;
-            font-size: 11px;
+            padding: 5px 10px;
+            border-radius: 12px;
+            font-size: 10px;
             font-weight: 600;
             cursor: pointer;
-            transition: all .2s;
             font-family: 'Epilogue', sans-serif;
+            transition: all 0.2s ease;
         }
         .tab-btn.active {
             background: var(--gold);
@@ -63,354 +66,472 @@
             border-color: var(--gold);
         }
 
-        /* LAYOUT PRINCIPAL — mobile: columna, desktop: fila */
-        .main-layout {
-            flex: 1;
-            min-height: 0;
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* HEATMAP */
-        .viewport-map {
-            flex: 0 0 48vh;
+        /* CONTENEDOR DE CAMPO (55% IZQUIERDO) */
+        .wrapper-field {
+            width: 55%;
+            height: 100%;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 12px 16px;
+            position: relative;
+            padding: 50px 30px 30px 60px;
         }
 
-        .canvas-container {
+        .text-stadium {
+            position: absolute;
+            left: 25px;
+            bottom: 40px;
+            transform: rotate(-90deg);
+            transform-origin: left bottom;
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.25);
+            white-space: nowrap;
+            letter-spacing: 1px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .field-container {
             position: relative;
             width: 100%;
-            max-width: 480px;
             aspect-ratio: 105 / 68;
-            background: #09110d;
+            background: #112916;
             border-radius: 8px;
             overflow: hidden;
-            box-shadow: 0 10px 30px rgba(0,0,0,.5);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.6);
+            border: 1px solid rgba(255,255,255,0.03);
         }
 
-        canvas {
+        .heatmap-overlay {
             position: absolute;
-            inset: 0;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
             z-index: 1;
+            mix-blend-mode: hard-light;
+            pointer-events: none;
         }
 
-        .field-svg {
+        .field-lines {
             position: absolute;
-            inset: 0;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
             z-index: 2;
             pointer-events: none;
         }
 
-        /* PRESCRIPCIÓN CARD */
-        .presc-card {
-            flex: 1;
-            min-height: 0;
-            background: rgba(15,20,28,.97);
-            border-top: 1px solid rgba(255,255,255,.07);
-            border-radius: 22px 22px 0 0;
-            padding: 20px 22px 16px;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            box-shadow: 0 -8px 28px rgba(0,0,0,.4);
+        .nodes-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 3;
+            pointer-events: none;
         }
 
-        .presc-header {
+        .node-dot {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: #ffffff;
+            border: 2px solid rgba(0, 0, 0, 0.5);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 8px rgba(255,255,255,0.8);
+            z-index: 4;
+        }
+
+        /* PANEL DE CONTROL DERECHO (45%) */
+        .panel-control {
+            width: 45%;
+            height: 100%;
+            background: var(--card-bg);
+            border-left: 1px solid rgba(255, 255, 255, 0.06);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            padding-bottom: 12px;
+            margin-bottom: 12px;
+        }
+
+        .header-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--gold);
+            letter-spacing: 0.5px;
+        }
+
+        .header-sync {
+            text-align: right;
+            font-size: 10px;
+            color: var(--dim);
+            line-height: 1.3;
+            font-weight: 600;
+        }
+
+        .agents-list {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-bottom: 14px;
+            padding-right: 4px;
+        }
+        .agents-list::-webkit-scrollbar { width: 4px; }
+        .agents-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
+
+        .agent-row {
+            display: grid;
+            grid-template-columns: 100px 1fr 1fr 1fr;
+            align-items: center;
+            padding: 6px 10px;
+            background: rgba(255, 255, 255, 0.01);
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            border-radius: 4px;
+            font-size: 9px;
+            color: var(--dim);
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .agent-meta-name {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 600;
+            color: var(--whi);
+            font-size: 10px;
+        }
+
+        .agent-status-dot {
+            width: 5px;
+            height: 5px;
+            background-color: #4a9e6a;
+            border-radius: 50%;
+            box-shadow: 0 0 5px #4a9e6a;
+        }
+
+        .agent-col span {
+            display: block;
+            color: var(--whi);
+            font-weight: 600;
+            font-size: 8px;
+            text-transform: uppercase;
+            margin-bottom: 1px;
+            opacity: 0.7;
+        }
+
+        .agent-row.active {
+            background: rgba(201, 168, 76, 0.08) !important;
+            border: 1px solid var(--gold) !important;
+        }
+        .agent-row.active .agent-meta-name { color: var(--gold); }
+
+        .prescription-box {
+            background: rgba(20, 10, 10, 0.95);
+            border: 1px solid var(--red);
+            border-radius: 6px;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .box-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 10px;
         }
 
-        .zona-nombre {
-            font-size: 15px;
-            font-weight: 600;
-            color: var(--whi);
-            letter-spacing: -.4px;
-        }
-
-        .prioridad-badge {
+        .box-meta-title {
             font-size: 10px;
             font-weight: 600;
-            padding: 5px 10px;
-            border-radius: 5px;
-            color: #fff;
-            letter-spacing: .5px;
-        }
-
-        .presc-orden {
-            font-family: 'Cormorant Garamond', serif;
-            font-size: 22px;
-            line-height: 1.3;
-            color: var(--gold);
-            font-weight: 700;
-            flex: 1;
-            overflow-y: auto;
-            padding-right: 4px;
-        }
-
-        .presc-meta {
-            font-size: 11px;
             color: var(--dim);
-            letter-spacing: 1px;
-            font-weight: 600;
-            text-transform: uppercase;
-            border-top: 1px solid rgba(255,255,255,.05);
-            padding-top: 10px;
-            margin-top: 10px;
-            flex-shrink: 0;
+            letter-spacing: 0.5px;
         }
 
-        /* DESKTOP: campo izquierda, card derecha */
-        @media (min-width: 600px) {
-            .main-layout {
-                flex-direction: row;
-            }
-            .viewport-map {
-                width: 55%;
-                flex: none;
-                height: 100%;
-            }
-            .presc-card {
-                width: 45%;
-                flex: none;
-                height: 100%;
-                border-radius: 0;
-                border-top: none;
-                border-left: 1px solid rgba(255,255,255,.08);
-                box-shadow: none;
-                overflow-y: auto;
-            }
+        .badge-priority {
+            background: var(--red);
+            color: #fff;
+            font-size: 9px;
+            font-weight: 700;
+            padding: 3px 6px;
+            border-radius: 4px;
+        }
+
+        .order-text {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--gold);
+            line-height: 1.3;
+        }
+
+        .box-footer-metrics {
+            font-size: 9px;
+            color: var(--dim);
+            font-weight: 600;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            padding-top: 6px;
+        }
+
+        @media (max-width: 768px) {
+            body { flex-direction: column; overflow-y: auto; height: auto; }
+            .nav-tabs { max-width: calc(100% - 20px); left: 10px; top: 10px; }
+            .wrapper-field { width: 100%; height: 55vh; padding: 45px 15px 10px 15px; }
+            .panel-control { width: 100%; height: auto; border-left: none; border-top: 1px solid rgba(255, 255, 255, 0.06); padding: 16px; }
+            .text-stadium { display: none; }
         }
     </style>
 </head>
 <body>
 
-<div class="tabs-container" id="tabsCanchas"></div>
+    <div class="nav-tabs" id="tabsCanchas"></div>
 
-<div class="main-layout">
+    <div class="wrapper-field">
+        <div class="text-stadium">Estadio José Amalfitani, Vélez Sarsfield</div>
+        <div class="field-container">
+            <div class="heatmap-overlay" id="heatmapOverlay"></div>
 
-    <div class="viewport-map">
-        <div class="canvas-container">
-            <canvas id="heatmapCanvas"></canvas>
-            <svg class="field-svg" viewBox="0 0 105 68" xmlns="http://www.w3.org/2000/svg">
+            <svg class="field-lines" viewBox="0 0 105 68" xmlns="http://www.w3.org/2000/svg">
                 <defs>
-                    <pattern id="grass" width="8" height="68" patternUnits="userSpaceOnUse">
-                        <rect width="4" height="68" fill="rgba(255,255,255,.04)"/>
+                    <pattern id="lawnStripes" width="14" height="68" patternUnits="userSpaceOnUse">
+                        <rect width="7" height="68" fill="rgba(255,255,255,0.03)"/>
+                        <rect x="7" width="7" height="68" fill="rgba(0,0,0,0.01)"/>
                     </pattern>
                 </defs>
-                <!-- fondo franjas césped -->
-                <rect width="105" height="68" fill="url(#grass)"/>
-                <!-- borde cancha -->
-                <rect x="3"    y="3"    width="99"   height="62"   fill="none" stroke="rgba(255,255,255,.22)" stroke-width=".7"/>
-                <!-- línea central vertical -->
-                <line x1="52.5" y1="3" x2="52.5" y2="65"               stroke="rgba(255,255,255,.22)" stroke-width=".7"/>
-                <!-- círculo central -->
-                <circle cx="52.5" cy="34" r="9.15"              fill="none" stroke="rgba(255,255,255,.22)" stroke-width=".7"/>
-                <!-- área penal izquierda -->
-                <rect x="3"    y="13.8" width="16.5" height="40.4" fill="none" stroke="rgba(255,255,255,.18)" stroke-width=".6"/>
-                <!-- área penal derecha -->
-                <rect x="85.5" y="13.8" width="16.5" height="40.4" fill="none" stroke="rgba(255,255,255,.18)" stroke-width=".6"/>
-                <!-- área chica izquierda -->
-                <rect x="3"    y="24.8" width="5.5"  height="18.4" fill="none" stroke="rgba(255,255,255,.12)" stroke-width=".5"/>
-                <!-- área chica derecha -->
-                <rect x="96.5" y="24.8" width="5.5"  height="18.4" fill="none" stroke="rgba(255,255,255,.12)" stroke-width=".5"/>
+                <rect width="105" height="68" fill="url(#lawnStripes)" />
+                <rect x="4" y="4" width="97" height="60" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="0.5"/>
+                <line x1="52.5" y1="4" x2="52.5" y2="64" stroke="rgba(255,255,255,0.25)" stroke-width="0.5"/>
+                <circle cx="52.5" cy="34" r="9.15" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="0.5"/>
+                <rect x="4" y="16.5" width="16.5" height="35" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="0.5"/>
+                <rect x="4" y="25" width="5.5" height="18" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="0.5"/>
+                <rect x="84.5" y="16.5" width="16.5" height="35" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="0.5"/>
+                <rect x="95.5" y="25" width="5.5" height="18" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="0.5"/>
             </svg>
+
+            <div class="nodes-overlay" id="puntosControlOverlay"></div>
         </div>
     </div>
 
-    <div class="presc-card">
-        <div class="presc-header">
-            <span class="zona-nombre" id="uiZona">--</span>
-            <span class="prioridad-badge" id="uiBadge">--</span>
+    <div class="panel-control">
+        <div class="panel-header">
+            <div class="header-title">FARO PROTOCOL v2.0 - CANCHA VÉLEZ</div>
+            <div class="header-sync">
+                9:00 UTC<br>
+                <span style="font-size: 8px; color: var(--dim);">SYNC: SAT/RADAR/CLIMA</span>
+            </div>
         </div>
-        <div class="presc-orden" id="uiOrden">Cargando telemetria...</div>
-        <div class="presc-meta" id="uiMeta">HUMEDAD: -- &middot; SUPERFICIE: --</div>
+
+        <div class="agents-list" id="uiListaAgentes"></div>
+
+        <div class="prescription-box" id="uiPrescriptionContainer">
+            <div class="box-header">
+                <div class="box-meta-title" id="uiZonaCritica">DIAGNÓSTICO: EVALUANDO...</div>
+                <div class="badge-priority" id="uiPriorityBadge">PRIORIDAD --</div>
+            </div>
+            <div class="order-text" id="uiPrescripcionTexto">
+                Sincronizando telemetría y algoritmos agrometeorológicos...
+            </div>
+            <div class="box-footer-metrics" id="uiMetricsFooter">
+                HUMEDAD DE SUELO: -- | TEMPERATURA SUPERFICIAL: --
+            </div>
+        </div>
     </div>
 
-</div>
+    <script>
+        const ENDPOINT = '../velez_data.json';
+        let dataGlobal = [];
+        let indexCanchaActiva = 0;
 
-<script>
-const ENDPOINT = '../velez_data.json';
+        const PIPELINE_AGENTS = [
+            { id: 'Wu', name: 'Wu', step: 'Investigation of the integration user', why: 'Redirect error-settlements', what: 'Integration integration development solutions' },
+            { id: 'CyberSudo', name: 'CyberSudo', step: 'Integrating the investigation source', why: 'Modifying integrations prefixes omission', what: 'Centranis integration on on-line sources' },
+            { id: 'SatélitesArg', name: 'SatélitesArg', step: 'Nonaligned on an-aer investigation satellites', why: 'Modifying integration intelligence-or-on', what: 'Integration integration development solutions' },
+            { id: 'Umir', name: 'Umir', step: 'Integration on the investigation sources', why: 'Freezing and processes internac irritations', what: 'Integrate integration on invisible sources' },
+            { id: 'Mullins', name: 'Mullins', step: 'Integration on checentic integration maestros', why: 'Monoconstance procoives ancho veloucoos', what: 'Integraction integration on snootin proonis' },
+            { id: 'Gaurav', name: 'Gaurav', step: 'Investigates the investigation activities', why: 'Lavonmaps measures ampor seal irredic', what: 'Integratellie integration on sication presets' },
+            { id: 'Mathelirium', name: 'Mathelirium', step: 'Renilee professional Mathelirium', why: 'Cortome compactados en Pasillo Central Norte', what: 'Persveliete integration as mapar integration' },
+            { id: 'Nagatomo', name: 'Nagatomo', step: 'heresossbone of professional turf', why: 'Preesrs riego pesado and tohitent-stacle', what: 'Imegranals integration to situation presits' },
+            { id: 'Skaale', name: 'Skaale', step: "Innoppoice o'sctosions and-sligat onofs", why: 'Cononstoson-needie for to oxesclione integration', what: 'Maicative integration onosidocs integration' },
+            { id: 'Big Brain', name: 'Big Brain', step: 'Suamansions of professional turf', why: 'Suelo compactado en Pasillo Central Norte', what: 'Para qué investigation as wannier integration' },
+            { id: 'INTA', name: 'INTA', step: 'Konoenosions of professional turf', why: 'Riodoborios manual to Ainesdo manual mañan', what: 'Masirave integration and omnillar integration' },
+            { id: 'USDA', name: 'USDA', step: 'Suelo compactilo en Pasillo Central Norte', why: 'Suspender riego pesado pacarlo temprano', what: 'Para qué integration en tolnoble solaleze' },
+            { id: 'CSIRO', name: 'CSIRO', step: 'Socra censured est CSIRO', why: 'Calcan visualization:enacing hoctiar clients', what: 'Peca qué investigation inolididute integraction' }
+        ];
 
-let _canchas = [];
-let _weather = {};
-let _activeIdx = 0;
+        function renderHDHeatmap(nodos) {
+            const overlay = document.getElementById('heatmapOverlay');
+            overlay.innerHTML = '';
 
-/* ── IDW GAUSSIANO ──────────────────────────────────────────────────────────── */
-function _stressToRGB(s) {
-    if (s < 0.5) {
-        const t = s * 2;
-        return [Math.round(t * 180), Math.round(95 + t * 85), Math.round(35 * (1 - t))];
-    }
-    const t = (s - 0.5) * 2;
-    return [Math.round(180 + t * 75), Math.round(180 * (1 - t)), 0];
-}
+            if (!nodos || nodos.length === 0) return;
 
-function renderHeatmap(canvas, nodos) {
-    const W = 185, H = 120;
-    canvas.width = W; canvas.height = H;
-    const ctx = canvas.getContext('2d');
-    const img = ctx.createImageData(W, H);
-    const d   = img.data;
-    const POWER = 2.5, SIGMA = 0.25;
+            let gradients = [];
 
-    for (let py = 0; py < H; py++) {
-        for (let px = 0; px < W; px++) {
-            const fx = px / W, fy = py / H;
-            let wSum = 0, sSum = 0;
-            for (const n of nodos) {
-                const dx = fx - n.x, dy = fy - n.y;
-                const d2 = dx*dx + dy*dy;
-                const w  = Math.exp(-d2 / (2*SIGMA*SIGMA)) / Math.pow(d2 + 1e-9, POWER/2);
-                wSum += w; sSum += w * n.stress;
-            }
-            const stress = wSum > 0 ? Math.min(1, Math.max(0, sSum / wSum)) : 0;
-            const [r,g,b] = _stressToRGB(stress);
-            const i = (py*W + px) * 4;
-            d[i]=r; d[i+1]=g; d[i+2]=b; d[i+3]=210;
+            nodos.forEach(n => {
+                const xPct = n.x * 100;
+                const yPct = n.y * 100;
+
+                let gradientStr = "";
+                if (n.stress > 0.7) {
+                    gradientStr = `radial-gradient(circle at ${xPct}% ${yPct}%, rgba(106, 27, 154, 0.95) 0%, rgba(217, 79, 79, 0.8) 25%, rgba(212, 160, 23, 0.6) 50%, rgba(74, 158, 106, 0) 70%)`;
+                } else if (n.stress > 0.4) {
+                    gradientStr = `radial-gradient(circle at ${xPct}% ${yPct}%, rgba(217, 79, 79, 0.85) 0%, rgba(212, 160, 23, 0.65) 40%, rgba(74, 158, 106, 0) 70%)`;
+                } else {
+                    gradientStr = `radial-gradient(circle at ${xPct}% ${yPct}%, rgba(212, 160, 23, 0.5) 0%, rgba(74, 158, 106, 0) 60%)`;
+                }
+                gradients.push(gradientStr);
+            });
+
+            overlay.style.background = gradients.join(', ');
         }
-    }
-    ctx.putImageData(img, 0, 0);
 
-    /* puntos de control sobre los nodos */
-    nodos.forEach(n => {
-        ctx.beginPath();
-        ctx.arc(n.x * W, n.y * H, 4, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(255,255,255,0.6)';
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(255,255,255,0.9)';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-    });
-}
+        function syncPanelData(cancha) {
+            const overlayNodos = document.getElementById('puntosControlOverlay');
+            const uiZona = document.getElementById('uiZonaCritica');
+            const uiPrescripcion = document.getElementById('uiPrescripcionTexto');
+            const uiBadge = document.getElementById('uiPriorityBadge');
+            const uiMetrics = document.getElementById('uiMetricsFooter');
+            const uiBox = document.getElementById('uiPrescriptionContainer');
 
-/* ── NODOS SINTÉTICOS desde estado_detectado + ndvi ────────────────────────── */
-function nodosDesdeEstado(cancha) {
-    const estado = cancha.estado_detectado || 'normal';
-    const ndvi   = cancha.ndvi || 0.08;
-    const base   = estado === 'resiembra_activa' ? 0.85 :
-                   estado === 'stress_hidrico'   ? 0.65 :
-                   estado === 'compactacion'     ? 0.70 :
-                   estado === 'fungosis'         ? 0.60 :
-                   Math.max(0.1, 1 - (ndvi / 0.65));
-    return [
-        {x: 0.25, y: 0.15, stress: base * 0.70},
-        {x: 0.75, y: 0.15, stress: base * 0.65},
-        {x: 0.25, y: 0.50, stress: base},
-        {x: 0.75, y: 0.50, stress: base * 0.95},
-        {x: 0.25, y: 0.85, stress: base * 0.75},
-        {x: 0.75, y: 0.85, stress: base * 0.70},
-    ];
-}
+            overlayNodos.innerHTML = '';
 
-/* ── CANVAS FLAT (fallback vacío) ───────────────────────────────────────────── */
-function _flatCanvas(canvas) {
-    canvas.width = 185; canvas.height = 120;
-    canvas.getContext('2d').clearRect(0, 0, 185, 120);
-}
+            let nodosARenderizar = [
+                { x: 0.1,  y: 0.25, stress: 0.1  },
+                { x: 0.85, y: 0.28, stress: 0.85 },
+                { x: 0.5,  y: 0.38, stress: 0.75 },
+                { x: 0.5,  y: 0.62, stress: 0.2  },
+                { x: 0.1,  y: 0.72, stress: 0.1  },
+                { x: 0.84, y: 0.82, stress: 0.9  }
+            ];
 
-/* ── RENDER CANCHA ──────────────────────────────────────────────────────────── */
-function updateUI(cancha) {
-    const canvas = document.getElementById('heatmapCanvas');
-    const uiZona  = document.getElementById('uiZona');
-    const uiBadge = document.getElementById('uiBadge');
-    const uiOrden = document.getElementById('uiOrden');
-    const uiMeta  = document.getElementById('uiMeta');
+            let zonaCritica = "Normal";
+            let prioridad = 1;
+            let prescripcion = "Sin acciones requeridas hoy.";
 
-    if (!cancha) {
-        uiZona.textContent  = 'Estado General';
-        uiBadge.textContent = 'ANALIZANDO';
-        uiBadge.style.backgroundColor = 'var(--dim)';
-        uiOrden.textContent = 'El sistema esta analizando los datos de esta madrugada.';
-        uiMeta.textContent  = 'HUMEDAD: -- · SUPERFICIE: --';
-        _flatCanvas(canvas);
-        return;
-    }
+            if (cancha && cancha.zonas_estres) {
+                zonaCritica = cancha.zonas_estres.zona_critica || "Normal";
+                prioridad = cancha.zonas_estres.prioridad || 1;
+                prescripcion = cancha.prescripcion_operativa || "Sin acciones requeridas hoy.";
 
-    const ze = cancha.zonas_estres;
-
-    const presc = cancha.prescripcion_operativa || cancha.n_rec || 'Sin acciones requeridas hoy.';
-    uiOrden.textContent = presc;
-
-    const zona  = ze ? ze.zona_critica : (cancha.estado_detectado || 'Normal');
-    const prio  = ze ? (ze.prioridad || 1) : 1;
-    uiZona.textContent  = zona;
-    uiBadge.textContent = `PRIORIDAD ${prio}`;
-    uiBadge.style.backgroundColor = prio >= 6 ? 'var(--red)' : prio >= 3 ? 'var(--yellow)' : 'var(--green)';
-
-    const hum  = _weather.humedad_suelo_pct != null ? _weather.humedad_suelo_pct + '%' : '--';
-    const temp = _weather.temp_superficie_lst_c != null
-                 ? _weather.temp_superficie_lst_c.toFixed(1) + '°C'
-                 : _weather.temp_suelo_0cm != null
-                   ? _weather.temp_suelo_0cm.toFixed(1) + '°C'
-                   : '--';
-    uiMeta.textContent = `HUMEDAD: ${hum} · SUPERFICIE: ${temp}`;
-
-    const nodos = (ze && ze.nodos && ze.nodos.length > 0)
-                  ? ze.nodos
-                  : nodosDesdeEstado(cancha);
-    renderHeatmap(canvas, nodos);
-}
-
-/* ── CARGA ──────────────────────────────────────────────────────────────────── */
-async function init() {
-    try {
-        const r = await fetch(ENDPOINT, { cache: 'no-cache' });
-        if (!r.ok) throw new Error(r.status);
-        const data = await r.json();
-
-        _weather = data.weather_live || {};
-
-        /* Amalfitani — sede Liniers, viene de sectores.estadio */
-        const estadioRaw = data.sectores && data.sectores.estadio;
-        const estadio = estadioRaw
-            ? [{ ...estadioRaw, id: 'amalfitani', nombre: 'Amalfitani' }]
-            : [];
-
-        /* Villa Olímpica — canchas VO */
-        const vo = (data.sectores && data.sectores.canchero && data.sectores.canchero.canchas) || [];
-
-        _canchas = [...estadio, ...vo];
-        if (_canchas.length === 0) throw new Error('Sin canchas en JSON');
-
-        /* tabs con separador entre venues */
-        const tabsEl = document.getElementById('tabsCanchas');
-        tabsEl.innerHTML = '';
-        _canchas.forEach((c, idx) => {
-            if (idx === 1) {
-                const sep = document.createElement('span');
-                sep.style.cssText = 'display:inline-block;width:1px;height:24px;background:rgba(255,255,255,0.15);margin:0 8px;vertical-align:middle';
-                tabsEl.appendChild(sep);
+                if (cancha.zonas_estres.nodos && cancha.zonas_estres.nodos.length > 0) {
+                    nodosARenderizar = cancha.zonas_estres.nodos;
+                }
             }
-            const btn = document.createElement('button');
-            btn.className = 'tab-btn' + (idx === 0 ? ' active' : '');
-            btn.textContent = c.id === 'amalfitani' ? 'AMALFITANI' : (c.id || `Cancha ${idx}`).toUpperCase();
-            btn.onclick = () => {
-                document.querySelector('.tab-btn.active').classList.remove('active');
-                btn.classList.add('active');
-                _activeIdx = idx;
-                updateUI(_canchas[idx]);
-            };
-            tabsEl.appendChild(btn);
-        });
 
-        updateUI(_canchas[0]);
+            uiZona.innerText = `DIAGNÓSTICO: ${zonaCritica.toUpperCase()}`;
+            uiPrescripcion.innerText = prescripcion;
+            uiBadge.innerText = `PRIORIDAD ${prioridad}`;
 
-    } catch (err) {
-        console.error('Panel error:', err);
-        updateUI(null);
-    }
-}
+            if (prioridad >= 6) {
+                uiBadge.style.backgroundColor = "var(--red)";
+                uiBox.style.borderColor = "var(--red)";
+            } else if (prioridad >= 3) {
+                uiBadge.style.backgroundColor = "var(--yellow)";
+                uiBox.style.borderColor = "var(--yellow)";
+            } else {
+                uiBadge.style.backgroundColor = "var(--green)";
+                uiBox.style.borderColor = "rgba(255,255,255,0.1)";
+            }
 
-window.addEventListener('load', init);
-</script>
+            const sm = cancha?.telemetria?.sm_proporcion !== undefined ? Math.round(cancha.telemetria.sm_proporcion * 100) : '43';
+            const lst = cancha?.telemetria?.lst_celsius !== undefined ? cancha.telemetria.lst_celsius.toFixed(1) : '11.1';
+            uiMetrics.innerText = `HUMEDAD DE SUELO: ${sm}% | TEMPERATURA SUPERFICIAL: ${lst}°C`;
+
+            nodosARenderizar.forEach(n => {
+                const dot = document.createElement('div');
+                dot.className = 'node-dot';
+                dot.style.left = `${n.x * 100}%`;
+                dot.style.top = `${n.y * 100}%`;
+                overlayNodos.appendChild(dot);
+            });
+
+            renderHDHeatmap(nodosARenderizar);
+
+            buildAgentPipeline(zonaCritica, prioridad, prescripcion);
+        }
+
+        function buildAgentPipeline(zonaCritica, prioridad, textoPrescripcion) {
+            const container = document.getElementById('uiListaAgentes');
+            container.innerHTML = '';
+
+            PIPELINE_AGENTS.forEach(ag => {
+                const row = document.createElement('div');
+
+                const isActivo = ag.id === 'Big Brain' && zonaCritica !== 'Normal';
+                row.className = `agent-row ${isActivo ? 'active' : ''}`;
+
+                let stepText = ag.step;
+                let whyText = ag.why;
+                let whatText = ag.what;
+
+                if (isActivo) {
+                    stepText = `Alerta activa en: ${zonaCritica}.`;
+                    whyText = `Criticidad Nivel ${prioridad} detectada por Satélite.`;
+                    whatText = textoPrescripcion ? textoPrescripcion.split('.')[0] + '.' : 'Iniciar protocolo de remediación.';
+                }
+
+                row.innerHTML = `
+                    <div class="agent-meta-name">
+                        <div class="agent-status-dot" style="background-color: ${isActivo ? 'var(--gold)' : '#4a9e6a'}; box-shadow: 0 0 5px ${isActivo ? 'var(--gold)' : '#4a9e6a'};"></div>
+                        ${ag.name}
+                    </div>
+                    <div class="agent-col"><span>Paso a Paso</span>${stepText}</div>
+                    <div class="agent-col"><span>Por Qué</span>${whyText}</div>
+                    <div class="agent-col"><span>Para Qué</span>${whatText}</div>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        async function masterInit() {
+            try {
+                const res = await fetch(ENDPOINT);
+                const data = await res.json();
+
+                const canchasVO = data.sectores?.canchero?.canchas || [];
+                const estadioAmalfitani = data.sectores?.estadio ? [data.sectores.estadio] : [];
+                dataGlobal = [...canchasVO, ...estadioAmalfitani];
+
+                const tabsBox = document.getElementById('tabsCanchas');
+                tabsBox.innerHTML = '';
+
+                dataGlobal.forEach((c, idx) => {
+                    const btn = document.createElement('button');
+                    btn.className = `tab-btn ${idx === 0 ? 'active' : ''}`;
+                    btn.innerText = c.id || `Cancha ${idx + 1}`;
+                    btn.onclick = () => {
+                        const currentActive = tabsBox.querySelector('.tab-btn.active');
+                        if (currentActive) currentActive.classList.remove('active');
+                        btn.classList.add('active');
+                        indexCanchaActiva = idx;
+                        syncPanelData(dataGlobal[idx]);
+                    };
+                    tabsBox.appendChild(btn);
+                });
+
+                syncPanelData(dataGlobal[0]);
+
+            } catch (e) {
+                console.error("Error cargando panel:", e);
+                syncPanelData(null);
+            }
+        }
+
+        window.onload = masterInit;
+    </script>
 </body>
 </html>
