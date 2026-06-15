@@ -1729,15 +1729,16 @@ def get_last_weekly() -> dict:
 
 def register_jobs(scheduler) -> None:
     from apscheduler.triggers.cron import CronTrigger
-    # Lunes 07:00 ART = Lunes 10:00 UTC
-    scheduler.add_job(
-        run_weekly_job,
-        CronTrigger(day_of_week="mon", hour=10, minute=0, timezone="UTC"),
-        id="weekly_report",
-        replace_existing=True,
-        misfire_grace_time=7200,
-    )
-    log.info("Weekly job registered — Lunes 07:00 ART (10:00 UTC)")
+    # PAUSADO — reactivar cuando se confirmen reportes y SMTP
+    # scheduler.add_job(
+    #     run_weekly_job,
+    #     CronTrigger(day_of_week="mon", hour=10, minute=0, timezone="UTC"),
+    #     id="weekly_report",
+    #     replace_existing=True,
+    #     misfire_grace_time=7200,
+    # )
+    # log.info("Weekly job registered — Lunes 07:00 ART (10:00 UTC)")
+    log.info("Weekly job PAUSADO — reactivar manualmente cuando se confirmen reportes")
 
 
 # ── Flask route handlers (registered in app.py) ───────────────────────────────
