@@ -526,6 +526,16 @@ def analyze_cancha(
     prescripcion = _generar_prescripcion(cid, hm, weather_live, estado, eventos, m)
     _save_estado_supabase("amalfitani", cid, estado, prescripcion)
 
+    # Mapa de estrés zonal para heatmap IDW del frontend
+    bsi_val = float(hm.get("bsi") or 0.0)
+    zonas   = _compute_zonas_estres(
+        ndvi=float(hm.get("ndvi") or 0.5),
+        bsi=bsi_val,
+        sm=sm,
+        et0=et0,
+        ipos_score=ipos,
+    )
+
     return {
         "cid":                    cid,
         "n_observaciones":        len(ts),
@@ -537,6 +547,7 @@ def analyze_cancha(
         "alertas_roger":          alertas_roger,
         "estado_detectado":       estado,
         "prescripcion_operativa": prescripcion,
+        "zonas_estres":           zonas,
     }
 
 
@@ -580,6 +591,7 @@ def analyze_all(
         "alertas_roger":  all_alertas[:12],
         "estados":        {c: results[c]["estado_detectado"]       for c in results if c != "_resumen"},
         "prescripciones": {c: results[c]["prescripcion_operativa"] for c in results if c != "_resumen"},
+        "zonas_estres":   {c: results[c]["zonas_estres"]           for c in results if c != "_resumen"},
     }
     log.info(
         "temporal_eye: %d canchas · %d eventos (%s)",
@@ -754,6 +766,87 @@ def _save_estado_supabase(venue_id: str, cid: str, estado: str, prescripcion: st
     except Exception as exc:
         log.debug("_save_estado_supabase %s/%s: %s", venue_id, cid, exc)
         return False
+
+
+# ── Mapa de estrés zonal para heatmap IDW ────────────────────────────────────
+
+def _compute_zonas_estres(
+    ndvi: float, bsi: float, sm: float, et0: float, ipos_score: float
+) -> dict:
+    """
+    6 nodos matriciales de estrés para el heatmap IDW del frontend.
+    Matriz 3x2: Norte/Central/Sur × Izquierda/Derecha
+
+    NumPy puro — sin SciPy (mantiene Railway pluma).
+    float() explícito en cada nodo para JSON serializable.
+    """
+    CC  = 0.32   # Capacidad de Campo pampeana (INTA Balcarce)
+    PMP = 0.14   # Punto Marchitez Permanente
+
+    deficit     = max(0.0, (CC - sm)       / (CC - PMP))  if sm   is not None else 0.0
+    ndvi_stress = max(0.0, 1.0 - ndvi / 0.65)             if ndvi  > 0        else 0.0
+    bsi_stress  = max(0.0, min(1.0, bsi  * 2.0))          if bsi   is not None else 0.0
+    et0_stress  = max(0.0, min(1.0, et0  / 8.0))          if et0   is not None else 0.0
+    uso_stress  = max(0.0, min(1.0, ipos_score / 200.0))  if ipos_score > 0   else 0.0
+
+    # Matriz 3×2 base — Norte/Central/Sur × Izquierda/Derecha
+    base = np.array([
+        [0.30, 0.25],   # Norte: menor uso típico
+        [0.50, 0.55],   # Central: pasillo más cargado
+        [0.35, 0.30],   # Sur: área chica, uso medio
+    ], dtype=float)
+
+    stress_global = (ndvi_stress * 0.40 + deficit   * 0.30 +
+                     bsi_stress  * 0.15 + et0_stress * 0.10 + uso_stress * 0.05)
+    matrix = np.clip(base * (1.0 + stress_global), 0.0, 1.0)
+
+    # Suavizado manual 4-vecinos (reemplaza uniform_filter de SciPy)
+    try:
+        padded = np.pad(matrix, 1, mode="edge")
+        matrix = np.clip(
+            (padded[:-2, 1:-1] + padded[2:, 1:-1] +
+             padded[1:-1, :-2] + padded[1:-1, 2:]) / 4.0,
+            0.0, 1.0,
+        )
+    except Exception:
+        pass
+
+    # Alerta anoxia pasillo central (Oregon/Georgia model)
+    prioridad   = 1
+    zona_critica = "Normal"
+    if sm is not None and sm > CC * 0.95 and bsi_stress > 0.3:
+        matrix[1, :] = np.clip(matrix[1, :] * 1.8, 0.0, 1.0)
+        prioridad    = 8
+        zona_critica = "Pasillo Central Norte"
+    elif float(matrix[1, :].mean()) > 0.65:
+        prioridad    = 6
+        zona_critica = "Pasillo Central"
+    elif float(matrix[0, :].mean()) > 0.60:
+        prioridad    = 5
+        zona_critica = "Banda Norte"
+
+    nombres = [
+        "Banda Izquierda Norte", "Banda Derecha Norte",
+        "Pasillo Central Norte", "Pasillo Central Sur",
+        "Banda Izquierda Sur",   "Banda Derecha Sur",
+    ]
+    coords = [(0.25, 0.15), (0.75, 0.15), (0.25, 0.50),
+              (0.75, 0.50), (0.25, 0.85), (0.75, 0.85)]
+    flat = matrix.flatten()
+
+    nodos = [
+        {"x": float(x), "y": float(y),
+         "stress": round(float(flat[i]), 4),  # cast explícito — JSON safe
+         "zona": nombres[i]}
+        for i, (x, y) in enumerate(coords)
+    ]
+
+    return {
+        "nodos":       nodos,
+        "zona_critica": zona_critica,
+        "prioridad":   prioridad,
+        "stress_max":  round(float(flat.max()), 4),
+    }
 
 
 # ── CLI de diagnostico ────────────────────────────────────────────────────────

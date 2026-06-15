@@ -446,7 +446,7 @@ async def _fetch_all_async() -> dict:
 
 _GH_API   = "https://api.github.com"
 _OWNER    = "protocolfaro"
-_REPO     = "faroprotocol"
+_REPO     = "faro-paneles"
 _BRANCH   = "main"
 _VD_PATH  = "velez/velez_data.json"
 _CFG_PATH = "velez/config_velez.json"
@@ -492,6 +492,7 @@ def push_weather_update(weather_live: dict) -> str:
     roger_kpis  = weather_live.pop("_roger_kpis", [])
     prescs_op   = weather_live.pop("_prescripciones_operativas", {})
     estados_op  = weather_live.pop("_estados_detectados", {})
+    zonas_op    = weather_live.pop("_zonas_estres", {})
 
     try:
         import velez_supabase as _vs
@@ -527,21 +528,25 @@ def push_weather_update(weather_live: dict) -> str:
     if roger_kpis:
         roger["kpis"] = roger_kpis
 
-    # Inject prescripcion_operativa + estado_detectado per cancha (non-breaking new fields)
+    # Inject prescripcion_operativa + estado_detectado + zonas_estres per cancha
     _hm = roger.setdefault("heatmaps", {})
-    if prescs_op or estados_op:
+    if prescs_op or estados_op or zonas_op:
         for _cid, _presc in prescs_op.items():
             _hm.setdefault(_cid, {})["prescripcion_operativa"] = _presc
         for _cid, _est in estados_op.items():
             _hm.setdefault(_cid, {})["estado_detectado"] = _est
+        for _cid, _zon in zonas_op.items():
+            _hm.setdefault(_cid, {})["zonas_estres"] = _zon
         for _c in (cfg.get("sectores", {}).get("canchero", {}).get("canchas", []) or []):
             _cid = _c.get("id")
             if _cid in prescs_op:
                 _c["prescripcion_operativa"] = prescs_op[_cid]
             if _cid in estados_op:
                 _c["estado_detectado"] = estados_op[_cid]
-        log.info("push_weather_update: %d prescs + %d estados inyectados en JSON",
-                 len(prescs_op), len(estados_op))
+            if _cid in zonas_op:
+                _c["zonas_estres"] = zonas_op[_cid]
+        log.info("push_weather_update: %d prescs · %d estados · %d zonas inyectados",
+                 len(prescs_op), len(estados_op), len(zonas_op))
     # Fallback: compute estado_detectado directly from current heatmap data
     # if temporal eye didn't produce it (no time series) — ensures field always present
     _sm_pct = float(weather_live.get("humedad_suelo_pct") or 20.0)
@@ -768,15 +773,17 @@ def run_refresh() -> dict:
             _eye_resumen = _eye_results.get("_resumen", {})
             _prescs  = _eye_resumen.get("prescripciones", {})
             _estados = _eye_resumen.get("estados", {})
+            _zonas   = _eye_resumen.get("zonas_estres", {})
             if _prescs:
                 weather["_prescripciones_operativas"] = _prescs
             if _estados:
                 weather["_estados_detectados"] = _estados
-            log.info("faro_temporal_eye: %d eventos · %d canchas · tipos=%s · %d prescs · %d estados",
+            if _zonas:
+                weather["_zonas_estres"] = _zonas
+            log.info("faro_temporal_eye: %d eventos · %d canchas · %d prescs · %d estados · %d zonas",
                      _eye_resumen.get("eventos_total", 0),
                      _eye_resumen.get("n_canchas", 0),
-                     _eye_resumen.get("tipos", {}),
-                     len(_prescs), len(_estados))
+                     len(_prescs), len(_estados), len(_zonas))
         except Exception as _fte_err:
             log.warning("faro_temporal_eye (non-fatal): %s", _fte_err)
         # ── Physics prescriptions (faro_analytics_physics) ───────────────────
