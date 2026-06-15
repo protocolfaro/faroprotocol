@@ -63,9 +63,17 @@
             border-color: var(--gold);
         }
 
+        /* LAYOUT PRINCIPAL — mobile: columna, desktop: fila */
+        .main-layout {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
         /* HEATMAP */
         .viewport-map {
-            flex: 0 0 52vh;
+            flex: 0 0 48vh;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -75,8 +83,8 @@
         .canvas-container {
             position: relative;
             width: 100%;
-            max-width: 310px;
-            aspect-ratio: 68 / 105;
+            max-width: 480px;
+            aspect-ratio: 105 / 68;
             background: #09110d;
             border-radius: 8px;
             overflow: hidden;
@@ -159,41 +167,74 @@
             margin-top: 10px;
             flex-shrink: 0;
         }
+
+        /* DESKTOP: campo izquierda, card derecha */
+        @media (min-width: 600px) {
+            .main-layout {
+                flex-direction: row;
+            }
+            .viewport-map {
+                width: 55%;
+                flex: none;
+                height: 100%;
+            }
+            .presc-card {
+                width: 45%;
+                flex: none;
+                height: 100%;
+                border-radius: 0;
+                border-top: none;
+                border-left: 1px solid rgba(255,255,255,.08);
+                box-shadow: none;
+                overflow-y: auto;
+            }
+        }
     </style>
 </head>
 <body>
 
 <div class="tabs-container" id="tabsCanchas"></div>
 
-<div class="viewport-map">
-    <div class="canvas-container">
-        <canvas id="heatmapCanvas"></canvas>
-        <svg class="field-svg" viewBox="0 0 68 105" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-                <pattern id="stripes" width="10" height="105" patternUnits="userSpaceOnUse">
-                    <rect width="5"  height="105" fill="rgba(255,255,255,.04)"/>
-                    <rect x="5" width="5" height="105" fill="rgba(0,0,0,0)"/>
-                </pattern>
-            </defs>
-            <rect width="68" height="105" fill="url(#stripes)"/>
-            <rect x="3"    y="3"    width="62"   height="99"   fill="none" stroke="rgba(255,255,255,.22)" stroke-width=".7"/>
-            <line x1="3"   y1="52.5" x2="65"  y2="52.5"               stroke="rgba(255,255,255,.22)" stroke-width=".7"/>
-            <circle cx="34" cy="52.5" r="9.15"                  fill="none" stroke="rgba(255,255,255,.22)" stroke-width=".7"/>
-            <rect x="13.8" y="3"    width="40.4" height="16.5" fill="none" stroke="rgba(255,255,255,.18)" stroke-width=".6"/>
-            <rect x="13.8" y="85.5" width="40.4" height="16.5" fill="none" stroke="rgba(255,255,255,.18)" stroke-width=".6"/>
-            <rect x="24.8" y="3"    width="18.4" height="5.5"  fill="none" stroke="rgba(255,255,255,.12)" stroke-width=".5"/>
-            <rect x="24.8" y="96.5" width="18.4" height="5.5"  fill="none" stroke="rgba(255,255,255,.12)" stroke-width=".5"/>
-        </svg>
-    </div>
-</div>
+<div class="main-layout">
 
-<div class="presc-card">
-    <div class="presc-header">
-        <span class="zona-nombre" id="uiZona">--</span>
-        <span class="prioridad-badge" id="uiBadge">--</span>
+    <div class="viewport-map">
+        <div class="canvas-container">
+            <canvas id="heatmapCanvas"></canvas>
+            <svg class="field-svg" viewBox="0 0 105 68" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <pattern id="grass" width="8" height="68" patternUnits="userSpaceOnUse">
+                        <rect width="4" height="68" fill="rgba(255,255,255,.04)"/>
+                    </pattern>
+                </defs>
+                <!-- fondo franjas césped -->
+                <rect width="105" height="68" fill="url(#grass)"/>
+                <!-- borde cancha -->
+                <rect x="3"    y="3"    width="99"   height="62"   fill="none" stroke="rgba(255,255,255,.22)" stroke-width=".7"/>
+                <!-- línea central vertical -->
+                <line x1="52.5" y1="3" x2="52.5" y2="65"               stroke="rgba(255,255,255,.22)" stroke-width=".7"/>
+                <!-- círculo central -->
+                <circle cx="52.5" cy="34" r="9.15"              fill="none" stroke="rgba(255,255,255,.22)" stroke-width=".7"/>
+                <!-- área penal izquierda -->
+                <rect x="3"    y="13.8" width="16.5" height="40.4" fill="none" stroke="rgba(255,255,255,.18)" stroke-width=".6"/>
+                <!-- área penal derecha -->
+                <rect x="85.5" y="13.8" width="16.5" height="40.4" fill="none" stroke="rgba(255,255,255,.18)" stroke-width=".6"/>
+                <!-- área chica izquierda -->
+                <rect x="3"    y="24.8" width="5.5"  height="18.4" fill="none" stroke="rgba(255,255,255,.12)" stroke-width=".5"/>
+                <!-- área chica derecha -->
+                <rect x="96.5" y="24.8" width="5.5"  height="18.4" fill="none" stroke="rgba(255,255,255,.12)" stroke-width=".5"/>
+            </svg>
+        </div>
     </div>
-    <div class="presc-orden" id="uiOrden">Cargando telemetria...</div>
-    <div class="presc-meta" id="uiMeta">HUMEDAD: -- &middot; SUPERFICIE: --</div>
+
+    <div class="presc-card">
+        <div class="presc-header">
+            <span class="zona-nombre" id="uiZona">--</span>
+            <span class="prioridad-badge" id="uiBadge">--</span>
+        </div>
+        <div class="presc-orden" id="uiOrden">Cargando telemetria...</div>
+        <div class="presc-meta" id="uiMeta">HUMEDAD: -- &middot; SUPERFICIE: --</div>
+    </div>
+
 </div>
 
 <script>
@@ -214,7 +255,7 @@ function _stressToRGB(s) {
 }
 
 function renderHeatmap(canvas, nodos) {
-    const W = 120, H = 185;
+    const W = 185, H = 120;
     canvas.width = W; canvas.height = H;
     const ctx = canvas.getContext('2d');
     const img = ctx.createImageData(W, H);
@@ -238,6 +279,17 @@ function renderHeatmap(canvas, nodos) {
         }
     }
     ctx.putImageData(img, 0, 0);
+
+    /* puntos de control sobre los nodos */
+    nodos.forEach(n => {
+        ctx.beginPath();
+        ctx.arc(n.x * W, n.y * H, 4, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+    });
 }
 
 /* ── NODOS SINTÉTICOS desde estado_detectado + ndvi ────────────────────────── */
@@ -257,6 +309,12 @@ function nodosDesdeEstado(cancha) {
         {x: 0.25, y: 0.85, stress: base * 0.75},
         {x: 0.75, y: 0.85, stress: base * 0.70},
     ];
+}
+
+/* ── CANVAS FLAT (fallback vacío) ───────────────────────────────────────────── */
+function _flatCanvas(canvas) {
+    canvas.width = 185; canvas.height = 120;
+    canvas.getContext('2d').clearRect(0, 0, 185, 120);
 }
 
 /* ── RENDER CANCHA ──────────────────────────────────────────────────────────── */
@@ -279,18 +337,15 @@ function updateUI(cancha) {
 
     const ze = cancha.zonas_estres;
 
-    /* prescripcion: usar prescripcion_operativa, luego n_rec */
     const presc = cancha.prescripcion_operativa || cancha.n_rec || 'Sin acciones requeridas hoy.';
     uiOrden.textContent = presc;
 
-    /* zona critica y prioridad */
     const zona  = ze ? ze.zona_critica : (cancha.estado_detectado || 'Normal');
     const prio  = ze ? (ze.prioridad || 1) : 1;
     uiZona.textContent  = zona;
     uiBadge.textContent = `PRIORIDAD ${prio}`;
     uiBadge.style.backgroundColor = prio >= 6 ? 'var(--red)' : prio >= 3 ? 'var(--yellow)' : 'var(--green)';
 
-    /* meta */
     const hum  = _weather.humedad_suelo_pct != null ? _weather.humedad_suelo_pct + '%' : '--';
     const temp = _weather.temp_superficie_lst_c != null
                  ? _weather.temp_superficie_lst_c.toFixed(1) + '°C'
@@ -299,17 +354,10 @@ function updateUI(cancha) {
                    : '--';
     uiMeta.textContent = `HUMEDAD: ${hum} · SUPERFICIE: ${temp}`;
 
-    /* heatmap: zonas_estres reales si existen, sintéticos si no */
     const nodos = (ze && ze.nodos && ze.nodos.length > 0)
                   ? ze.nodos
                   : nodosDesdeEstado(cancha);
     renderHeatmap(canvas, nodos);
-}
-
-/* ── CANVAS FLAT (fallback vacio) ───────────────────────────────────────────── */
-function _flatCanvas(canvas) {
-    canvas.width = 120; canvas.height = 185;
-    canvas.getContext('2d').clearRect(0, 0, 120, 185);
 }
 
 /* ── CARGA ──────────────────────────────────────────────────────────────────── */
