@@ -271,11 +271,23 @@ def _trigger_run_now() -> bool:
         return False
 
 
-def _run_checks() -> list[str]:
-    """Corre los tres chequeos base con auto-fix. Retorna lista de alertas no resueltas."""
-    issues: list[str] = []
+_ALL_PNGS = [
+    "faro_reporte_velez.png",
+    "faro_reporte_velez_canchero.png",
+    "faro_reporte_velez_agro_FINAL.png",
+    "faro_reporte_velez_solar_v2.png",
+    "faro_reporte_velez_poli.png",
+    "faro_reporte_velez_sede.png",
+    "faro_reporte_velez_piletas.png",
+    "faro_reporte_velez_instituto.png",
+]
 
-    # 1 — JSON freshness
+
+def _run_checks() -> list[str]:
+    """Corre los 8 chequeos. Retorna lista de alertas no resueltas."""
+    alertas: list[str] = []
+
+    # 1 — JSON freshness (con auto-fix)
     ok_json, msg_json = _check_json()
     _log_supabase("check_json", resultado=msg_json, escalado=not ok_json)
     if not ok_json:
@@ -287,17 +299,17 @@ def _run_checks() -> list[str]:
             _log_supabase("auto_fix_json", resultado="run_now exitoso")
         else:
             err = msg_json2 if fired else f"run_now falló + {msg_json}"
-            issues.append(err)
+            alertas.append(err)
             _log_supabase("auto_fix_json_fail", error=err, escalado=True)
 
     # 2 — /health
     ok_health, msg_health = _check_health()
     _log_supabase("check_health", resultado=msg_health, escalado=not ok_health)
     if not ok_health:
-        issues.append(msg_health)
+        alertas.append(msg_health)
         log.error("Cerebro check_health: %s", msg_health)
 
-    # 3 — PNGs
+    # 3 — PNGs principales (con auto-fix)
     ok_pngs, msg_pngs = _check_pngs()
     _log_supabase("check_pngs", resultado=msg_pngs, escalado=not ok_pngs)
     if not ok_pngs:
@@ -308,10 +320,66 @@ def _run_checks() -> list[str]:
         if ok_pngs2:
             _log_supabase("auto_fix_pngs", resultado="run_now exitoso")
         else:
-            issues.append(msg_pngs2)
+            alertas.append(msg_pngs2)
             _log_supabase("auto_fix_pngs_fail", error=msg_pngs2, escalado=True)
 
-    return issues
+    # 4 — Pipeline semanal corrió en los últimos 7 días
+    try:
+        r = requests.get(f"{_BASE_URL}/velez/weekly_status", timeout=10)
+        if r.ok:
+            last = r.json().get("last_weekly", {}).get("ran_at", "")
+            if last:
+                ran   = datetime.fromisoformat(last.replace("Z", "+00:00"))
+                horas = (datetime.now(timezone.utc) - ran).total_seconds() / 3600
+                if horas > 170:
+                    alertas.append(f"Pipeline semanal no corrió hace {horas:.0f}h")
+    except Exception as e:
+        alertas.append(f"No se pudo verificar pipeline semanal: {e}")
+
+    # 5 — Supabase responde
+    try:
+        r = requests.get(
+            f"{_supa_base()}/rest/v1/faro_cerebro_log?limit=1",
+            headers=_supa_hdrs(), timeout=8
+        )
+        if r.status_code not in (200, 201):
+            alertas.append(f"Supabase no responde: HTTP {r.status_code}")
+    except Exception as e:
+        alertas.append(f"Supabase no responde: {e}")
+
+    # 6 — Panel Roger accesible en GitHub Pages
+    try:
+        r = requests.get(
+            "https://protocolfaro.github.io/faro-paneles/velez/",
+            timeout=10
+        )
+        if r.status_code != 200:
+            alertas.append(f"Panel Vélez HTTP {r.status_code}")
+    except Exception as e:
+        alertas.append(f"Panel Vélez inaccesible: {e}")
+
+    # 7 — velez_data.json en GitHub Pages tiene datos recientes
+    try:
+        r = requests.get(
+            "https://raw.githubusercontent.com/protocolfaro/faro-paneles/main/velez/velez_data.json",
+            timeout=10
+        )
+        if r.ok:
+            ts = r.json().get("weather_live", {}).get("timestamp", "")
+            if ts:
+                t     = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                horas = (datetime.now(timezone.utc) - t).total_seconds() / 3600
+                if horas > 25:
+                    alertas.append(f"velez_data.json tiene {horas:.0f}h de antigüedad")
+    except Exception as e:
+        alertas.append(f"velez_data.json inaccesible: {e}")
+
+    # 8 — Todos los PNGs del ciclo existen
+    for png in _ALL_PNGS:
+        if not (_PNG_DIR / png).exists():
+            alertas.append(f"PNG faltante: {png}")
+
+    return alertas
 
 
 # ── Loop principal con Claude SDK ─────────────────────────────────────────────
