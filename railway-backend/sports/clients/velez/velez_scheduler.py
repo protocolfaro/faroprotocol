@@ -27,8 +27,10 @@ _CFG_RAW_URL   = "https://raw.githubusercontent.com/protocolfaro/faro-paneles/ma
 _VD_RAW_URL    = "https://raw.githubusercontent.com/protocolfaro/faro-paneles/main/velez/velez_data.json"
 _PNG_BASE_URL  = "https://raw.githubusercontent.com/protocolfaro/faro-paneles/main/velez"
 
-GMAIL_USER   = os.environ.get("GMAIL_USER", "protocolfaro@gmail.com")
-GMAIL_PASS   = os.environ.get("GMAIL_APP_PASS", "")
+GMAIL_USER          = os.environ.get("GMAIL_USER", "protocolfaro@gmail.com")
+GMAIL_CLIENT_ID     = os.environ.get("GMAIL_CLIENT_ID", "")
+GMAIL_CLIENT_SECRET = os.environ.get("GMAIL_CLIENT_SECRET", "")
+GMAIL_REFRESH_TOKEN = os.environ.get("GMAIL_REFRESH_TOKEN", "")
 
 _MANUAL_DIR  = Path(__file__).parents[4] / "reportes_velez"
 MANUAL_PATHS: dict = {
@@ -221,50 +223,54 @@ def _get_report_paths(config: dict) -> dict:
     }
 
 
-def _smtp_send_ipv4(host: str, port: int, user: str, password: str,
-                    recipients: list, msg_str: str, timeout: int = 30) -> None:
-    """Connect to SMTP forcing IPv4 (fallback when Resend not configured)."""
-    import ssl, socket as _sock
-    _orig = _sock.getaddrinfo
-    def _ipv4_only(h, p, family=0, type=0, proto=0, flags=0):  # noqa: A002
-        return _orig(h, p, _sock.AF_INET, type, proto, flags)
-    _sock.getaddrinfo = _ipv4_only
-    try:
-        ctx = ssl.create_default_context()
-        with smtplib.SMTP(host, port, timeout=timeout) as server:
-            server.ehlo()
-            server.starttls(context=ctx)
-            server.login(user, password)
-            server.sendmail(user, recipients, msg_str)
-    finally:
-        _sock.getaddrinfo = _orig
+def _get_gmail_access_token() -> str:
+    """Obtener access token usando refresh token (HTTPS/443 — no bloqueado por Railway)."""
+    r = requests.post("https://oauth2.googleapis.com/token", data={
+        "client_id":     GMAIL_CLIENT_ID,
+        "client_secret": GMAIL_CLIENT_SECRET,
+        "refresh_token": GMAIL_REFRESH_TOKEN,
+        "grant_type":    "refresh_token",
+    }, timeout=10)
+    r.raise_for_status()
+    return r.json()["access_token"]
 
 
 def send_email(to: str, subject: str, body_html: str,
                attachments: list = None) -> bool:
-    """Send email via Gmail SMTP 587 TLS. attachments: list of (filename, bytes) tuples."""
-    if not GMAIL_PASS:
-        log.warning("GMAIL_APP_PASS no configurada — email no enviado")
+    """Enviar email via Gmail API REST (HTTPS/443 — no bloqueado por Railway)."""
+    if not GMAIL_CLIENT_ID or not GMAIL_REFRESH_TOKEN:
+        log.warning("Gmail API: credenciales no configuradas (GMAIL_CLIENT_ID / GMAIL_REFRESH_TOKEN)")
         return False
     try:
-        recipients = [r.strip() for r in to.split(",") if r.strip()]
+        access_token = _get_gmail_access_token()
+
         msg = MIMEMultipart("mixed")
+        msg["To"]      = to
         msg["From"]    = GMAIL_USER
-        msg["To"]      = ", ".join(recipients)
         msg["Subject"] = subject
         msg.attach(MIMEText(body_html, "html"))
+
         for fn, data in (attachments or []):
             part = MIMEBase("application", "octet-stream")
             part.set_payload(data)
             encoders.encode_base64(part)
             part.add_header("Content-Disposition", f'attachment; filename="{fn}"')
             msg.attach(part)
-        _smtp_send_ipv4("smtp.gmail.com", 587, GMAIL_USER, GMAIL_PASS,
-                        recipients, msg.as_string())
-        log.info("Email enviado a %s: %s", recipients, subject)
-        return True
+
+        raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
+        r = requests.post(
+            "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+            headers={"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"},
+            json={"raw": raw},
+            timeout=30,
+        )
+        if r.status_code in (200, 201):
+            log.info("Gmail API OK → %s: %s", to, subject)
+            return True
+        log.error("Gmail API HTTP %s → %s: %s", r.status_code, to, r.text[:200])
+        return False
     except Exception as e:
-        log.error("Email falló a %s: %s", to, e)
+        log.error("Gmail API error → %s: %s", to, e)
         return False
 
 
