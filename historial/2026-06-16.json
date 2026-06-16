@@ -41,7 +41,7 @@
     ],
     "semana": "2026-06-15"
   },
-  "updated_at": "2026-06-16T05:23:58Z",
+  "updated_at": "2026-06-16T07:24:13Z",
   "weather_live": {
     "timestamp": "2026-06-15T23:01:49",
     "fuentes": [
@@ -3510,7 +3510,7 @@
       "heatmaps_meta": {
         "fuente": "kalman_lstm · amalfitani",
         "semana": "2026-06-16",
-        "updated_at": "2026-06-16T05:23:58Z"
+        "updated_at": "2026-06-16T07:24:13Z"
       }
     },
     "juan": {
@@ -4066,7 +4066,7 @@
   },
   "historial_meta": {
     "semana": "2026-06-16",
-    "committed_at": "2026-06-16T05:24:14Z",
+    "committed_at": "2026-06-16T07:24:30Z",
     "fuente": "Faro Protocol · Railway auto-commit"
   }
 }
