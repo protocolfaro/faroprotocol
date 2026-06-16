@@ -1357,6 +1357,12 @@ try:
         threading.Thread(target=_dp_sync, daemon=True).start()
     except Exception as _dp_sync_err:
         log.warning("Dale Play sync_pending: %s", _dp_sync_err)
+    # Faro Cerebro — monitor autónomo cada hora (JSON + health + PNGs)
+    try:
+        from agents.faro_cerebro import register_cerebro_job as _cerebro_reg
+        _cerebro_reg(_scheduler)
+    except Exception as _cerebro_err:
+        log.warning("Faro Cerebro scheduler: %s", _cerebro_err)
     log.info("Schedulers registered: daily weather + weekly reports + dale_play sources + dale_play post-show")
 except Exception as _sched_err:
     _scheduler = None
