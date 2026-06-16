@@ -32,7 +32,7 @@ log = logging.getLogger(__name__)
 _ROOT       = Path(__file__).parents[1]          # railway-backend/
 _AGENT_DIR  = Path(__file__).parent              # railway-backend/agents/
 _PNG_DIR    = _ROOT / "reportes_velez"
-_ALERT_TO   = "protocolfaro@gmail.com"
+CEREBRO_ALERT_EMAIL = "protocolfaro@gmail.com"  # NUNCA cambiar esto
 _PORT       = os.environ.get("PORT", "8080")
 _BASE_URL   = f"http://localhost:{_PORT}"
 _GITHUB_REPO = "protocolfaro/faroprotocol"
@@ -255,7 +255,7 @@ Faro Cerebro · Monitor autónomo · protocolfaro@gmail.com<br>
 {datetime.now(_ART).strftime('%d/%m/%Y %H:%M')} UTC-3
 </p>
 </div></body></html>"""
-        ok = send_email(_ALERT_TO, f"[Faro Cerebro] {subject}", body_html)
+        ok = send_email(CEREBRO_ALERT_EMAIL, f"[Faro Cerebro] {subject}", body_html)
         log.info("cerebro alerta → %s: %s", "OK" if ok else "FAIL", subject)
     except Exception as exc:
         log.error("send_alert_email: %s", exc)
