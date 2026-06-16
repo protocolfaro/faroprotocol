@@ -293,10 +293,43 @@ def _check_pngs() -> tuple[bool, str]:
     return True, f"PNGs OK ({len(_EXPECTED_PNGS)} archivos)"
 
 
+_RUN_NOW_COOLDOWN_H = 2  # máximo 1 run_now cada 2 horas
+
+
+def _run_now_on_cooldown() -> bool:
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            row = conn.execute(
+                "SELECT timestamp FROM short_term_memory WHERE task='run_now_fired' "
+                "ORDER BY id DESC LIMIT 1"
+            ).fetchone()
+            if not row:
+                return False
+            last = datetime.fromisoformat(row[0])
+            return (datetime.utcnow() - last).total_seconds() / 3600 < _RUN_NOW_COOLDOWN_H
+    except Exception:
+        return False
+
+
+def _record_run_now_fired():
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute(
+            "INSERT INTO short_term_memory (timestamp, task, status) VALUES (?,?,?)",
+            (datetime.utcnow().isoformat(), "run_now_fired", "ok")
+        )
+        conn.commit()
+
+
 def _trigger_run_now() -> bool:
+    if _run_now_on_cooldown():
+        log.info("_trigger_run_now: cooldown activo (%dh) — skip", _RUN_NOW_COOLDOWN_H)
+        return False
     try:
         r = requests.post(f"{_BASE_URL}/velez/run_now", timeout=120)
-        return r.status_code in (200, 201, 202)
+        ok = r.status_code in (200, 201, 202)
+        if ok:
+            _record_run_now_fired()
+        return ok
     except Exception as exc:
         log.warning("_trigger_run_now: %s", exc)
         return False

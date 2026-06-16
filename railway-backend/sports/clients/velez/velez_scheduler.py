@@ -1503,6 +1503,79 @@ _SLUG_MAP = {
     "Alberto Aveleyra":  "aveleyra",
 }
 
+def _render_pngs_only(vd: dict) -> int:
+    """Regenera los 8 PNGs via gen scripts. Sin emails, sin WhatsApp.
+    Llamado tanto por send_all_reports como por run_refresh_only.
+    Retorna cantidad de PNGs generados correctamente.
+    """
+    out_dir = Path(__file__).parents[4] / "reportes_velez"
+    out_dir.mkdir(exist_ok=True)
+    script_dir = Path(__file__).parent
+    gen_scripts = [
+        ("gen_velez_main.py",      "faro_reporte_velez.png"),
+        ("gen_velez_canchero.py",  "faro_reporte_velez_canchero.png"),
+        ("gen_velez_final.py",     "faro_reporte_velez_agro_FINAL.png"),
+        ("gen_velez_solar_v2.py",  "faro_reporte_velez_solar_v2.png"),
+        ("gen_velez_poli.py",      "faro_reporte_velez_poli.png"),
+        ("gen_velez_sede.py",      "faro_reporte_velez_sede.png"),
+        ("gen_velez_piletas.py",   "faro_reporte_velez_piletas.png"),
+        ("gen_velez_instituto.py", "faro_reporte_velez_instituto.png"),
+    ]
+    rendered = 0
+    vd_tmp = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False, encoding="utf-8"
+        ) as tf:
+            json.dump(vd, tf, ensure_ascii=False, default=str)
+            vd_tmp = tf.name
+
+        env = {**os.environ, "FARO_VD_PATH": vd_tmp}
+        for script, png in gen_scripts:
+            script_path = script_dir / script
+            if not script_path.exists():
+                log.warning("gen script no encontrado: %s", script_path)
+                continue
+            out_png = out_dir / png
+            try:
+                proc = subprocess.run(
+                    [sys.executable, str(script_path)],
+                    env=env, capture_output=True, text=True, timeout=120,
+                )
+                if proc.returncode == 0 and out_png.exists():
+                    rendered += 1
+                    log.info("gen script OK: %s → %s", script, png)
+                else:
+                    log.warning(
+                        "gen script FAIL: %s (rc=%d)\nstderr: %s",
+                        script, proc.returncode, proc.stderr[-400:],
+                    )
+            except Exception as pe:
+                log.warning("gen script excepción [%s]: %s", script, pe)
+
+        if rendered == 0:
+            log.warning("todos los gen scripts fallaron — usando render_reports.py como fallback")
+            try:
+                sys.path.insert(0, str(script_dir))
+                from render_reports import render_all as _render_all
+                rendered = len(_render_all(vd, out_dir))
+                log.info("render_all fallback: %d PNGs generados", rendered)
+            except Exception as re_err:
+                log.warning("render_all fallback también falló: %s", re_err)
+
+    except Exception as exc:
+        log.warning("_render_pngs_only excepción (non-fatal): %s", exc)
+    finally:
+        if vd_tmp:
+            try:
+                os.unlink(vd_tmp)
+            except Exception:
+                pass
+
+    log.info("_render_pngs_only: %d/%d PNGs generados", rendered, len(gen_scripts))
+    return rendered
+
+
 def send_all_reports(config: dict = None, vd: dict = None) -> dict:
     """
     Full pipeline: historico snapshot → render PNGs → send emails.
@@ -1522,72 +1595,7 @@ def send_all_reports(config: dict = None, vd: dict = None) -> dict:
         log.warning("historico: %s", e)
 
     # ── FASE B-2: Regenerar PNGs via gen scripts (FARO_VD_PATH) ─────────────
-    out_dir = Path(__file__).parents[4] / "reportes_velez"
-    out_dir.mkdir(exist_ok=True)
-    _script_dir = Path(__file__).parent
-    _gen_scripts = [
-        ("gen_velez_main.py",      "faro_reporte_velez.png"),
-        ("gen_velez_canchero.py",  "faro_reporte_velez_canchero.png"),
-        ("gen_velez_final.py",     "faro_reporte_velez_agro_FINAL.png"),
-        ("gen_velez_solar_v2.py",  "faro_reporte_velez_solar_v2.png"),
-        ("gen_velez_poli.py",      "faro_reporte_velez_poli.png"),
-        ("gen_velez_sede.py",      "faro_reporte_velez_sede.png"),
-        ("gen_velez_piletas.py",   "faro_reporte_velez_piletas.png"),
-        ("gen_velez_instituto.py", "faro_reporte_velez_instituto.png"),
-    ]
-    _rendered_n = 0
-    _vd_tmp = None
-    try:
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False, encoding="utf-8"
-        ) as _tf:
-            json.dump(vd, _tf, ensure_ascii=False, default=str)
-            _vd_tmp = _tf.name
-
-        _env = {**os.environ, "FARO_VD_PATH": _vd_tmp}
-        for _script, _png in _gen_scripts:
-            _script_path = _script_dir / _script
-            if not _script_path.exists():
-                log.warning("gen script no encontrado: %s", _script_path)
-                continue
-            _out_png = out_dir / _png
-            try:
-                _proc = subprocess.run(
-                    [sys.executable, str(_script_path)],
-                    env=_env, capture_output=True, text=True, timeout=120,
-                )
-                if _proc.returncode == 0 and _out_png.exists():
-                    _rendered_n += 1
-                    log.info("gen script OK: %s → %s", _script, _png)
-                else:
-                    log.warning(
-                        "gen script FAIL: %s (rc=%d)\nstderr: %s",
-                        _script, _proc.returncode, _proc.stderr[-400:],
-                    )
-            except Exception as _pe:
-                log.warning("gen script excepción [%s]: %s", _script, _pe)
-
-        log.info("gen scripts: %d/%d PNGs generados", _rendered_n, len(_gen_scripts))
-
-        # Fallback: render_reports.py si todos los gen scripts fallaron
-        if _rendered_n == 0:
-            log.warning("todos los gen scripts fallaron — usando render_reports.py como fallback")
-            try:
-                sys.path.insert(0, str(_script_dir))
-                from render_reports import render_all as _render_all
-                _rendered = _render_all(vd, out_dir)
-                log.info("render_all fallback: %d/%d PNGs generados", len(_rendered), 8)
-            except Exception as _re:
-                log.warning("render_all fallback también falló: %s", _re)
-
-    except Exception as _b2e:
-        log.warning("FASE B-2 excepción (non-fatal): %s", _b2e)
-    finally:
-        if _vd_tmp:
-            try:
-                os.unlink(_vd_tmp)
-            except Exception:
-                pass
+    _render_pngs_only(vd)
 
     date_str     = datetime.now(_ART).strftime("%d/%m/%Y")
     report_paths = _get_report_paths(config)   # {key → Path} from config.zonas
@@ -1693,6 +1701,26 @@ def get_last_weekly() -> dict:
     return _last_weekly
 
 
+def run_refresh_only() -> dict:
+    """Regenera datos y PNGs. SIN emails ni WhatsApp.
+    Único target válido para /velez/run_now y faro_cerebro._trigger_run_now().
+    Los emails al club solo salen vía run_weekly_job() (job lunes 10:00 UTC).
+    """
+    log.info("=== run_refresh_only: inicio ===")
+    result: dict = {"satellite": None, "pngs": 0}
+    try:
+        import satellite_pipeline
+        result["satellite"] = satellite_pipeline.run_satellite_cycle()
+        log.info("satellite_pipeline: %s", result["satellite"])
+    except Exception as exc:
+        log.warning("satellite_pipeline (non-fatal): %s", exc)
+
+    vd = _get_velez_data()
+    result["pngs"] = _render_pngs_only(vd)
+    log.info("=== run_refresh_only: done — %d PNGs ===", result["pngs"])
+    return result
+
+
 # ── APScheduler integration ───────────────────────────────────────────────────
 
 def register_jobs(scheduler) -> None:
@@ -1714,7 +1742,8 @@ def register_jobs(scheduler) -> None:
 def route_run_now():
     from flask import request, jsonify
     tipo = (request.get_json(silent=True, force=True) or {}).get("tipo", "manual")
-    threading.Thread(target=run_weekly_job, daemon=True).start()
+    # run_refresh_only: regenera datos y PNGs, NUNCA envía emails al club
+    threading.Thread(target=run_refresh_only, daemon=True).start()
     return jsonify({"status": "started", "tipo": tipo})
 
 
