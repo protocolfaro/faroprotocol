@@ -202,7 +202,7 @@ def query_pipeline_runs(days: int = 14) -> list[dict]:
     """Return rows from pipeline_runs over the last `days` days, newest first."""
     if not _ok():
         return []
-    since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    since = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%S+00:00")
     url = (f"{_base()}/rest/v1/pipeline_runs"
            f"?timestamp_utc=gte.{since}&order=timestamp_utc.desc&limit=200")
     try:
