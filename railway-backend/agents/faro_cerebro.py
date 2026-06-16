@@ -59,6 +59,34 @@ def _init_db():
         conn.commit()
 
 
+_ALERT_COOLDOWN_H = 6  # máximo 1 email de alerta cada 6 horas
+
+
+def _alert_on_cooldown() -> bool:
+    """True si ya se mandó un email de alerta en las últimas _ALERT_COOLDOWN_H horas."""
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            row = conn.execute(
+                "SELECT timestamp FROM short_term_memory WHERE task='alert_email_sent' "
+                "ORDER BY id DESC LIMIT 1"
+            ).fetchone()
+            if not row:
+                return False
+            last = datetime.fromisoformat(row[0])
+            return (datetime.utcnow() - last).total_seconds() / 3600 < _ALERT_COOLDOWN_H
+    except Exception:
+        return False
+
+
+def _record_alert_sent():
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute(
+            "INSERT INTO short_term_memory (timestamp, task, status) VALUES (?,?,?)",
+            (datetime.utcnow().isoformat(), "alert_email_sent", "sent")
+        )
+        conn.commit()
+
+
 def _get_attempts(task: str) -> int:
     with sqlite3.connect(DB_PATH) as conn:
         row = conn.execute(
@@ -237,8 +265,11 @@ Faro Cerebro · Monitor autónomo · protocolfaro@gmail.com<br>
 
 def _check_json() -> tuple[bool, str]:
     vd_path = os.environ.get("FARO_VD_PATH", "")
-    if not vd_path or not os.path.exists(vd_path):
-        return False, f"FARO_VD_PATH no encontrado: {vd_path!r}"
+    if not vd_path:
+        # Railway stateless: FARO_VD_PATH no se setea como env var, skip check
+        return True, "FARO_VD_PATH no configurado — check omitido (Railway stateless)"
+    if not os.path.exists(vd_path):
+        return False, f"FARO_VD_PATH apunta a archivo inexistente: {vd_path!r}"
     age_h = (time.time() - os.path.getmtime(vd_path)) / 3600
     if age_h > _MAX_JSON_AGE_H:
         return False, f"JSON tiene {age_h:.1f}h de antigüedad (límite {_MAX_JSON_AGE_H}h)"
@@ -359,6 +390,7 @@ def _run_checks() -> list[str]:
         alertas.append(f"Panel Vélez inaccesible: {e}")
 
     # 7 — velez_data.json en GitHub Pages tiene datos recientes
+    # Umbral: 170h (pipeline semanal — datos válidos hasta el próximo lunes)
     try:
         r = requests.get(
             "https://raw.githubusercontent.com/protocolfaro/faro-paneles/main/velez/velez_data.json",
@@ -369,15 +401,21 @@ def _run_checks() -> list[str]:
             if ts:
                 t     = datetime.fromisoformat(ts.replace("Z", "+00:00"))
                 horas = (datetime.now(timezone.utc) - t).total_seconds() / 3600
-                if horas > 25:
-                    alertas.append(f"velez_data.json tiene {horas:.0f}h de antigüedad")
+                if horas > 170:
+                    alertas.append(f"velez_data.json tiene {horas:.0f}h de antigüedad (>170h — pipeline no corrió)")
     except Exception as e:
         alertas.append(f"velez_data.json inaccesible: {e}")
 
     # 8 — Todos los PNGs del ciclo existen
-    for png in _ALL_PNGS:
-        if not (_PNG_DIR / png).exists():
-            alertas.append(f"PNG faltante: {png}")
+    # En Railway (stateless) los PNGs se pierden en restart: intentar run_now primero
+    missing_pngs = [p for p in _ALL_PNGS if not (_PNG_DIR / p).exists()]
+    if missing_pngs:
+        log.warning("Cerebro check_pngs (todos): %d faltantes — intentando run_now", len(missing_pngs))
+        _trigger_run_now()
+        time.sleep(15)
+        still_missing = [p for p in missing_pngs if not (_PNG_DIR / p).exists()]
+        if still_missing:
+            alertas.append(f"{len(still_missing)} PNGs faltantes tras run_now: {still_missing}")
 
     return alertas
 
@@ -471,13 +509,17 @@ Reglas absolutas:
         else:
             _record_attempt(task_key, "failed")
 
-    # Escalar al humano con decisión de Claude
+    # Escalar al humano con decisión de Claude (cooldown: 1 email cada 6h)
     body = "\n".join(f"• {a}" for a in alertas)
     body += f"\n\nDecisión del cerebro:\n{decision}"
-    send_alert_email("Alerta del sistema", body)
-
-    _log_supabase("ciclo_con_alertas", resultado=decision[:500], escalado=True)
-    log.error("Faro Cerebro: %d issue(s) escalado(s)", len(alertas))
+    if _alert_on_cooldown():
+        log.info("Faro Cerebro: alerta suprimida por cooldown (%dh) — %d issue(s)", _ALERT_COOLDOWN_H, len(alertas))
+        _log_supabase("ciclo_con_alertas", resultado=f"[cooldown] {decision[:400]}", escalado=False)
+    else:
+        send_alert_email("Alerta del sistema", body)
+        _record_alert_sent()
+        _log_supabase("ciclo_con_alertas", resultado=decision[:500], escalado=True)
+        log.error("Faro Cerebro: %d issue(s) escalado(s)", len(alertas))
 
 
 # ── APScheduler registration ──────────────────────────────────────────────────
