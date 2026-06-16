@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "4.0",
-    "fecha": "2026-06-15",
+    "fecha": "2026-06-16",
     "cliente": "Club Atletico Velez Sarsfield",
     "coords": {
       "lat": -34.6375,
@@ -41,44 +41,44 @@
     ],
     "semana": "2026-06-15"
   },
-  "updated_at": "2026-06-16T07:24:13Z",
+  "updated_at": "2026-06-16T11:23:51Z",
   "weather_live": {
-    "timestamp": "2026-06-15T23:01:49",
+    "timestamp": "2026-06-16T09:00:07",
     "fuentes": [
       "nasa-power",
       "soilgrids",
       "open-meteo-hourly"
     ],
-    "et0_mm_dia": 0.64,
+    "et0_mm_dia": 0.85,
     "et0_fuente": "nasa+penman-monteith",
-    "et0_semana_mm": 4.5,
-    "precipitacion_semana_mm": 64.8,
-    "deficit_hidrico_mm": 0.0,
+    "et0_semana_mm": 6.0,
+    "precipitacion_semana_mm": 1.4,
+    "deficit_hidrico_mm": 4.6,
     "deficit_hidrico": false,
-    "litros_m2_semana": 0.0,
-    "riego_min_sector": 0,
+    "litros_m2_semana": 4.6,
+    "riego_min_sector": 14,
     "riego_min_fuente": "estimado",
     "hora_riego_optima": "05:00",
     "dia_riego_offset": 0,
     "hora_riego_alternativa": "17:00",
     "hora_corte_optima": "06:00",
-    "humedad_suelo_pct": 42.0,
+    "humedad_suelo_pct": 42.4,
     "humedad_suelo_estado": "humedo",
-    "humedad_subsuperficial_pct": 42.1,
-    "humedad_9cm_pct": 42.5,
-    "temp_suelo_0cm": 10.7,
-    "temp_suelo_6cm": 11.5,
-    "temp_suelo_18cm": 12.6,
+    "humedad_subsuperficial_pct": 42.6,
+    "humedad_9cm_pct": 43.1,
+    "temp_suelo_0cm": 7.2,
+    "temp_suelo_6cm": 8.8,
+    "temp_suelo_18cm": 11.4,
     "suelo_tipo": "Suelo pesado",
     "suelo_clay_pct": 32,
     "suelo_sand_pct": 28,
     "suelo_whc_mm": 42,
-    "gdd_acumulado_7d": 9.1,
+    "gdd_acumulado_7d": 9.0,
     "gdd_rate_diario": 1.8,
     "dias_proximo_corte": 14,
     "gndvi_por_cancha": {
       "fuente": "kalman_lstm · amalfitani",
-      "fecha_imagen": "2026-06-15",
+      "fecha_imagen": "2026-06-16",
       "nubosidad_pct": 100.0,
       "canchas": {
         "amalfitani": {
@@ -396,19 +396,13 @@
       }
     },
     "riesgo_fungosis": {
-      "nivel": "medio",
-      "horas_favorables_48h": 7,
+      "nivel": "bajo",
+      "horas_favorables_48h": 0,
       "horas_brown_patch_48h": 0,
-      "descripcion": "MEDIO: 7h favorables Dollar Spot en últimas 48h",
-      "accion_recomendada": "Monitorear canchas afectadas — aplicar fungicida si aparecen manchas",
-      "canchas_en_riesgo": [
-        "1fa",
-        "2fa",
-        "3fa",
-        "amalfitani",
-        "poli_f11"
-      ],
-      "enfermedad": "Dollar Spot"
+      "descripcion": "Riesgo bajo: 0h favorables en últimas 48h",
+      "accion_recomendada": "Sin acción preventiva necesaria",
+      "canchas_en_riesgo": [],
+      "enfermedad": null
     },
     "ecostress": {
       "disponible": false,
@@ -424,7 +418,7 @@
     },
     "sar_disponible": true,
     "sar_mensaje": "Van Genuchten activo (SM proxy)",
-    "costo_agua_ars": 0,
+    "costo_agua_ars": 26000,
     "_temporal_eye": {
       "1fa": {
         "cid": "1fa",
@@ -442,43 +436,43 @@
             {
               "x": 0.25,
               "y": 0.15,
-              "stress": 0.4831,
+              "stress": 0.484,
               "zona": "Banda Izquierda Norte"
             },
             {
               "x": 0.75,
               "y": 0.15,
-              "stress": 0.4831,
+              "stress": 0.484,
               "zona": "Banda Derecha Norte"
             },
             {
               "x": 0.25,
               "y": 0.5,
-              "stress": 0.6084,
+              "stress": 0.6095,
               "zona": "Pasillo Central Norte"
             },
             {
               "x": 0.75,
               "y": 0.5,
-              "stress": 0.5726,
+              "stress": 0.5737,
               "zona": "Pasillo Central Sur"
             },
             {
               "x": 0.25,
               "y": 0.85,
-              "stress": 0.5368,
+              "stress": 0.5378,
               "zona": "Banda Izquierda Sur"
             },
             {
               "x": 0.75,
               "y": 0.85,
-              "stress": 0.5368,
+              "stress": 0.5378,
               "zona": "Banda Derecha Sur"
             }
           ],
           "zona_critica": "Normal",
           "prioridad": 1,
-          "stress_max": 0.6084
+          "stress_max": 0.6095
         }
       },
       "2fa": {
@@ -491,49 +485,49 @@
         "eventos": [],
         "alertas_roger": [],
         "estado_detectado": "normal",
-        "prescripcion_operativa": "Cancha 2FA: Monitorear hongos — 0% Dollar Spot, suelo humedo (42%) — aplicar fungicida si aparecen manchas amarillas",
+        "prescripcion_operativa": "Cancha 2FA: Dormancia invernal — NDVI=0.047 (normal Jun-Ago) — sin intervencion urgente hoy",
         "zonas_estres": {
           "nodos": [
             {
               "x": 0.25,
               "y": 0.15,
-              "stress": 0.4654,
+              "stress": 0.4663,
               "zona": "Banda Izquierda Norte"
             },
             {
               "x": 0.75,
               "y": 0.15,
-              "stress": 0.4654,
+              "stress": 0.4663,
               "zona": "Banda Derecha Norte"
             },
             {
               "x": 0.25,
               "y": 0.5,
-              "stress": 0.5861,
+              "stress": 0.5872,
               "zona": "Pasillo Central Norte"
             },
             {
               "x": 0.75,
               "y": 0.5,
-              "stress": 0.5516,
+              "stress": 0.5527,
               "zona": "Pasillo Central Sur"
             },
             {
               "x": 0.25,
               "y": 0.85,
-              "stress": 0.5172,
+              "stress": 0.5181,
               "zona": "Banda Izquierda Sur"
             },
             {
               "x": 0.75,
               "y": 0.85,
-              "stress": 0.5172,
+              "stress": 0.5181,
               "zona": "Banda Derecha Sur"
             }
           ],
           "zona_critica": "Normal",
           "prioridad": 1,
-          "stress_max": 0.5861
+          "stress_max": 0.5872
         }
       },
       "3fa": {
@@ -546,49 +540,49 @@
         "eventos": [],
         "alertas_roger": [],
         "estado_detectado": "normal",
-        "prescripcion_operativa": "Cancha 3FA: Monitorear hongos — 0% Dollar Spot, suelo humedo (42%) — aplicar fungicida si aparecen manchas amarillas",
+        "prescripcion_operativa": "Cancha 3FA: Dormancia invernal — NDVI=0.071 (normal Jun-Ago) — sin intervencion urgente hoy",
         "zonas_estres": {
           "nodos": [
             {
               "x": 0.25,
               "y": 0.15,
-              "stress": 0.4756,
+              "stress": 0.4765,
               "zona": "Banda Izquierda Norte"
             },
             {
               "x": 0.75,
               "y": 0.15,
-              "stress": 0.4756,
+              "stress": 0.4765,
               "zona": "Banda Derecha Norte"
             },
             {
               "x": 0.25,
               "y": 0.5,
-              "stress": 0.599,
+              "stress": 0.6001,
               "zona": "Pasillo Central Norte"
             },
             {
               "x": 0.75,
               "y": 0.5,
-              "stress": 0.5637,
+              "stress": 0.5648,
               "zona": "Pasillo Central Sur"
             },
             {
               "x": 0.25,
               "y": 0.85,
-              "stress": 0.5285,
+              "stress": 0.5295,
               "zona": "Banda Izquierda Sur"
             },
             {
               "x": 0.75,
               "y": 0.85,
-              "stress": 0.5285,
+              "stress": 0.5295,
               "zona": "Banda Derecha Sur"
             }
           ],
           "zona_critica": "Normal",
           "prioridad": 1,
-          "stress_max": 0.599
+          "stress_max": 0.6001
         }
       },
       "4fa": {
@@ -601,49 +595,49 @@
         "eventos": [],
         "alertas_roger": [],
         "estado_detectado": "normal",
-        "prescripcion_operativa": "Cancha 4FA: Monitorear hongos — 0% Dollar Spot, suelo humedo (42%) — aplicar fungicida si aparecen manchas amarillas",
+        "prescripcion_operativa": "Cancha 4FA: Dormancia invernal — NDVI=0.086 (normal Jun-Ago) — sin intervencion urgente hoy",
         "zonas_estres": {
           "nodos": [
             {
               "x": 0.25,
               "y": 0.15,
-              "stress": 0.4573,
+              "stress": 0.4582,
               "zona": "Banda Izquierda Norte"
             },
             {
               "x": 0.75,
               "y": 0.15,
-              "stress": 0.4573,
+              "stress": 0.4582,
               "zona": "Banda Derecha Norte"
             },
             {
               "x": 0.25,
               "y": 0.5,
-              "stress": 0.5759,
+              "stress": 0.577,
               "zona": "Pasillo Central Norte"
             },
             {
               "x": 0.75,
               "y": 0.5,
-              "stress": 0.542,
+              "stress": 0.5431,
               "zona": "Pasillo Central Sur"
             },
             {
               "x": 0.25,
               "y": 0.85,
-              "stress": 0.5082,
+              "stress": 0.5091,
               "zona": "Banda Izquierda Sur"
             },
             {
               "x": 0.75,
               "y": 0.85,
-              "stress": 0.5082,
+              "stress": 0.5091,
               "zona": "Banda Derecha Sur"
             }
           ],
           "zona_critica": "Normal",
           "prioridad": 1,
-          "stress_max": 0.5759
+          "stress_max": 0.577
         }
       },
       "5fa": {
@@ -656,49 +650,49 @@
         "eventos": [],
         "alertas_roger": [],
         "estado_detectado": "normal",
-        "prescripcion_operativa": "Cancha 5FA: Monitorear hongos — 0% Dollar Spot, suelo humedo (42%) — aplicar fungicida si aparecen manchas amarillas",
+        "prescripcion_operativa": "Cancha 5FA: Dormancia invernal — NDVI=0.074 (normal Jun-Ago) — sin intervencion urgente hoy",
         "zonas_estres": {
           "nodos": [
             {
               "x": 0.25,
               "y": 0.15,
-              "stress": 0.4767,
+              "stress": 0.4776,
               "zona": "Banda Izquierda Norte"
             },
             {
               "x": 0.75,
               "y": 0.15,
-              "stress": 0.4767,
+              "stress": 0.4776,
               "zona": "Banda Derecha Norte"
             },
             {
               "x": 0.25,
               "y": 0.5,
-              "stress": 0.6003,
+              "stress": 0.6014,
               "zona": "Pasillo Central Norte"
             },
             {
               "x": 0.75,
               "y": 0.5,
-              "stress": 0.565,
+              "stress": 0.566,
               "zona": "Pasillo Central Sur"
             },
             {
               "x": 0.25,
               "y": 0.85,
-              "stress": 0.5297,
+              "stress": 0.5307,
               "zona": "Banda Izquierda Sur"
             },
             {
               "x": 0.75,
               "y": 0.85,
-              "stress": 0.5297,
+              "stress": 0.5307,
               "zona": "Banda Derecha Sur"
             }
           ],
           "zona_critica": "Normal",
           "prioridad": 1,
-          "stress_max": 0.6003
+          "stress_max": 0.6014
         }
       },
       "6fa": {
@@ -711,49 +705,49 @@
         "eventos": [],
         "alertas_roger": [],
         "estado_detectado": "normal",
-        "prescripcion_operativa": "Cancha 6FA: Monitorear hongos — 0% Dollar Spot, suelo humedo (42%) — aplicar fungicida si aparecen manchas amarillas",
+        "prescripcion_operativa": "Cancha 6FA: Dormancia invernal — NDVI=0.077 (normal Jun-Ago) — sin intervencion urgente hoy",
         "zonas_estres": {
           "nodos": [
             {
               "x": 0.25,
               "y": 0.15,
-              "stress": 0.4592,
+              "stress": 0.4601,
               "zona": "Banda Izquierda Norte"
             },
             {
               "x": 0.75,
               "y": 0.15,
-              "stress": 0.4592,
+              "stress": 0.4601,
               "zona": "Banda Derecha Norte"
             },
             {
               "x": 0.25,
               "y": 0.5,
-              "stress": 0.5783,
+              "stress": 0.5794,
               "zona": "Pasillo Central Norte"
             },
             {
               "x": 0.75,
               "y": 0.5,
-              "stress": 0.5442,
+              "stress": 0.5453,
               "zona": "Pasillo Central Sur"
             },
             {
               "x": 0.25,
               "y": 0.85,
-              "stress": 0.5102,
+              "stress": 0.5112,
               "zona": "Banda Izquierda Sur"
             },
             {
               "x": 0.75,
               "y": 0.85,
-              "stress": 0.5102,
+              "stress": 0.5112,
               "zona": "Banda Derecha Sur"
             }
           ],
           "zona_critica": "Normal",
           "prioridad": 1,
-          "stress_max": 0.5783
+          "stress_max": 0.5794
         }
       },
       "7fa": {
@@ -766,49 +760,49 @@
         "eventos": [],
         "alertas_roger": [],
         "estado_detectado": "normal",
-        "prescripcion_operativa": "Cancha 7FA: Monitorear hongos — 0% Dollar Spot, suelo humedo (42%) — aplicar fungicida si aparecen manchas amarillas",
+        "prescripcion_operativa": "Cancha 7FA: Dormancia invernal — NDVI=0.083 (normal Jun-Ago) — sin intervencion urgente hoy",
         "zonas_estres": {
           "nodos": [
             {
               "x": 0.25,
               "y": 0.15,
-              "stress": 0.458,
+              "stress": 0.4588,
               "zona": "Banda Izquierda Norte"
             },
             {
               "x": 0.75,
               "y": 0.15,
-              "stress": 0.458,
+              "stress": 0.4588,
               "zona": "Banda Derecha Norte"
             },
             {
               "x": 0.25,
               "y": 0.5,
-              "stress": 0.5767,
+              "stress": 0.5778,
               "zona": "Pasillo Central Norte"
             },
             {
               "x": 0.75,
               "y": 0.5,
-              "stress": 0.5428,
+              "stress": 0.5438,
               "zona": "Pasillo Central Sur"
             },
             {
               "x": 0.25,
               "y": 0.85,
-              "stress": 0.5088,
+              "stress": 0.5098,
               "zona": "Banda Izquierda Sur"
             },
             {
               "x": 0.75,
               "y": 0.85,
-              "stress": 0.5088,
+              "stress": 0.5098,
               "zona": "Banda Derecha Sur"
             }
           ],
           "zona_critica": "Normal",
           "prioridad": 1,
-          "stress_max": 0.5767
+          "stress_max": 0.5778
         }
       },
       "8fa": {
@@ -827,43 +821,43 @@
             {
               "x": 0.25,
               "y": 0.15,
-              "stress": 0.4757,
+              "stress": 0.4766,
               "zona": "Banda Izquierda Norte"
             },
             {
               "x": 0.75,
               "y": 0.15,
-              "stress": 0.4757,
+              "stress": 0.4766,
               "zona": "Banda Derecha Norte"
             },
             {
               "x": 0.25,
               "y": 0.5,
-              "stress": 0.599,
+              "stress": 0.6001,
               "zona": "Pasillo Central Norte"
             },
             {
               "x": 0.75,
               "y": 0.5,
-              "stress": 0.5638,
+              "stress": 0.5648,
               "zona": "Pasillo Central Sur"
             },
             {
               "x": 0.25,
               "y": 0.85,
-              "stress": 0.5285,
+              "stress": 0.5295,
               "zona": "Banda Izquierda Sur"
             },
             {
               "x": 0.75,
               "y": 0.85,
-              "stress": 0.5285,
+              "stress": 0.5295,
               "zona": "Banda Derecha Sur"
             }
           ],
           "zona_critica": "Normal",
           "prioridad": 1,
-          "stress_max": 0.599
+          "stress_max": 0.6001
         }
       },
       "9fa": {
@@ -882,43 +876,43 @@
             {
               "x": 0.25,
               "y": 0.15,
-              "stress": 0.4794,
+              "stress": 0.4803,
               "zona": "Banda Izquierda Norte"
             },
             {
               "x": 0.75,
               "y": 0.15,
-              "stress": 0.4794,
+              "stress": 0.4803,
               "zona": "Banda Derecha Norte"
             },
             {
               "x": 0.25,
               "y": 0.5,
-              "stress": 0.6037,
+              "stress": 0.6048,
               "zona": "Pasillo Central Norte"
             },
             {
               "x": 0.75,
               "y": 0.5,
-              "stress": 0.5682,
+              "stress": 0.5692,
               "zona": "Pasillo Central Sur"
             },
             {
               "x": 0.25,
               "y": 0.85,
-              "stress": 0.5327,
+              "stress": 0.5337,
               "zona": "Banda Izquierda Sur"
             },
             {
               "x": 0.75,
               "y": 0.85,
-              "stress": 0.5327,
+              "stress": 0.5337,
               "zona": "Banda Derecha Sur"
             }
           ],
           "zona_critica": "Normal",
           "prioridad": 1,
-          "stress_max": 0.6037
+          "stress_max": 0.6048
         }
       },
       "10fa": {
@@ -931,49 +925,49 @@
         "eventos": [],
         "alertas_roger": [],
         "estado_detectado": "normal",
-        "prescripcion_operativa": "Cancha 10FA: Monitorear hongos — 0% Dollar Spot, suelo humedo (42%) — aplicar fungicida si aparecen manchas amarillas",
+        "prescripcion_operativa": "Cancha 10FA: Dormancia invernal — NDVI=0.117 (normal Jun-Ago) — sin intervencion urgente hoy",
         "zonas_estres": {
           "nodos": [
             {
               "x": 0.25,
               "y": 0.15,
-              "stress": 0.4509,
+              "stress": 0.4518,
               "zona": "Banda Izquierda Norte"
             },
             {
               "x": 0.75,
               "y": 0.15,
-              "stress": 0.4509,
+              "stress": 0.4518,
               "zona": "Banda Derecha Norte"
             },
             {
               "x": 0.25,
               "y": 0.5,
-              "stress": 0.5678,
+              "stress": 0.5689,
               "zona": "Pasillo Central Norte"
             },
             {
               "x": 0.75,
               "y": 0.5,
-              "stress": 0.5344,
+              "stress": 0.5354,
               "zona": "Pasillo Central Sur"
             },
             {
               "x": 0.25,
               "y": 0.85,
-              "stress": 0.501,
+              "stress": 0.502,
               "zona": "Banda Izquierda Sur"
             },
             {
               "x": 0.75,
               "y": 0.85,
-              "stress": 0.501,
+              "stress": 0.502,
               "zona": "Banda Derecha Sur"
             }
           ],
           "zona_critica": "Normal",
           "prioridad": 1,
-          "stress_max": 0.5678
+          "stress_max": 0.5689
         }
       },
       "1fp": {
@@ -986,49 +980,49 @@
         "eventos": [],
         "alertas_roger": [],
         "estado_detectado": "normal",
-        "prescripcion_operativa": "Cancha 1FP: Monitorear hongos — 0% Dollar Spot, suelo humedo (42%) — aplicar fungicida si aparecen manchas amarillas",
+        "prescripcion_operativa": "Cancha 1FP: Dormancia invernal — NDVI=0.034 (normal Jun-Ago) — sin intervencion urgente hoy",
         "zonas_estres": {
           "nodos": [
             {
               "x": 0.25,
               "y": 0.15,
-              "stress": 0.4681,
+              "stress": 0.469,
               "zona": "Banda Izquierda Norte"
             },
             {
               "x": 0.75,
               "y": 0.15,
-              "stress": 0.4681,
+              "stress": 0.469,
               "zona": "Banda Derecha Norte"
             },
             {
               "x": 0.25,
               "y": 0.5,
-              "stress": 0.5895,
+              "stress": 0.5906,
               "zona": "Pasillo Central Norte"
             },
             {
               "x": 0.75,
               "y": 0.5,
-              "stress": 0.5548,
+              "stress": 0.5559,
               "zona": "Pasillo Central Sur"
             },
             {
               "x": 0.25,
               "y": 0.85,
-              "stress": 0.5202,
+              "stress": 0.5211,
               "zona": "Banda Izquierda Sur"
             },
             {
               "x": 0.75,
               "y": 0.85,
-              "stress": 0.5202,
+              "stress": 0.5211,
               "zona": "Banda Derecha Sur"
             }
           ],
           "zona_critica": "Normal",
           "prioridad": 1,
-          "stress_max": 0.5895
+          "stress_max": 0.5906
         }
       },
       "2fp": {
@@ -1041,49 +1035,49 @@
         "eventos": [],
         "alertas_roger": [],
         "estado_detectado": "normal",
-        "prescripcion_operativa": "Cancha 2FP: Monitorear hongos — 0% Dollar Spot, suelo humedo (42%) — aplicar fungicida si aparecen manchas amarillas",
+        "prescripcion_operativa": "Cancha 2FP: Dormancia invernal — NDVI=0.044 (normal Jun-Ago) — sin intervencion urgente hoy",
         "zonas_estres": {
           "nodos": [
             {
               "x": 0.25,
               "y": 0.15,
-              "stress": 0.4661,
+              "stress": 0.4669,
               "zona": "Banda Izquierda Norte"
             },
             {
               "x": 0.75,
               "y": 0.15,
-              "stress": 0.4661,
+              "stress": 0.4669,
               "zona": "Banda Derecha Norte"
             },
             {
               "x": 0.25,
               "y": 0.5,
-              "stress": 0.5869,
+              "stress": 0.588,
               "zona": "Pasillo Central Norte"
             },
             {
               "x": 0.75,
               "y": 0.5,
-              "stress": 0.5524,
+              "stress": 0.5534,
               "zona": "Pasillo Central Sur"
             },
             {
               "x": 0.25,
               "y": 0.85,
-              "stress": 0.5178,
+              "stress": 0.5188,
               "zona": "Banda Izquierda Sur"
             },
             {
               "x": 0.75,
               "y": 0.85,
-              "stress": 0.5178,
+              "stress": 0.5188,
               "zona": "Banda Derecha Sur"
             }
           ],
           "zona_critica": "Normal",
           "prioridad": 1,
-          "stress_max": 0.5869
+          "stress_max": 0.588
         }
       },
       "_resumen": {
@@ -1107,17 +1101,17 @@
         },
         "prescripciones": {
           "1fa": "Cancha 1FA: DESCANSO — 1845 pers.h acumuladas esta semana, NDVI=0.043 — cerrar hasta recuperacion minima (48hs)",
-          "2fa": "Cancha 2FA: Monitorear hongos — 0% Dollar Spot, suelo humedo (42%) — aplicar fungicida si aparecen manchas amarillas",
-          "3fa": "Cancha 3FA: Monitorear hongos — 0% Dollar Spot, suelo humedo (42%) — aplicar fungicida si aparecen manchas amarillas",
-          "4fa": "Cancha 4FA: Monitorear hongos — 0% Dollar Spot, suelo humedo (42%) — aplicar fungicida si aparecen manchas amarillas",
-          "5fa": "Cancha 5FA: Monitorear hongos — 0% Dollar Spot, suelo humedo (42%) — aplicar fungicida si aparecen manchas amarillas",
-          "6fa": "Cancha 6FA: Monitorear hongos — 0% Dollar Spot, suelo humedo (42%) — aplicar fungicida si aparecen manchas amarillas",
-          "7fa": "Cancha 7FA: Monitorear hongos — 0% Dollar Spot, suelo humedo (42%) — aplicar fungicida si aparecen manchas amarillas",
+          "2fa": "Cancha 2FA: Dormancia invernal — NDVI=0.047 (normal Jun-Ago) — sin intervencion urgente hoy",
+          "3fa": "Cancha 3FA: Dormancia invernal — NDVI=0.071 (normal Jun-Ago) — sin intervencion urgente hoy",
+          "4fa": "Cancha 4FA: Dormancia invernal — NDVI=0.086 (normal Jun-Ago) — sin intervencion urgente hoy",
+          "5fa": "Cancha 5FA: Dormancia invernal — NDVI=0.074 (normal Jun-Ago) — sin intervencion urgente hoy",
+          "6fa": "Cancha 6FA: Dormancia invernal — NDVI=0.077 (normal Jun-Ago) — sin intervencion urgente hoy",
+          "7fa": "Cancha 7FA: Dormancia invernal — NDVI=0.083 (normal Jun-Ago) — sin intervencion urgente hoy",
           "8fa": "Cancha 8FA: DESCANSO — 676 pers.h acumuladas esta semana, NDVI=0.079 — cerrar hasta recuperacion minima (48hs)",
           "9fa": "Cancha 9FA: DESCANSO — 676 pers.h acumuladas esta semana, NDVI=0.061 — cerrar hasta recuperacion minima (48hs)",
-          "10fa": "Cancha 10FA: Monitorear hongos — 0% Dollar Spot, suelo humedo (42%) — aplicar fungicida si aparecen manchas amarillas",
-          "1fp": "Cancha 1FP: Monitorear hongos — 0% Dollar Spot, suelo humedo (42%) — aplicar fungicida si aparecen manchas amarillas",
-          "2fp": "Cancha 2FP: Monitorear hongos — 0% Dollar Spot, suelo humedo (42%) — aplicar fungicida si aparecen manchas amarillas"
+          "10fa": "Cancha 10FA: Dormancia invernal — NDVI=0.117 (normal Jun-Ago) — sin intervencion urgente hoy",
+          "1fp": "Cancha 1FP: Dormancia invernal — NDVI=0.034 (normal Jun-Ago) — sin intervencion urgente hoy",
+          "2fp": "Cancha 2FP: Dormancia invernal — NDVI=0.044 (normal Jun-Ago) — sin intervencion urgente hoy"
         },
         "zonas_estres": {
           "1fa": {
@@ -1125,521 +1119,521 @@
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.4831,
+                "stress": 0.484,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.4831,
+                "stress": 0.484,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.6084,
+                "stress": 0.6095,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.5726,
+                "stress": 0.5737,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.5368,
+                "stress": 0.5378,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.5368,
+                "stress": 0.5378,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.6084
+            "stress_max": 0.6095
           },
           "2fa": {
             "nodos": [
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.4654,
+                "stress": 0.4663,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.4654,
+                "stress": 0.4663,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.5861,
+                "stress": 0.5872,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.5516,
+                "stress": 0.5527,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.5172,
+                "stress": 0.5181,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.5172,
+                "stress": 0.5181,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.5861
+            "stress_max": 0.5872
           },
           "3fa": {
             "nodos": [
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.4756,
+                "stress": 0.4765,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.4756,
+                "stress": 0.4765,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.599,
+                "stress": 0.6001,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.5637,
+                "stress": 0.5648,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.5285,
+                "stress": 0.5295,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.5285,
+                "stress": 0.5295,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.599
+            "stress_max": 0.6001
           },
           "4fa": {
             "nodos": [
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.4573,
+                "stress": 0.4582,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.4573,
+                "stress": 0.4582,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.5759,
+                "stress": 0.577,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.542,
+                "stress": 0.5431,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.5082,
+                "stress": 0.5091,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.5082,
+                "stress": 0.5091,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.5759
+            "stress_max": 0.577
           },
           "5fa": {
             "nodos": [
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.4767,
+                "stress": 0.4776,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.4767,
+                "stress": 0.4776,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.6003,
+                "stress": 0.6014,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.565,
+                "stress": 0.566,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.5297,
+                "stress": 0.5307,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.5297,
+                "stress": 0.5307,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.6003
+            "stress_max": 0.6014
           },
           "6fa": {
             "nodos": [
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.4592,
+                "stress": 0.4601,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.4592,
+                "stress": 0.4601,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.5783,
+                "stress": 0.5794,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.5442,
+                "stress": 0.5453,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.5102,
+                "stress": 0.5112,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.5102,
+                "stress": 0.5112,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.5783
+            "stress_max": 0.5794
           },
           "7fa": {
             "nodos": [
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.458,
+                "stress": 0.4588,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.458,
+                "stress": 0.4588,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.5767,
+                "stress": 0.5778,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.5428,
+                "stress": 0.5438,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.5088,
+                "stress": 0.5098,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.5088,
+                "stress": 0.5098,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.5767
+            "stress_max": 0.5778
           },
           "8fa": {
             "nodos": [
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.4757,
+                "stress": 0.4766,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.4757,
+                "stress": 0.4766,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.599,
+                "stress": 0.6001,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.5638,
+                "stress": 0.5648,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.5285,
+                "stress": 0.5295,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.5285,
+                "stress": 0.5295,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.599
+            "stress_max": 0.6001
           },
           "9fa": {
             "nodos": [
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.4794,
+                "stress": 0.4803,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.4794,
+                "stress": 0.4803,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.6037,
+                "stress": 0.6048,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.5682,
+                "stress": 0.5692,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.5327,
+                "stress": 0.5337,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.5327,
+                "stress": 0.5337,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.6037
+            "stress_max": 0.6048
           },
           "10fa": {
             "nodos": [
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.4509,
+                "stress": 0.4518,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.4509,
+                "stress": 0.4518,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.5678,
+                "stress": 0.5689,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.5344,
+                "stress": 0.5354,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.501,
+                "stress": 0.502,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.501,
+                "stress": 0.502,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.5678
+            "stress_max": 0.5689
           },
           "1fp": {
             "nodos": [
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.4681,
+                "stress": 0.469,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.4681,
+                "stress": 0.469,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.5895,
+                "stress": 0.5906,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.5548,
+                "stress": 0.5559,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.5202,
+                "stress": 0.5211,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.5202,
+                "stress": 0.5211,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.5895
+            "stress_max": 0.5906
           },
           "2fp": {
             "nodos": [
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.4661,
+                "stress": 0.4669,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.4661,
+                "stress": 0.4669,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.5869,
+                "stress": 0.588,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.5524,
+                "stress": 0.5534,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.5178,
+                "stress": 0.5188,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.5178,
+                "stress": 0.5188,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.5869
+            "stress_max": 0.588
           }
         }
       }
     },
-    "riesgo_dollar_spot_pct": 18.9,
+    "riesgo_dollar_spot_pct": 15.8,
     "soil_moisture_sar": 0.4099,
     "matric_potential_cm": 0.29,
     "_ventana_corte": "VENTANA RESTRINGIDA",
@@ -1694,43 +1688,43 @@
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.4831,
+                "stress": 0.484,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.4831,
+                "stress": 0.484,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.6084,
+                "stress": 0.6095,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.5726,
+                "stress": 0.5737,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.5368,
+                "stress": 0.5378,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.5368,
+                "stress": 0.5378,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.6084
+            "stress_max": 0.6095
           }
         },
         {
@@ -1742,7 +1736,7 @@
           "ndvi": 0.047,
           "ndvi_prev": 0.047,
           "detalle": "NDVI 0.05 · Sin actividad registrada · 0 pers · 0h · Dormancia estacional",
-          "prescripcion_operativa": "Cancha 2FA: Monitorear hongos — 0% Dollar Spot, suelo humedo (42%) — aplicar fungicida si aparecen manchas amarillas",
+          "prescripcion_operativa": "Cancha 2FA: Dormancia invernal — NDVI=0.047 (normal Jun-Ago) — sin intervencion urgente hoy",
           "ndvi_historial": [
             0.047
           ],
@@ -1752,43 +1746,43 @@
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.4654,
+                "stress": 0.4663,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.4654,
+                "stress": 0.4663,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.5861,
+                "stress": 0.5872,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.5516,
+                "stress": 0.5527,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.5172,
+                "stress": 0.5181,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.5172,
+                "stress": 0.5181,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.5861
+            "stress_max": 0.5872
           }
         },
         {
@@ -1800,7 +1794,7 @@
           "ndvi": 0.071,
           "ndvi_prev": 0.071,
           "detalle": "NDVI 0.07 · Cancha descansada · 30 pers · 3.0h · Dormancia estacional",
-          "prescripcion_operativa": "Cancha 3FA: Monitorear hongos — 0% Dollar Spot, suelo humedo (42%) — aplicar fungicida si aparecen manchas amarillas",
+          "prescripcion_operativa": "Cancha 3FA: Dormancia invernal — NDVI=0.071 (normal Jun-Ago) — sin intervencion urgente hoy",
           "ndvi_historial": [
             0.071
           ],
@@ -1810,43 +1804,43 @@
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.4756,
+                "stress": 0.4765,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.4756,
+                "stress": 0.4765,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.599,
+                "stress": 0.6001,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.5637,
+                "stress": 0.5648,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.5285,
+                "stress": 0.5295,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.5285,
+                "stress": 0.5295,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.599
+            "stress_max": 0.6001
           }
         },
         {
@@ -1858,7 +1852,7 @@
           "ndvi": 0.086,
           "ndvi_prev": 0.086,
           "detalle": "NDVI 0.09 · Sin actividad registrada · 0 pers · 0h · Dormancia estacional",
-          "prescripcion_operativa": "Cancha 4FA: Monitorear hongos — 0% Dollar Spot, suelo humedo (42%) — aplicar fungicida si aparecen manchas amarillas",
+          "prescripcion_operativa": "Cancha 4FA: Dormancia invernal — NDVI=0.086 (normal Jun-Ago) — sin intervencion urgente hoy",
           "ndvi_historial": [
             0.086
           ],
@@ -1868,43 +1862,43 @@
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.4573,
+                "stress": 0.4582,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.4573,
+                "stress": 0.4582,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.5759,
+                "stress": 0.577,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.542,
+                "stress": 0.5431,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.5082,
+                "stress": 0.5091,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.5082,
+                "stress": 0.5091,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.5759
+            "stress_max": 0.577
           }
         },
         {
@@ -1916,7 +1910,7 @@
           "ndvi": 0.074,
           "ndvi_prev": 0.074,
           "detalle": "NDVI 0.07 · Uso normal · 30 pers · 3.5h · Dormancia estacional",
-          "prescripcion_operativa": "Cancha 5FA: Monitorear hongos — 0% Dollar Spot, suelo humedo (42%) — aplicar fungicida si aparecen manchas amarillas",
+          "prescripcion_operativa": "Cancha 5FA: Dormancia invernal — NDVI=0.074 (normal Jun-Ago) — sin intervencion urgente hoy",
           "ndvi_historial": [
             0.074
           ],
@@ -1926,43 +1920,43 @@
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.4767,
+                "stress": 0.4776,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.4767,
+                "stress": 0.4776,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.6003,
+                "stress": 0.6014,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.565,
+                "stress": 0.566,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.5297,
+                "stress": 0.5307,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.5297,
+                "stress": 0.5307,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.6003
+            "stress_max": 0.6014
           }
         },
         {
@@ -1974,7 +1968,7 @@
           "ndvi": 0.077,
           "ndvi_prev": 0.077,
           "detalle": "NDVI 0.08 · Sin actividad registrada · 0 pers · 0h · Dormancia estacional",
-          "prescripcion_operativa": "Cancha 6FA: Monitorear hongos — 0% Dollar Spot, suelo humedo (42%) — aplicar fungicida si aparecen manchas amarillas",
+          "prescripcion_operativa": "Cancha 6FA: Dormancia invernal — NDVI=0.077 (normal Jun-Ago) — sin intervencion urgente hoy",
           "ndvi_historial": [
             0.077
           ],
@@ -1984,43 +1978,43 @@
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.4592,
+                "stress": 0.4601,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.4592,
+                "stress": 0.4601,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.5783,
+                "stress": 0.5794,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.5442,
+                "stress": 0.5453,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.5102,
+                "stress": 0.5112,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.5102,
+                "stress": 0.5112,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.5783
+            "stress_max": 0.5794
           }
         },
         {
@@ -2032,7 +2026,7 @@
           "ndvi": 0.083,
           "ndvi_prev": 0.083,
           "detalle": "NDVI 0.08 · Sin actividad registrada · 0 pers · 0h · Dormancia estacional",
-          "prescripcion_operativa": "Cancha 7FA: Monitorear hongos — 0% Dollar Spot, suelo humedo (42%) — aplicar fungicida si aparecen manchas amarillas",
+          "prescripcion_operativa": "Cancha 7FA: Dormancia invernal — NDVI=0.083 (normal Jun-Ago) — sin intervencion urgente hoy",
           "ndvi_historial": [
             0.083
           ],
@@ -2042,43 +2036,43 @@
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.458,
+                "stress": 0.4588,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.458,
+                "stress": 0.4588,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.5767,
+                "stress": 0.5778,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.5428,
+                "stress": 0.5438,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.5088,
+                "stress": 0.5098,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.5088,
+                "stress": 0.5098,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.5767
+            "stress_max": 0.5778
           }
         },
         {
@@ -2100,43 +2094,43 @@
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.4757,
+                "stress": 0.4766,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.4757,
+                "stress": 0.4766,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.599,
+                "stress": 0.6001,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.5638,
+                "stress": 0.5648,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.5285,
+                "stress": 0.5295,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.5285,
+                "stress": 0.5295,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.599
+            "stress_max": 0.6001
           }
         },
         {
@@ -2158,43 +2152,43 @@
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.4794,
+                "stress": 0.4803,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.4794,
+                "stress": 0.4803,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.6037,
+                "stress": 0.6048,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.5682,
+                "stress": 0.5692,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.5327,
+                "stress": 0.5337,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.5327,
+                "stress": 0.5337,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.6037
+            "stress_max": 0.6048
           }
         },
         {
@@ -2206,7 +2200,7 @@
           "ndvi": 0.117,
           "ndvi_prev": 0.117,
           "detalle": "NDVI 0.12 · Sin actividad registrada · 0 pers · 0h · Dormancia estacional",
-          "prescripcion_operativa": "Cancha 10FA: Monitorear hongos — 0% Dollar Spot, suelo humedo (42%) — aplicar fungicida si aparecen manchas amarillas",
+          "prescripcion_operativa": "Cancha 10FA: Dormancia invernal — NDVI=0.117 (normal Jun-Ago) — sin intervencion urgente hoy",
           "ndvi_historial": [
             0.117
           ],
@@ -2216,43 +2210,43 @@
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.4509,
+                "stress": 0.4518,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.4509,
+                "stress": 0.4518,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.5678,
+                "stress": 0.5689,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.5344,
+                "stress": 0.5354,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.501,
+                "stress": 0.502,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.501,
+                "stress": 0.502,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.5678
+            "stress_max": 0.5689
           }
         },
         {
@@ -2264,7 +2258,7 @@
           "ndvi": 0.034,
           "ndvi_prev": 0.034,
           "detalle": "NDVI 0.03 · Cancha descansada · 30 pers · 3.0h · Dormancia estacional",
-          "prescripcion_operativa": "Cancha 1FP: Monitorear hongos — 0% Dollar Spot, suelo humedo (42%) — aplicar fungicida si aparecen manchas amarillas",
+          "prescripcion_operativa": "Cancha 1FP: Dormancia invernal — NDVI=0.034 (normal Jun-Ago) — sin intervencion urgente hoy",
           "ndvi_historial": [
             0.034
           ],
@@ -2274,43 +2268,43 @@
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.4681,
+                "stress": 0.469,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.4681,
+                "stress": 0.469,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.5895,
+                "stress": 0.5906,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.5548,
+                "stress": 0.5559,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.5202,
+                "stress": 0.5211,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.5202,
+                "stress": 0.5211,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.5895
+            "stress_max": 0.5906
           }
         },
         {
@@ -2322,7 +2316,7 @@
           "ndvi": 0.044,
           "ndvi_prev": 0.044,
           "detalle": "NDVI 0.04 · Sin actividad registrada · 0 pers · 0h · Dormancia estacional",
-          "prescripcion_operativa": "Cancha 2FP: Monitorear hongos — 0% Dollar Spot, suelo humedo (42%) — aplicar fungicida si aparecen manchas amarillas",
+          "prescripcion_operativa": "Cancha 2FP: Dormancia invernal — NDVI=0.044 (normal Jun-Ago) — sin intervencion urgente hoy",
           "ndvi_historial": [
             0.044
           ],
@@ -2332,43 +2326,43 @@
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.4661,
+                "stress": 0.4669,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.4661,
+                "stress": 0.4669,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.5869,
+                "stress": 0.588,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.5524,
+                "stress": 0.5534,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.5178,
+                "stress": 0.5188,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.5178,
+                "stress": 0.5188,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.5869
+            "stress_max": 0.588
           }
         }
       ]
@@ -2423,18 +2417,18 @@
         },
         {
           "label": "Dollar Spot",
-          "value": "19",
+          "value": "16",
           "value_prev": "—",
           "unit": "%",
-          "sub": "Smith-Kerns · 7h T/HR favorables 48h",
-          "sem": "amarillo"
+          "sub": "Smith-Kerns · 0h T/HR favorables 48h",
+          "sem": "verde"
         },
         {
           "label": "Score VO",
           "value": "42",
-          "value_prev": "35",
+          "value_prev": "42",
           "unit": "",
-          "sub": "Promedio 12 canchas · 2026-06-15",
+          "sub": "Promedio 12 canchas · 2026-06-16",
           "sem": "rojo"
         }
       ],
@@ -2442,8 +2436,7 @@
         "Ventana de corte: VENTANA RESTRINGIDA — 26 mm · 950 RPM",
         "1FA: DESCANSO URGENTE — 1845 pers·h · NDVI 0.043 — no programar sesiones hasta recuperación",
         "8FA: DESCANSO URGENTE — 676 pers·h · NDVI 0.079 — no programar sesiones hasta recuperación",
-        "9FA: DESCANSO URGENTE — 676 pers·h · NDVI 0.061 — no programar sesiones hasta recuperación",
-        "Monitorear 1FA · 3FA — Dollar Spot MEDIO 19% · 7h favorables 48h — aplicar fungicida si aparecen manchas"
+        "9FA: DESCANSO URGENTE — 676 pers·h · NDVI 0.061 — no programar sesiones hasta recuperación"
       ],
       "tareas_semana": [
         {
@@ -2535,43 +2528,43 @@
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.4831,
+                "stress": 0.484,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.4831,
+                "stress": 0.484,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.6084,
+                "stress": 0.6095,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.5726,
+                "stress": 0.5737,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.5368,
+                "stress": 0.5378,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.5368,
+                "stress": 0.5378,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.6084
+            "stress_max": 0.6095
           }
         },
         "8fa": {
@@ -2591,43 +2584,43 @@
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.4757,
+                "stress": 0.4766,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.4757,
+                "stress": 0.4766,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.599,
+                "stress": 0.6001,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.5638,
+                "stress": 0.5648,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.5285,
+                "stress": 0.5295,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.5285,
+                "stress": 0.5295,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.599
+            "stress_max": 0.6001
           }
         },
         "9fa": {
@@ -2647,43 +2640,43 @@
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.4794,
+                "stress": 0.4803,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.4794,
+                "stress": 0.4803,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.6037,
+                "stress": 0.6048,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.5682,
+                "stress": 0.5692,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.5327,
+                "stress": 0.5337,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.5327,
+                "stress": 0.5337,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.6037
+            "stress_max": 0.6048
           }
         },
         "5fa": {
@@ -2696,50 +2689,50 @@
           "gndvi": 0.078,
           "n_status": "grave",
           "n_rec": "Fertilizar URGENTE — deficiencia N grave",
-          "prescripcion_operativa": "Cancha 5FA: Monitorear hongos — 0% Dollar Spot, suelo humedo (42%) — aplicar fungicida si aparecen manchas amarillas",
+          "prescripcion_operativa": "Cancha 5FA: Dormancia invernal — NDVI=0.074 (normal Jun-Ago) — sin intervencion urgente hoy",
           "estado_detectado": "normal",
           "zonas_estres": {
             "nodos": [
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.4767,
+                "stress": 0.4776,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.4767,
+                "stress": 0.4776,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.6003,
+                "stress": 0.6014,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.565,
+                "stress": 0.566,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.5297,
+                "stress": 0.5307,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.5297,
+                "stress": 0.5307,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.6003
+            "stress_max": 0.6014
           }
         },
         "3fa": {
@@ -2752,50 +2745,50 @@
           "gndvi": 0.07,
           "n_status": "grave",
           "n_rec": "Fertilizar URGENTE — deficiencia N grave",
-          "prescripcion_operativa": "Cancha 3FA: Monitorear hongos — 0% Dollar Spot, suelo humedo (42%) — aplicar fungicida si aparecen manchas amarillas",
+          "prescripcion_operativa": "Cancha 3FA: Dormancia invernal — NDVI=0.071 (normal Jun-Ago) — sin intervencion urgente hoy",
           "estado_detectado": "normal",
           "zonas_estres": {
             "nodos": [
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.4756,
+                "stress": 0.4765,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.4756,
+                "stress": 0.4765,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.599,
+                "stress": 0.6001,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.5637,
+                "stress": 0.5648,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.5285,
+                "stress": 0.5295,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.5285,
+                "stress": 0.5295,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.599
+            "stress_max": 0.6001
           }
         },
         "2fa": {
@@ -2808,50 +2801,50 @@
           "gndvi": 0.044,
           "n_status": "grave",
           "n_rec": "Fertilizar URGENTE — deficiencia N grave",
-          "prescripcion_operativa": "Cancha 2FA: Monitorear hongos — 0% Dollar Spot, suelo humedo (42%) — aplicar fungicida si aparecen manchas amarillas",
+          "prescripcion_operativa": "Cancha 2FA: Dormancia invernal — NDVI=0.047 (normal Jun-Ago) — sin intervencion urgente hoy",
           "estado_detectado": "normal",
           "zonas_estres": {
             "nodos": [
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.4654,
+                "stress": 0.4663,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.4654,
+                "stress": 0.4663,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.5861,
+                "stress": 0.5872,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.5516,
+                "stress": 0.5527,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.5172,
+                "stress": 0.5181,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.5172,
+                "stress": 0.5181,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.5861
+            "stress_max": 0.5872
           }
         },
         "4fa": {
@@ -2864,50 +2857,50 @@
           "gndvi": 0.08,
           "n_status": "grave",
           "n_rec": "Fertilizar URGENTE — deficiencia N grave",
-          "prescripcion_operativa": "Cancha 4FA: Monitorear hongos — 0% Dollar Spot, suelo humedo (42%) — aplicar fungicida si aparecen manchas amarillas",
+          "prescripcion_operativa": "Cancha 4FA: Dormancia invernal — NDVI=0.086 (normal Jun-Ago) — sin intervencion urgente hoy",
           "estado_detectado": "normal",
           "zonas_estres": {
             "nodos": [
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.4573,
+                "stress": 0.4582,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.4573,
+                "stress": 0.4582,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.5759,
+                "stress": 0.577,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.542,
+                "stress": 0.5431,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.5082,
+                "stress": 0.5091,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.5082,
+                "stress": 0.5091,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.5759
+            "stress_max": 0.577
           }
         },
         "6fa": {
@@ -2920,50 +2913,50 @@
           "gndvi": 0.08,
           "n_status": "grave",
           "n_rec": "Fertilizar URGENTE — deficiencia N grave",
-          "prescripcion_operativa": "Cancha 6FA: Monitorear hongos — 0% Dollar Spot, suelo humedo (42%) — aplicar fungicida si aparecen manchas amarillas",
+          "prescripcion_operativa": "Cancha 6FA: Dormancia invernal — NDVI=0.077 (normal Jun-Ago) — sin intervencion urgente hoy",
           "estado_detectado": "normal",
           "zonas_estres": {
             "nodos": [
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.4592,
+                "stress": 0.4601,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.4592,
+                "stress": 0.4601,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.5783,
+                "stress": 0.5794,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.5442,
+                "stress": 0.5453,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.5102,
+                "stress": 0.5112,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.5102,
+                "stress": 0.5112,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.5783
+            "stress_max": 0.5794
           }
         },
         "7fa": {
@@ -2976,50 +2969,50 @@
           "gndvi": 0.087,
           "n_status": "grave",
           "n_rec": "Fertilizar URGENTE — deficiencia N grave",
-          "prescripcion_operativa": "Cancha 7FA: Monitorear hongos — 0% Dollar Spot, suelo humedo (42%) — aplicar fungicida si aparecen manchas amarillas",
+          "prescripcion_operativa": "Cancha 7FA: Dormancia invernal — NDVI=0.083 (normal Jun-Ago) — sin intervencion urgente hoy",
           "estado_detectado": "normal",
           "zonas_estres": {
             "nodos": [
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.458,
+                "stress": 0.4588,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.458,
+                "stress": 0.4588,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.5767,
+                "stress": 0.5778,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.5428,
+                "stress": 0.5438,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.5088,
+                "stress": 0.5098,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.5088,
+                "stress": 0.5098,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.5767
+            "stress_max": 0.5778
           }
         },
         "10fa": {
@@ -3032,50 +3025,50 @@
           "gndvi": 0.104,
           "n_status": "grave",
           "n_rec": "Fertilizar URGENTE — deficiencia N grave",
-          "prescripcion_operativa": "Cancha 10FA: Monitorear hongos — 0% Dollar Spot, suelo humedo (42%) — aplicar fungicida si aparecen manchas amarillas",
+          "prescripcion_operativa": "Cancha 10FA: Dormancia invernal — NDVI=0.117 (normal Jun-Ago) — sin intervencion urgente hoy",
           "estado_detectado": "normal",
           "zonas_estres": {
             "nodos": [
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.4509,
+                "stress": 0.4518,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.4509,
+                "stress": 0.4518,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.5678,
+                "stress": 0.5689,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.5344,
+                "stress": 0.5354,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.501,
+                "stress": 0.502,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.501,
+                "stress": 0.502,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.5678
+            "stress_max": 0.5689
           }
         },
         "1fp": {
@@ -3088,50 +3081,50 @@
           "gndvi": 0.041,
           "n_status": "grave",
           "n_rec": "Fertilizar URGENTE — deficiencia N grave",
-          "prescripcion_operativa": "Cancha 1FP: Monitorear hongos — 0% Dollar Spot, suelo humedo (42%) — aplicar fungicida si aparecen manchas amarillas",
+          "prescripcion_operativa": "Cancha 1FP: Dormancia invernal — NDVI=0.034 (normal Jun-Ago) — sin intervencion urgente hoy",
           "estado_detectado": "normal",
           "zonas_estres": {
             "nodos": [
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.4681,
+                "stress": 0.469,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.4681,
+                "stress": 0.469,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.5895,
+                "stress": 0.5906,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.5548,
+                "stress": 0.5559,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.5202,
+                "stress": 0.5211,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.5202,
+                "stress": 0.5211,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.5895
+            "stress_max": 0.5906
           }
         },
         "2fp": {
@@ -3144,50 +3137,50 @@
           "gndvi": 0.048,
           "n_status": "grave",
           "n_rec": "Fertilizar URGENTE — deficiencia N grave",
-          "prescripcion_operativa": "Cancha 2FP: Monitorear hongos — 0% Dollar Spot, suelo humedo (42%) — aplicar fungicida si aparecen manchas amarillas",
+          "prescripcion_operativa": "Cancha 2FP: Dormancia invernal — NDVI=0.044 (normal Jun-Ago) — sin intervencion urgente hoy",
           "estado_detectado": "normal",
           "zonas_estres": {
             "nodos": [
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.4661,
+                "stress": 0.4669,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.4661,
+                "stress": 0.4669,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.5869,
+                "stress": 0.588,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.5524,
+                "stress": 0.5534,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.5178,
+                "stress": 0.5188,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.5178,
+                "stress": 0.5188,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.5869
+            "stress_max": 0.588
           }
         },
         "amalfitani": {
@@ -3510,7 +3503,7 @@
       "heatmaps_meta": {
         "fuente": "kalman_lstm · amalfitani",
         "semana": "2026-06-16",
-        "updated_at": "2026-06-16T07:24:13Z"
+        "updated_at": "2026-06-16T11:23:51Z"
       }
     },
     "juan": {
@@ -4066,7 +4059,7 @@
   },
   "historial_meta": {
     "semana": "2026-06-16",
-    "committed_at": "2026-06-16T07:24:30Z",
+    "committed_at": "2026-06-16T11:24:08Z",
     "fuente": "Faro Protocol · Railway auto-commit"
   }
 }
