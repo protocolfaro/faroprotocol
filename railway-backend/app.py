@@ -1363,6 +1363,21 @@ try:
         _cerebro_reg(_scheduler)
     except Exception as _cerebro_err:
         log.warning("Faro Cerebro scheduler: %s", _cerebro_err)
+    # Startup PNG generation — Railway filesystem es stateless; los PNGs se pierden en cada restart.
+    # Regenerar en background para que el primer ciclo del cerebro no los encuentre faltantes.
+    try:
+        def _startup_png_gen():
+            import time as _t
+            _t.sleep(15)  # esperar a que Flask esté up y scheduler arrancado
+            try:
+                velez_scheduler.run_refresh_only()
+                log.info("Startup PNG generation: OK")
+            except Exception as _spe:
+                log.warning("Startup PNG generation (non-fatal): %s", _spe)
+        threading.Thread(target=_startup_png_gen, daemon=True, name="startup_png_gen").start()
+        log.info("Startup PNG generation thread iniciado (15s delay)")
+    except Exception as _startup_png_err:
+        log.warning("Startup PNG generation thread: %s", _startup_png_err)
     log.info("Schedulers registered: daily weather + weekly reports + dale_play sources + dale_play post-show")
 except Exception as _sched_err:
     _scheduler = None

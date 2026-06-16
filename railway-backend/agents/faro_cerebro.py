@@ -186,6 +186,10 @@ def _ask_claude(system: str, user: str) -> str:
     global _cb_failures, _cb_open_until
     now = datetime.now(timezone.utc)
 
+    if not ANTHROPIC_KEY:
+        log.warning("Cerebro: ANTHROPIC_API_KEY no configurada — Claude skip (agregar en Railway Variables)")
+        return ""
+
     if _cb_open_until and now < _cb_open_until:
         mins = int((_cb_open_until - now).total_seconds() / 60)
         log.warning("Cerebro: circuit breaker abierto — Claude en pausa %d min más", mins)
