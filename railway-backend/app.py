@@ -1370,11 +1370,32 @@ except Exception as _sched_err:
 
 # ── Scheduler routes ──────────────────────────────────────────────────────────
 app.add_url_rule("/velez/run_now",        "velez_run_now",        velez_scheduler.route_run_now,        methods=["POST"])
+app.add_url_rule("/velez/run-refresh",    "velez_run_refresh",    velez_scheduler.route_run_now,        methods=["POST"])
 app.add_url_rule("/velez/weekly_status",  "velez_weekly_status",  velez_scheduler.route_weekly_status,  methods=["GET"])
 app.add_url_rule("/velez/test_whatsapp",  "velez_test_whatsapp",  velez_scheduler.route_test_whatsapp,  methods=["POST"])
 app.add_url_rule("/velez/test_email",     "velez_test_email",     velez_scheduler.route_test_email,     methods=["POST"])
 app.add_url_rule("/velez/test-email",    "velez_test_email_dash", velez_scheduler.route_test_email,     methods=["POST"])
 app.add_url_rule("/velez/smtp_diag",      "velez_smtp_diag",      velez_scheduler.route_smtp_diag,      methods=["GET"])
+
+
+@app.route("/velez/check-pngs", methods=["GET"])
+def velez_check_pngs():
+    """Verifica qué PNGs existen en reportes_velez/. Usado por faro_cerebro."""
+    import os as _os
+    png_dir = _os.path.join(_os.path.dirname(__file__), "reportes_velez")
+    expected = [
+        "faro_reporte_velez.png",
+        "faro_reporte_velez_canchero.png",
+        "faro_reporte_velez_agro_FINAL.png",
+        "faro_reporte_velez_solar_v2.png",
+        "faro_reporte_velez_poli.png",
+        "faro_reporte_velez_sede.png",
+        "faro_reporte_velez_piletas.png",
+        "faro_reporte_velez_instituto.png",
+    ]
+    missing  = [p for p in expected if not _os.path.exists(_os.path.join(png_dir, p))]
+    present  = [p for p in expected if _os.path.exists(_os.path.join(png_dir, p))]
+    return jsonify({"ok": len(missing) == 0, "present": present, "missing": missing})
 
 
 @app.route("/scheduler/status", methods=["GET"])
