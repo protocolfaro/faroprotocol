@@ -16,7 +16,7 @@ REGLAS ABSOLUTAS — gravadas en piedra:
 """
 from __future__ import annotations
 
-import base64, hashlib, json, logging, os, py_compile, sys, tempfile, time
+import base64, json, logging, os, py_compile, sys, tempfile, time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
@@ -365,19 +365,7 @@ def _trigger_refresh() -> tuple[bool, str]:
 
 
 def _send_alert(subject: str, body_html: str, fingerprint: str) -> bool:
-    """
-    Email SOLO a CEREBRO_ALERT_EMAIL con cooldown persistente en Supabase.
-    La lógica de idempotencia: registrar ANTES de enviar.
-    """
-    if _cooldown_active(fingerprint, hours=6):
-        log.info("Cerebro: alerta suprimida por cooldown — %s", fingerprint)
-        return False
-
-    # INSERT atómico: si falla, no mandamos (evita duplicados en race condition)
-    if not _cooldown_set(fingerprint):
-        log.warning("Cerebro: falló registro de cooldown — abortando email para seguridad")
-        return False
-
+    """Email SOLO a CEREBRO_ALERT_EMAIL. Cooldown gestionado por _procesar_alerta."""
     try:
         from sports.clients.velez.velez_scheduler import send_email
         html = f"""
@@ -398,6 +386,69 @@ def _send_alert(subject: str, body_html: str, fingerprint: str) -> bool:
     except Exception as e:
         log.error("Cerebro: send_email error: %s", e)
         return False
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SEVERITY — clasificación de alertas por nivel de urgencia
+# ═══════════════════════════════════════════════════════════════════════════════
+
+SEVERITY_RULES: dict = {
+    # LEVE — nunca manda email, solo se loguea en Supabase
+    "leve": {
+        "checks": ["check_pngs_lento", "check_supabase_warning"],
+        "cooldown_horas": None,
+    },
+    # MEDIA — falla 2+ veces seguidas, email cada 12h máximo
+    "media": {
+        "checks": ["check_json_freshness", "check_pngs", "check_panel"],
+        "cooldown_horas": 12,
+        "min_fallos_consecutivos": 2,
+    },
+    # CRÍTICA — falla el servidor o lleva +24h sin actualizar — email inmediato sin cooldown
+    "critica": {
+        "checks": ["check_health", "pipeline_24h_caido"],
+        "cooldown_horas": 0,
+    },
+}
+
+
+def _clasificar_severidad(check_name: str, fallos_consecutivos: int) -> str:
+    if check_name in SEVERITY_RULES["critica"]["checks"]:
+        return "critica"
+    if check_name in SEVERITY_RULES["media"]["checks"] and fallos_consecutivos >= 2:
+        return "media"
+    return "leve"
+
+
+def _procesar_alerta(check_name: str, mensaje: str, fallos_consecutivos: int) -> None:
+    severidad = _clasificar_severidad(check_name, fallos_consecutivos)
+
+    _sb_insert("faro_cerebro_log", {
+        "accion": check_name,
+        "resultado": mensaje,
+        "error": severidad,
+        "escalado": severidad in ("media", "critica"),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    })
+
+    if severidad == "leve":
+        return
+
+    cooldown_h = SEVERITY_RULES[severidad]["cooldown_horas"]
+    fingerprint = f"{severidad}_{check_name}"
+
+    if cooldown_h > 0 and _cooldown_active(fingerprint, hours=cooldown_h):
+        log.info("Cerebro: alerta suprimida por cooldown — %s", fingerprint)
+        return
+
+    if cooldown_h > 0:
+        _cooldown_set(fingerprint)
+
+    _send_alert(
+        subject=f"[{severidad.upper()}] {check_name}",
+        body_html=mensaje,
+        fingerprint=fingerprint,
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -590,30 +641,9 @@ NUNCA: send_all_reports, run_weekly_job, emails a velez.com.ar, push directo a m
                     except (json.JSONDecodeError, KeyError):
                         log.warning("DGM: respuesta Claude no es JSON válido — %s", fix_response[:100])
 
-        # ── Escalar a Emilio ──────────────────────────────────────────────────
-        fallos_html = "".join(
-            f'<li><b style="color:#e74c3c">{k}</b>: {v}</li>'
-            for k, v in failures.items()
-        )
-        inhibidos = len([n for n, (ok, _) in raw.items() if not ok]) - len(failures)
-        body = f"""
-<h3 style="color:#e74c3c;margin-top:0">Fallos detectados ({len(failures)})</h3>
-<ul style="color:#f2ede4">{fallos_html}</ul>
-{'<h3 style="color:#c9a84c">Análisis del cerebro</h3>'
- + f'<p style="color:#f2ede4;white-space:pre-wrap">{decision}</p>'
- if decision else ''}
-<h3 style="color:#9aa0a8;font-size:12px">Detalle del ciclo</h3>
-<p style="color:#9aa0a8;font-size:11px">
-  Checks corridos: {len(raw)} · Inhibidos/flapping: {inhibidos} · Escalados: {len(failures)}<br>
-  Fallos consecutivos: {dict(_consecutive)}
-</p>"""
-
-        fp = "alert_" + hashlib.md5("_".join(sorted(failures.keys())).encode()).hexdigest()[:8]
-        _send_alert(
-            subject=f"{len(failures)} alerta(s): {', '.join(sorted(failures.keys()))}",
-            body_html=body,
-            fingerprint=fp,
-        )
+        # ── Escalar por severidad ─────────────────────────────────────────────
+        for check_name, msg in failures.items():
+            _procesar_alerta(check_name, msg, _consecutive.get(check_name, 0))
 
         _sb_insert("faro_cerebro_log", {
             "accion": "ciclo_con_alertas",
