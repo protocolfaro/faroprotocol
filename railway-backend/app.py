@@ -1385,7 +1385,6 @@ except Exception as _sched_err:
 
 # ── Scheduler routes ──────────────────────────────────────────────────────────
 app.add_url_rule("/velez/run_now",        "velez_run_now",        velez_scheduler.route_run_now,        methods=["POST"])
-app.add_url_rule("/velez/run-refresh",    "velez_run_refresh",    velez_scheduler.route_run_now,        methods=["POST"])
 app.add_url_rule("/velez/weekly_status",  "velez_weekly_status",  velez_scheduler.route_weekly_status,  methods=["GET"])
 app.add_url_rule("/velez/test_whatsapp",  "velez_test_whatsapp",  velez_scheduler.route_test_whatsapp,  methods=["POST"])
 app.add_url_rule("/velez/test_email",     "velez_test_email",     velez_scheduler.route_test_email,     methods=["POST"])
