@@ -235,6 +235,8 @@ def _fn_json_freshness() -> tuple[bool, str]:
     if not ts:
         return True, "sin timestamp — skip"
     t = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+    if t.tzinfo is None:
+        t = t.replace(tzinfo=timezone.utc)
     horas = (datetime.now(timezone.utc) - t).total_seconds() / 3600
     return horas < 170, f"{horas:.0f}h de antigüedad (límite 170h — pipeline semanal)"
 
