@@ -634,8 +634,6 @@ NUNCA: send_all_reports, run_weekly_job, emails a velez.com.ar, push directo a m
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def register_cerebro_job(scheduler) -> None:
-    log.info("Faro Cerebro PAUSADO — reactivar cuando haya crédito Anthropic")
-    return
     scheduler.add_job(
         run_cerebro_cycle,
         "interval",
