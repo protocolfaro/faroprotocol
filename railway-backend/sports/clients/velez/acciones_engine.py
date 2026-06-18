@@ -24,8 +24,10 @@ _WINTER = frozenset({6, 7, 8})   # Jun–Ago: dormancia bermuda/kikuyo
 _SPRING = frozenset({9, 10, 11}) # Sep–Nov: reactivación
 _SUMMER = frozenset({12, 1, 2})  # Dic–Feb: plena actividad
 
-# NDVI mínimo de crisis por mes (por debajo → daño real, no dormancia)
-_NDVI_CRISIS: dict[int, float] = {
+# Umbrales estacionales de referencia — usados SOLO como fallback cuando
+# hermes_umbral_dinamico no está disponible en el heatmap de la cancha.
+# En producción el umbral lo fija HermesMotor.auditar() (PoD + guardrail FAR).
+_NDVI_CRISIS_FALLBACK: dict[int, float] = {
     1: 0.14, 2: 0.14, 3: 0.11, 4: 0.09, 5: 0.06,
     6: 0.04, 7: 0.04, 8: 0.05,
     9: 0.08, 10: 0.11, 11: 0.13, 12: 0.14,
@@ -35,8 +37,9 @@ _NDVI_CRISIS: dict[int, float] = {
 _VO_ORDER = ["1fa","2fa","3fa","4fa","5fa","6fa","7fa","8fa","9fa","10fa","1fp","2fp"]
 
 
-def _crisis(ndvi: float, month: int) -> bool:
-    return ndvi < _NDVI_CRISIS.get(month, 0.10)
+def _crisis(ndvi: float, month: int, hermes_umbral: Optional[float] = None) -> bool:
+    umbral = hermes_umbral if hermes_umbral is not None else _NDVI_CRISIS_FALLBACK.get(month, 0.10)
+    return ndvi < umbral
 
 
 def _lbl(cid: str) -> str:
@@ -108,19 +111,24 @@ def generate_acciones(
         metodo = hm.get("metodo_generacion", "real")
         src_tag = " (Kalman)" if "KALMAN" in str(metodo) else ""
 
+        # Umbral dinámico Hermes — None si no hay auditoría aún (primera ejecución)
+        hermes_umbral   = hm.get("hermes_umbral_dinamico")
+        hermes_conf     = hm.get("hermes_confianza", "")
+        conf_tag = f" [conf:{hermes_conf}]" if hermes_conf else ""
+
         lbl = _lbl(cid)
 
         # P1: al límite por uso
         if ipos >= 350:
-            p1_limite.append((lbl, ipos, ndvi, src_tag))
+            p1_limite.append((lbl, ipos, ndvi, src_tag + conf_tag))
 
         # P2: carga activa + NDVI en crisis
-        elif ipos >= 100 and _crisis(ndvi, m):
-            p2_activo.append((lbl, ndvi, ipos, src_tag))
+        elif ipos >= 100 and _crisis(ndvi, m, hermes_umbral):
+            p2_activo.append((lbl, ndvi, ipos, src_tag + conf_tag))
 
         # P4: descansada pero NDVI en crisis (daño ambiental / enfermedad)
-        elif ipos < 50 and _crisis(ndvi, m) and not is_winter:
-            p4_danio.append((lbl, ndvi, src_tag))
+        elif ipos < 50 and _crisis(ndvi, m, hermes_umbral) and not is_winter:
+            p4_danio.append((lbl, ndvi, src_tag + conf_tag))
 
         # P5: riesgo fungal medio + en uso activo
         if fung_nivel == "medio" and cid in fung_set and ipos >= 50:
@@ -132,7 +140,7 @@ def generate_acciones(
 
         # P7: resembrar en primavera
         if is_spring and ipos < 50 and ndvi < 0.06:
-            p7_resembrar.append((lbl, ndvi, src_tag))
+            p7_resembrar.append((lbl, ndvi, src_tag + conf_tag))
 
     if fung_nivel == "alto":
         fung_all_urgent = True
@@ -261,7 +269,9 @@ def generate_kpis(
         ndvi_hist = next(
             (c.get("ndvi_prev") for c in canchas if c.get("id") == cid_c), ndvi_c
         )
-        crisis_now = _crisis(ndvi_c, m)
+        hermes_umbral_c = hm_c.get("hermes_umbral_dinamico") if hm_c else None
+        hermes_conf_c   = hm_c.get("hermes_confianza", "") if hm_c else ""
+        crisis_now = _crisis(ndvi_c, m, hermes_umbral_c)
         sub = ("CRÍTICO — carga extrema" if ipos_c >= 350
                else "Uso alto" if ipos_c >= 200
                else "Uso moderado")
@@ -269,6 +279,8 @@ def generate_kpis(
             sub += " + NDVI en crisis"
         elif is_winter:
             sub += " · dormancia invernal"
+        if hermes_conf_c:
+            sub += f" · conf:{hermes_conf_c}"
         kpis.append({
             "label":      f"NDVI {_lbl(cid_c)}",
             "value":      f"{ndvi_c:.3f}",
@@ -285,7 +297,10 @@ def generate_kpis(
         ndvi_p = next(
             (c.get("ndvi_prev") for c in canchas if c.get("id") == cid_l), ndvi_l
         )
-        sub_l  = "Crítico" if _crisis(ndvi_l, m) else ("Dormancia estacional" if is_winter else "Bajo")
+        hermes_umbral_l = hm_l.get("hermes_umbral_dinamico") if hm_l else None
+        hermes_conf_l   = hm_l.get("hermes_confianza", "") if hm_l else ""
+        sub_l_base = "Crítico" if _crisis(ndvi_l, m, hermes_umbral_l) else ("Dormancia estacional" if is_winter else "Bajo")
+        sub_l = sub_l_base + (f" · conf:{hermes_conf_l}" if hermes_conf_l else "")
         kpis.append({
             "label":      f"NDVI {_lbl(cid_l)}",
             "value":      f"{ndvi_l:.3f}",

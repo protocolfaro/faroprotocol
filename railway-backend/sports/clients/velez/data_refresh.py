@@ -487,12 +487,13 @@ def _update_tareas_dates(cfg: dict) -> None:
 def push_weather_update(weather_live: dict) -> str:
     """Write weather_live + roger acciones/kpis to GitHub. Supabase primary for weather_live."""
     # Extract engine outputs before Supabase write (they go only to GitHub JSON)
-    physics_acc = weather_live.pop("_physics_acciones_roger", [])
-    field_acc   = weather_live.pop("_field_acciones_roger", [])
-    roger_kpis  = weather_live.pop("_roger_kpis", [])
-    prescs_op   = weather_live.pop("_prescripciones_operativas", {})
-    estados_op  = weather_live.pop("_estados_detectados", {})
-    zonas_op    = weather_live.pop("_zonas_estres", {})
+    physics_acc    = weather_live.pop("_physics_acciones_roger", [])
+    field_acc      = weather_live.pop("_field_acciones_roger", [])
+    roger_kpis     = weather_live.pop("_roger_kpis", [])
+    prescs_op      = weather_live.pop("_prescripciones_operativas", {})
+    estados_op     = weather_live.pop("_estados_detectados", {})
+    zonas_op       = weather_live.pop("_zonas_estres", {})
+    hermes_hm_raw  = weather_live.pop("_hermes_heatmaps", {})  # ResultadoAuditoria objects — not JSON-safe
 
     try:
         import velez_supabase as _vs
@@ -547,19 +548,28 @@ def push_weather_update(weather_live: dict) -> str:
                 _c["zonas_estres"] = zonas_op[_cid]
         log.info("push_weather_update: %d prescs · %d estados · %d zonas inyectados",
                  len(prescs_op), len(estados_op), len(zonas_op))
+    # Propagar campos Hermes a roger.heatmaps (umbral dinámico + confianza para Roger)
+    for _cid, _hres in (hermes_hm_raw or {}).items():
+        _hm.setdefault(_cid, {})
+        _hm[_cid]["hermes_umbral_dinamico"] = _hres.umbral_dinamico
+        _hm[_cid]["hermes_confianza"]       = _hres.confianza
+        _hm[_cid]["hermes_status"]          = _hres.status
+        _hm[_cid]["hermes_ndvi_fuente"]     = _hres.ndvi_fuente
+
     # Fallback: compute estado_detectado directly from current heatmap data
     # if temporal eye didn't produce it (no time series) — ensures field always present
     _sm_pct = float(weather_live.get("humedad_suelo_pct") or 20.0)
     _m_now  = today_d.month
-    _ndvi_crisis = {1:0.14,2:0.14,3:0.11,4:0.09,5:0.06,6:0.04,7:0.04,8:0.05,
-                    9:0.08,10:0.11,11:0.13,12:0.14}
-    _nd_thr = _ndvi_crisis.get(_m_now, 0.10)
+    # Umbral por cancha: usa hermes_umbral_dinamico si disponible, de lo contrario estacional
+    _NDVI_CRISIS_FB = {1:0.14,2:0.14,3:0.11,4:0.09,5:0.06,6:0.04,7:0.04,8:0.05,
+                       9:0.08,10:0.11,11:0.13,12:0.14}
     for _cid, _hme in _hm.items():
         if not isinstance(_hme, dict) or _hme.get("estado_detectado"):
             continue
         _ndvi = float(_hme.get("ndvi") or 0.5)
         _ipos = float(_hme.get("ipos") or 0.0)
         _bsi  = float(_hme.get("bsi")  or 0.0)
+        _nd_thr = _hme.get("hermes_umbral_dinamico") or _NDVI_CRISIS_FB.get(_m_now, 0.10)
         if _bsi > 0.12 and _sm_pct < 20.0 and _ipos > 150:
             _est_fb = "compactacion"
         elif _ndvi < _nd_thr and _sm_pct < 25.0:
@@ -935,10 +945,40 @@ def run_refresh() -> dict:
         # ── acciones_engine: generar acciones Roger + KPIs dinámicos ────────
         try:
             import acciones_engine as _ae
+            import hermes_velez as _hv
             # Merge heatmaps from vd with any Kalman estimates for the full picture
             _hm_base    = vd.get("usuarios", {}).get("roger", {}).get("heatmaps", {})
             _hm_kalman  = weather.get("_kalman_heatmaps", {})
             _heatmaps   = {**_hm_kalman, **_hm_base}  # real data takes priority
+
+            # ── Hermes: auditoría científica por cancha ───────────────────────
+            # SAR proxy: re-derivado desde humedad_suelo_pct (mismo cálculo Van Genuchten)
+            # Solo se pasa cuando sar_disponible=True (Van Genuchten corrió exitosamente)
+            _sar_proxy_hermes = None
+            if weather.get("sar_disponible"):
+                try:
+                    import math as _mh
+                    _theta_h = max(0.046, min(0.409, float(weather.get("humedad_suelo_pct", 22)) / 100.0))
+                    _s_soil_h = max(1e-4, (_theta_h - 0.12) / 0.28)
+                    _sar_proxy_hermes = round(10.0 * _mh.log10(max(1e-9, _s_soil_h * 0.85)), 2)
+                except Exception:
+                    pass
+            _hermes_results = _hv.audit_all_canchas(_heatmaps, sar_vv_db=_sar_proxy_hermes)
+            for _cid, _res in _hermes_results.items():
+                _heatmaps.setdefault(_cid, {})
+                _heatmaps[_cid]["hermes_umbral_dinamico"] = _res.umbral_dinamico
+                _heatmaps[_cid]["hermes_confianza"]       = _res.confianza
+                _heatmaps[_cid]["hermes_status"]          = _res.status
+                _heatmaps[_cid]["hermes_ndvi_fuente"]     = _res.ndvi_fuente
+            if _hermes_results:
+                log.info("hermes_velez: %d canchas auditadas", len(_hermes_results))
+            # Calibración SAR una vez por proceso (no-op si < 20 pares históricos)
+            try:
+                for _cid_cal in ("amalfitani", "1fa", "1fp"):
+                    _hv.try_calibrar_desde_supabase(_cid_cal)
+            except Exception as _cal_err:
+                log.debug("hermes_velez calibración (non-fatal): %s", _cal_err)
+
             _canchas_vd = (vd.get("sectores", {}).get("canchero", {}).get("canchas", [])
                            or vd.get("canchas", []))
             _phys_for_ae = weather.get("_physics_acciones_roger", [])
@@ -948,6 +988,7 @@ def run_refresh() -> dict:
             _ae_kpis     = _ae.generate_kpis(_heatmaps, _canchas_vd, weather)
             weather["_field_acciones_roger"] = _ae_acciones
             weather["_roger_kpis"]           = _ae_kpis
+            weather["_hermes_heatmaps"]      = _hermes_results  # persisted below
             weather.pop("_kalman_heatmaps", None)  # internal — not persisted in weather_live
             log.info("acciones_engine: %d acciones · %d kpis generados",
                      len(_ae_acciones), len(_ae_kpis))
