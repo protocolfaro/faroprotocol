@@ -21,6 +21,8 @@ __pycache__/
 firebase-service-account.json
 *-firebase-adminsdk-*.json
 accounts.json
+client_secret.json
+*_secret.json
 .claude/
 
 # Local-only scripts with credentials

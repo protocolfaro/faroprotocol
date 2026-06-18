@@ -158,6 +158,11 @@ def _ok() -> bool:
     return bool(_base()) and bool(_key())
 
 
+def _since_utc(days: int) -> str:
+    """ISO-8601 timestamp N days ago with Z suffix (safe for URL query strings — avoids + → space bug)."""
+    return (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 # ── pipeline_runs ─────────────────────────────────────────────────────────────
 
 def insert_pipeline_run(
@@ -202,7 +207,7 @@ def query_pipeline_runs(days: int = 14) -> list[dict]:
     """Return rows from pipeline_runs over the last `days` days, newest first."""
     if not _ok():
         return []
-    since = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%S+00:00")
+    since = _since_utc(days)
     url = (f"{_base()}/rest/v1/pipeline_runs"
            f"?timestamp_utc=gte.{since}&order=timestamp_utc.desc&limit=200")
     try:
@@ -429,7 +434,7 @@ def get_intervenciones_recientes(cancha_id: str | None = None, dias: int = 14) -
     """
     if not _ok():
         return []
-    since = (datetime.now(timezone.utc) - timedelta(days=dias)).isoformat()
+    since = _since_utc(dias)
     base_url = (f"{_base()}/rest/v1/velez_intervenciones"
                 f"?created_at=gte.{since}&order=created_at.desc&limit=100")
     if cancha_id:
@@ -496,7 +501,7 @@ def get_soil_metrics_latest(venue_id: str, cancha_id: str | None = None,
     """Return most recent soil_metrics rows for a venue/cancha. Newest first."""
     if not _ok():
         return []
-    since = (datetime.now(timezone.utc) - timedelta(days=dias)).isoformat()
+    since = _since_utc(dias)
     url = (f"{_base()}/rest/v1/soil_metrics"
            f"?venue_id=eq.{venue_id}&created_at=gte.{since}"
            f"&order=created_at.desc&limit=50")
@@ -559,7 +564,7 @@ def get_vegetation_metrics_latest(venue_id: str, cancha_id: str | None = None,
     """Return most recent vegetation_metrics rows for a venue/cancha. Newest first."""
     if not _ok():
         return []
-    since = (datetime.now(timezone.utc) - timedelta(days=dias)).isoformat()
+    since = _since_utc(dias)
     url = (f"{_base()}/rest/v1/vegetation_metrics"
            f"?venue_id=eq.{venue_id}&created_at=gte.{since}"
            f"&order=created_at.desc&limit=100")
@@ -652,7 +657,7 @@ def get_climate_metrics_latest(venue_id: str, dias: int = 30) -> list[dict]:
     """Return most recent climate_metrics rows for a venue. Newest first."""
     if not _ok():
         return []
-    since = (datetime.now(timezone.utc) - timedelta(days=dias)).isoformat()
+    since = _since_utc(dias)
     url = (f"{_base()}/rest/v1/climate_metrics"
            f"?venue_id=eq.{venue_id}&created_at=gte.{since}"
            f"&order=created_at.desc&limit=50")
@@ -717,7 +722,7 @@ def get_solar_latest(dias: int = 7) -> list[dict]:
     """Return most recent velez_solar rows (one per panel_id). Newest first."""
     if not _ok():
         return []
-    since = (datetime.now(timezone.utc) - timedelta(days=dias)).isoformat()
+    since = _since_utc(dias)
     url = (f"{_base()}/rest/v1/velez_solar"
            f"?created_at=gte.{since}&order=created_at.desc&limit=500")
     try:
@@ -782,7 +787,7 @@ def get_piletas_latest(dias: int = 7) -> list[dict]:
     """Return most recent velez_piletas rows. Newest first."""
     if not _ok():
         return []
-    since = (datetime.now(timezone.utc) - timedelta(days=dias)).isoformat()
+    since = _since_utc(dias)
     url = (f"{_base()}/rest/v1/velez_piletas"
            f"?created_at=gte.{since}&order=created_at.desc&limit=200")
     try:

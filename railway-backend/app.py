@@ -1202,10 +1202,11 @@ def _run_startup_migrations():
         db_url = db_url.replace("postgres://", "postgresql://", 1)
     migration_path = os.path.join(_HERE, "migrations", "fix_data_lake_schema.sql")
     migration_june2026 = os.path.join(_HERE, "migrations", "add_june2026_columns.sql")
+    migration_fecha_imagen = os.path.join(_HERE, "migrations", "add_fecha_imagen.sql")
     try:
         from sqlalchemy import create_engine, text
         engine = create_engine(db_url, connect_args={"connect_timeout": 10})
-        for mpath in [migration_path, migration_june2026]:
+        for mpath in [migration_path, migration_june2026, migration_fecha_imagen]:
             if not os.path.exists(mpath):
                 continue
             sql = open(mpath, encoding="utf-8").read()
