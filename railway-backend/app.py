@@ -516,27 +516,26 @@ def velez_run_refresh():
 @app.route("/velez/sar-backfill", methods=["POST"])
 def velez_sar_backfill():
     """
-    Dispara backfill Sentinel-1 GRD → soil_metrics para Amalfitani.
-    Lee escenas S1 reales de Planetary Computer y escribe VV+VH dB en Supabase.
-    PIN-protegido. Sincrónico (puede tardar 3-5 min para 180 días).
-    Body: {"pin": "...", "days": 180, "limit": 60}
+    Dispara backfill Sentinel-1 GRD sigma0-calibrado → soil_metrics para Amalfitani.
+    Lee A_cal del XML de calibracion de cada escena. PIN-protegido.
+    Body: {"pin": "...", "days": 180, "limit": 60, "clean": true}
+    clean=true borra las filas con formula incorrecta antes de insertar.
     """
     body = request.get_json(silent=True) or {}
     if not _ok_pin(body.get("pin")):
-        return jsonify({"status": "error", "error": "PIN inválido"}), 401
+        return jsonify({"status": "error", "error": "PIN invalido"}), 401
 
-    days  = int(body.get("days",  180))
-    limit = int(body.get("limit",  60))
-    days  = max(1, min(days,  730))
-    limit = max(1, min(limit, 120))
+    days        = max(1, min(int(body.get("days",  180)), 730))
+    limit       = max(1, min(int(body.get("limit",  60)), 120))
+    clean_first = bool(body.get("clean", False))
 
     try:
-        import sys, os
+        import sys as _sys
         _velez_dir = os.path.join(_HERE, "sports", "clients", "velez")
-        if _velez_dir not in sys.path:
-            sys.path.insert(0, _velez_dir)
+        if _velez_dir not in _sys.path:
+            _sys.path.insert(0, _velez_dir)
         from faro_sar_s1_backfill import run_s1_backfill
-        result = run_s1_backfill(days=days, scene_limit=limit)
+        result = run_s1_backfill(days=days, scene_limit=limit, clean_first=clean_first)
         return jsonify({"status": "ok", **result}), 200
     except Exception as exc:
         log.exception("sar-backfill error")
