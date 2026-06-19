@@ -858,22 +858,48 @@ def run_refresh() -> dict:
 
             _deficit   = weather.get("deficit_hidrico_mm", 0.0)
             _riego_min = weather.get("riego_min_sector", 0)
-            # Van Genuchten — siempre corre via proxy SM→SAR cuando no hay SAR real
+            # Intentar SAR real Sentinel-1 (últimos 6 días, revisita ~3-4d a 34°S)
+            _s1_vv = _s1_vh = None
+            try:
+                from faro_sar_s1_backfill import _search_s1, _read_band_db, _get_sas_token, _BBOX
+                from datetime import date as _date_cls, timedelta as _td
+                _s1_scenes = _search_s1(_date_cls.today() - _td(days=6), _date_cls.today(), limit=3)
+                if _s1_scenes:
+                    _s1_tok = _get_sas_token()
+                    _s1_item = _s1_scenes[-1]  # más reciente
+                    _s1_vv   = _read_band_db(_s1_item, "vv", _s1_tok)
+                    _s1_vh   = _read_band_db(_s1_item, "vh", _s1_tok)
+                    if _s1_vv is not None:
+                        _s1_dt = (_s1_item.get("properties", {}).get("datetime") or "")[:10]
+                        log.info("S1 real: VV=%.1f VH=%s dB escena=%s", _s1_vv, _s1_vh, _s1_dt)
+            except Exception as _s1_exc:
+                log.debug("S1 adquisición (non-fatal): %s", _s1_exc)
+
+            # Van Genuchten — corre siempre (fallback si no hay S1, o para θ y matric)
             try:
                 import math as _math
                 _theta    = max(0.046, min(0.409, _hum_pct / 100.0))
                 _s_soil   = max(1e-4, (_theta - 0.12) / 0.28)
-                _sar_vv   = round(10.0 * _math.log10(max(1e-9, _s_soil * 0.85)), 2)
-                _sar_vh   = round(10.0 * _math.log10(max(1e-9, _s_soil * 0.85 * 0.11)), 2)
+                # Si S1 real disponible, usarlo; si no, Van Genuchten proxy
+                _sar_vv   = _s1_vv if _s1_vv is not None else round(10.0 * _math.log10(max(1e-9, _s_soil * 0.85)), 2)
+                _sar_vh   = _s1_vh if _s1_vh is not None else round(10.0 * _math.log10(max(1e-9, _s_soil * 0.85 * 0.11)), 2)
                 _hydro    = compute_faro_hydro_core(_sar_vv, _sar_vh, 2.5, _deficit)
                 weather["soil_moisture_sar"]   = _hydro["soil_moisture_volumetric"]
                 weather["matric_potential_cm"] = _hydro["matric_potential_cm"]
                 weather["sar_disponible"]      = True
-                weather["sar_mensaje"]         = "Van Genuchten activo (SM proxy)"
+                weather["sar_mensaje"]         = (
+                    "Sentinel-1 GRD real · PC · 20m" if _s1_vv is not None
+                    else "Van Genuchten activo (SM proxy)"
+                )
                 if _deficit > 3:
                     _riego_min = _hydro["irrigation_prescription"]["aspersor_time_minutes"]
                     _deficit   = _hydro["irrigation_prescription"]["deficit_hydric_mm"]
-                # Persistir Van Genuchten proxy en soil_metrics (dato diario)
+                # Persistir en soil_metrics (S1 real si disponible, si no Van Genuchten)
+                _sm_fuente = (
+                    "sentinel-1-grd · planetary-computer · 20m"
+                    if _s1_vv is not None
+                    else "van-genuchten-proxy · open-meteo"
+                )
                 try:
                     from velez_supabase import insert_soil_metrics as _ins_sm
                     _ins_sm(
@@ -883,9 +909,9 @@ def run_refresh() -> dict:
                         sar_vh_db=_sar_vh,
                         theta_soil=_theta,
                         h_suction_cm=float(_hydro.get("matric_potential_cm") or 0),
-                        fuente="van-genuchten-proxy · open-meteo",
+                        fuente=_sm_fuente,
                     )
-                    log.info("soil_metrics: INSERT OK (Van Genuchten proxy θ=%.3f)", _theta)
+                    log.info("soil_metrics: INSERT OK (%s θ=%.3f)", _sm_fuente, _theta)
                     _vo_canchas = ["1fa","2fa","3fa","4fa","5fa","6fa","7fa","8fa","9fa","10fa","1fp","2fp"]
                     _h_suc_val = float(_hydro.get("matric_potential_cm") or 0)
                     for _cid in _vo_canchas:
@@ -898,7 +924,7 @@ def run_refresh() -> dict:
                                 sar_vh_db=_sar_vh,
                                 theta_soil=_theta,
                                 h_suction_cm=_h_suc_val,
-                                fuente="van-genuchten-proxy · open-meteo · cancha-vo",
+                                fuente=_sm_fuente + " · cancha-vo",
                             )
                         except Exception:
                             pass
@@ -952,15 +978,17 @@ def run_refresh() -> dict:
             _heatmaps   = {**_hm_kalman, **_hm_base}  # real data takes priority
 
             # ── Hermes: auditoría científica por cancha ───────────────────────
-            # SAR proxy: re-derivado desde humedad_suelo_pct (mismo cálculo Van Genuchten)
-            # Solo se pasa cuando sar_disponible=True (Van Genuchten corrió exitosamente)
+            # Pasar S1 real si está disponible, sino revertir a Van Genuchten proxy
             _sar_proxy_hermes = None
             if weather.get("sar_disponible"):
                 try:
-                    import math as _mh
-                    _theta_h = max(0.046, min(0.409, float(weather.get("humedad_suelo_pct", 22)) / 100.0))
-                    _s_soil_h = max(1e-4, (_theta_h - 0.12) / 0.28)
-                    _sar_proxy_hermes = round(10.0 * _mh.log10(max(1e-9, _s_soil_h * 0.85)), 2)
+                    if _s1_vv is not None:
+                        _sar_proxy_hermes = _s1_vv  # SAR real Sentinel-1
+                    else:
+                        import math as _mh
+                        _theta_h = max(0.046, min(0.409, float(weather.get("humedad_suelo_pct", 22)) / 100.0))
+                        _s_soil_h = max(1e-4, (_theta_h - 0.12) / 0.28)
+                        _sar_proxy_hermes = round(10.0 * _mh.log10(max(1e-9, _s_soil_h * 0.85)), 2)
                 except Exception:
                     pass
             _hermes_results = _hv.audit_all_canchas(_heatmaps, sar_vv_db=_sar_proxy_hermes)
