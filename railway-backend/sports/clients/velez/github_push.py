@@ -229,6 +229,15 @@ def push_velez_data(ipos: dict, ts: str) -> str:
             cancha["detalle"]       = (f"NDVI {ndvi:.2f} · Sin uso esta semana — descansada"
                                        + ctx_note + shadow_note)
 
+        # Nivel 2: propagate real spectral metrics to canchero cancha dict
+        if isinstance(hm_e, dict):
+            if hm_e.get("ndre") is not None:
+                cancha["ndre"] = hm_e["ndre"]
+            if hm_e.get("pct_baja_ndvi") is not None:
+                cancha["pct_baja_ndvi"] = hm_e["pct_baja_ndvi"]
+            if hm_e.get("focos_reales"):
+                cancha["focos_reales"] = hm_e["focos_reales"]
+
     # Aggregate sector-level score from cancha scores (single source of truth)
     cancha_scores = [c.get("score") for c in canchas if isinstance(c.get("score"), (int, float))]
     if cancha_scores:

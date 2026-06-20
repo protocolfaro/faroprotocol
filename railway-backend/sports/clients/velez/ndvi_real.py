@@ -66,8 +66,8 @@ CANCHA_BBOXES: dict[str, tuple] = {
     "10fa": _bbox(-34.6215, -58.7154, w_m=95,  h_m=63),
     "1fp":  _bbox(-34.6230, -58.7231, w_m=105, h_m=70),
     "2fp":  _bbox(-34.6230, -58.7218, w_m=105, h_m=70),
-    # Amalfitani
-    "amalfitani": _bbox(-34.6353, -58.5207),
+    # Amalfitani — bbox confirmed from field survey / field_timeseries.py
+    "amalfitani": (-58.529227, -34.638442, -58.528373, -34.637358),
     # Polideportivo Feijóo
     "poli_f11":    _bbox(-34.6345, -58.5152, w_m=105, h_m=68),
     "poli_f8a":    _bbox(-34.6325, -58.5143, w_m=62,  h_m=44),

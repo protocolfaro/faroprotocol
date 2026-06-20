@@ -210,6 +210,33 @@ def _push_heatmap_ndvi_update(ndvi_data: dict) -> str:
                     entry["ndwi"] = cdata["ndwi"]
                 hm[cid] = entry
 
+    # Always write derived Nivel-2 metrics to GitHub heatmaps (ndre, pct_baja_ndvi, focos_reales)
+    # regardless of Supabase availability, so gen_velez_canchero.py can read them from the JSON.
+    _hm2 = roger.setdefault("heatmaps", {})
+    for _cid2, _cd2 in canchas.items():
+        _e2 = _hm2.setdefault(_cid2, {})
+        if _cd2.get("ndre") is not None:
+            _e2["ndre"] = round(float(_cd2["ndre"]), 3)
+        _ndvi2d = _cd2.get("ndvi_2d") or []
+        if _ndvi2d:
+            _flat = [v for row in _ndvi2d for v in row if v > 0.10]
+            _pct  = round(sum(1 for v in _flat if v < 0.30) / len(_flat) * 100) if _flat else 0
+            _e2["pct_baja_ndvi"] = _pct
+            _low_px = sorted(
+                (v, r_i, c_i)
+                for r_i, row in enumerate(_ndvi2d)
+                for c_i, v in enumerate(row)
+                if 0.10 < v < 0.30
+            )
+            _nrows = len(_ndvi2d)
+            _ncols = len(_ndvi2d[0]) if _ndvi2d else 1
+            _e2["focos_reales"] = [
+                {"x": round((c_i + .5) / _ncols, 2),
+                 "y": round(1.0 - (r_i + .5) / _nrows, 2),
+                 "ndvi": round(v, 3)}
+                for v, r_i, c_i in _low_px[:3]
+            ]
+
     # Always write heatmaps_meta (image date + source) to GitHub for _last_processed_date()
     roger.setdefault("heatmaps_meta", {}).update({
         "semana":     img_date,

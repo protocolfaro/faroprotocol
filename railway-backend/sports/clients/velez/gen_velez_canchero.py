@@ -216,26 +216,66 @@ def _build_zones_from_vd(vd):
         else:
             _compact_val = _sem_comp.get(sem, 'Media')
 
+        # ── 2.1 NDRE real — B05 RedEdge (Sentinel-2) via satellite pipeline ──
+        # Umbral N: <0.15 → deficiencia severa, 0.15-0.25 → moderada, >0.25 → OK
+        _ndre_raw = c.get('ndre')
+        _ndre_val = (round(float(_ndre_raw), 3) if isinstance(_ndre_raw, (int, float))
+                     else round(ndvi_f * 0.65, 2))  # fallback proxy
+
+        # ── 2.2 N kg/ha real — derivado de NDRE B05 ──
+        # Cuantifica deficiencia de clorofila ≈ deficiencia de N sin muestra de suelo
+        if isinstance(_ndre_raw, (int, float)):
+            if _ndre_raw < 0.15:
+                _n_kg_val = 40
+            elif _ndre_raw < 0.25:
+                _n_kg_val = round(15 + (0.25 - _ndre_raw) / 0.10 * 25)
+            else:
+                _n_kg_val = 0
+        else:
+            _n_kg_val = _sem_n.get(sem, 0)
+
+        # ── 2.3 Resiembra real — % píxeles NDVI<0.30 dentro del bbox ──
+        # Umbral: <15% → No, 15-35% → Parcial, >35% → Total
+        _pct_baja = c.get('pct_baja_ndvi')
+        if isinstance(_pct_baja, (int, float)):
+            if _pct_baja < 15:    _res_val = 'No'
+            elif _pct_baja < 35:  _res_val = f'Parcial·{round(_pct_baja)}%'
+            else:                  _res_val = f'Total·{round(_pct_baja)}%'
+        else:
+            _res_val = _sem_res.get(sem, 'No')
+
+        # ── 2.5 Focos reales — posición de píxeles dañados dentro del bbox ──
+        _focos_raw = c.get('focos_reales')
+        if _focos_raw:
+            _focos_val = [
+                {'x': f['x'], 'y': f['y'],
+                 'color': REDL if f['ndvi'] < 0.20 else YELL,
+                 'label': f'NDVI\n{f["ndvi"]:.2f}', 'size': 0.09}
+                for f in _focos_raw
+            ]
+        else:
+            _focos_val = _focos_map.get(sem, _focos_amari)
+
         zones.append({
             'name':       nombre,
             'sem':        sem,
             'estado':     _sem_estado.get(sem, 'ATENCIÓN'),
             'accion':     accion_short,
             'ndvi':       ndvi_f,
-            'ndre':       round(ndvi_f * 0.65, 2),
-            'n_kg':       _sem_n.get(sem, 0),
+            'ndre':       _ndre_val,      # 2.1: real B05, no proxy
+            'n_kg':       _n_kg_val,      # 2.2: real via NDRE
             'riego':      _riego_val,
-            'resiembra':  _sem_res.get(sem, 'No'),
+            'resiembra':  _res_val,       # 2.3: real pct_baja_ndvi
             'hongos':     _hongos_val,
             'compact':    _compact_val,
             'drenaje':    _sem_dren.get(sem, 'OK'),
             'malezas':    _sem_mal.get(sem, '10%'),
             'timeline':   _sem_timeline.get(sem, 'Esta semana'),
             'fusion':     float(score),
-            'score_prev': float(s_prev),   # 1.3: comparativa panel usa esto
+            'score_prev': float(s_prev),
             'map_accion': accion_short.upper(),
             'comparativa': comp_sym,
-            'focos':      _focos_map.get(sem, _focos_amari),
+            'focos':      _focos_val,     # 2.5: real pixel positions
         })
     return zones
 
@@ -870,6 +910,14 @@ ax_ins.text(0.5, 1.02, 'PANEL InSAR · DEFORMACIÓN ESTRUCTURAL — TRIBUNAS',
     ha='center', va='bottom', fontfamily='monospace')
 
 # 1.4: use real InSAR sector values if available; else hardcoded example
+if _insar_sectors is not None:
+    ax_ins.text(0.98, 1.02, '● DATOS REALES',
+        transform=ax_ins.transAxes, color=GRNL, fontsize=6.5,
+        fontweight='bold', ha='right', va='bottom', fontfamily='monospace')
+else:
+    ax_ins.text(0.98, 1.02, '● DATOS DE EJEMPLO — sin InSAR reciente',
+        transform=ax_ins.transAxes, color=YELL, fontsize=6.5,
+        fontweight='bold', ha='right', va='bottom', fontfamily='monospace')
 if _insar_sectors is not None:
     _ins_pairs = [('Estadio', _insar_sectors.get('estadio')),
                   ('Poli',    _insar_sectors.get('poli')),
