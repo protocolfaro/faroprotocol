@@ -1430,7 +1430,7 @@ app.add_url_rule("/velez/smtp_diag",      "velez_smtp_diag",      velez_schedule
 def velez_check_pngs():
     """Verifica qué PNGs existen en reportes_velez/. Usado por faro_cerebro."""
     import os as _os
-    png_dir = _os.path.join(_os.path.dirname(__file__), "reportes_velez")
+    png_dir = _os.path.join(_os.path.dirname(_os.path.dirname(__file__)), "reportes_velez")
     expected = [
         "faro_reporte_velez.png",
         "faro_reporte_velez_canchero.png",
