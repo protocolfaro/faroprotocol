@@ -1,0 +1,34 @@
+name: Drift Check
+
+on:
+  schedule:
+    - cron: "0 13 * * *"  # 13:00 UTC = 10:00 ART
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compare Railway commit vs main
+        run: |
+          MAIN="${{ github.sha }}"
+          URL="https://faroprotocol-production-45fd.up.railway.app"
+          DEPLOYED=$(curl -sf "${URL}/health" \
+            | python3 -c "import sys,json; print(json.load(sys.stdin).get('commit','unknown'))" \
+            2>/dev/null || echo "error")
+          echo "main    = ${MAIN}"
+          echo "railway = ${DEPLOYED}"
+          if [ "${DEPLOYED}" = "error" ] || [ "${DEPLOYED}" = "unknown" ]; then
+            echo "FAIL: no se pudo leer commit de Railway /health"
+            exit 1
+          fi
+          if [ "${DEPLOYED}" != "${MAIN}" ]; then
+            echo "DRIFT DETECTED: railway=${DEPLOYED:0:12} main=${MAIN:0:12}"
+            exit 1
+          fi
+          echo "OK: Railway está sincronizado con main"
+
+      - name: Notify drift
+        if: failure()
+        run: curl -fsS "https://hc-ping.com/${{ secrets.HC_CICD_UUID }}/fail" || true

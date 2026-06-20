@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install test deps
+        run: pip install -r tests/requirements-test.txt
+
+      - name: pytest
+        run: pytest tests/ -v
+
+      - name: Notify pytest failure
+        if: failure()
+        run: curl -fsS "https://hc-ping.com/${{ secrets.HC_CICD_UUID }}/fail" || true
+
+  verify-deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for Railway deploy
+        run: |
+          TARGET="${{ github.sha }}"
+          URL="https://faroprotocol-production-45fd.up.railway.app"
+          echo "Waiting for Railway to deploy ${TARGET:0:12}..."
+          for i in $(seq 1 18); do
+            sleep 30
+            DEPLOYED=$(curl -sf "${URL}/health" \
+              | python3 -c "import sys,json; print(json.load(sys.stdin).get('commit','error'))" \
+              2>/dev/null || echo "error")
+            echo "  [$i/18] railway=${DEPLOYED:0:12} target=${TARGET:0:12}"
+            if [ "${DEPLOYED}" = "${TARGET}" ]; then
+              echo "Deploy confirmed — triggering post-deploy run_now"
+              curl -fsS -X POST "${URL}/velez/run_now" || true
+              exit 0
+            fi
+          done
+          echo "Deploy timeout after 9 min — SHA mismatch or Railway unreachable"
+          exit 1
+
+      - name: Notify deploy failure
+        if: failure()
+        run: curl -fsS "https://hc-ping.com/${{ secrets.HC_CICD_UUID }}/fail" || true

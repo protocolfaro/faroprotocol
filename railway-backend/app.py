@@ -83,7 +83,11 @@ def _ok_pin(pin):
 
 @app.route("/health")
 def health():
-    return jsonify({"status": "ok", "service": "velez-ipos"})
+    return jsonify({
+        "status": "ok",
+        "service": "velez-ipos",
+        "commit": os.environ.get("RAILWAY_GIT_COMMIT_SHA", "unknown"),
+    })
 
 
 @app.route("/velez/health")
