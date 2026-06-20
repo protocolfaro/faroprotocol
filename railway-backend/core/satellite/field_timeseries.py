@@ -523,7 +523,11 @@ def compute_fenology(venue_id: str) -> dict:
 
     # Agrupar NDVI por semana ISO, cap a semana 52 (semana 53 es rara y rompe arrays)
     weekly: dict[int, list[float]] = {w: [] for w in range(1, 53)}
+    n_legacy = 0
     for row in rows:
+        if str(row.get("fuente") or "").startswith("bbox_legacy"):
+            n_legacy += 1
+            continue
         try:
             fecha_d = date.fromisoformat(row["fecha"])
             week    = min(fecha_d.isocalendar()[1], 52)
@@ -532,6 +536,9 @@ def compute_fenology(venue_id: str) -> dict:
                 weekly[week].append(ndvi)
         except Exception:
             continue
+    if n_legacy:
+        log.info("field_timeseries: compute_fenology %s — %d filas bbox_legacy excluidas",
+                 venue_id, n_legacy)
 
     baseline = _smooth_weekly(weekly)
     if not baseline:

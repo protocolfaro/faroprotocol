@@ -102,6 +102,8 @@ def build_eopatch(venue_id: str = "amalfitani",
         )
         _seen_fb: dict[str, dict] = {}
         for _row in veg_fb:
+            if str(_row.get("fuente") or "").startswith("bbox_legacy"):
+                continue
             _fd = str(_row.get("fecha_imagen") or "")[:10]
             if _fd and _row.get("ndvi") is not None:
                 _seen_fb[_fd] = _row
@@ -168,6 +170,8 @@ def build_eopatch(venue_id: str = "amalfitani",
     gndvi_arr= [None] * T
 
     for row in veg_rows:
+        if str(row.get("fuente") or "").startswith("bbox_legacy"):
+            continue
         fd = str(row.get("fecha_imagen") or "")[:10]
         if fd not in date_index:
             continue
