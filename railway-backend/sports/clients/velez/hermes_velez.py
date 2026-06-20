@@ -203,7 +203,7 @@ def audit_all_canchas(
     for cid in _TIPO_CESPED:
         hm = heatmaps.get(cid)
         ndvi_val = hm.get("ndvi") if isinstance(hm, dict) else None
-        if ndvi_val is None and sar_vv_db is None:
+        if not isinstance(hm, dict) and sar_vv_db is None:
             continue
         try:
             results[cid] = audit_cancha(cid, ndvi_val, sar_vv_db)
