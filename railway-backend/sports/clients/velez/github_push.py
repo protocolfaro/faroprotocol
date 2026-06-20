@@ -233,6 +233,8 @@ def push_velez_data(ipos: dict, ts: str) -> str:
         if isinstance(hm_e, dict):
             if hm_e.get("ndre") is not None:
                 cancha["ndre"] = hm_e["ndre"]
+            if hm_e.get("ccci") is not None:
+                cancha["ccci"] = hm_e["ccci"]
             if hm_e.get("pct_baja_ndvi") is not None:
                 cancha["pct_baja_ndvi"] = hm_e["pct_baja_ndvi"]
             if hm_e.get("focos_reales"):

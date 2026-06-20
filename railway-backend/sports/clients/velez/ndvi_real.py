@@ -340,7 +340,9 @@ def _compute_indices(
         entry["evi2"] = evi2
 
     # NDRE = (NIR - RedEdge) / (NIR + RedEdge) — B08/B05 Sentinel-2
-    # Más sensible a nitrógeno que GNDVI. Reemplaza ndre=ndvi*0.65 hardcodeado.
+    # CCCI = NDRE / NDVI — Canopy Chlorophyll Content Index (Barnes et al. 2000)
+    # Normaliza el contenido de clorofila por biomasa: canchas con más biomasa pero
+    # menos clorofila relativa muestran CCCI bajo aunque su NDVI absoluto sea alto.
     if red_edge_c is not None:
         v_re = valid_base & ((nir_c + red_edge_c) > 0.02)
         if scl_mask is not None:
@@ -350,6 +352,8 @@ def _compute_indices(
                 ndre = round(max(-1.0, min(1.0,
                     float(((nir_c - red_edge_c) / (nir_c + red_edge_c + 1e-9))[v_re].mean()))), 3)
             entry["ndre"] = ndre
+            if entry.get("ndvi") and entry["ndvi"] > 0:
+                entry["ccci"] = round(ndre / entry["ndvi"], 4)
 
     return entry
 

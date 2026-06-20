@@ -48,6 +48,8 @@ Migration notes:
       fecha_imagen DATE,
       dias_antiguedad SMALLINT,
       ndvi NUMERIC, gndvi NUMERIC, evi2 NUMERIC, bsi NUMERIC, ndwi NUMERIC,
+      ndre NUMERIC,   -- (B08-B05)/(B08+B05) Sentinel-2; columna agregada 2026-06-20
+      ccci NUMERIC,   -- ndre/ndvi = Canopy Chlorophyll Content Index; columna agregada 2026-06-20
       confianza_pct SMALLINT,
       ndvi_sintetico REAL,
       margen_error_kalman REAL,
@@ -57,6 +59,9 @@ Migration notes:
   );
   CREATE INDEX IF NOT EXISTS idx_veg_metrics_venue_ts ON vegetation_metrics (venue_id, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_veg_metrics_cancha_ts ON vegetation_metrics (cancha_id, created_at DESC);
+  -- Migration: add ndre + ccci to existing table (safe to re-run)
+  ALTER TABLE vegetation_metrics ADD COLUMN IF NOT EXISTS ndre NUMERIC;
+  ALTER TABLE vegetation_metrics ADD COLUMN IF NOT EXISTS ccci NUMERIC;
   CREATE TABLE IF NOT EXISTS climate_metrics (
       id BIGSERIAL PRIMARY KEY,
       venue_id TEXT NOT NULL,
@@ -523,7 +528,10 @@ def insert_vegetation_metrics(*, venue_id: str, cancha_id: str | None = None,
                                fecha_imagen: str | None = None,
                                ndvi: float | None = None, gndvi: float | None = None,
                                evi2: float | None = None, bsi: float | None = None,
-                               ndwi: float | None = None, confianza_pct: int | None = None,
+                               ndwi: float | None = None,
+                               ndre: float | None = None,
+                               ccci: float | None = None,
+                               confianza_pct: int | None = None,
                                ndvi_sintetico: float | None = None,
                                margen_error_kalman: float | None = None,
                                metodo_generacion: str = "SENTINEL_DIRECTO",
@@ -543,6 +551,7 @@ def insert_vegetation_metrics(*, venue_id: str, cancha_id: str | None = None,
         "venue_id": venue_id, "cancha_id": cancha_id, "is_hibrido": is_hibrido,
         "fecha_imagen": fecha_imagen, "dias_antiguedad": dias_ant,
         "ndvi": ndvi, "gndvi": gndvi, "evi2": evi2, "bsi": bsi, "ndwi": ndwi,
+        "ndre": ndre, "ccci": ccci,
         "confianza_pct": confianza_pct, "fuente": fuente,
         "ndvi_sintetico": ndvi_sintetico,
         "margen_error_kalman": margen_error_kalman,
@@ -578,6 +587,50 @@ def get_vegetation_metrics_latest(venue_id: str, cancha_id: str | None = None,
     except Exception as exc:
         log.warning("vegetation_metrics get: %s", exc)
     return []
+
+
+def get_ccci_seasonal_baseline(venue_id: str, cancha_id: str,
+                                season: str, min_obs: int = 10) -> dict:
+    """
+    Returns CCCI seasonal baseline for a cancha: p80 of clean CCCI observations
+    in the same season (invierno/verano/primavera/otono).
+
+    Returns:
+      {"baseline": float, "n_obs": int, "season": str}   — when n_obs >= min_obs
+      {"baseline": None,  "n_obs": int, "season": str}   — when n_obs < min_obs
+    """
+    _SEASON_MONTHS = {
+        "invierno":  [5, 6, 7, 8],
+        "primavera": [9, 10],
+        "verano":    [11, 12, 1, 2],
+        "otono":     [3, 4],
+    }
+    months = _SEASON_MONTHS.get(season, [])
+    if not _ok() or not months:
+        return {"baseline": None, "n_obs": 0, "season": season}
+    try:
+        url = (f"{_base()}/rest/v1/vegetation_metrics"
+               f"?venue_id=eq.{venue_id}&cancha_id=eq.{cancha_id}"
+               f"&ccci=not.is.null&select=ccci,fecha_imagen&limit=200")
+        r = _req.get(url, headers=_hdrs(), timeout=8)
+        if r.status_code != 200:
+            return {"baseline": None, "n_obs": 0, "season": season}
+        rows = [
+            float(row["ccci"])
+            for row in r.json()
+            if row.get("ccci") is not None
+            and row.get("fecha_imagen")
+            and int(str(row["fecha_imagen"])[5:7]) in months
+        ]
+        n = len(rows)
+        if n < min_obs:
+            return {"baseline": None, "n_obs": n, "season": season}
+        rows.sort()
+        p80 = rows[int(n * 0.80)]
+        return {"baseline": round(p80, 4), "n_obs": n, "season": season}
+    except Exception as exc:
+        log.warning("get_ccci_seasonal_baseline: %s", exc)
+        return {"baseline": None, "n_obs": 0, "season": season}
 
 
 # ── climate_metrics ───────────────────────────────────────────────────────────

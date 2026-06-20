@@ -217,6 +217,8 @@ def _push_heatmap_ndvi_update(ndvi_data: dict) -> str:
         _e2 = _hm2.setdefault(_cid2, {})
         if _cd2.get("ndre") is not None:
             _e2["ndre"] = round(float(_cd2["ndre"]), 3)
+        if _cd2.get("ccci") is not None:
+            _e2["ccci"] = round(float(_cd2["ccci"]), 4)
         _ndvi2d = _cd2.get("ndvi_2d") or []
         if _ndvi2d:
             _flat = [v for row in _ndvi2d for v in row if v > 0.10]
@@ -432,6 +434,8 @@ def run_satellite_cycle(ndvi_data: dict = None, force: bool = False) -> dict:
                 evi2=_cd.get("evi2"),
                 bsi=_cd.get("bsi"),
                 ndwi=_cd.get("ndwi"),
+                ndre=_cd.get("ndre"),
+                ccci=_cd.get("ccci"),
                 confianza_pct=_conf_pct,
                 ndvi_sintetico=_cd.get("ndvi") if _metodo != "SENTINEL_DIRECTO" else None,
                 margen_error_kalman=_cd.get("margen_error_kalman"),

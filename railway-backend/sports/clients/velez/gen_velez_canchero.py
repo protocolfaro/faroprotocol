@@ -44,7 +44,7 @@ ZONES = [
         'estado': 'ÓPTIMO',
         'accion': 'Aerificar porterías\nSemana 3',
         'ndvi': 0.68, 'ndre': 0.42,
-        'n_kg': 0, 'riego': 12,
+        'n_kg': 0, 'ccci': 'sin hist', 'riego': 12,
         'resiembra': 'No', 'hongos': 'No',
         'compact': 'Media', 'drenaje': 'OK', 'malezas': '8%',
         'timeline': 'Semana 3', 'fusion': 87.9,
@@ -62,7 +62,7 @@ ZONES = [
         'estado': 'ATENCIÓN',
         'accion': 'Fungicida preventivo\nEsta semana',
         'ndvi': 0.48, 'ndre': 0.31,
-        'n_kg': 15, 'riego': 18,
+        'n_kg': 15, 'ccci': 'sin hist', 'riego': 18,
         'resiembra': 'Parcial', 'hongos': 'Preventivo',
         'compact': 'Alta', 'drenaje': 'Regular', 'malezas': '15%',
         'timeline': 'Esta semana', 'fusion': 62.0,
@@ -79,7 +79,7 @@ ZONES = [
         'estado': 'ATENCIÓN',
         'accion': 'Fertilizar 20kg N/ha\nSemana 2',
         'ndvi': 0.52, 'ndre': 0.35,
-        'n_kg': 20, 'riego': 15,
+        'n_kg': 20, 'ccci': 'sin hist', 'riego': 15,
         'resiembra': 'No', 'hongos': 'No',
         'compact': 'Media', 'drenaje': 'Regular', 'malezas': '12%',
         'timeline': 'Semana 2', 'fusion': 68.4,
@@ -96,7 +96,7 @@ ZONES = [
         'estado': 'ATENCIÓN',
         'accion': 'Fungicida activo\nEsta semana',
         'ndvi': 0.39, 'ndre': 0.28,
-        'n_kg': 25, 'riego': 22,
+        'n_kg': 25, 'ccci': 'sin hist', 'riego': 22,
         'resiembra': 'Parcial', 'hongos': 'Activos',
         'compact': 'Alta', 'drenaje': 'Deficiente', 'malezas': '22%',
         'timeline': 'Esta semana', 'fusion': 43.0,
@@ -114,7 +114,7 @@ ZONES = [
         'estado': 'CRÍTICA',
         'accion': 'Fungicida + drenaje\n+ resiembra · HOY',
         'ndvi': 0.24, 'ndre': 0.18,
-        'n_kg': 40, 'riego': 30,
+        'n_kg': 40, 'ccci': 'sin hist', 'riego': 30,
         'resiembra': 'Total', 'hongos': '85m² activos',
         'compact': 'Crítica', 'drenaje': 'Crítico', 'malezas': '35%',
         'timeline': 'HOY — URGENTE', 'fusion': 32.8,
@@ -222,17 +222,39 @@ def _build_zones_from_vd(vd):
         _ndre_val = (round(float(_ndre_raw), 3) if isinstance(_ndre_raw, (int, float))
                      else round(ndvi_f * 0.65, 2))  # fallback proxy
 
-        # ── 2.2 N kg/ha real — derivado de NDRE B05 ──
-        # Cuantifica deficiencia de clorofila ≈ deficiencia de N sin muestra de suelo
-        if isinstance(_ndre_raw, (int, float)):
-            if _ndre_raw < 0.15:
-                _n_kg_val = 40
-            elif _ndre_raw < 0.25:
-                _n_kg_val = round(15 + (0.25 - _ndre_raw) / 0.10 * 25)
+        # ── 2.2 CCCI — Canopy Chlorophyll Content Index (Barnes et al. 2000) ──
+        # CCCI = NDRE / NDVI. Muestra desvío relativo vs. baseline histórico estacional.
+        # Baseline: p80 de observaciones limpias (≥10 por estación) acumuladas en Supabase.
+        # Sin suficiente histórico → muestra CCCI crudo + aviso explícito.
+        # TODO 2.4 PENDIENTE: calibrar umbral de corte con muestras foliares reales de Vélez.
+        _MIN_OBS_CCCI = 10   # observaciones limpias por estación para baseline confiable
+        _ccci_raw = c.get('ccci')
+        _ccci_label = 'Sin histórico'
+        if isinstance(_ccci_raw, (int, float)):
+            # Try seasonal baseline from Supabase
+            _ccci_bl = None
+            try:
+                import velez_supabase as _vs_ccci
+                if _vs_ccci._ok():
+                    _month_now = __import__('datetime').date.today().month
+                    _season = ('invierno'  if _month_now in (5,6,7,8) else
+                               'primavera' if _month_now in (9,10)    else
+                               'verano'    if _month_now in (11,12,1,2) else 'otono')
+                    _bl = _vs_ccci.get_ccci_seasonal_baseline(
+                        'amalfitani', cid, _season, min_obs=_MIN_OBS_CCCI)
+                    if _bl['baseline'] is not None:
+                        _ccci_bl = _bl['baseline']
+                        _n_obs   = _bl['n_obs']
+            except Exception:
+                pass
+            if _ccci_bl is not None:
+                _dev = round((_ccci_raw - _ccci_bl) / _ccci_bl * 100)
+                _sign = '+' if _dev >= 0 else ''
+                _ccci_label = f'{_sign}{_dev}% vs hist·{_season[:3]}'
             else:
-                _n_kg_val = 0
-        else:
-            _n_kg_val = _sem_n.get(sem, 0)
+                _ccci_label = f'CCCI {_ccci_raw:.3f}·sin hist'
+        # n_kg falls back to semáforo lookup until CCCI baseline is established
+        _n_kg_val = _sem_n.get(sem, 0)
 
         # ── 2.3 Resiembra real — % píxeles NDVI<0.30 dentro del bbox ──
         # Umbral: <15% → No, 15-35% → Parcial, >35% → Total
@@ -263,7 +285,8 @@ def _build_zones_from_vd(vd):
             'accion':     accion_short,
             'ndvi':       ndvi_f,
             'ndre':       _ndre_val,      # 2.1: real B05, no proxy
-            'n_kg':       _n_kg_val,      # 2.2: real via NDRE
+            'n_kg':       _n_kg_val,      # fallback semáforo (CCCI baseline aún no acumulado)
+            'ccci':       _ccci_label,    # 2.2: CCCI desvío vs histórico estacional
             'riego':      _riego_val,
             'resiembra':  _res_val,       # 2.3: real pct_baja_ndvi
             'hongos':     _hongos_val,
@@ -993,19 +1016,20 @@ ax_tbl.text(0.5, 0.99, 'TABLA DE PRESCRIPCIÓN AGRONÓMICA',
     color=GOLD, fontsize=9, fontweight='bold',
     ha='center', va='top', fontfamily='monospace')
 
-cols_tbl = ['ZONA', 'NDVI', 'NDRE', 'N\nkg/ha', 'RIEGO\nmm',
+cols_tbl = ['ZONA', 'NDVI', 'NDRE', 'CCCI', 'RIEGO\nmm',
             'RESIEMBRA', 'HONGOS', 'COMPACT.', 'DRENAJE', 'MALEZAS',
             'TIMELINE', 'PRIOR.', 'ACCIÓN INMEDIATA']
 
 rows_tbl = []
 for z in ZONES:
     sc = SEM_COLOR[z['sem']]
+    _ccci_disp = z.get('ccci', 'sin hist')
     rows_tbl.append({
         'data': [
             z['name'].replace('\n', ' '),
             f"{z['ndvi']:.2f}",
             f"{z['ndre']:.2f}",
-            str(z['n_kg']),
+            _ccci_disp,
             str(z['riego']),
             z['resiembra'],
             z['hongos'],
