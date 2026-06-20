@@ -139,7 +139,7 @@ def _build_zones_from_vd(vd):
     _sem_n        = {'verde': 0,           'amarillo': 15,         'rojo': 40}
     _sem_riego    = {'verde': 12,          'amarillo': 18,         'rojo': 30}
     _sem_res      = {'verde': 'No',        'amarillo': 'Parcial',  'rojo': 'Total'}
-    _sem_hon      = {'verde': 'No',        'amarillo': 'Preventivo','rojo': 'Activos'}
+    _sem_hon      = {'verde': 'No',        'amarillo': 'Preventivo', 'rojo': 'Activos'}
     _sem_comp     = {'verde': 'Media',     'amarillo': 'Alta',     'rojo': 'Crítica'}
     _sem_dren     = {'verde': 'OK',        'amarillo': 'Regular',  'rojo': 'Crítico'}
     _sem_mal      = {'verde': '8%',        'amarillo': '15%',      'rojo': '35%'}
@@ -153,40 +153,95 @@ def _build_zones_from_vd(vd):
     canchas = vd.get('sectores', {}).get('canchero', {}).get('canchas', [])
     if not canchas:
         return None
+
+    # ── 1.1 Riego real — déficit hídrico semanal via ET₀ (NASA POWER + Penman-Monteith) ──
+    # Umbral semáforo: <5mm → verde, 5-15mm → amarillo, >15mm → rojo
+    _wl      = vd.get('weather_live', {})
+    _deficit = _wl.get('deficit_hidrico_mm')   # mm/semana, None si no hay datos
+
+    # ── 1.2 Hongos real — Dollar Spot pressure via Smith-Kerns (ventana 5d T/RH) ──
+    # Umbral: <30% → verde "No", 30-60% → amarillo "Preventivo", >60% → rojo "Activos"
+    _sk_pct = _wl.get('riesgo_dollar_spot_pct')
+
+    def _hongos_from_sk(pct):
+        if pct < 30:  return f'No ({pct:.0f}%)'
+        if pct < 60:  return f'Prev·{pct:.0f}%'
+        return             f'Activos·{pct:.0f}%'
+
+    # ── 1.5 Compactación real — score_compactacion_fisica (θ_soil + SAR VV C-band) ──
+    # Umbral: <25 → Baja, 25-50 → Media, 50-70 → Alta, >70 → Crítica
+    _hm_vd  = vd.get('usuarios', {}).get('roger', {}).get('heatmaps', {})
+    _theta_g = max(0.01, min(0.50, float(_wl.get('humedad_suelo_pct') or 20.0) / 100.0))
+    _vv_g    = float(_wl.get('sar_vv_db') or -14.0)
+    _sc_fn   = None
+    try:
+        from faro_compactacion_ml import score_compactacion_fisica as _sc_fn
+    except ImportError:
+        pass
+
+    def _compact_label(s):
+        if s < 25:  return f'Baja·{s:.0f}'
+        if s < 50:  return f'Media·{s:.0f}'
+        if s < 70:  return f'Alta·{s:.0f}'
+        return          f'Crítica·{s:.0f}'
+
     zones = []
     for c in canchas[:5]:
-        sem      = c.get('sem', 'amarillo')
-        ndvi     = c.get('ndvi', 0.5)
-        score    = c.get('score', 60)
-        s_prev   = c.get('score_prev', score)
-        detalle  = c.get('detalle', '')
-        nombre   = c.get('nombre', c.get('id', '?'))
+        sem    = c.get('sem', 'amarillo')
+        ndvi   = c.get('ndvi')   # may be None if cloud-covered; handle below
+        ndvi_f = float(ndvi) if isinstance(ndvi, (int, float)) else 0.0
+        score  = c.get('score', 60)
+        s_prev = c.get('score_prev', score)
+        detalle = c.get('detalle', '')
+        nombre  = c.get('nombre', c.get('id', '?'))
+        cid     = c.get('id', '')
         comp_sym = '↑' if score > s_prev else ('→' if score == s_prev else '↓')
-        accion_short = detalle.split('\xb7')[1].strip() if '\xb7' in detalle else detalle.split('·')[1].strip() if '·' in detalle else detalle
+        accion_short = (detalle.split('\xb7')[1].strip() if '\xb7' in detalle
+                        else detalle.split('·')[1].strip() if '·' in detalle
+                        else detalle)
+
+        # 1.1 riego: déficit semanal mm (real) o fallback semáforo
+        _riego_val = (round(_deficit) if _deficit is not None
+                      else _sem_riego.get(sem, 18))
+
+        # 1.2 hongos: Smith-Kerns (real) o fallback semáforo
+        _hongos_val = (_hongos_from_sk(_sk_pct) if _sk_pct is not None
+                       else _sem_hon.get(sem, 'No'))
+
+        # 1.5 compact: score físico (real) o fallback semáforo
+        if _sc_fn is not None:
+            _vv_c = float(_hm_vd.get(cid, {}).get('sar_vv_db') or _vv_g)
+            _cs   = _sc_fn({'theta_soil': _theta_g, 'sar_vv_db': _vv_c})
+            _compact_val = _compact_label(_cs)
+        else:
+            _compact_val = _sem_comp.get(sem, 'Media')
+
         zones.append({
-            'name': nombre,
-            'sem': sem,
-            'estado': _sem_estado.get(sem, 'ATENCIÓN'),
-            'accion': accion_short,
-            'ndvi': ndvi,
-            'ndre': round(ndvi * 0.65, 2),
-            'n_kg': _sem_n.get(sem, 0),
-            'riego': _sem_riego.get(sem, 18),
-            'resiembra': _sem_res.get(sem, 'No'),
-            'hongos': _sem_hon.get(sem, 'No'),
-            'compact': _sem_comp.get(sem, 'Media'),
-            'drenaje': _sem_dren.get(sem, 'OK'),
-            'malezas': _sem_mal.get(sem, '10%'),
-            'timeline': _sem_timeline.get(sem, 'Esta semana'),
-            'fusion': float(score),
+            'name':       nombre,
+            'sem':        sem,
+            'estado':     _sem_estado.get(sem, 'ATENCIÓN'),
+            'accion':     accion_short,
+            'ndvi':       ndvi_f,
+            'ndre':       round(ndvi_f * 0.65, 2),
+            'n_kg':       _sem_n.get(sem, 0),
+            'riego':      _riego_val,
+            'resiembra':  _sem_res.get(sem, 'No'),
+            'hongos':     _hongos_val,
+            'compact':    _compact_val,
+            'drenaje':    _sem_dren.get(sem, 'OK'),
+            'malezas':    _sem_mal.get(sem, '10%'),
+            'timeline':   _sem_timeline.get(sem, 'Esta semana'),
+            'fusion':     float(score),
+            'score_prev': float(s_prev),   # 1.3: comparativa panel usa esto
             'map_accion': accion_short.upper(),
             'comparativa': comp_sym,
-            'focos': _focos_map.get(sem, _focos_amari),
+            'focos':      _focos_map.get(sem, _focos_amari),
         })
     return zones
 
 import os as _os, json as _json
 _vd_path = _os.environ.get("FARO_VD_PATH")
+_insar_sectors: dict | None = None   # 1.4: sector InSAR mm values from JSON
 if _vd_path:
     try:
         with open(_vd_path, encoding="utf-8") as _f:
@@ -194,6 +249,12 @@ if _vd_path:
         _zones_real = _build_zones_from_vd(_vd_data)
         if _zones_real:
             ZONES = _zones_real
+        # 1.4: extract InSAR sector displacements (pushed by run_insar_refresh)
+        _secs = _vd_data.get("sectores", {})
+        _ins_check = {k: _secs.get(k, {}).get("insar_mm")
+                      for k in ("estadio", "poli", "sede", "piletas")}
+        if any(v is not None for v in _ins_check.values()):
+            _insar_sectors = _ins_check
     except Exception as _e:
         print(f"FARO_VD_PATH canchero: {_e} — usando datos hardcodeados")
 _out_path = _os.environ.get("FARO_OUT_PATH")
@@ -763,9 +824,12 @@ for val, lbl in [(0, '0\nCrítico'), (50, '50\nNormal'), (100, '100\nÓptimo')]:
         color=WDIM, fontsize=7, ha='center', va='top',
         fontfamily='monospace', linespacing=1.1)
 
-xs5 = np.linspace(0.12, 0.88, 5)
-for i, z in enumerate(ZONES):
-    cx = xs5[i]
+# Sort zones by fusion score so arrows never cross (lowest score leftmost)
+_zones_p3 = sorted(range(len(ZONES)), key=lambda i: ZONES[i]['fusion'])
+xs5 = np.linspace(0.12, 0.88, len(ZONES))
+for pos_i, z_i in enumerate(_zones_p3):
+    z  = ZONES[z_i]
+    cx = xs5[pos_i]
     sc = SEM_COLOR[z['sem']]
     fv = z['fusion']
 
@@ -805,16 +869,27 @@ ax_ins.text(0.5, 1.02, 'PANEL InSAR · DEFORMACIÓN ESTRUCTURAL — TRIBUNAS',
     color=GOLD, fontsize=8.5, fontweight='bold',
     ha='center', va='bottom', fontfamily='monospace')
 
-labels_ins = ['Norte', 'Sur', 'Este', 'Oeste']
-vals_ins   = [0.85, 1.20, 0.60, 2.80]
-colors_ins = [GRNL, YELL, GRNL, REDL]
-x_pos_ins = np.arange(len(labels_ins))
+# 1.4: use real InSAR sector values if available; else hardcoded example
+if _insar_sectors is not None:
+    _ins_pairs = [('Estadio', _insar_sectors.get('estadio')),
+                  ('Poli',    _insar_sectors.get('poli')),
+                  ('Sede',    _insar_sectors.get('sede')),
+                  ('Piletas', _insar_sectors.get('piletas'))]
+    _ins_valid = [(lbl, v) for lbl, v in _ins_pairs if v is not None]
+    labels_ins = [lbl for lbl, v in _ins_valid] if _ins_valid else ['Estadio', 'Poli', 'Sede', 'Piletas']
+    vals_ins   = [v   for lbl, v in _ins_valid] if _ins_valid else [0.0, 0.0, 0.0, 0.0]
+else:
+    labels_ins = ['Norte', 'Sur', 'Este', 'Oeste']
+    vals_ins   = [0.85, 1.20, 0.60, 2.80]
+colors_ins = [REDL if v >= 2.0 else (YELL if v >= 1.0 else GRNL) for v in vals_ins]
+x_pos_ins  = np.arange(len(labels_ins))
 
 bars = ax_ins.bar(x_pos_ins, vals_ins, color=colors_ins, edgecolor=BG,
                   linewidth=0.8, zorder=3, width=0.55)
 
 ax_ins.axhline(2.0, color=REDL, linewidth=1.8, linestyle='--', zorder=4)
-ax_ins.text(3.55, 2.08, '← umbral 2mm', color=REDL,
+_n_ins   = len(vals_ins)
+ax_ins.text(_n_ins - 0.45, 2.08, '← umbral 2mm', color=REDL,
     fontsize=8.5, fontweight='bold', va='bottom', fontfamily='monospace')
 
 for bar_, val in zip(bars, vals_ins):
@@ -823,14 +898,20 @@ for bar_, val in zip(bars, vals_ins):
         f'{val:.2f}mm', color=clr, fontsize=9, fontweight='bold',
         ha='center', va='bottom', fontfamily='monospace')
 
-ax_ins.annotate('⚠ INSPECCIÓN\nESTRUCTURAL\nRECOMENDADA',
-    xy=(3, 2.80), xytext=(2.3, 3.5),
-    color=REDXL, fontsize=8, fontweight='bold', fontfamily='monospace',
-    arrowprops=dict(arrowstyle='->', color=REDXL, lw=1.5),
-    bbox=dict(facecolor='#1a0000', edgecolor=REDL, linewidth=1.2,
-              pad=4, boxstyle='round,pad=0.3'))
+_max_ins_val = max(vals_ins) if vals_ins else 0.0
+_max_ins_idx = int(np.argmax(vals_ins)) if vals_ins else 0
+if _max_ins_val >= 2.0:
+    _ann_x = float(x_pos_ins[_max_ins_idx])
+    ax_ins.annotate('⚠ INSPECCIÓN\nESTRUCTURAL\nRECOMENDADA',
+        xy=(_ann_x, _max_ins_val),
+        xytext=(max(0.2, _ann_x - 1.2), _max_ins_val + 0.7),
+        color=REDXL, fontsize=8, fontweight='bold', fontfamily='monospace',
+        arrowprops=dict(arrowstyle='->', color=REDXL, lw=1.5),
+        bbox=dict(facecolor='#1a0000', edgecolor=REDL, linewidth=1.2,
+                  pad=4, boxstyle='round,pad=0.3'))
 
-ax_ins.set_xlim(-0.6, 3.8); ax_ins.set_ylim(0, 4.8)
+_ylim_top = max(4.8, _max_ins_val * 1.5 + 0.5)
+ax_ins.set_xlim(-0.6, _n_ins - 0.2); ax_ins.set_ylim(0, _ylim_top)
 ax_ins.set_xticks(x_pos_ins)
 ax_ins.set_xticklabels(labels_ins, color=WHITE, fontsize=10, fontfamily='monospace')
 ax_ins.set_ylabel('Desplazamiento (mm)', color=WDIM, fontsize=8, fontfamily='monospace')
@@ -955,13 +1036,20 @@ ax_cmp.text(0.5, 0.97, 'COMPARATIVA · TENDENCIA vs. ESCANEO ANTERIOR',
     color=GOLD, fontsize=8.5, fontweight='bold',
     ha='center', va='top', fontfamily='monospace')
 
-comp_data = [
-    ('Campo\nAmalfitani', 87.9, 85.2, '→', GRNL),
-    ('Cancha 1',          62.0, 71.5, '↓', YELL),
-    ('Cancha 2',          68.4, 67.0, '→', YELL),
-    ('Cancha 3',          43.0, 53.8, '↓', YELL),
-    ('Cancha 4',          32.8, 49.2, '↓', REDL),
-]
+# 1.3: use real score_prev from ZONES if available; else hardcoded fallback
+if ZONES and all('score_prev' in z for z in ZONES):
+    comp_data = [
+        (z['name'], z['fusion'], z['score_prev'], z['comparativa'], SEM_COLOR[z['sem']])
+        for z in ZONES
+    ]
+else:
+    comp_data = [
+        ('Campo\nAmalfitani', 87.9, 85.2, '→', GRNL),
+        ('Cancha 1',          62.0, 71.5, '↓', YELL),
+        ('Cancha 2',          68.4, 67.0, '→', YELL),
+        ('Cancha 3',          43.0, 53.8, '↓', YELL),
+        ('Cancha 4',          32.8, 49.2, '↓', REDL),
+    ]
 xs5c = np.linspace(0.10, 0.90, 5)
 for i, (nm, cur, prev, arrow, clr) in enumerate(comp_data):
     cx = xs5c[i]
