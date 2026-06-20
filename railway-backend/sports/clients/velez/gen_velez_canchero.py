@@ -268,6 +268,10 @@ def _build_zones_from_vd(vd):
             'resiembra':  _res_val,       # 2.3: real pct_baja_ndvi
             'hongos':     _hongos_val,
             'compact':    _compact_val,
+            # 2.4 PENDIENTE: Drenaje vía coherencia InSAR temporal.
+            # Requiere par de escenas Sentinel-1 (misma órbita, ~12d de separación)
+            # procesadas con SNAP o Hyp3 para extraer mapa de coherencia por cancha.
+            # Sin datos InSAR disponibles → fallback a lookup semáforo indefinidamente.
             'drenaje':    _sem_dren.get(sem, 'OK'),
             'malezas':    _sem_mal.get(sem, '10%'),
             'timeline':   _sem_timeline.get(sem, 'Esta semana'),
