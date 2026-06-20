@@ -26,13 +26,23 @@ from utils import coords_to_bbox
 
 # ── Coordenadas de canchas ────────────────────────────────────────────────────
 #
-# Layout (plano "NUMERACION DE CANCHAS 2024"):
+# Layout Villa Olimpica (plano "NUMERACION DE CANCHAS 2024", AutoCAD 2017):
 #
 #  [General de la Guitarra]          [Dardo Cabo]
 #   1FA  2FA    [4FA]                6FA  9FA
 #                 [3FA]       5FA    7FA
 #   1FP  2FP               [asfalt]  8FA  10FA
-#  [═══════════ Camino del Buen Ayre ═════════════]
+#  [============= Camino del Buen Ayre =============]
+#
+# Coordenadas: Villa Olimpica Velez Sarsfield, Ituzaingo (-34.6221, -58.7200).
+# Metodo: extraccion vectorial PyMuPDF + escala calibrada desde poligonos FIFA
+# reales de 1FA/2FA (185x120 PDF units, ratio 0.6508 vs FIFA 68/105=0.6476).
+# Scale=1.766 PDF/m. Centros desde quad-centroid del plano; 6FA/10FA/1FP/2FP
+# desde label text (~12m de offset tipico del CAD, aceptado).
+# Dimensiones reales por grupo (del plano vectorial):
+#   1FA/2FA/1FP/2FP: 105x68m (FIFA) / 105x70m (FP)
+#   3FA/4FA/5FA/6FA: 88x61m
+#   7FA/8FA/9FA/10FA: 95x63m
 
 def _bbox(lat: float, lon: float,
           w_m: float = 105, h_m: float = 68, buf_m: float = 12) -> tuple:
@@ -42,22 +52,20 @@ def _bbox(lat: float, lon: float,
 
 
 CANCHA_BBOXES: dict[str, tuple] = {
-    # WEST — diagonal, near General de la Guitarra
-    "1fa":  _bbox(-34.6355, -58.5220),
-    "2fa":  _bbox(-34.6355, -58.5209),
-    # SW — Primer Equipo
-    "1fp":  _bbox(-34.6366, -58.5213, w_m=105, h_m=70),
-    "2fp":  _bbox(-34.6366, -58.5202, w_m=105, h_m=70),
-    # CENTER — rotadas ~40°, buffer mayor
-    "4fa":  _bbox(-34.6353, -58.5190, buf_m=18),
-    "3fa":  _bbox(-34.6359, -58.5188, buf_m=18),
-    # EAST
-    "5fa":  _bbox(-34.6366, -58.5182),
-    "6fa":  _bbox(-34.6360, -58.5174),
-    "7fa":  _bbox(-34.6360, -58.5167),
-    "8fa":  _bbox(-34.6359, -58.5160),
-    "9fa":  _bbox(-34.6355, -58.5162),
-    "10fa": _bbox(-34.6357, -58.5149),
+    # Villa Olimpica — coordenadas corregidas 2026-06-19
+    # (previas estaban en Liniers/Amalfitani, 12km de distancia)
+    "1fa":  _bbox(-34.6219, -58.7243, w_m=105, h_m=68),
+    "2fa":  _bbox(-34.6219, -58.7231, w_m=105, h_m=68),
+    "3fa":  _bbox(-34.6219, -58.7198, w_m=88,  h_m=61),
+    "4fa":  _bbox(-34.6214, -58.7194, w_m=88,  h_m=61),
+    "5fa":  _bbox(-34.6228, -58.7186, w_m=88,  h_m=61),
+    "6fa":  _bbox(-34.6220, -58.7185, w_m=88,  h_m=61),
+    "7fa":  _bbox(-34.6219, -58.7175, w_m=95,  h_m=63),
+    "8fa":  _bbox(-34.6217, -58.7168, w_m=95,  h_m=63),
+    "9fa":  _bbox(-34.6216, -58.7160, w_m=95,  h_m=63),
+    "10fa": _bbox(-34.6215, -58.7154, w_m=95,  h_m=63),
+    "1fp":  _bbox(-34.6230, -58.7231, w_m=105, h_m=70),
+    "2fp":  _bbox(-34.6230, -58.7218, w_m=105, h_m=70),
     # Amalfitani
     "amalfitani": _bbox(-34.6353, -58.5207),
     # Polideportivo Feijóo
@@ -593,39 +601,50 @@ def _read_canchas_rasterio(item, src: dict) -> dict[str, dict]:
                 red_r   = _to_refl(red_raw, mode)
                 green_r = _to_refl(green_raw, mode)
 
-                # SCL mask — upsample to NIR pixel grid (SCL is 20m, NIR is 10m)
+                # Helper: nearest-neighbor resize to NIR grid (for 20m bands)
+                def _resize(arr):
+                    if arr is None or arr.shape == nir_raw.shape:
+                        return arr
+                    if arr.size == 0:
+                        return None
+                    ri = (np.arange(nir_raw.shape[0]) * arr.shape[0]
+                          / nir_raw.shape[0]).astype(int)
+                    ci = (np.arange(nir_raw.shape[1]) * arr.shape[1]
+                          / nir_raw.shape[1]).astype(int)
+                    return arr[np.ix_(ri, ci)]
+
+                # SCL mask — resample to NIR pixel grid (SCL 20m, NIR 10m)
                 scl_mask = None
                 if s_scl is not None:
                     try:
-                        scl_raw  = s_scl.read(
-                            1, window=_win(s_scl),
-                            out_shape=nir_raw.shape,
-                            resampling=Resampling.nearest,
-                        )
-                        scl_mask = np.isin(scl_raw, list(_SCL_BAD))
+                        scl_raw = s_scl.read(1, window=_win(s_scl),
+                                             resampling=Resampling.nearest)
+                        scl_raw = _resize(scl_raw)
+                        if scl_raw is not None and scl_raw.shape == nir_raw.shape:
+                            scl_mask = np.isin(scl_raw, list(_SCL_BAD))
                     except Exception as _se:
                         log.debug("ndvi_real: %s SCL non-fatal: %s", cid, _se)
 
-                # Optional bands
+                # Optional bands — 20m bands (swir1, red_edge) are resized to 10m NIR grid
                 blue_r  = None
                 swir1_r = None
                 if s_blue is not None:
                     try:
-                        blue_r = _to_refl(
-                            s_blue.read(1, window=_win(s_blue)).astype("float32"), mode)
+                        blue_r = _resize(_to_refl(
+                            s_blue.read(1, window=_win(s_blue)).astype("float32"), mode))
                     except Exception:
                         pass
                 if s_swir1 is not None:
                     try:
-                        swir1_r = _to_refl(
-                            s_swir1.read(1, window=_win(s_swir1)).astype("float32"), mode)
+                        swir1_r = _resize(_to_refl(
+                            s_swir1.read(1, window=_win(s_swir1)).astype("float32"), mode))
                     except Exception:
                         pass
                 red_edge_r = None
                 if s_red_edge is not None:
                     try:
-                        red_edge_r = _to_refl(
-                            s_red_edge.read(1, window=_win(s_red_edge)).astype("float32"), mode)
+                        red_edge_r = _resize(_to_refl(
+                            s_red_edge.read(1, window=_win(s_red_edge)).astype("float32"), mode))
                     except Exception:
                         pass
 
