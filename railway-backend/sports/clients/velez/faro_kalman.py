@@ -7,7 +7,7 @@ State vector x = [compactacion, traccion, ndvi_offset]
   ndvi_offset  : latent NDVI bias from Sentinel-1 SAR (−0.3..+0.3)
 
 Sensors (two independent update paths):
-  1. Manual field measurements: Clegg hammer (kg) + torque wrench (Nm)
+  1. Manual field measurements: Clegg hammer (CG) + torque wrench (Nm)
      maps to compaction/traction space via empirical calibration curves
   2. Sentinel-1 SAR: VV/VH ratio (dB) → ndvi_offset via linear model
 
@@ -19,10 +19,12 @@ from typing import Optional
 
 
 # ── Sensor calibration curves ──────────────────────────────────────────────
-# Clegg Impact Value (CIV) in kg · calibration → compactacion 0-100
-# CIV < 20 → loose; CIV 40-60 → match; CIV > 80 → hard
-def _civ_to_compactacion(civ_kg: float) -> float:
-    return float(np.clip((civ_kg / 100.0) * 100.0, 0, 100))
+# Clegg Impact Value (CIV) in Clegg Gravities (CG) → compactacion 0-100
+# UEFA/STRI match standard (Bonillo): 70-90 CG → óptimo (score ~47-60)
+# <40 CG → suelo blando/esponjoso; >110 CG → demasiado duro
+# Scale: 150 CG = 100 (tope teórico campo sintético)
+def _civ_to_compactacion(civ_cg: float) -> float:
+    return float(np.clip((civ_cg / 150.0) * 100.0, 0, 100))
 
 # Torque (Nm) → traccion 0-100
 # <2 Nm → poor grip; 5-8 Nm → adequate; >12 Nm → excellent
@@ -70,10 +72,10 @@ class FaroKalman:
         self._steps += 1
 
     # ── Update: manual measurement ────────────────────────────────────────
-    def update_manual(self, clegg_kg: float, torque_nm: float) -> dict:
-        """Incorporate Clegg hammer + torque wrench readings."""
+    def update_manual(self, clegg_cg: float, torque_nm: float) -> dict:
+        """Incorporate Clegg hammer (CG) + torque wrench (Nm) readings."""
         z = np.array([
-            _civ_to_compactacion(clegg_kg),
+            _civ_to_compactacion(clegg_cg),
             _torque_to_traccion(torque_nm),
         ])
         H, R = _H_MANUAL, _R_MANUAL
@@ -126,7 +128,7 @@ class FaroKalman:
 # ── Convenience: run one full cycle ───────────────────────────────────────
 def run_update(
     state_dict: Optional[dict],
-    clegg_kg:   Optional[float] = None,
+    clegg_cg:   Optional[float] = None,
     torque_nm:  Optional[float] = None,
     vv_vh_db:   Optional[float] = None,
 ) -> dict:
@@ -136,8 +138,8 @@ def run_update(
     """
     kf = FaroKalman.from_dict(state_dict) if state_dict else FaroKalman()
     kf.predict()
-    if clegg_kg is not None and torque_nm is not None:
-        kf.update_manual(clegg_kg, torque_nm)
+    if clegg_cg is not None and torque_nm is not None:
+        kf.update_manual(clegg_cg, torque_nm)
     if vv_vh_db is not None:
         kf.update_sar(vv_vh_db)
     return kf.to_dict()
@@ -148,7 +150,7 @@ if __name__ == "__main__":
     print("Init:  ", kf.state_dict())
     kf.predict()
     print("After predict:", kf.state_dict())
-    kf.update_manual(clegg_kg=55.0, torque_nm=7.5)
+    kf.update_manual(clegg_cg=75.0, torque_nm=7.5)   # 75 CG ≈ campo en condiciones UEFA
     print("After Clegg+Torque:", kf.state_dict())
     kf.predict()
     kf.update_sar(vv_vh_db=14.2)
