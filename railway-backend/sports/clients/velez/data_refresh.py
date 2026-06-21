@@ -135,7 +135,7 @@ def _fetch_open_meteo() -> dict:
     url = (
         "https://api.open-meteo.com/v1/forecast"
         f"?latitude={LAT}&longitude={LON}"
-        "&hourly=precipitation_probability,wind_speed_10m,et0_fao_evapotranspiration"
+        "&hourly=precipitation_probability,precipitation,wind_speed_10m,et0_fao_evapotranspiration"
         ",soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_moisture_3_to_9cm"
         ",soil_temperature_0cm,soil_temperature_6cm,soil_temperature_18cm"
         ",temperature_2m,relative_humidity_2m"
@@ -354,6 +354,11 @@ def compute_weather_live(nasa, soil, hourly_resp, ecostress, smap,
     prec_sem = round(prec_avg * 7, 1)
     deficit  = round(max(0.0, et0_sem - prec_sem), 1)
 
+    # Precipitación real horaria — past_days=2 → índice 0..47 = últimas 48h
+    _precip_h = [v for v in (h.get("precipitation") or [])[:48] if v is not None]
+    lluvia_48h_mm    = round(sum(_precip_h), 1)
+    lluvia_max_1h_mm = round(max(_precip_h) if _precip_h else 0.0, 1)
+
     sm_vals = [v for v in (h.get("soil_moisture_0_to_1cm") or [])[:24] if v is not None]
     hum_pct = round(sum(sm_vals)/len(sm_vals)*100, 1) if sm_vals else 18.0
     hum_est = ("seco" if hum_pct < 10 else "bajo" if hum_pct < 22
@@ -418,6 +423,8 @@ def compute_weather_live(nasa, soil, hourly_resp, ecostress, smap,
         "ecostress": ecostress, "smap": smap,
         "sar_disponible": False, "sar_mensaje": "Sin integración SAR activa",
         "costo_agua_ars": costo_agua,
+        "lluvia_48h_mm":    lluvia_48h_mm,
+        "lluvia_max_1h_mm": lluvia_max_1h_mm,
     }
 
 

@@ -9,637 +9,150 @@
   },
   "horarios_vo_semana": {
     "semana_label": "C",
-    "fecha_inicio": "2026-05-18",
-    "fecha_fin": "2026-05-23",
+    "fecha_inicio": "2026-06-23",
+    "fecha_fin": "2026-06-28",
     "dias": [
       {
         "id": "lun",
         "label": "Lun",
-        "fecha": "2026-05-18"
+        "fecha": "2026-06-23"
       },
       {
         "id": "mar",
         "label": "Mar",
-        "fecha": "2026-05-19"
+        "fecha": "2026-06-24"
       },
       {
         "id": "mie",
         "label": "Mié",
-        "fecha": "2026-05-20"
+        "fecha": "2026-06-25"
       },
       {
         "id": "jue",
         "label": "Jue",
-        "fecha": "2026-05-21"
+        "fecha": "2026-06-26"
       },
       {
         "id": "vie",
         "label": "Vie",
-        "fecha": "2026-05-22"
+        "fecha": "2026-06-27"
       },
       {
         "id": "sab",
         "label": "Sáb",
-        "fecha": "2026-05-23"
+        "fecha": "2026-06-28"
       }
     ],
     "sessions": [
+      { "categoria": "RESERVA",  "dia": "lun", "canchas": ["5fa"],                   "turno": "manana",     "factor": 1.0 },
+      { "categoria": "RESERVA",  "dia": "mar", "canchas": ["3fa"],                   "turno": "manana",     "factor": 1.0 },
+      { "categoria": "RESERVA",  "dia": "vie", "canchas": ["5fa"],                   "turno": "manana",     "factor": 1.0 },
+      { "categoria": "RESERVA",  "dia": "sab", "canchas": ["3fa"],                   "turno": "manana",     "factor": 1.0 },
+
+      { "categoria": "CUARTA",   "dia": "lun", "canchas": ["8fa"],                   "turno": "manana",     "factor": 1.0 },
+      { "categoria": "CUARTA",   "dia": "mar", "canchas": ["1fa"],                   "turno": "manana",     "factor": 1.0 },
+      { "categoria": "CUARTA",   "dia": "mie", "canchas": ["9fa"],                   "turno": "manana",     "factor": 1.0 },
+      { "categoria": "CUARTA",   "dia": "jue", "canchas": ["5fa"],                   "turno": "manana",     "factor": 1.0 },
+      { "categoria": "CUARTA",   "dia": "vie", "canchas": ["1fa"],                   "turno": "manana",     "factor": 1.0 },
+      { "categoria": "CUARTA",   "dia": "sab", "canchas": ["1fa"],                   "turno": "manana",     "factor": 1.0 },
+
+      { "categoria": "QUINTA",   "dia": "lun", "canchas": ["1fa"],                   "turno": "manana",     "factor": 1.0 },
+      { "categoria": "QUINTA",   "dia": "mar", "canchas": ["9fa"],                   "turno": "manana",     "factor": 1.0 },
+      { "categoria": "QUINTA",   "dia": "mie", "canchas": ["1fa"],                   "turno": "manana",     "factor": 1.0 },
+      { "categoria": "QUINTA",   "dia": "jue", "canchas": ["8fa"],                   "turno": "manana",     "factor": 1.0 },
+      { "categoria": "QUINTA",   "dia": "vie", "canchas": ["1fa"],                   "turno": "manana",     "factor": 1.0 },
+      { "categoria": "QUINTA",   "dia": "sab", "canchas": ["1fa"],                   "turno": "manana",     "factor": 1.0 },
+
+      { "categoria": "SEXTA",    "dia": "lun", "canchas": ["8fa"],                   "turno": "manana",     "factor": 1.0 },
+      { "categoria": "SEXTA",    "dia": "mar", "canchas": ["1fa"],                   "turno": "manana",     "factor": 1.0 },
+      { "categoria": "SEXTA",    "dia": "mie", "canchas": ["5fa"],                   "turno": "manana",     "factor": 1.0 },
+      { "categoria": "SEXTA",    "dia": "jue", "canchas": ["1fa"],                   "turno": "manana",     "factor": 1.0 },
+      { "categoria": "SEXTA",    "dia": "vie", "canchas": ["1fa"],                   "turno": "manana",     "factor": 1.0 },
+      { "categoria": "SEXTA",    "dia": "sab", "canchas": ["1fa"],                   "turno": "manana",     "factor": 1.0 },
+
+      { "categoria": "SEPTIMA",  "dia": "lun", "canchas": ["1fa"],                   "turno": "manana",     "factor": 1.0 },
+      { "categoria": "SEPTIMA",  "dia": "mar", "canchas": ["9fa"],                   "turno": "manana",     "factor": 1.0 },
+      { "categoria": "SEPTIMA",  "dia": "mie", "canchas": ["8fa"],                   "turno": "manana",     "factor": 1.0 },
+      { "categoria": "SEPTIMA",  "dia": "jue", "canchas": ["9fa"],                   "turno": "manana",     "factor": 1.0 },
+      { "categoria": "SEPTIMA",  "dia": "vie", "canchas": ["8fa"],                   "turno": "manana",     "factor": 1.0 },
+
+      { "categoria": "OCTAVA",   "dia": "lun", "canchas": ["campus"],                "turno": "manana",     "factor": 1.0 },
+      { "categoria": "OCTAVA",   "dia": "mar", "canchas": ["campus"],                "turno": "manana",     "factor": 1.0 },
+      { "categoria": "OCTAVA",   "dia": "mie", "canchas": ["campus"],                "turno": "manana",     "factor": 1.0 },
+      { "categoria": "OCTAVA",   "dia": "jue", "canchas": ["campus"],                "turno": "manana",     "factor": 1.0 },
+      { "categoria": "OCTAVA",   "dia": "vie", "canchas": ["8fa"],                   "turno": "manana",     "factor": 1.0 },
+
+      { "categoria": "NOVENA",   "dia": "lun", "canchas": ["campus"],                "turno": "manana",     "factor": 1.0 },
+      { "categoria": "NOVENA",   "dia": "mar", "canchas": ["campus"],                "turno": "manana",     "factor": 1.0 },
+      { "categoria": "NOVENA",   "dia": "mie", "canchas": ["campus"],                "turno": "manana",     "factor": 1.0 },
+      { "categoria": "NOVENA",   "dia": "jue", "canchas": ["campus"],                "turno": "manana",     "factor": 1.0 },
+      { "categoria": "NOVENA",   "dia": "vie", "canchas": ["9fa"],                   "turno": "manana",     "factor": 1.0 },
+
+      { "categoria": "FEMENINO", "dia": "lun", "canchas": ["1fa"],                   "turno": "femenino",   "factor": 1.0 },
+      { "categoria": "FEMENINO", "dia": "mar", "canchas": ["1fa"],                   "turno": "femenino",   "factor": 1.0 },
+      { "categoria": "FEMENINO", "dia": "mie", "canchas": ["1fa"],                   "turno": "femenino",   "factor": 1.0 },
+      { "categoria": "FEMENINO", "dia": "jue", "canchas": ["1fa"],                   "turno": "femenino",   "factor": 1.0 },
+      { "categoria": "FEMENINO", "dia": "vie", "canchas": ["1fa"],                   "turno": "femenino",   "factor": 1.0 },
+
+      { "categoria": "INFANTILES","dia": "mar", "canchas": ["1fa","5fa","9fa"],       "turno": "infantiles", "factor": 0.7 },
+      { "categoria": "INFANTILES","dia": "mie", "canchas": ["1fa","5fa","8fa","9fa"], "turno": "infantiles", "factor": 0.7 },
+      { "categoria": "INFANTILES","dia": "jue", "canchas": ["1fa","5fa","8fa","9fa"], "turno": "infantiles", "factor": 0.7 },
+      { "categoria": "INFANTILES","dia": "vie", "canchas": ["1fa","5fa","8fa","9fa"], "turno": "infantiles", "factor": 0.7 }
+    ],
+    "sessions_pendiente": [
       {
-        "categoria": "RESERVA",
-        "dia": "lun",
-        "canchas": [
-          "5fa"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "RESERVA",
-        "dia": "mar",
-        "canchas": [
-          "3fa"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "RESERVA",
-        "dia": "vie",
-        "canchas": [
-          "5fa"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "RESERVA",
-        "dia": "sab",
-        "canchas": [
-          "3fa"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "CUARTA",
-        "dia": "lun",
-        "canchas": [
-          "8fa"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "CUARTA",
-        "dia": "mar",
-        "canchas": [
-          "1fa"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "CUARTA",
-        "dia": "mie",
-        "canchas": [
-          "9fa"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "CUARTA",
-        "dia": "jue",
-        "canchas": [
-          "5fa"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "CUARTA",
-        "dia": "vie",
-        "canchas": [
-          "1fa"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "CUARTA",
-        "dia": "sab",
-        "canchas": [
-          "1fa"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "QUINTA",
-        "dia": "lun",
-        "canchas": [
-          "1fa"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "QUINTA",
-        "dia": "mar",
-        "canchas": [
-          "9fa"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "QUINTA",
-        "dia": "mie",
-        "canchas": [
-          "1fa"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "QUINTA",
-        "dia": "jue",
-        "canchas": [
-          "8fa"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "QUINTA",
-        "dia": "vie",
-        "canchas": [
-          "1fa"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "QUINTA",
-        "dia": "sab",
-        "canchas": [
-          "1fa"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "SEXTA",
-        "dia": "lun",
-        "canchas": [
-          "8fa"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "SEXTA",
-        "dia": "mar",
-        "canchas": [
-          "1fa"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "SEXTA",
-        "dia": "mie",
-        "canchas": [
-          "5fa"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "SEXTA",
-        "dia": "jue",
-        "canchas": [
-          "1fa"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "SEXTA",
-        "dia": "vie",
-        "canchas": [
-          "1fa"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "SEXTA",
-        "dia": "sab",
-        "canchas": [
-          "1fa"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "SEPTIMA",
-        "dia": "lun",
-        "canchas": [
-          "1fa"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "SEPTIMA",
-        "dia": "mar",
-        "canchas": [
-          "9fa"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "SEPTIMA",
-        "dia": "mie",
-        "canchas": [
-          "8fa"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "SEPTIMA",
-        "dia": "jue",
-        "canchas": [
-          "9fa"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "SEPTIMA",
-        "dia": "vie",
-        "canchas": [
-          "8fa"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "OCTAVA",
-        "dia": "lun",
-        "canchas": [
-          "campus"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "OCTAVA",
-        "dia": "mar",
-        "canchas": [
-          "campus"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "OCTAVA",
-        "dia": "mie",
-        "canchas": [
-          "campus"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "OCTAVA",
-        "dia": "jue",
-        "canchas": [
-          "campus"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "OCTAVA",
-        "dia": "vie",
-        "canchas": [
-          "8fa"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "NOVENA",
-        "dia": "lun",
-        "canchas": [
-          "campus"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "NOVENA",
-        "dia": "mar",
-        "canchas": [
-          "campus"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "NOVENA",
-        "dia": "mie",
-        "canchas": [
-          "campus"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "NOVENA",
-        "dia": "jue",
-        "canchas": [
-          "campus"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "NOVENA",
-        "dia": "vie",
-        "canchas": [
-          "9fa"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
+        "_pendiente": "turno desconocido — confirmar con Roger si es mañana o tarde",
         "categoria": "LIGA",
         "dia": "vie",
-        "canchas": [
-          "9fa"
-        ],
-        "turno": "manana",
+        "canchas": ["9fa"],
+        "turno": null,
         "factor": 1.0
       },
       {
+        "_pendiente": "turno desconocido — confirmar con Roger si es mañana o tarde",
         "categoria": "LIGA",
         "dia": "sab",
-        "canchas": [
-          "8-9"
-        ],
-        "turno": "manana",
+        "canchas": ["8fa","9fa"],
+        "turno": null,
         "factor": 1.0
       },
       {
-        "categoria": "FEMENINO",
-        "dia": "lun",
-        "canchas": [
-          "1fa"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "FEMENINO",
-        "dia": "mar",
-        "canchas": [
-          "1fa"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "FEMENINO",
-        "dia": "mie",
-        "canchas": [
-          "1fa"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "FEMENINO",
-        "dia": "jue",
-        "canchas": [
-          "1fa"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "FEMENINO",
-        "dia": "vie",
-        "canchas": [
-          "1fa"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "INFANTILES",
-        "dia": "lun",
-        "canchas": [
-          "1-5-9"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "INFANTILES",
-        "dia": "mar",
-        "canchas": [
-          "1-5-8-9"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "INFANTILES",
-        "dia": "mie",
-        "canchas": [
-          "1-5-8-9"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "INFANTILES",
-        "dia": "jue",
-        "canchas": [
-          "1-5-8-9"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "GYM",
-        "dia": "lun",
-        "canchas": [
-          "5ta",
-          "7ma"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "GYM",
-        "dia": "mar",
-        "canchas": [
-          "4ta",
-          "6ta"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "GYM",
-        "dia": "mie",
-        "canchas": [
-          "5ta",
-          "7ma"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "GYM",
-        "dia": "jue",
-        "canchas": [
-          "4ta",
-          "6ta"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "GYM",
-        "dia": "vie",
-        "canchas": [
-          "4ta",
-          "5ta",
-          "6ta"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "GYM",
-        "dia": "sab",
-        "canchas": [
-          "segun",
-          "demanda"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
+        "_pendiente": "categoría desconocida — confirmar con Roger si usa campo o es indoor",
         "categoria": "CEPETFU",
         "dia": "lun",
-        "canchas": [
-          "4ta",
-          "6ta"
-        ],
+        "canchas": ["4fa","6fa"],
         "turno": "manana",
         "factor": 1.0
       },
       {
+        "_pendiente": "categoría desconocida — confirmar con Roger si usa campo o es indoor",
         "categoria": "CEPETFU",
         "dia": "mar",
-        "canchas": [
-          "5ta",
-          "7ma"
-        ],
+        "canchas": ["5fa","7fa"],
         "turno": "manana",
         "factor": 1.0
       },
       {
+        "_pendiente": "categoría desconocida — confirmar con Roger si usa campo o es indoor",
         "categoria": "CEPETFU",
         "dia": "mie",
-        "canchas": [
-          "4ta",
-          "6ta"
-        ],
+        "canchas": ["4fa","6fa"],
         "turno": "manana",
         "factor": 1.0
       },
       {
+        "_pendiente": "categoría desconocida — confirmar con Roger si usa campo o es indoor",
         "categoria": "CEPETFU",
         "dia": "jue",
-        "canchas": [
-          "5ta",
-          "7ma"
-        ],
+        "canchas": ["5fa","7fa"],
         "turno": "manana",
         "factor": 1.0
       },
       {
+        "_pendiente": "categoría desconocida — confirmar con Roger si usa campo o es indoor",
         "categoria": "CEPETFU",
         "dia": "vie",
-        "canchas": [
-          "7ma",
-          "8va",
-          "9na"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "CEPETFU",
-        "dia": "sab",
-        "canchas": [
-          "segun",
-          "demanda"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "LIBRE",
-        "dia": "lun",
-        "canchas": [
-          "2-3-4-6-7-9"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "LIBRE",
-        "dia": "mar",
-        "canchas": [
-          "2-4-6-7-8"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "LIBRE",
-        "dia": "mie",
-        "canchas": [
-          "2-3-4-6-7"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "LIBRE",
-        "dia": "jue",
-        "canchas": [
-          "2-3-4-6-7"
-        ],
-        "turno": "manana",
-        "factor": 1.0
-      },
-      {
-        "categoria": "LIBRE",
-        "dia": "vie",
-        "canchas": [
-          "2-3-6"
-        ],
+        "canchas": ["7fa","8fa","9fa"],
         "turno": "manana",
         "factor": 1.0
       }

@@ -323,6 +323,56 @@ def _build_zones_from_vd(vd):
         if s < 70:  return f'Alta·{s:.0f}'
         return          f'Crítica·{s:.0f}'
 
+    # ── 2.4 Drenaje Amalfitani — DrainageModule + lluvia_max_1h vs R_crítica ─
+    # R_crítica = Q_efectivo / área_campo = 68.98 L/s / 7140 m² × 3600 = 34.78 mm/h
+    # Comparamos intensidad horaria máxima REAL (Open-Meteo past_days=2) contra
+    # la capacidad hidráulica real del sistema C&G — sin proxy acumulado.
+    _R_CRITICA_AMF = 34.78   # mm/h — derivado de Q_efectivo planos C&G
+    _lluvia_max_1h  = float(_wl.get('lluvia_max_1h_mm', 0.0) or 0.0)
+    _lluvia_48h     = float(_wl.get('lluvia_48h_mm',    0.0) or 0.0)
+
+    _analyze_drainage = None
+    try:
+        import pathlib as _pl_dp, sys as _sys_dp
+        _dp_dir = str(
+            _pl_dp.Path(__file__).resolve()
+                .parent.parent.parent.parent   # → railway-backend/
+            / 'events' / 'clients' / 'dale-play'
+        )
+        if _dp_dir not in _sys_dp.path:
+            _sys_dp.path.insert(0, _dp_dir)
+        from dale_play_drainage import analyze_drainage as _analyze_drainage
+    except Exception:
+        pass
+
+    _a_dren = _sem_dren.get('verde', 'OK')   # fallback si DrainageModule no disponible
+    if _analyze_drainage is not None:
+        try:
+            _analyze_drainage(lluvia_48h_mm=_lluvia_48h)  # actualiza models/drainage_amalfitani.json
+            # Criterio físico: intensidad horaria máxima real vs capacidad del sistema
+            _a_dren = ('Crítico·C&G' if _lluvia_max_1h > _R_CRITICA_AMF          else
+                       'Regular·C&G' if _lluvia_max_1h > _R_CRITICA_AMF * 0.5    else
+                       'OK·C&G')
+        except Exception:
+            pass
+
+    # ── 2.4 Drenaje VO — theta_soil → Van Genuchten (umbrales aprobados) ─────
+    # θ < 0.26 → OK, 0.26-0.33 → Regular, ≥0.33 → Crítico
+    # Fuente: SAR si sar_vv_db está en heatmaps por cancha, proxy si no.
+    _THETA_TAU2 = 0.5998   # exp(-2 × 0.08 × 2.5 / cos(38.5°)) — constante WCM césped
+    _THETA_SVEG = 0.000940  # σ_veg WCM: 0.0012 × LAI × (1-τ²) × cos(θ)
+
+    def _theta_from_vv(vv_db: float) -> float:
+        sig_vv = 10.0 ** (vv_db / 10.0)
+        s_soil = max((sig_vv - _THETA_SVEG) / (_THETA_TAU2 + 1e-6), 1e-4)
+        return max(0.046, min(0.409, (s_soil * 0.28) + 0.12))
+
+    def _drenaje_vo(theta: float, fuente: str) -> str:
+        if theta < 0.26:   lbl = 'OK'
+        elif theta < 0.33: lbl = 'Regular'
+        else:              lbl = 'Crítico'
+        return f'{lbl}·{fuente}'
+
     zones = []
 
     # Amalfitani desde sectores.estadio
@@ -359,7 +409,7 @@ def _build_zones_from_vd(vd):
             'ndvi': _a_ndvi, 'ndre': _a_ndre, 'n_kg': _sem_n.get(_a_sem, 0),
             'ccci': _a_ccci_label, 'riego': _a_riego,
             'resiembra': _a_res, 'hongos': _a_hk, 'compact': _a_comp,
-            'drenaje': _sem_dren.get(_a_sem, 'OK'),
+            'drenaje': _a_dren,
             'malezas': _sem_mal.get(_a_sem, '8%'),
             'timeline': _sem_timeline.get(_a_sem, 'Semana 3'),
             'fusion': _a_score, 'score_prev': _a_sprev,
@@ -466,6 +516,13 @@ def _build_zones_from_vd(vd):
         # None si la cancha no tuvo imagen limpia en el ciclo actual.
         _ndvi2d_val = _hm_vd.get(cid, {}).get('ndvi_2d')
 
+        # ── 2.4 Drenaje VO — theta_soil Van Genuchten (aprobado 2026-06-21) ──
+        _vv_per_cancha = _hm_vd.get(cid, {}).get('sar_vv_db')
+        if _vv_per_cancha is not None:
+            _drenaje_val = _drenaje_vo(_theta_from_vv(float(_vv_per_cancha)), 'SAR')
+        else:
+            _drenaje_val = _drenaje_vo(_theta_g, 'proxy')
+
         zones.append({
             'name':       nombre,
             'sem':        sem,
@@ -479,11 +536,8 @@ def _build_zones_from_vd(vd):
             'resiembra':  _res_val,       # 2.3: real pct_baja_ndvi
             'hongos':     _hongos_val,
             'compact':    _compact_val,
-            # 2.4 PENDIENTE: Drenaje vía coherencia InSAR temporal.
-            # Requiere par de escenas Sentinel-1 (misma órbita, ~12d de separación)
-            # procesadas con SNAP o Hyp3 para extraer mapa de coherencia por cancha.
-            # Sin datos InSAR disponibles → fallback a lookup semáforo indefinidamente.
-            'drenaje':    _sem_dren.get(sem, 'OK'),
+            # 2.4 Drenaje VO — theta_soil Van Genuchten (aprobado 2026-06-21)
+            'drenaje':    _drenaje_val,
             'malezas':    _sem_mal.get(sem, '10%'),
             'timeline':   _sem_timeline.get(sem, 'Esta semana'),
             'fusion':     float(score),
@@ -1307,14 +1361,13 @@ ax_sat.text(0.012, _tbl_hdr_s,
     va='top', fontfamily='monospace')
 
 # ── Headers de columnas ───────────────────────────────────────────────────
-_ct_labels = ['ZONA', 'RESIEMBRA', 'RIEGO mm', 'HONGOS', 'COMPACT.', 'DRENAJE *', 'TIMELINE']
-_ct_xs     = [0.012,   0.155,       0.270,      0.380,    0.510,      0.640,        0.800]
+_ct_labels = ['ZONA', 'RESIEMBRA', 'RIEGO mm', 'HONGOS', 'COMPACT.', 'DRENAJE', 'TIMELINE']
+_ct_xs     = [0.012,   0.155,       0.270,      0.380,    0.510,      0.640,      0.800]
 
 for _lbl, _lx in zip(_ct_labels, _ct_xs):
-    _lc = YELL + 'AA' if _lbl == 'DRENAJE *' else GOLD
     ax_sat.text(_lx, _tbl_hdr_c, _lbl,
         transform=ax_sat.transAxes,
-        color=_lc, fontsize=5.5, fontweight='bold',
+        color=GOLD, fontsize=5.5, fontweight='bold',
         va='top', fontfamily='monospace')
 
 # ── Datos por zona ────────────────────────────────────────────────────────
@@ -1341,6 +1394,10 @@ for _z, _ry in zip(ZONES, _row_ys):
     _cmp = str(_z.get('compact', '—'))
     _cmp_c = (REDL  if 'Cr' in _cmp else
               YELL  if 'Alta' in _cmp else GRNL)
+    _drn   = str(_z.get('drenaje', '—'))
+    _drn_c = (REDL  if _drn.startswith('Crítico') else
+              YELL  if _drn.startswith('Regular') else
+              GRNL  if _drn.startswith('OK')      else WDIM)
     _tl    = _tl_map.get(_sem, 'Esta semana')
     _tl_c  = (REDL if _sem == 'rojo' else YELL if _sem == 'amarillo' else GRNL)
 
@@ -1350,7 +1407,7 @@ for _z, _ry in zip(ZONES, _row_ys):
         (_ct_xs[2], str(_z.get('riego', '—')),      WHITE),
         (_ct_xs[3], _hon,                           _hon_c),
         (_ct_xs[4], _cmp,                           _cmp_c),
-        (_ct_xs[5], 'PENDIENTE',                    YELL + '88'),
+        (_ct_xs[5], _drn,                           _drn_c),
         (_ct_xs[6], _tl,                            _tl_c),
     ]
     for (_rx, _rv, _rc) in _row_vals:
@@ -1360,9 +1417,10 @@ for _z, _ry in zip(ZONES, _row_ys):
             fontfamily='monospace', zorder=3)
 
 ax_sat.text(0.012, 0.004,
-    '* Drenaje: pendiente dato InSAR real (Sentinel-1) — ver gen_velez_canchero.py L294',
+    'Drenaje Amalfitani: planos C&G reales (14 líneas DRENAFLEX 118mm + 2 colectores 218mm)'
+    '  ·  VO: θ_soil Van Genuchten (SAR=Sentinel-1 / proxy=Open-Meteo)',
     transform=ax_sat.transAxes,
-    color=YELL + 'AA', fontsize=5.0, va='bottom',
+    color=WDIM, fontsize=4.8, va='bottom',
     fontfamily='monospace')
 
 
