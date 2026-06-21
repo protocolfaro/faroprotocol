@@ -39,15 +39,15 @@ SEM_EMOJI = {'verde': '●', 'amarillo': '●', 'rojo': '●'}
 
 ZONES = [
     {
-        'name': 'Campo\nAmalfitani',
+        'name': 'Amalfitani',
         'sem': 'verde',
         'estado': 'ÓPTIMO',
         'accion': 'Aerificar porterías\nSemana 3',
         'ndvi': 0.68, 'ndre': 0.42,
-        'n_kg': 0, 'ccci': 'sin hist', 'riego': 12,
+        'n_kg': 0, 'ccci': 'sin hist', 'riego': 12, 'ndvi_2d': None,
         'resiembra': 'No', 'hongos': 'No',
         'compact': 'Media', 'drenaje': 'OK', 'malezas': '8%',
-        'timeline': 'Semana 3', 'fusion': 87.9,
+        'timeline': 'Semana 3', 'fusion': 87.9, 'score_prev': 85.2,
         'map_accion': 'AERIFICAR PORTERÍAS\nSEMANA 3',
         'comparativa': '→',
         'focos': [
@@ -57,74 +57,206 @@ ZONES = [
         ],
     },
     {
-        'name': 'Cancha 1',
+        'name': '1FA',
         'sem': 'amarillo',
         'estado': 'ATENCIÓN',
         'accion': 'Fungicida preventivo\nEsta semana',
-        'ndvi': 0.48, 'ndre': 0.31,
-        'n_kg': 15, 'ccci': 'sin hist', 'riego': 18,
-        'resiembra': 'Parcial', 'hongos': 'Preventivo',
-        'compact': 'Alta', 'drenaje': 'Regular', 'malezas': '15%',
-        'timeline': 'Esta semana', 'fusion': 62.0,
+        'ndvi': 0.52, 'ndre': 0.33,
+        'n_kg': 15, 'ccci': 'sin hist', 'riego': 18, 'ndvi_2d': None,
+        'resiembra': 'No', 'hongos': 'Preventivo',
+        'compact': 'Alta', 'drenaje': 'Regular', 'malezas': '12%',
+        'timeline': 'Esta semana', 'fusion': 65.0, 'score_prev': 68.0,
         'map_accion': 'FUNGICIDA PREVENTIVO\nESTA SEMANA',
         'comparativa': '↓',
         'focos': [
-            {'x': 0.25, 'y': 0.75, 'color': YELL, 'label': 'FUNGICIDA\nACÁ', 'size': 0.09},
+            {'x': 0.25, 'y': 0.75, 'color': YELL, 'label': 'ATENCIÓN\nACÁ', 'size': 0.09},
             {'x': 0.75, 'y': 0.25, 'color': YELL, 'label': 'REGAR\nACÁ', 'size': 0.08},
         ],
     },
     {
-        'name': 'Cancha 2',
+        'name': '2FA',
         'sem': 'amarillo',
         'estado': 'ATENCIÓN',
-        'accion': 'Fertilizar 20kg N/ha\nSemana 2',
-        'ndvi': 0.52, 'ndre': 0.35,
-        'n_kg': 20, 'ccci': 'sin hist', 'riego': 15,
-        'resiembra': 'No', 'hongos': 'No',
-        'compact': 'Media', 'drenaje': 'Regular', 'malezas': '12%',
-        'timeline': 'Semana 2', 'fusion': 68.4,
-        'map_accion': 'FERTILIZAR 20kg N/ha\nSEMANA 2',
+        'accion': 'Fertilizar 15kg N/ha\nEsta semana',
+        'ndvi': 0.48, 'ndre': 0.31,
+        'n_kg': 15, 'ccci': 'sin hist', 'riego': 18, 'ndvi_2d': None,
+        'resiembra': 'Parcial', 'hongos': 'Preventivo',
+        'compact': 'Alta', 'drenaje': 'Regular', 'malezas': '15%',
+        'timeline': 'Esta semana', 'fusion': 58.0, 'score_prev': 55.0,
+        'map_accion': 'FERTILIZAR 15kg N/ha\nESTA SEMANA',
+        'comparativa': '↑',
+        'focos': [
+            {'x': 0.5, 'y': 0.50, 'color': YELL, 'label': 'ATENCIÓN\nACÁ', 'size': 0.09},
+            {'x': 0.75, 'y': 0.75, 'color': YELL, 'label': 'REGAR\nACÁ', 'size': 0.07},
+        ],
+    },
+    {
+        'name': '3FA',
+        'sem': 'amarillo',
+        'estado': 'ATENCIÓN',
+        'accion': 'Aerificar + riego\nEsta semana',
+        'ndvi': 0.51, 'ndre': 0.34,
+        'n_kg': 15, 'ccci': 'sin hist', 'riego': 18, 'ndvi_2d': None,
+        'resiembra': 'No', 'hongos': 'Preventivo',
+        'compact': 'Alta', 'drenaje': 'Regular', 'malezas': '10%',
+        'timeline': 'Esta semana', 'fusion': 72.0, 'score_prev': 70.0,
+        'map_accion': 'AERIFICAR + RIEGO\nESTA SEMANA',
         'comparativa': '→',
         'focos': [
-            {'x': 0.5, 'y': 0.50, 'color': YELL, 'label': 'FERTILIZAR\nACÁ', 'size': 0.10},
-            {'x': 0.75, 'y': 0.75, 'color': YELL, 'label': 'MALEZAS\nACÁ', 'size': 0.07},
+            {'x': 0.5, 'y': 0.70, 'color': YELL, 'label': 'ATENCIÓN\nACÁ', 'size': 0.09},
+            {'x': 0.5, 'y': 0.30, 'color': YELL, 'label': 'REGAR\nACÁ', 'size': 0.08},
         ],
     },
     {
-        'name': 'Cancha 3',
+        'name': '4FA',
         'sem': 'amarillo',
         'estado': 'ATENCIÓN',
-        'accion': 'Fungicida activo\nEsta semana',
-        'ndvi': 0.39, 'ndre': 0.28,
-        'n_kg': 25, 'ccci': 'sin hist', 'riego': 22,
-        'resiembra': 'Parcial', 'hongos': 'Activos',
-        'compact': 'Alta', 'drenaje': 'Deficiente', 'malezas': '22%',
-        'timeline': 'Esta semana', 'fusion': 43.0,
-        'map_accion': 'FUNGICIDA ACTIVO\nESTA SEMANA',
+        'accion': 'Fungicida + resembrar\nEsta semana',
+        'ndvi': 0.39, 'ndre': 0.26,
+        'n_kg': 15, 'ccci': 'sin hist', 'riego': 22, 'ndvi_2d': None,
+        'resiembra': 'Parcial', 'hongos': 'Preventivo',
+        'compact': 'Alta', 'drenaje': 'Regular', 'malezas': '18%',
+        'timeline': 'Esta semana', 'fusion': 45.0, 'score_prev': 51.0,
+        'map_accion': 'FUNGICIDA + RESEMBRAR\nESTA SEMANA',
         'comparativa': '↓',
         'focos': [
-            {'x': 0.3,  'y': 0.70, 'color': YELL, 'label': 'FUNGICIDA\nACÁ', 'size': 0.10},
-            {'x': 0.70, 'y': 0.35, 'color': YELL, 'label': 'REGAR\nACÁ', 'size': 0.08},
-            {'x': 0.50, 'y': 0.50, 'color': YELL, 'label': 'RESEMBRAR\nACÁ', 'size': 0.07},
+            {'x': 0.3, 'y': 0.70, 'color': YELL, 'label': 'ATENCIÓN\nACÁ', 'size': 0.09},
+            {'x': 0.7, 'y': 0.30, 'color': YELL, 'label': 'RESEMBRAR\nACÁ', 'size': 0.08},
         ],
     },
     {
-        'name': 'Cancha 4',
-        'sem': 'rojo',
-        'estado': 'CRÍTICA',
-        'accion': 'Fungicida + drenaje\n+ resiembra · HOY',
-        'ndvi': 0.24, 'ndre': 0.18,
-        'n_kg': 40, 'ccci': 'sin hist', 'riego': 30,
-        'resiembra': 'Total', 'hongos': '85m² activos',
-        'compact': 'Crítica', 'drenaje': 'Crítico', 'malezas': '35%',
-        'timeline': 'HOY — URGENTE', 'fusion': 32.8,
-        'map_accion': 'INTERVENCIÓN\nURGENTE HOY',
+        'name': '5FA',
+        'sem': 'amarillo',
+        'estado': 'ATENCIÓN',
+        'accion': 'Riego + monitoreo\nEsta semana',
+        'ndvi': 0.50, 'ndre': 0.33,
+        'n_kg': 15, 'ccci': 'sin hist', 'riego': 18, 'ndvi_2d': None,
+        'resiembra': 'No', 'hongos': 'Preventivo',
+        'compact': 'Alta', 'drenaje': 'Regular', 'malezas': '12%',
+        'timeline': 'Esta semana', 'fusion': 60.0, 'score_prev': 58.0,
+        'map_accion': 'RIEGO + MONITOREO\nESTA SEMANA',
+        'comparativa': '↑',
+        'focos': [
+            {'x': 0.5, 'y': 0.60, 'color': YELL, 'label': 'ATENCIÓN\nACÁ', 'size': 0.09},
+        ],
+    },
+    {
+        'name': '6FA',
+        'sem': 'amarillo',
+        'estado': 'ATENCIÓN',
+        'accion': 'Fertilizar + aerificar\nEsta semana',
+        'ndvi': 0.45, 'ndre': 0.30,
+        'n_kg': 15, 'ccci': 'sin hist', 'riego': 20, 'ndvi_2d': None,
+        'resiembra': 'No', 'hongos': 'Preventivo',
+        'compact': 'Alta', 'drenaje': 'Regular', 'malezas': '14%',
+        'timeline': 'Esta semana', 'fusion': 55.0, 'score_prev': 60.0,
+        'map_accion': 'FERTILIZAR + AERIFICAR\nESTA SEMANA',
         'comparativa': '↓',
         'focos': [
-            {'x': 0.30, 'y': 0.82, 'color': REDL,  'label': 'HONGOS\nACÁ', 'size': 0.13},
-            {'x': 0.75, 'y': 0.22, 'color': REDL,  'label': 'DRENAJE\nROTO', 'size': 0.11},
-            {'x': 0.55, 'y': 0.50, 'color': YELL,  'label': 'MALEZAS', 'size': 0.09},
-            {'x': 0.20, 'y': 0.35, 'color': REDL,  'label': 'RESEMBRAR\nACÁ', 'size': 0.10},
+            {'x': 0.4, 'y': 0.65, 'color': YELL, 'label': 'ATENCIÓN\nACÁ', 'size': 0.09},
+            {'x': 0.6, 'y': 0.35, 'color': YELL, 'label': 'REGAR\nACÁ', 'size': 0.08},
+        ],
+    },
+    {
+        'name': '7FA',
+        'sem': 'amarillo',
+        'estado': 'ATENCIÓN',
+        'accion': 'Riego + fungicida\nEsta semana',
+        'ndvi': 0.53, 'ndre': 0.35,
+        'n_kg': 15, 'ccci': 'sin hist', 'riego': 18, 'ndvi_2d': None,
+        'resiembra': 'No', 'hongos': 'Preventivo',
+        'compact': 'Alta', 'drenaje': 'Regular', 'malezas': '11%',
+        'timeline': 'Esta semana', 'fusion': 68.0, 'score_prev': 65.0,
+        'map_accion': 'RIEGO + FUNGICIDA\nESTA SEMANA',
+        'comparativa': '↑',
+        'focos': [
+            {'x': 0.5, 'y': 0.75, 'color': YELL, 'label': 'ATENCIÓN\nACÁ', 'size': 0.09},
+            {'x': 0.5, 'y': 0.25, 'color': YELL, 'label': 'REGAR\nACÁ', 'size': 0.08},
+        ],
+    },
+    {
+        'name': '8FA',
+        'sem': 'amarillo',
+        'estado': 'ATENCIÓN',
+        'accion': 'Aerificar + monitoreo\nEsta semana',
+        'ndvi': 0.56, 'ndre': 0.37,
+        'n_kg': 15, 'ccci': 'sin hist', 'riego': 16, 'ndvi_2d': None,
+        'resiembra': 'No', 'hongos': 'Preventivo',
+        'compact': 'Media', 'drenaje': 'Regular', 'malezas': '10%',
+        'timeline': 'Esta semana', 'fusion': 74.0, 'score_prev': 72.0,
+        'map_accion': 'AERIFICAR + MONITOREO\nESTA SEMANA',
+        'comparativa': '→',
+        'focos': [
+            {'x': 0.5, 'y': 0.88, 'color': YELL, 'label': 'AERIFICAR\nACÁ', 'size': 0.09},
+            {'x': 0.5, 'y': 0.12, 'color': YELL, 'label': 'AERIFICAR\nACÁ', 'size': 0.09},
+        ],
+    },
+    {
+        'name': '9FA',
+        'sem': 'verde',
+        'estado': 'ÓPTIMO',
+        'accion': 'Monitoreo rutinario\nSemana 3',
+        'ndvi': 0.65, 'ndre': 0.41,
+        'n_kg': 0, 'ccci': 'sin hist', 'riego': 12, 'ndvi_2d': None,
+        'resiembra': 'No', 'hongos': 'No',
+        'compact': 'Media', 'drenaje': 'OK', 'malezas': '8%',
+        'timeline': 'Semana 3', 'fusion': 82.0, 'score_prev': 80.0,
+        'map_accion': 'MONITOREO RUTINARIO\nSEMANA 3',
+        'comparativa': '→',
+        'focos': [
+            {'x': 0.5, 'y': 0.88, 'color': YELL, 'label': 'AERIFICAR\nACÁ', 'size': 0.09},
+            {'x': 0.5, 'y': 0.12, 'color': YELL, 'label': 'AERIFICAR\nACÁ', 'size': 0.09},
+        ],
+    },
+    {
+        'name': '10FA',
+        'sem': 'verde',
+        'estado': 'ÓPTIMO',
+        'accion': 'Aerificar bordes\nSemana 3',
+        'ndvi': 0.63, 'ndre': 0.40,
+        'n_kg': 0, 'ccci': 'sin hist', 'riego': 12, 'ndvi_2d': None,
+        'resiembra': 'No', 'hongos': 'No',
+        'compact': 'Media', 'drenaje': 'OK', 'malezas': '8%',
+        'timeline': 'Semana 3', 'fusion': 78.0, 'score_prev': 75.0,
+        'map_accion': 'AERIFICAR BORDES\nSEMANA 3',
+        'comparativa': '↑',
+        'focos': [
+            {'x': 0.5, 'y': 0.88, 'color': YELL, 'label': 'AERIFICAR\nACÁ', 'size': 0.09},
+            {'x': 0.5, 'y': 0.12, 'color': YELL, 'label': 'AERIFICAR\nACÁ', 'size': 0.09},
+        ],
+    },
+    {
+        'name': '1FP',
+        'sem': 'amarillo',
+        'estado': 'ATENCIÓN',
+        'accion': 'Riego + resembrar\nEsta semana',
+        'ndvi': 0.44, 'ndre': 0.29,
+        'n_kg': 15, 'ccci': 'sin hist', 'riego': 20, 'ndvi_2d': None,
+        'resiembra': 'Parcial', 'hongos': 'Preventivo',
+        'compact': 'Alta', 'drenaje': 'Regular', 'malezas': '16%',
+        'timeline': 'Esta semana', 'fusion': 50.0, 'score_prev': 55.0,
+        'map_accion': 'RIEGO + RESEMBRAR\nESTA SEMANA',
+        'comparativa': '↓',
+        'focos': [
+            {'x': 0.5, 'y': 0.65, 'color': YELL, 'label': 'ATENCIÓN\nACÁ', 'size': 0.09},
+            {'x': 0.5, 'y': 0.35, 'color': YELL, 'label': 'RESEMBRAR\nACÁ', 'size': 0.08},
+        ],
+    },
+    {
+        'name': '2FP',
+        'sem': 'verde',
+        'estado': 'ÓPTIMO',
+        'accion': 'Monitoreo rutinario\nSemana 3',
+        'ndvi': 0.70, 'ndre': 0.44,
+        'n_kg': 0, 'ccci': 'sin hist', 'riego': 12, 'ndvi_2d': None,
+        'resiembra': 'No', 'hongos': 'No',
+        'compact': 'Media', 'drenaje': 'OK', 'malezas': '7%',
+        'timeline': 'Semana 3', 'fusion': 85.0, 'score_prev': 83.0,
+        'map_accion': 'MONITOREO RUTINARIO\nSEMANA 3',
+        'comparativa': '↑',
+        'focos': [
+            {'x': 0.5, 'y': 0.88, 'color': YELL, 'label': 'AERIFICAR\nACÁ', 'size': 0.09},
+            {'x': 0.5, 'y': 0.12, 'color': YELL, 'label': 'AERIFICAR\nACÁ', 'size': 0.09},
         ],
     },
 ]
@@ -150,6 +282,12 @@ def _build_zones_from_vd(vd):
     _focos_rojo   = [{'x': 0.3, 'y': 0.70, 'color': REDL, 'label': 'URGENTE\nACÁ',   'size': 0.13},
                      {'x': 0.7, 'y': 0.30, 'color': REDL, 'label': 'REPARAR',         'size': 0.11}]
     _focos_map    = {'verde': _focos_verde, 'amarillo': _focos_amari, 'rojo': _focos_rojo}
+    _CANCHA_NAMES = {
+        'amalfitani': 'Amalfitani',
+        '1fa': '1FA', '2fa': '2FA', '3fa': '3FA', '4fa': '4FA',
+        '5fa': '5FA', '6fa': '6FA', '7fa': '7FA', '8fa': '8FA',
+        '9fa': '9FA', '10fa': '10FA', '1fp': '1FP', '2fp': '2FP',
+    }
     canchas = vd.get('sectores', {}).get('canchero', {}).get('canchas', [])
     if not canchas:
         return None
@@ -186,15 +324,59 @@ def _build_zones_from_vd(vd):
         return          f'Crítica·{s:.0f}'
 
     zones = []
-    for c in canchas[:5]:
+
+    # Amalfitani desde sectores.estadio
+    _estadio = vd.get('sectores', {}).get('estadio', {})
+    if _estadio:
+        _a_sem   = _estadio.get('sem', 'verde')
+        _a_score = float(_estadio.get('score', 80.0))
+        _a_sprev = float(_estadio.get('score_prev', _a_score))
+        _a_det   = _estadio.get('detalle', '')
+        _a_ndre  = round(float(_estadio.get('ndre') or 0.42), 3)
+        _a_ndvi  = float(_estadio.get('ndvi') or 0.68)
+        _a_ccci  = _estadio.get('ccci')
+        _a_ccci_label = f'CCCI {_a_ccci:.3f}·sin hist' if isinstance(_a_ccci, float) else 'Sin histórico'
+        _a_accion = (_a_det.split('·')[1].strip() if '·' in _a_det else _a_det) or 'Monitoreo rutinario'
+        _a_riego  = round(_deficit) if _deficit is not None else _sem_riego.get(_a_sem, 12)
+        _a_hk     = _hongos_from_sk(_sk_pct) if _sk_pct is not None else _sem_hon.get(_a_sem, 'No')
+        _a_comp   = _compact_label(_sc_fn({'theta_soil': _theta_g, 'sar_vv_db': _vv_g})) if _sc_fn else _sem_comp.get(_a_sem, 'Media')
+        _a_pct_baja = _estadio.get('pct_baja_ndvi')
+        _a_res = ('No' if not isinstance(_a_pct_baja, float) or _a_pct_baja < 15
+                  else f'Parcial·{round(_a_pct_baja)}%' if _a_pct_baja < 35
+                  else f'Total·{round(_a_pct_baja)}%')
+        _a_ndvi2d = _hm_vd.get('amalfitani', {}).get('ndvi_2d')
+        _a_focos_raw = _estadio.get('focos_reales')
+        _a_focos = ([
+            {'x': f['x'], 'y': f['y'], 'ndvi': f['ndvi'],
+             'color': REDL if f['ndvi'] < 0.20 else YELL,
+             'label': f'NDVI\n{f["ndvi"]:.2f}', 'size': 0.09}
+            for f in _a_focos_raw
+        ] if _a_focos_raw else _focos_map.get(_a_sem, _focos_verde))
+        zones.append({
+            'name': 'Amalfitani', 'sem': _a_sem,
+            'estado': _sem_estado.get(_a_sem, 'ÓPTIMO'),
+            'accion': _a_accion,
+            'ndvi': _a_ndvi, 'ndre': _a_ndre, 'n_kg': _sem_n.get(_a_sem, 0),
+            'ccci': _a_ccci_label, 'riego': _a_riego,
+            'resiembra': _a_res, 'hongos': _a_hk, 'compact': _a_comp,
+            'drenaje': _sem_dren.get(_a_sem, 'OK'),
+            'malezas': _sem_mal.get(_a_sem, '8%'),
+            'timeline': _sem_timeline.get(_a_sem, 'Semana 3'),
+            'fusion': _a_score, 'score_prev': _a_sprev,
+            'map_accion': _a_accion.upper(),
+            'comparativa': '↑' if _a_score > _a_sprev else ('→' if _a_score == _a_sprev else '↓'),
+            'focos': _a_focos, 'ndvi_2d': _a_ndvi2d,
+        })
+
+    for c in canchas[:12]:
         sem    = c.get('sem', 'amarillo')
         ndvi   = c.get('ndvi')   # may be None if cloud-covered; handle below
         ndvi_f = float(ndvi) if isinstance(ndvi, (int, float)) else 0.0
         score  = c.get('score', 60)
         s_prev = c.get('score_prev', score)
         detalle = c.get('detalle', '')
-        nombre  = c.get('nombre', c.get('id', '?'))
         cid     = c.get('id', '')
+        nombre  = _CANCHA_NAMES.get(cid, c.get('nombre', cid.upper()))
         comp_sym = '↑' if score > s_prev else ('→' if score == s_prev else '↓')
         accion_short = (detalle.split('\xb7')[1].strip() if '\xb7' in detalle
                         else detalle.split('·')[1].strip() if '·' in detalle
@@ -271,12 +453,18 @@ def _build_zones_from_vd(vd):
         if _focos_raw:
             _focos_val = [
                 {'x': f['x'], 'y': f['y'],
+                 'ndvi': f['ndvi'],      # conservado para overlay en heatmap panel
                  'color': REDL if f['ndvi'] < 0.20 else YELL,
                  'label': f'NDVI\n{f["ndvi"]:.2f}', 'size': 0.09}
                 for f in _focos_raw
             ]
         else:
             _focos_val = _focos_map.get(sem, _focos_amari)
+
+        # ── 4.2 ndvi_2d — matriz satelital 2D para panel heatmap ──────────────
+        # Lista-de-listas float16 normalizada [0,1] (vmin=0.10, vmax=0.65).
+        # None si la cancha no tuvo imagen limpia en el ciclo actual.
+        _ndvi2d_val = _hm_vd.get(cid, {}).get('ndvi_2d')
 
         zones.append({
             'name':       nombre,
@@ -303,6 +491,7 @@ def _build_zones_from_vd(vd):
             'map_accion': accion_short.upper(),
             'comparativa': comp_sym,
             'focos':      _focos_val,     # 2.5: real pixel positions
+            'ndvi_2d':    _ndvi2d_val,    # 4.2: matriz 2D para heatmap panel; None = sin imagen
         })
     return zones
 
@@ -516,7 +705,7 @@ def draw_soccer_field(ax, x0, y0, w, h, focos=None, is_critical=False, title='',
 
 # ─── SETUP FIGURE ────────────────────────────────────────────────────────────
 DPI = 200
-FW, FH = 13.5, 27
+FW, FH = 13.5, 32.0   # extendido para 13 zonas
 fig = plt.figure(figsize=(FW, FH), dpi=DPI, facecolor=BG)
 fig.subplots_adjust(left=0.03, right=0.97, top=0.99, bottom=0.01, hspace=0.0)
 
@@ -524,7 +713,7 @@ gs = gridspec.GridSpec(
     9, 1,
     figure=fig,
     hspace=0.06,
-    height_ratios=[1.6, 1.8, 4.5, 4.5, 2.0, 2.2, 3.4, 1.5, 0.85],
+    height_ratios=[1.6, 1.8, 4.5, 4.5, 2.0, 2.2, 7.0, 1.5, 0.85],
 )
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -603,8 +792,14 @@ ax_sem.text(0.5, 0.98, 'PANEL 0 · SEMÁFORO EJECUTIVO — LECTURA EN 3 SEGUNDOS
 
 ax_sem.axhline(0.92, color=GOLD+'44', linewidth=0.5)
 
-xs = np.linspace(0.10, 0.90, 5)
-bw = 0.16
+_n_sem = len(ZONES)
+xs = np.linspace(0.05, 0.95, _n_sem)
+bw = max(0.055, 0.85 / _n_sem - 0.008)
+_sem_name_fs  = max(5.0, 7.5 - max(0, _n_sem - 5) * 0.25)
+_sem_est_fs   = max(6.0, 9.0 - max(0, _n_sem - 5) * 0.3)
+_sem_acc_fs   = max(4.5, 7.0 - max(0, _n_sem - 5) * 0.25)
+_sem_dot_ms   = max(12, 22 - max(0, _n_sem - 5) * 1.4)
+_sem_glow_ms  = int(_sem_dot_ms * 1.35)
 
 for i, z in enumerate(ZONES):
     cx = xs[i]
@@ -623,24 +818,24 @@ for i, z in enumerate(ZONES):
 
     ax_sem.text(cx + 0.005, by + bh - 0.04, z['name'],
         transform=ax_sem.transAxes,
-        color=WHITE, fontsize=8, fontweight='bold',
+        color=WHITE, fontsize=_sem_name_fs, fontweight='bold',
         ha='center', va='top', fontfamily='sans-serif', zorder=3)
 
     dot_y = by + bh - 0.32
-    ax_sem.plot(cx + 0.005, dot_y, 'o', ms=22, color=sc,
+    ax_sem.plot(cx + 0.005, dot_y, 'o', ms=_sem_dot_ms, color=sc,
         transform=ax_sem.transAxes, zorder=4, clip_on=False)
-    ax_sem.plot(cx + 0.005, dot_y, 'o', ms=30, color=sc, alpha=0.12,
+    ax_sem.plot(cx + 0.005, dot_y, 'o', ms=_sem_glow_ms, color=sc, alpha=0.12,
         transform=ax_sem.transAxes, zorder=3, clip_on=False)
 
     ax_sem.text(cx + 0.005, dot_y - 0.145, z['estado'],
         transform=ax_sem.transAxes,
-        color=sc, fontsize=9, fontweight='bold',
+        color=sc, fontsize=_sem_est_fs, fontweight='bold',
         ha='center', va='top', fontfamily='monospace', zorder=3)
 
     ax_sem.text(cx + 0.005, by + 0.18, z['accion'],
         transform=ax_sem.transAxes,
         color=WHITE if z['sem'] != 'rojo' else REDXL,
-        fontsize=7.0, ha='center', va='bottom',
+        fontsize=_sem_acc_fs, ha='center', va='bottom',
         fontfamily='monospace', zorder=3,
         linespacing=1.35)
 
@@ -661,74 +856,37 @@ ax_map1.text(5, 9.85, 'PANEL 1 · MAPA DE PRESCRIPCIÓN — DÓNDE TRABAJAR ESTA
 ax_map1.text(5, 9.65, '[ROJO] = trabajar HOY      [AMARILLO] = trabajar esta semana',
     color=WHITE, fontsize=8, ha='center', va='top', fontfamily='monospace')
 
-# Campo Amalfitani — large left, vertical field (N-S oriented)
+# Amalfitani — grande izquierda
 draw_soccer_field(ax_map1,
-    x0=0.3, y0=0.55, w=2.9, h=8.6,
+    x0=0.15, y0=0.35, w=2.6, h=9.0,
     focos=ZONES[0]['focos'],
-    is_critical=False,
-    title='Campo Amalfitani',
-    sem='verde',
-    accion='AERIFICAR PORTERÍAS · SEMANA 3')
+    is_critical=ZONES[0]['sem'] == 'rojo',
+    title=ZONES[0]['name'],
+    sem=ZONES[0]['sem'],
+    accion=ZONES[0]['map_accion'])
 
-# Cancha 1 — top right area, horizontal
-draw_soccer_field(ax_map1,
-    x0=3.7, y0=6.6, w=2.8, h=2.8,
-    focos=ZONES[1]['focos'],
-    is_critical=False,
-    title='Cancha 1',
-    sem='amarillo',
-    accion='FUNGICIDA PREVENTIVO · ESTA SEMANA')
+# 12 VO canchas en grilla 3×4
+_p1_cols = [3.1, 5.3, 7.5]   # x0 de cada columna
+_p1_rows = [7.2, 5.05, 2.9, 0.75]  # y0 de cada fila (top → bottom)
+_p1_fw, _p1_fh = 1.95, 1.95  # tamaño de cada campo pequeño
 
-# Cancha 2 — mid right
-draw_soccer_field(ax_map1,
-    x0=3.7, y0=3.4, w=2.8, h=2.8,
-    focos=ZONES[2]['focos'],
-    is_critical=False,
-    title='Cancha 2',
-    sem='amarillo',
-    accion='FERTILIZAR · SEMANA 2')
+for _idx, _z in enumerate(ZONES[1:13]):
+    _col = _idx % 3
+    _row = _idx // 3
+    _fx0 = _p1_cols[_col]
+    _fy0 = _p1_rows[_row]
+    draw_soccer_field(ax_map1,
+        x0=_fx0, y0=_fy0, w=_p1_fw, h=_p1_fh,
+        focos=_z['focos'],
+        is_critical=_z['sem'] == 'rojo',
+        title=f'{_z["name"]} ⚠' if _z['sem'] == 'rojo' else _z['name'],
+        sem=_z['sem'],
+        accion=_z['map_accion'])
 
-# Cancha 3 — top far right
-draw_soccer_field(ax_map1,
-    x0=7.0, y0=6.6, w=2.7, h=2.8,
-    focos=ZONES[3]['focos'],
-    is_critical=False,
-    title='Cancha 3',
-    sem='amarillo',
-    accion='FUNGICIDA + RESEMBRAR · ESTA SEMANA')
-
-# Cancha 4 — bottom far right — CRÍTICA
-draw_soccer_field(ax_map1,
-    x0=7.0, y0=3.4, w=2.7, h=2.8,
-    focos=ZONES[4]['focos'],
-    is_critical=True,
-    title='Cancha 4 ⚠',
-    sem='rojo',
-    accion='INTERVENCIÓN URGENTE HOY')
-
-# Legend panel 1
-legend_y = 2.4
-ax_map1.add_patch(FancyBboxPatch(
-    (3.6, 0.3), 6.1, 2.2,
-    boxstyle='round,pad=0.1',
-    facecolor=BG3, edgecolor=GOLD+'55', linewidth=0.8, zorder=5))
-
-ax_map1.text(6.65, 2.3, 'LEYENDA — QUÉ SIGNIFICAN LOS CÍRCULOS',
-    color=GOLD, fontsize=7.5, fontweight='bold',
-    ha='center', va='top', fontfamily='monospace', zorder=6)
-
-leyenda_items = [
-    (REDL,  '● ROJO GRANDE',  'Zona crítica — trabajar HOY sin falta'),
-    (YELL,  '● AMARILLO',     'Zona de atención — trabajar esta semana'),
-    (GRNL,  '● VERDE',        'Zona OK — solo monitorear'),
-]
-for li, (lc, lsym, ldes) in enumerate(leyenda_items):
-    yl = 1.85 - li * 0.55
-    ax_map1.plot(3.9, yl, 'o', ms=12, color=lc, alpha=0.85, zorder=6)
-    ax_map1.text(4.2, yl, f'{lsym}', color=lc, fontsize=7, fontweight='bold',
-        va='center', fontfamily='monospace', zorder=6)
-    ax_map1.text(5.4, yl, ldes, color=WHITE, fontsize=7,
-        va='center', fontfamily='monospace', zorder=6)
+# Leyenda Panel 1 — una línea de texto abajo
+ax_map1.text(5.0, 0.10,
+    '●VERDE=OK·trabajar Semana 3   ●AMARILLO=trabajar esta semana   ●ROJO=intervención HOY',
+    color=WHITE, fontsize=6.0, ha='center', va='top', fontfamily='monospace')
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -746,33 +904,19 @@ ax_map2.text(5, 9.65,
     '1=HONGO  2=AGUA/DRENAJE  3=MALEZA  4=RESEMBRAR  — cada número = lugar exacto',
     color=WHITE, fontsize=7.5, ha='center', va='top', fontfamily='monospace')
 
-# Numbered focos per zone for panel 2
-alert_focos = {
-    'Campo Amalfitani': [
-        {'x': 0.5,  'y': 0.88, 'num': '1', 'color': YELL,  'type': 'AERIFICAR'},
-        {'x': 0.5,  'y': 0.12, 'num': '2', 'color': YELL,  'type': 'AERIFICAR'},
-        {'x': 0.5,  'y': 0.50, 'num': '3', 'color': YELL,  'type': 'COMPAC.'},
-    ],
-    'Cancha 1': [
-        {'x': 0.25, 'y': 0.75, 'num': '1', 'color': YELL,  'type': 'HONGO'},
-        {'x': 0.75, 'y': 0.25, 'num': '2', 'color': '#4fc3f7', 'type': 'AGUA'},
-    ],
-    'Cancha 2': [
-        {'x': 0.5,  'y': 0.50, 'num': '1', 'color': YELL,  'type': 'MALEZA'},
-        {'x': 0.75, 'y': 0.75, 'num': '2', 'color': YELL,  'type': 'MALEZA'},
-    ],
-    'Cancha 3': [
-        {'x': 0.3,  'y': 0.70, 'num': '1', 'color': YELL,  'type': 'HONGO'},
-        {'x': 0.70, 'y': 0.35, 'num': '2', 'color': '#4fc3f7', 'type': 'AGUA'},
-        {'x': 0.50, 'y': 0.50, 'num': '3', 'color': YELL,  'type': 'RESEM.'},
-    ],
-    'Cancha 4': [
-        {'x': 0.30, 'y': 0.82, 'num': '1', 'color': REDL,  'type': 'HONGO'},
-        {'x': 0.75, 'y': 0.22, 'num': '2', 'color': '#4fc3f7', 'type': 'AGUA'},
-        {'x': 0.55, 'y': 0.50, 'num': '3', 'color': YELL,  'type': 'MALEZA'},
-        {'x': 0.20, 'y': 0.35, 'num': '4', 'color': REDL,  'type': 'RESEM.'},
-    ],
-}
+# alert_focos: para zonas sin datos reales, focos genéricos por semáforo
+def _default_alert_focos(z):
+    sem = z['sem']
+    if sem == 'verde':
+        return [{'x': 0.5, 'y': 0.88, 'num': '1', 'color': YELL, 'type': 'AERIF.'},
+                {'x': 0.5, 'y': 0.12, 'num': '2', 'color': YELL, 'type': 'AERIF.'}]
+    elif sem == 'amarillo':
+        return [{'x': 0.5, 'y': 0.70, 'num': '1', 'color': YELL, 'type': 'ATENC.'},
+                {'x': 0.5, 'y': 0.30, 'num': '2', 'color': YELL, 'type': 'REGAR'}]
+    else:
+        return [{'x': 0.30, 'y': 0.75, 'num': '1', 'color': REDL, 'type': 'URGENTE'},
+                {'x': 0.70, 'y': 0.40, 'num': '2', 'color': REDL, 'type': 'REPARAR'},
+                {'x': 0.50, 'y': 0.55, 'num': '3', 'color': YELL, 'type': 'MALEZA'}]
 
 def draw_numbered_focos(ax, x0, y0, w, h, focos_num):
     for f in focos_num:
@@ -799,56 +943,35 @@ def draw_numbered_focos(ax, x0, y0, w, h, focos_num):
             bbox=dict(facecolor=BG+'CC', edgecolor=fc+'88',
                       linewidth=0.5, pad=1.5, boxstyle='round,pad=0.15'))
 
-# Draw all fields for panel 2 (same positions as panel 1)
-FIELD_DEFS = [
-    (0.3,  0.55, 2.9, 8.6, 'Campo Amalfitani', 'verde',  False),
-    (3.7,  6.6,  2.8, 2.8, 'Cancha 1',         'amarillo', False),
-    (3.7,  3.4,  2.8, 2.8, 'Cancha 2',         'amarillo', False),
-    (7.0,  6.6,  2.7, 2.8, 'Cancha 3',         'amarillo', False),
-    (7.0,  3.4,  2.7, 2.8, 'Cancha 4',         'rojo',   True),
-]
+# Amalfitani
+draw_soccer_field(ax_map2,
+    x0=0.15, y0=0.35, w=2.6, h=9.0,
+    focos=None, is_critical=ZONES[0]['sem'] == 'rojo',
+    title=ZONES[0]['name'], sem=ZONES[0]['sem'], accion='')
+draw_numbered_focos(ax_map2, 0.15, 0.35, 2.6, 9.0, _default_alert_focos(ZONES[0]))
 
-for (fx0, fy0, fw, fh, fname, fsem, fcrit) in FIELD_DEFS:
+# 12 VO canchas
+_p2_cols = [3.1, 5.3, 7.5]
+_p2_rows = [7.2, 5.05, 2.9, 0.75]
+_p2_fw, _p2_fh = 1.95, 1.95
+
+for _idx, _z in enumerate(ZONES[1:13]):
+    _col = _idx % 3
+    _row = _idx // 3
+    _fx0 = _p2_cols[_col]
+    _fy0 = _p2_rows[_row]
     draw_soccer_field(ax_map2,
-        x0=fx0, y0=fy0, w=fw, h=fh,
+        x0=_fx0, y0=_fy0, w=_p2_fw, h=_p2_fh,
         focos=None,
-        is_critical=fcrit,
-        title=fname if not fcrit else 'Cancha 4 ⚠',
-        sem=fsem,
-        accion='')
-    fname_key = fname
-    if fname_key in alert_focos:
-        draw_numbered_focos(ax_map2, fx0, fy0, fw, fh, alert_focos[fname_key])
+        is_critical=_z['sem'] == 'rojo',
+        title=f'{_z["name"]} ⚠' if _z['sem'] == 'rojo' else _z['name'],
+        sem=_z['sem'], accion='')
+    draw_numbered_focos(ax_map2, _fx0, _fy0, _p2_fw, _p2_fh, _default_alert_focos(_z))
 
-# Panel 2 legend
-ax_map2.add_patch(FancyBboxPatch(
-    (3.6, 0.3), 6.1, 2.6,
-    boxstyle='round,pad=0.1',
-    facecolor=BG3, edgecolor=GOLD+'55', linewidth=0.8, zorder=5))
-
-ax_map2.text(6.65, 2.7, 'LEYENDA — QUÉ ES CADA NÚMERO',
-    color=GOLD, fontsize=7.5, fontweight='bold',
-    ha='center', va='top', fontfamily='monospace', zorder=6)
-
-legend2_items = [
-    (REDL,     'HONGO',    'Aplicar fungicida en ese punto'),
-    ('#4fc3f7', 'AGUA',     'Problema de drenaje o riego'),
-    (YELL,     'MALEZA',   'Arrancar / herbicida en ese punto'),
-    (REDL,     'RESEMBRAR','Colocar semilla nueva en ese punto'),
-]
-for li, (lc, ltype, ldes) in enumerate(legend2_items):
-    yl2 = 2.3 - li * 0.5
-    ax_map2.add_patch(mpatches.Circle((4.0, yl2), 0.22,
-        facecolor=lc, alpha=0.85, zorder=6))
-    ax_map2.text(4.0, yl2, str(li+1),
-        color='black', fontsize=7, fontweight='bold',
-        ha='center', va='center', zorder=7, fontfamily='monospace')
-    ax_map2.text(4.4, yl2, f'{ltype}',
-        color=lc, fontsize=7, fontweight='bold',
-        va='center', fontfamily='monospace', zorder=6)
-    ax_map2.text(5.5, yl2, ldes,
-        color=WHITE, fontsize=7,
-        va='center', fontfamily='monospace', zorder=6)
+# Leyenda Panel 2 — una línea de texto abajo
+ax_map2.text(5.0, 0.10,
+    '●VERDE=OK·trabajar Semana 3   ●AMARILLO=trabajar esta semana   ●ROJO=intervención HOY',
+    color=WHITE, fontsize=6.0, ha='center', va='top', fontfamily='monospace')
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -894,6 +1017,10 @@ for val, lbl in [(0, '0\nCrítico'), (50, '50\nNormal'), (100, '100\nÓptimo')]:
 # Sort zones by fusion score so arrows never cross (lowest score leftmost)
 _zones_p3 = sorted(range(len(ZONES)), key=lambda i: ZONES[i]['fusion'])
 xs5 = np.linspace(0.12, 0.88, len(ZONES))
+_n_fus = len(ZONES)
+_fus_score_fs = max(9, 22 - max(0, _n_fus - 5) * 1.6)
+_fus_name_fs  = max(5.0, 8.0 - max(0, _n_fus - 5) * 0.25)
+_fus_dot_ms   = max(9, 14 - max(0, _n_fus - 5) * 0.6)
 for pos_i, z_i in enumerate(_zones_p3):
     z  = ZONES[z_i]
     cx = xs5[pos_i]
@@ -902,17 +1029,17 @@ for pos_i, z_i in enumerate(_zones_p3):
 
     ax_fus.text(cx, 0.88, z['name'],
         transform=ax_fus.transAxes,
-        color=WHITE, fontsize=8, fontweight='bold',
+        color=WHITE, fontsize=_fus_name_fs, fontweight='bold',
         ha='center', va='top', fontfamily='sans-serif')
 
     ax_fus.text(cx, 0.63, f'{fv}',
         transform=ax_fus.transAxes,
-        color=sc, fontsize=22, fontweight='bold',
+        color=sc, fontsize=_fus_score_fs, fontweight='bold',
         ha='center', va='center', fontfamily='monospace')
 
-    ax_fus.plot(cx, 0.42, 'o', ms=14, color=sc,
+    ax_fus.plot(cx, 0.42, 'o', ms=_fus_dot_ms, color=sc,
         transform=ax_fus.transAxes, zorder=4)
-    ax_fus.plot(cx, 0.42, 'o', ms=22, color=sc, alpha=0.14,
+    ax_fus.plot(cx, 0.42, 'o', ms=int(_fus_dot_ms*1.57), color=sc, alpha=0.14,
         transform=ax_fus.transAxes, zorder=3)
 
     ptr_x = 0.07 + fv/100 * 0.86
@@ -1005,98 +1132,230 @@ ax_ins.text(-0.58, 4.4, '5mm\nCrítico', color=REDL,
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 6 · TABLA DE PRESCRIPCIÓN (idéntica al FINAL)
+# 6 · PANEL 4 — MAPA SATELITAL NDVI POR CANCHA
+#   Reemplaza tabla de texto: heatmap pixel-a-pixel (Sentinel-2 10 m/px, crudo)
+#   + fila compacta de métricas reales que el mapa no muestra.
+#   Decisiones de diseño:
+#     · interpolation='none' — píxeles reales sin suavizado
+#     · 'SIN IMAGEN' explícito cuando ndvi_2d es None (no relleno silencioso)
+#     · Drenaje marcado 'PENDIENTE' hasta dato InSAR real (ver línea 294)
 # ══════════════════════════════════════════════════════════════════════════════
-ax_tbl = fig.add_subplot(gs[6])
-ax_tbl.set_facecolor(BG2)
-ax_tbl.axis('off')
+ax_sat = fig.add_subplot(gs[6])
+ax_sat.set_facecolor(BG2)
+ax_sat.set_xlim(0, 1); ax_sat.set_ylim(0, 1)
+ax_sat.axis('off')
 
-ax_tbl.text(0.5, 0.99, 'TABLA DE PRESCRIPCIÓN AGRONÓMICA',
-    transform=ax_tbl.transAxes,
-    color=GOLD, fontsize=9, fontweight='bold',
+ax_sat.text(0.5, 0.995,
+    'PANEL 4 · MAPA SATELITAL NDVI — PÍXELES REALES SENTINEL-2',
+    transform=ax_sat.transAxes,
+    color=GOLD, fontsize=8.5, fontweight='bold',
     ha='center', va='top', fontfamily='monospace')
+ax_sat.text(0.5, 0.970,
+    '10 m/pixel · crudo sin suavizado · círculos = focos exactos del satélite'
+    '  |  rojo=0.10  amarillo=0.35  verde=0.65+',
+    transform=ax_sat.transAxes,
+    color=WDIM, fontsize=6.0,
+    ha='center', va='top', fontfamily='monospace')
+ax_sat.plot([0.01, 0.99], [0.950, 0.950], color=GOLD + '33', linewidth=0.5,
+    transform=ax_sat.transAxes)
 
-cols_tbl = ['ZONA', 'NDVI', 'NDRE', 'CCCI', 'RIEGO\nmm',
-            'RESIEMBRA', 'HONGOS', 'COMPACT.', 'DRENAJE', 'MALEZAS',
-            'TIMELINE', 'PRIOR.', 'ACCIÓN INMEDIATA']
+# ── 5 heatmaps de canchas ─────────────────────────────────────────────────
+_n_hm   = len(ZONES)
+_hm_gap = 0.014
+_hm_mx  = 0.018   # margen izquierdo/derecho
+_hm_w   = (1.0 - 2 * _hm_mx - (_n_hm - 1) * _hm_gap) / _n_hm
+_hm_y0  = 0.550   # base del área de heatmaps (arriba queda la fila compacta)
+_hm_y1  = 0.945   # tope del área de heatmaps
 
-rows_tbl = []
-for z in ZONES:
-    sc = SEM_COLOR[z['sem']]
-    _ccci_disp = z.get('ccci', 'sin hist')
-    rows_tbl.append({
-        'data': [
-            z['name'].replace('\n', ' '),
-            f"{z['ndvi']:.2f}",
-            f"{z['ndre']:.2f}",
-            _ccci_disp,
-            str(z['riego']),
-            z['resiembra'],
-            z['hongos'],
-            z['compact'],
-            z['drenaje'],
-            z['malezas'],
-            z['timeline'],
-            '●',
-            z['accion'].replace('\n', ' '),
-        ],
-        'sem': z['sem'],
-        'color': sc,
-    })
+import numpy as _np_sat
 
-table_data_tbl = [[r['data'][j] for j in range(len(cols_tbl))] for r in rows_tbl]
+for _hi, _z in enumerate(ZONES):
+    _hx0 = _hm_mx + _hi * (_hm_w + _hm_gap)
+    _ax_hm = ax_sat.inset_axes([_hx0, _hm_y0, _hm_w, _hm_y1 - _hm_y0])
+    _ax_hm.set_facecolor(BG3)
 
-the_table = ax_tbl.table(
-    cellText=table_data_tbl,
-    colLabels=cols_tbl,
-    cellLoc='center',
-    loc='center',
-    bbox=[0.0, 0.01, 1.0, 0.93],
-)
-the_table.auto_set_font_size(False)
-the_table.set_fontsize(7)
+    _sem     = _z['sem']
+    _sc      = SEM_COLOR[_sem]
+    _ndvi2d  = _z.get('ndvi_2d')   # None → sin imagen; lista-de-listas → dato real
 
-for j in range(len(cols_tbl)):
-    cell = the_table[0, j]
-    cell.set_facecolor(BG3)
-    cell.set_text_props(color=GOLD, fontsize=7, fontweight='bold',
-                        fontfamily='monospace')
-    cell.set_edgecolor(GOLD + '55')
-    cell.set_linewidth(0.5)
+    if _ndvi2d is None or len(_ndvi2d) == 0:
+        # ── SIN IMAGEN — nublado / sin dato ──────────────────────────────
+        _ax_hm.set_xlim(0, 1); _ax_hm.set_ylim(0, 1)
+        _ax_hm.set_xticks([]); _ax_hm.set_yticks([])
+        _ax_hm.add_patch(mpatches.Rectangle(
+            (0, 0), 1, 1,
+            facecolor=BG3, edgecolor='none',
+            hatch='////', zorder=1,
+            transform=_ax_hm.transAxes))
+        _ax_hm.text(0.5, 0.62, 'SIN IMAGEN',
+            transform=_ax_hm.transAxes,
+            color=WDIM, fontsize=7.5, fontweight='bold',
+            ha='center', va='center', fontfamily='monospace', zorder=5)
+        _ax_hm.text(0.5, 0.44, 'nublado / sin dato',
+            transform=_ax_hm.transAxes,
+            color=WDIM, fontsize=6.0,
+            ha='center', va='center', fontfamily='monospace', zorder=5)
+        _last_ndvi = _z.get('ndvi')
+        if isinstance(_last_ndvi, (int, float)):
+            _ax_hm.text(0.5, 0.27, f'ult. NDVI: {_last_ndvi:.2f}',
+                transform=_ax_hm.transAxes,
+                color=WDIM + '99', fontsize=6.0,
+                ha='center', va='center', fontfamily='monospace', zorder=5)
+    else:
+        # ── Heatmap píxeles reales, CRUDO ────────────────────────────────
+        _arr  = _np_sat.array(_ndvi2d, dtype=float)
+        _rows, _cols = _arr.shape
 
-for i, row in enumerate(rows_tbl):
-    sc = row['color']
-    for j in range(len(cols_tbl)):
-        cell = the_table[i+1, j]
-        if row['sem'] == 'rojo':
-            cell.set_facecolor('#1a0505')
-        elif row['sem'] == 'amarillo':
-            cell.set_facecolor('#181200')
-        else:
-            cell.set_facecolor(BG3)
-        cell.set_edgecolor(GOLD + '33')
-        cell.set_linewidth(0.4)
+        _ax_hm.imshow(
+            _arr, cmap=ndvi_colormap(), vmin=0, vmax=1,
+            origin='upper',
+            extent=[0, _cols, 0, _rows],
+            aspect='auto',
+            interpolation='none',   # píxeles crudos, sin suavizado
+            zorder=1,
+        )
 
-        if j == 11:
-            cell.set_text_props(color=sc, fontsize=12, fontweight='bold')
-        elif j == 0:
-            cell.set_text_props(color=WHITE, fontsize=7, fontweight='bold',
-                                fontfamily='monospace')
-        elif j == len(cols_tbl)-1:
-            cell.set_text_props(
-                color=sc if row['sem'] != 'verde' else GRNL,
-                fontsize=6.5, fontweight='bold', fontfamily='monospace')
-        elif j == 10:
-            cell.set_text_props(
-                color=sc, fontsize=7, fontweight='bold',
-                fontfamily='monospace')
-        else:
-            cell.set_text_props(color=WHITE, fontsize=7,
-                                fontfamily='monospace')
+        # Field lines overlay — semitransparentes para no tapar el heatmap
+        _ax_hm.axhline(_rows / 2.0, color=LINE, linewidth=0.8, alpha=0.40, zorder=3)
+        _cx_f, _cy_f = _cols / 2.0, _rows / 2.0
+        _ax_hm.add_patch(plt.Circle(
+            (_cx_f, _cy_f), min(_cols, _rows) * 0.18,
+            fill=False, edgecolor=LINE, linewidth=0.75, alpha=0.40, zorder=3))
+        _ax_hm.plot(_cx_f, _cy_f, 'o', ms=1.5, color=LINE, alpha=0.45, zorder=3)
+        _pa_w_f = _cols * 0.62; _pa_h_f = _rows * 0.17
+        _pa_x_f = (_cols - _pa_w_f) / 2.0
+        _ax_hm.add_patch(mpatches.Rectangle(
+            (_pa_x_f, 0), _pa_w_f, _pa_h_f,
+            fill=False, edgecolor=LINE, linewidth=0.6, alpha=0.35, zorder=3))
+        _ax_hm.add_patch(mpatches.Rectangle(
+            (_pa_x_f, _rows - _pa_h_f), _pa_w_f, _pa_h_f,
+            fill=False, edgecolor=LINE, linewidth=0.6, alpha=0.35, zorder=3))
 
-for j in range(len(cols_tbl)):
-    the_table[5, j].set_edgecolor(REDL)
-    the_table[5, j].set_linewidth(1.0)
+        # Focos reales sobre el heatmap
+        for _f in (_z.get('focos') or []):
+            _fx_p = _f['x'] * _cols
+            _fy_p = (1.0 - _f['y']) * _rows   # origin='upper' → invertir Y
+            _ndvi_f = _f.get('ndvi')
+            _fc_p   = REDL if (isinstance(_ndvi_f, float) and _ndvi_f < 0.20) else YELL
+            _r_p    = min(_cols, _rows) * 0.085
+            _ax_hm.add_patch(plt.Circle((_fx_p, _fy_p), _r_p * 1.4,
+                facecolor=_fc_p, alpha=0.18, zorder=4))
+            _ax_hm.add_patch(plt.Circle((_fx_p, _fy_p), _r_p,
+                facecolor=_fc_p, alpha=0.88, edgecolor='white',
+                linewidth=0.9, zorder=5))
+            if isinstance(_ndvi_f, float):
+                _ax_hm.text(_fx_p, _fy_p, f'{_ndvi_f:.2f}',
+                    color='black', fontsize=4.5, fontweight='bold',
+                    ha='center', va='center', zorder=6,
+                    fontfamily='monospace')
+
+        _ax_hm.set_xlim(0, _cols); _ax_hm.set_ylim(0, _rows)
+        _ax_hm.set_xticks([]); _ax_hm.set_yticks([])
+
+    # Borde color semáforo (misma convención que los planos de campo)
+    for _sp in _ax_hm.spines.values():
+        _sp.set_edgecolor(_sc)
+        _sp.set_linewidth(2.0 if _sem == 'rojo' else 1.0)
+
+    # Nombre de cancha encima del heatmap
+    ax_sat.text(
+        _hx0 + _hm_w / 2, _hm_y1 + 0.006,
+        _z['name'].replace('\n', ' '),
+        transform=ax_sat.transAxes,
+        color=WHITE, fontsize=5.5, fontweight='bold',
+        ha='center', va='bottom', fontfamily='monospace')
+
+    # NDVI + CCCI debajo del heatmap
+    _ndvi_disp = _z.get('ndvi', 0.0)
+    _ndvi_c    = (REDL if _ndvi_disp < 0.30 else
+                  YELL if _ndvi_disp < 0.50 else GRNL)
+    ax_sat.text(
+        _hx0 + _hm_w / 2, _hm_y0 - 0.005,
+        f'NDVI {_ndvi_disp:.2f}',
+        transform=ax_sat.transAxes,
+        color=_ndvi_c, fontsize=5.5, fontweight='bold',
+        ha='center', va='top', fontfamily='monospace')
+    ax_sat.text(
+        _hx0 + _hm_w / 2, _hm_y0 - 0.035,
+        _z.get('ccci', 'sin hist'),
+        transform=ax_sat.transAxes,
+        color=WDIM, fontsize=4.8,
+        ha='center', va='top', fontfamily='monospace')
+
+# ── Separador + encabezado fila compacta ─────────────────────────────────
+_tbl_sep   = _hm_y0 - 0.065
+_tbl_hdr_s = _tbl_sep - 0.008
+_tbl_hdr_c = _tbl_sep - 0.038
+_tbl_row0  = _tbl_sep - 0.060
+_tbl_row_h = max(0.025, (_tbl_row0 - 0.012) / max(len(ZONES), 1))
+_row_ys    = [_tbl_row0 - i * _tbl_row_h for i in range(len(ZONES))]
+
+ax_sat.plot([0.01, 0.99], [_tbl_sep, _tbl_sep], color=GOLD + '33', linewidth=0.5,
+    transform=ax_sat.transAxes)
+ax_sat.text(0.012, _tbl_hdr_s,
+    'DATOS REALES COMPLEMENTARIOS — lo que el mapa no muestra:',
+    transform=ax_sat.transAxes,
+    color=GOLD, fontsize=6.0, fontweight='bold',
+    va='top', fontfamily='monospace')
+
+# ── Headers de columnas ───────────────────────────────────────────────────
+_ct_labels = ['ZONA', 'RESIEMBRA', 'RIEGO mm', 'HONGOS', 'COMPACT.', 'DRENAJE *', 'TIMELINE']
+_ct_xs     = [0.012,   0.155,       0.270,      0.380,    0.510,      0.640,        0.800]
+
+for _lbl, _lx in zip(_ct_labels, _ct_xs):
+    _lc = YELL + 'AA' if _lbl == 'DRENAJE *' else GOLD
+    ax_sat.text(_lx, _tbl_hdr_c, _lbl,
+        transform=ax_sat.transAxes,
+        color=_lc, fontsize=5.5, fontweight='bold',
+        va='top', fontfamily='monospace')
+
+# ── Datos por zona ────────────────────────────────────────────────────────
+_tl_map = {'verde': 'Semana 3', 'amarillo': 'Esta semana', 'rojo': 'HOY — URGENTE'}
+
+for _z, _ry in zip(ZONES, _row_ys):
+    _sem = _z['sem']
+    _sc  = SEM_COLOR[_sem]
+    _bg_row = ('#1a0505' if _sem == 'rojo' else
+               '#181200' if _sem == 'amarillo' else BG3)
+    ax_sat.add_patch(mpatches.Rectangle(
+        (0.010, _ry - _tbl_row_h * 0.35), 0.980, _tbl_row_h * 0.85,
+        facecolor=_bg_row, edgecolor=GOLD + '22', linewidth=0.4,
+        transform=ax_sat.transAxes, zorder=1))
+    ax_sat.plot(0.025, _ry + _tbl_row_h * 0.15, 'o', ms=4.5, color=_sc,
+        transform=ax_sat.transAxes, zorder=3, clip_on=False)
+
+    _res = _z.get('resiembra', '—')
+    _res_c = (REDL  if 'Total'   in _res else
+              YELL  if 'Parcial' in _res else GRNL)
+    _hon = str(_z.get('hongos', '—'))
+    _hon_c = (REDL  if 'Activos' in _hon else
+              YELL  if 'rev' in _hon.lower() or 'Prev' in _hon else GRNL)
+    _cmp = str(_z.get('compact', '—'))
+    _cmp_c = (REDL  if 'Cr' in _cmp else
+              YELL  if 'Alta' in _cmp else GRNL)
+    _tl    = _tl_map.get(_sem, 'Esta semana')
+    _tl_c  = (REDL if _sem == 'rojo' else YELL if _sem == 'amarillo' else GRNL)
+
+    _row_vals = [
+        (_ct_xs[0], _z['name'].replace('\n', ' '),  WHITE),
+        (_ct_xs[1], _res,                           _res_c),
+        (_ct_xs[2], str(_z.get('riego', '—')),      WHITE),
+        (_ct_xs[3], _hon,                           _hon_c),
+        (_ct_xs[4], _cmp,                           _cmp_c),
+        (_ct_xs[5], 'PENDIENTE',                    YELL + '88'),
+        (_ct_xs[6], _tl,                            _tl_c),
+    ]
+    for (_rx, _rv, _rc) in _row_vals:
+        ax_sat.text(_rx, _ry + _tbl_row_h * 0.15, _rv,
+            transform=ax_sat.transAxes,
+            color=_rc, fontsize=4.8, va='center',
+            fontfamily='monospace', zorder=3)
+
+ax_sat.text(0.012, 0.004,
+    '* Drenaje: pendiente dato InSAR real (Sentinel-1) — ver gen_velez_canchero.py L294',
+    transform=ax_sat.transAxes,
+    color=YELL + 'AA', fontsize=5.0, va='bottom',
+    fontfamily='monospace')
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1120,30 +1379,43 @@ if ZONES and all('score_prev' in z for z in ZONES):
     ]
 else:
     comp_data = [
-        ('Campo\nAmalfitani', 87.9, 85.2, '→', GRNL),
-        ('Cancha 1',          62.0, 71.5, '↓', YELL),
-        ('Cancha 2',          68.4, 67.0, '→', YELL),
-        ('Cancha 3',          43.0, 53.8, '↓', YELL),
-        ('Cancha 4',          32.8, 49.2, '↓', REDL),
+        ('Amalfitani',  80.0, 78.5, '→', GRNL),
+        ('1FA',         65.0, 68.0, '↓', YELL),
+        ('2FA',         58.0, 55.0, '↑', YELL),
+        ('3FA',         72.0, 70.0, '→', YELL),
+        ('4FA',         45.0, 51.0, '↓', YELL),
+        ('5FA',         60.0, 58.0, '↑', YELL),
+        ('6FA',         55.0, 60.0, '↓', YELL),
+        ('7FA',         68.0, 65.0, '↑', YELL),
+        ('8FA',         74.0, 72.0, '→', YELL),
+        ('9FA',         82.0, 80.0, '→', GRNL),
+        ('10FA',        78.0, 75.0, '↑', GRNL),
+        ('1FP',         50.0, 55.0, '↓', YELL),
+        ('2FP',         85.0, 83.0, '↑', GRNL),
     ]
-xs5c = np.linspace(0.10, 0.90, 5)
+_n_cmp = len(comp_data)
+_cmp_name_fs  = max(5.0, 7.5 - max(0, _n_cmp - 5) * 0.25)
+_cmp_arrow_fs = max(12, 22 - max(0, _n_cmp - 5) * 1.4)
+_cmp_score_fs = max(7, 11 - max(0, _n_cmp - 5) * 0.5)
+_cmp_prev_fs  = max(5.0, 7.5 - max(0, _n_cmp - 5) * 0.25)
+xs5c = np.linspace(0.05, 0.95, len(comp_data))
 for i, (nm, cur, prev, arrow, clr) in enumerate(comp_data):
     cx = xs5c[i]
     ax_cmp.text(cx, 0.85, nm,
         transform=ax_cmp.transAxes,
-        color=WHITE, fontsize=7.5, fontweight='bold',
+        color=WHITE, fontsize=_cmp_name_fs, fontweight='bold',
         ha='center', va='top', fontfamily='sans-serif')
     ax_cmp.text(cx, 0.60, arrow,
         transform=ax_cmp.transAxes,
-        color=clr, fontsize=22, fontweight='bold',
+        color=clr, fontsize=_cmp_arrow_fs, fontweight='bold',
         ha='center', va='center')
     ax_cmp.text(cx, 0.38, f'{cur:.1f}',
         transform=ax_cmp.transAxes,
-        color=clr, fontsize=11, fontweight='bold',
+        color=clr, fontsize=_cmp_score_fs, fontweight='bold',
         ha='center', va='center', fontfamily='monospace')
     ax_cmp.text(cx, 0.20, f'prev: {prev:.1f}',
         transform=ax_cmp.transAxes,
-        color=WDIM, fontsize=7.5,
+        color=WDIM, fontsize=_cmp_prev_fs,
         ha='center', va='center', fontfamily='monospace')
 
 ax_cmp.text(0.5, 0.04, '↑ Mejoró   →  Estable   ↓  Empeoró',

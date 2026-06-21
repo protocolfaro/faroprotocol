@@ -238,6 +238,9 @@ def _push_heatmap_ndvi_update(ndvi_data: dict) -> str:
                  "ndvi": round(v, 3)}
                 for v, r_i, c_i in _low_px[:3]
             ]
+            # Persiste la matriz 2D completa para el panel heatmap de gen_velez_canchero.py.
+            # Ya viene como lista-de-listas float16 normalizada [0,1] desde ndvi_real.py.
+            _e2["ndvi_2d"] = _ndvi2d
 
     # Always write heatmaps_meta (image date + source) to GitHub for _last_processed_date()
     roger.setdefault("heatmaps_meta", {}).update({
