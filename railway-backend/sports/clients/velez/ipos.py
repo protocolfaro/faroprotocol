@@ -41,6 +41,25 @@ def classify(score: float) -> dict:
         return {"semaforo":"amarillo","icono":"🟡","texto":"Uso normal"}
     return {"semaforo":"verde","icono":"🟢","texto":"Cancha descansada"}
 
+def validate_sessions(sessions: list[dict]) -> list[str]:
+    """
+    Return a list of warning strings for any cancha ID that won't be counted.
+    Call before compute_ipos and log/alert the result if non-empty.
+    """
+    warnings = []
+    for s in sessions:
+        cat = s.get("categoria", "?")
+        dia = s.get("dia", "?")
+        for c in s.get("canchas", []):
+            cid = c.strip().lower()
+            if cid not in CANCHAS and cid != "campus":
+                warnings.append(
+                    f"IPOS_WARN cancha desconocida ignorada: "
+                    f'"{c}" en {cat}/{dia} — usar IDs: 1fa-10fa, 1fp, 2fp, campus'
+                )
+    return warnings
+
+
 def compute_ipos(sessions: list[dict]) -> dict:
     """
     sessions: [{categoria, dia, canchas:[str], turno}]

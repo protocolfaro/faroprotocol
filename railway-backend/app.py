@@ -181,6 +181,9 @@ def horarios():
 
     log.info("Request: semana=%s, sessions=%d", sem_label, len(sessions))
 
+    for _warn in ipos_mod.validate_sessions(sessions):
+        log.warning(_warn)
+
     try:
         ipos_results = ipos_mod.compute_ipos(sessions)
     except Exception as e:
