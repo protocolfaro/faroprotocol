@@ -516,7 +516,7 @@ if _vd_path:
                       for k in ("estadio", "poli", "sede", "piletas")}
         if any(v is not None for v in _ins_check.values()):
             _insar_sectors = _ins_check
-        # 8: Bonillo/UEFA physical field measurements from roger.mediciones
+        # 8: calidad superficie — mediciones físicas de campo desde roger.mediciones
         if _bs:
             _bonillo_data = _bs.extract_from_vd(_vd_data)
     except Exception as _e:
@@ -713,7 +713,7 @@ def draw_soccer_field(ax, x0, y0, w, h, focos=None, is_critical=False, title='',
 
 # ─── SETUP FIGURE ────────────────────────────────────────────────────────────
 DPI = 200
-FW, FH = 13.5, 34.5   # extendido para 13 zonas + panel Bonillo
+FW, FH = 13.5, 34.5   # extendido para 13 zonas + panel calidad superficie
 fig = plt.figure(figsize=(FW, FH), dpi=DPI, facecolor=BG)
 fig.subplots_adjust(left=0.03, right=0.97, top=0.99, bottom=0.01, hspace=0.0)
 
@@ -1443,7 +1443,7 @@ ax_bon.set_xlim(0, 1); ax_bon.set_ylim(0, 1)
 ax_bon.axis('off')
 
 ax_bon.text(0.5, 0.97,
-    'CALIDAD CAMPO · ESTÁNDAR UEFA/STRI — MEDICIONES ROGER (Bonillo)',
+    'CALIDAD DE SUPERFICIE · ESTÁNDAR UEFA/STRI — MEDICIONES DE CAMPO',
     transform=ax_bon.transAxes,
     color=GOLD, fontsize=8.5, fontweight='bold',
     ha='center', va='top', fontfamily='monospace')
@@ -1522,7 +1522,7 @@ else:
                     va='center', fontfamily='monospace', zorder=2)
 
     ax_bon.text(0.012, 0.01,
-        'Fuente: UEFA/STRI standard (Bonillo 2024)  ·  '
+        'Fuente: UEFA/STRI standard  ·  '
         'Lecturas ingresadas por Roger via /velez/medicion  ·  '
         'Verde: 70-90 CG  /  >=30 Nm  /  24-28 mm  /  20-30%  /  >85 mm',
         transform=ax_bon.transAxes,

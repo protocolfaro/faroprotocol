@@ -418,10 +418,13 @@ def mediciones():
     if not med or not med.get("tipo") or not med.get("cancha"):
         return jsonify({"status": "error", "error": "medicion.tipo y medicion.cancha requeridos"}), 400
     try:
-        if med.get("tipo", "").lower() == "clegg":
-            commit_url = github_push.push_clegg_medicion(med)
-        else:
-            commit_url = github_push.push_medicion(med)
+        _tipo = med.get("tipo", "").lower()
+        if   _tipo == "clegg":    commit_url = github_push.push_clegg_medicion(med)
+        elif _tipo == "traccion": commit_url = github_push.push_traccion_medicion(med)
+        elif _tipo == "altura":   commit_url = github_push.push_altura_medicion(med)
+        elif _tipo == "humedad":  commit_url = github_push.push_humedad_medicion(med)
+        elif _tipo == "raices":   commit_url = github_push.push_raices_medicion(med)
+        else:                     commit_url = github_push.push_medicion(med)
         return jsonify({"status": "ok", "commit": commit_url})
     except EnvironmentError as e:
         return jsonify({"status": "error", "error": str(e)}), 503

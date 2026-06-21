@@ -72,37 +72,49 @@ def classify(key: str, val: float) -> str:
 
 def extract_from_vd(vd: dict) -> dict:
     """
-    Read physical field measurements from velez_data.json.
+    Read Bonillo physical field measurements from velez_data.json.
     Returns {cancha_id_lower: {metric_key: float|None}}.
 
-    Only canchas with >=1 measurement appear in the result.
-    Currently wired: 'compactacion' via roger.mediciones.clegg (valor_cg in CG).
-    Other metrics (traccion, altura, humedad, raices) return None until their
-    collection endpoints are created.
+    Only canchas with >=1 measurement across any metric appear in the result.
+    Each sub-list is newest-first (push functions prepend). We take the most
+    recent entry per cancha for each metric.
 
-    Clegg list is newest-first (push_clegg_medicion prepends). We take the
-    first (most recent) entry per cancha.
+    Storage keys: usuarios.roger.mediciones.{clegg, traccion, altura, humedad, raices}
+    Value fields: valor_cg (CG) | valor_nm (Nm) | valor_mm (mm) | valor_pct (%)
+    Cancha field: "cancha" (set by app.py) — also accepts legacy "zona".
     """
     roger = vd.get("usuarios", {}).get("roger", {})
     meds  = roger.get("mediciones", {})
 
-    clegg_map: dict[str, Optional[float]] = {}
-    for m in meds.get("clegg", []):
-        zona = (m.get("zona") or "").lower()
-        if zona and zona not in clegg_map:
-            val = m.get("valor_cg")
-            clegg_map[zona] = float(val) if val is not None else None
+    def _latest(key: str, valor_key: str) -> dict:
+        """Return {cancha_id: float|None}, most recent per cancha from a prepend list."""
+        seen: dict[str, Optional[float]] = {}
+        for m in meds.get(key, []):
+            cid = (m.get("cancha") or m.get("zona") or "").lower()
+            if cid and cid not in seen:
+                val = m.get(valor_key)
+                seen[cid] = float(val) if val is not None else None
+        return seen
 
-    if not clegg_map:
+    clegg_m    = _latest("clegg",    "valor_cg")
+    traccion_m = _latest("traccion", "valor_nm")
+    altura_m   = _latest("altura",   "valor_mm")
+    humedad_m  = _latest("humedad",  "valor_pct")
+    raices_m   = _latest("raices",   "valor_mm")
+
+    all_cids = (set(clegg_m) | set(traccion_m) | set(altura_m) |
+                set(humedad_m) | set(raices_m))
+
+    if not all_cids:
         return {}
 
     return {
         cid: {
-            "compactacion": clegg_map[cid],
-            "traccion": None,
-            "altura":   None,
-            "humedad":  None,
-            "raices":   None,
+            "compactacion": clegg_m.get(cid),
+            "traccion":     traccion_m.get(cid),
+            "altura":       altura_m.get(cid),
+            "humedad":      humedad_m.get(cid),
+            "raices":       raices_m.get(cid),
         }
-        for cid in clegg_map
+        for cid in all_cids
     }

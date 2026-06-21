@@ -441,6 +441,51 @@ def push_clegg_medicion(med: dict) -> str:
             f"https://github.com/{OWNER}/{REPO}/blob/{BRANCH}/{VD_PATH}")
 
 
+def _push_roger_medicion_key(key: str, med: dict, valor_key: str, unit: str) -> str:
+    """Append to usuarios.roger.mediciones.{key}, newest-first, max 50 entries."""
+    ts  = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    med = {**med, "timestamp": ts}
+    r = requests.get(f"{API}/repos/{OWNER}/{REPO}/contents/{VD_PATH}",
+                     headers=_hdrs(), params={"ref": BRANCH}, timeout=15)
+    if r.status_code != 200:
+        raise RuntimeError(f"velez_data.json fetch failed: {r.status_code}")
+    d = r.json()
+    existing_sha = d["sha"]
+    vd = json.loads(base64.b64decode(d["content"]).decode())
+    lst = (vd.setdefault("usuarios", {})
+              .setdefault("roger", {})
+              .setdefault("mediciones", {})
+              .setdefault(key, []))
+    lst.insert(0, med)
+    vd["usuarios"]["roger"]["mediciones"][key] = lst[:50]
+    vd["updated_at"] = ts
+    data = json.dumps(vd, ensure_ascii=False, indent=2).encode()
+    msg  = f"{key} {med.get('cancha','?')} {med.get(valor_key,'?')}{unit} [{ts}]"
+    resp = _put(VD_PATH, data, msg, existing_sha)
+    return (resp.get("commit", {}).get("html_url") or
+            f"https://github.com/{OWNER}/{REPO}/blob/{BRANCH}/{VD_PATH}")
+
+
+def push_traccion_medicion(med: dict) -> str:
+    """Append torque wrench reading to usuarios.roger.mediciones.traccion (Nm)."""
+    return _push_roger_medicion_key("traccion", med, "valor_nm", "Nm")
+
+
+def push_altura_medicion(med: dict) -> str:
+    """Append grass height reading to usuarios.roger.mediciones.altura (mm)."""
+    return _push_roger_medicion_key("altura", med, "valor_mm", "mm")
+
+
+def push_humedad_medicion(med: dict) -> str:
+    """Append soil moisture reading to usuarios.roger.mediciones.humedad (%)."""
+    return _push_roger_medicion_key("humedad", med, "valor_pct", "%")
+
+
+def push_raices_medicion(med: dict) -> str:
+    """Append root depth reading to usuarios.roger.mediciones.raices (mm)."""
+    return _push_roger_medicion_key("raices", med, "valor_mm", "mm")
+
+
 def push_shadow_maps(shadow_data: dict) -> str:
     """Write shadow_maps analysis to velez_data.json.shadow_maps.
     shadow_data: {cid: {sombra_permanente_pct, horas_sol_dia, notas}}"""
