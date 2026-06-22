@@ -527,9 +527,10 @@ def analyze_cancha(
     _save_estado_supabase("amalfitani", cid, estado, prescripcion)
 
     # Mapa de estrés zonal para heatmap IDW del frontend
-    bsi_val = float(hm.get("bsi") or 0.0)
-    zonas   = _compute_zonas_estres(
-        ndvi=float(hm.get("ndvi") or 0.5),
+    bsi_val  = float(hm.get("bsi") or 0.0)
+    _ndvi_ze = hm.get("ndvi")   # None si sin imagen óptica — no usar proxy
+    zonas    = _compute_zonas_estres(
+        ndvi=float(_ndvi_ze) if _ndvi_ze is not None else None,
         bsi=bsi_val,
         sm=sm,
         et0=et0,
@@ -650,7 +651,8 @@ def _generar_prescripcion(
     Idioma sin tildes para evitar encoding issues en cualquier sistema.
     """
     lbl     = cid.upper()
-    ndvi    = float(hm.get("ndvi") or 0.5)
+    ndvi    = hm.get("ndvi")   # None si sin imagen óptica — no usar proxy
+    _ndvi_s = f'{ndvi:.3f}' if ndvi is not None else 'sin dato'
     ipos    = float(hm.get("ipos") or 0.0)
     et0     = float(weather_live.get("et0_mm_dia") or 3.5)
     deficit = float(weather_live.get("deficit_hidrico_mm") or 0.0)
@@ -713,7 +715,7 @@ def _generar_prescripcion(
     # Prioridad 7: IPOS extremo
     if ipos > 300:
         return (
-            f"Cancha {lbl}: DESCANSO — {ipos:.0f} pers.h acumuladas esta semana, NDVI={ndvi:.3f} — "
+            f"Cancha {lbl}: DESCANSO — {ipos:.0f} pers.h acumuladas esta semana, NDVI={_ndvi_s} — "
             f"cerrar hasta recuperacion minima (48hs)"
         )
 
@@ -725,22 +727,22 @@ def _generar_prescripcion(
         )
 
     # Ventana de corte optima (fuera de invierno)
-    if gdd_r >= 3.0 and not is_win and ndvi > 0.30:
+    if gdd_r >= 3.0 and not is_win and ndvi is not None and ndvi > 0.30:
         return (
             f"Cancha {lbl}: Ventana de corte disponible desde {hora_c} — "
-            f"GDD={gdd_r:.1f}/dia, NDVI={ndvi:.3f}, condiciones optimas"
+            f"GDD={gdd_r:.1f}/dia, NDVI={_ndvi_s}, condiciones optimas"
         )
 
     # Invierno sin alertas
     if is_win:
         return (
-            f"Cancha {lbl}: Dormancia invernal — NDVI={ndvi:.3f} (normal Jun-Ago) — "
+            f"Cancha {lbl}: Dormancia invernal — NDVI={_ndvi_s} (normal Jun-Ago) — "
             f"sin intervencion urgente hoy"
         )
 
     # Default
     return (
-        f"Cancha {lbl}: Sin intervencion urgente — NDVI={ndvi:.3f}, IPOS={ipos:.0f} — "
+        f"Cancha {lbl}: Sin intervencion urgente — NDVI={_ndvi_s}, IPOS={ipos:.0f} — "
         f"monitoreo estandar"
     )
 
@@ -784,7 +786,7 @@ def _compute_zonas_estres(
     PMP = 0.14   # Punto Marchitez Permanente
 
     deficit     = max(0.0, (CC - sm)       / (CC - PMP))  if sm   is not None else 0.0
-    ndvi_stress = max(0.0, 1.0 - ndvi / 0.65)             if ndvi  > 0        else 0.0
+    ndvi_stress = max(0.0, 1.0 - ndvi / 0.65)             if ndvi is not None and ndvi > 0 else 0.0
     bsi_stress  = max(0.0, min(1.0, bsi  * 2.0))          if bsi   is not None else 0.0
     et0_stress  = max(0.0, min(1.0, et0  / 8.0))          if et0   is not None else 0.0
     uso_stress  = max(0.0, min(1.0, ipos_score / 200.0))  if ipos_score > 0   else 0.0

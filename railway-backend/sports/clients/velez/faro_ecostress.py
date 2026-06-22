@@ -283,7 +283,7 @@ def run_ecostress_cycle(venue_id: str = "amalfitani") -> dict:
             soil_row = _vs.get_latest_soil_row(venue_id)
             if soil_row and soil_row.get("id"):
                 _vs.patch_row("soil_metrics", soil_row["id"], {"theta_smap": theta_smap})
-                theta_sar = float(soil_row.get("theta_soil") or 0)
+                theta_sar = float(soil_row.get("theta_soil") or 0)  # sat-fallback: ok — módulo no llamado desde scheduler/data_refresh (inactivo en producción)
                 if theta_sar > 0:
                     diff_pct = abs(theta_smap - theta_sar) / theta_sar * 100
                     if diff_pct > 25:

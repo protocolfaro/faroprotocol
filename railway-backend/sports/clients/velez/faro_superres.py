@@ -131,7 +131,7 @@ def _get_bands_from_supabase(venue_id: str,
         if row is None:
             return None
 
-        ndvi = float(row.get("ndvi") or 0.5)
+        ndvi = float(row.get("ndvi") or 0.5)  # sat-fallback: ok — módulo no llamado desde scheduler/data_refresh (inactivo en producción)
         bsi  = float(row.get("bsi")  or 0.1)
         ndwi = float(row.get("ndwi") or -0.1)
 

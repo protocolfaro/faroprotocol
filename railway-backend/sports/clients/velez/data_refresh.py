@@ -571,8 +571,11 @@ def push_weather_update(weather_live: dict) -> str:
     _NDVI_CRISIS_FB = {1:0.14,2:0.14,3:0.11,4:0.09,5:0.06,6:0.04,7:0.04,8:0.05,
                        9:0.08,10:0.11,11:0.13,12:0.14}
     for _cid, _hme in _hm.items():
-        if not isinstance(_hme, dict) or _hme.get("estado_detectado"):
+        if not isinstance(_hme, dict):
             continue
+        _prev_est = _hme.get("estado_detectado")
+        if _prev_est and _prev_est != "INDETERMINADO":
+            continue   # ya determinado por Hermes/temporal-eye; re-evaluar solo INDETERMINADO
         _ndvi_raw = _hme.get("ndvi")   # None si sin imagen óptica — no usar proxy
         _ipos = float(_hme.get("ipos") or 0.0)
         _bsi  = float(_hme.get("bsi")  or 0.0)
@@ -580,7 +583,7 @@ def push_weather_update(weather_live: dict) -> str:
         if _bsi > 0.12 and _sm_pct < 20.0 and _ipos > 150:
             _hme["estado_detectado"] = "compactacion"
         elif _ndvi_raw is None:
-            pass   # sin imagen óptica: no escribir "normal" falso, campo queda ausente
+            _hme["estado_detectado"] = "INDETERMINADO"   # sin imagen óptica: estado honesto
         elif float(_ndvi_raw) < _nd_thr and _sm_pct < 25.0:
             _hme["estado_detectado"] = "stress_hidrico"
         else:
@@ -597,7 +600,8 @@ def push_weather_update(weather_live: dict) -> str:
         _ndvi_fb = _hme.get("ndvi")   # None si sin imagen óptica — no usar proxy
         _est_fb  = _hme.get("estado_detectado", "normal")
         if _ndvi_fb is None and _est_fb not in ("resiembra_activa", "stress_hidrico", "compactacion", "fungosis"):
-            continue   # sin imagen óptica y sin estado confirmado: no inventar zonas_estres
+            _hme["zonas_estres"] = None   # sin imagen óptica, sin estado confirmado: null explícito
+            continue
         _base = (0.85 if _est_fb == "resiembra_activa" else
                  0.65 if _est_fb == "stress_hidrico"   else
                  0.70 if _est_fb == "compactacion"      else

@@ -492,7 +492,7 @@ def _check_cross_inconsistencies(venue_id: str) -> list[dict]:
         et0    = float(cm_rows[0].get("et0_mm_dia") or 0)
         deficit = float(cm_rows[0].get("deficit_hidrico_mm") or 0)
         precip_proxy = max(0.0, et0 - deficit) * 7  # semana
-        theta = float(soil_rows[0].get("theta_soil") or 1.0)
+        theta = float(soil_rows[0].get("theta_soil") or 1.0)  # sat-fallback: ok — módulo no llamado desde scheduler/data_refresh (inactivo en producción)
         if precip_proxy > 15.0 and theta < 0.15:
             msg = (
                 f"Inconsistencia cruzada: climate_metrics indica precipitación proxy "
@@ -513,8 +513,8 @@ def _check_cross_inconsistencies(venue_id: str) -> list[dict]:
         limit=2,
     )
     if len(veg_rows) == 2:
-        ndvi_new = float(veg_rows[0].get("ndvi") or 0)
-        ndvi_old = float(veg_rows[1].get("ndvi") or 0)
+        ndvi_new = float(veg_rows[0].get("ndvi") or 0)  # sat-fallback: ok — módulo no llamado desde scheduler/data_refresh (inactivo en producción)
+        ndvi_old = float(veg_rows[1].get("ndvi") or 0)  # sat-fallback: ok — módulo no llamado desde scheduler/data_refresh (inactivo en producción)
         jump = abs(ndvi_new - ndvi_old)
         if jump > 0.25:
             msg = (

@@ -179,7 +179,7 @@ def run_landsat_cycle(venue_id: str = "amalfitani") -> dict:
             _vs.patch_row("soil_metrics", soil_row["id"], {"temp_superficie_c": temp_c})
 
             # Alerta estrés hídrico severo
-            theta = float(soil_row.get("theta_soil") or 1.0)
+            theta = float(soil_row.get("theta_soil") or 1.0)  # sat-fallback: ok — módulo no llamado desde scheduler/data_refresh (inactivo en producción)
             if temp_c > 35.0 and theta < 0.15:
                 out["alerta_calor"] = True
                 _emit_alert(
