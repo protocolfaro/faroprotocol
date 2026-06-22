@@ -382,7 +382,7 @@ def _build_zones_from_vd(vd):
         _a_sprev = float(_estadio.get('score_prev', _a_score))
         _a_det   = _estadio.get('detalle', '')
         _a_ndre  = _estadio.get('ndre')   # None si sin imagen óptica — no usar proxy
-        _a_ndvi  = float(_estadio.get('ndvi') or 0.68)
+        _a_ndvi  = _estadio.get('ndvi')   # None si sin imagen óptica — no usar proxy
         _a_ccci  = _estadio.get('ccci')
         _a_ccci_label = f'CCCI {_a_ccci:.3f}·sin hist' if isinstance(_a_ccci, float) else 'Sin histórico'
         _a_accion = (_a_det.split('·')[1].strip() if '·' in _a_det else _a_det) or 'Monitoreo rutinario'
@@ -419,7 +419,7 @@ def _build_zones_from_vd(vd):
     for c in canchas[:12]:
         sem    = c.get('sem', 'amarillo')
         ndvi   = c.get('ndvi')   # may be None if cloud-covered; handle below
-        ndvi_f = float(ndvi) if isinstance(ndvi, (int, float)) else 0.0
+        ndvi_f = float(ndvi) if isinstance(ndvi, (int, float)) else None
         score  = c.get('score', 60)
         s_prev = c.get('score_prev', score)
         detalle = c.get('detalle', '')
@@ -572,6 +572,14 @@ if _vd_path:
     except Exception as _e:
         print(f"FARO_VD_PATH canchero: {_e} — usando datos hardcodeados")
 _out_path = _os.environ.get("FARO_OUT_PATH")
+
+# Test hook: FARO_DUMP_ZONES=1 → imprime zones como JSON y sale antes del rendering.
+# Usado por tests/test_canchero_viz.py para verificar integridad de datos sin matplotlib.
+if _os.environ.get("FARO_DUMP_ZONES"):
+    import json as _jz, sys as _sjz
+    _jz_fields = [{'name': z['name'], 'ndvi': z.get('ndvi'), 'ndre': z.get('ndre')} for z in ZONES]
+    print(_jz.dumps(_jz_fields))
+    _sjz.exit(0)
 
 # ─── SOCCER FIELD DRAWING FUNCTION ───────────────────────────────────────────
 def draw_soccer_field(ax, x0, y0, w, h, focos=None, is_critical=False, title='',
@@ -1324,12 +1332,13 @@ for _hi, _z in enumerate(ZONES):
         ha='center', va='bottom', fontfamily='monospace')
 
     # NDVI + CCCI debajo del heatmap
-    _ndvi_disp = _z.get('ndvi', 0.0)
-    _ndvi_c    = (REDL if _ndvi_disp < 0.30 else
-                  YELL if _ndvi_disp < 0.50 else GRNL)
+    _ndvi_raw = _z.get('ndvi')   # None si sin imagen óptica — mostrar "—", no proxy
+    _ndvi_c   = (REDL if isinstance(_ndvi_raw, float) and _ndvi_raw < 0.30 else
+                 YELL if isinstance(_ndvi_raw, float) and _ndvi_raw < 0.50 else
+                 GRNL if isinstance(_ndvi_raw, float) else WDIM)
     ax_sat.text(
         _hx0 + _hm_w / 2, _hm_y0 - 0.005,
-        f'NDVI {_ndvi_disp:.2f}',
+        f'NDVI {_ndvi_raw:.2f}' if isinstance(_ndvi_raw, (int, float)) else '—',
         transform=ax_sat.transAxes,
         color=_ndvi_c, fontsize=5.5, fontweight='bold',
         ha='center', va='top', fontfamily='monospace')
