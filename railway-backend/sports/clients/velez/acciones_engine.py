@@ -246,7 +246,7 @@ def generate_kpis(
         if not isinstance(hm, dict):
             continue
         ipos = hm.get("ipos") or 0
-        ndvi = hm.get("ndvi") or 1.0
+        ndvi = hm.get("ndvi") or 1.0  # sat-fallback: ok — sentinel: 1.0 excluye cancha sin dato de la lista más crítica (nunca < umbral)
         if top_crit is None or (ipos > top_crit[1] and ndvi < top_crit[2]):
             top_crit = (cid, ipos, ndvi)
 

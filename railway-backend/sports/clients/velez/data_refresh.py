@@ -573,17 +573,18 @@ def push_weather_update(weather_live: dict) -> str:
     for _cid, _hme in _hm.items():
         if not isinstance(_hme, dict) or _hme.get("estado_detectado"):
             continue
-        _ndvi = float(_hme.get("ndvi") or 0.5)
+        _ndvi_raw = _hme.get("ndvi")   # None si sin imagen óptica — no usar proxy
         _ipos = float(_hme.get("ipos") or 0.0)
         _bsi  = float(_hme.get("bsi")  or 0.0)
         _nd_thr = _hme.get("hermes_umbral_dinamico") or _NDVI_CRISIS_FB.get(_m_now, 0.10)
         if _bsi > 0.12 and _sm_pct < 20.0 and _ipos > 150:
-            _est_fb = "compactacion"
-        elif _ndvi < _nd_thr and _sm_pct < 25.0:
-            _est_fb = "stress_hidrico"
+            _hme["estado_detectado"] = "compactacion"
+        elif _ndvi_raw is None:
+            pass   # sin imagen óptica: no escribir "normal" falso, campo queda ausente
+        elif float(_ndvi_raw) < _nd_thr and _sm_pct < 25.0:
+            _hme["estado_detectado"] = "stress_hidrico"
         else:
-            _est_fb = "normal"
-        _hme["estado_detectado"] = _est_fb
+            _hme["estado_detectado"] = "normal"
     # Mirror estado_detectado to canchas list
     for _c in (cfg.get("sectores", {}).get("canchero", {}).get("canchas", []) or []):
         _cid = _c.get("id")
@@ -593,13 +594,15 @@ def push_weather_update(weather_live: dict) -> str:
     for _cid, _hme in _hm.items():
         if not isinstance(_hme, dict) or _hme.get("zonas_estres"):
             continue
-        _ndvi_fb = float(_hme.get("ndvi") or 0.5)
+        _ndvi_fb = _hme.get("ndvi")   # None si sin imagen óptica — no usar proxy
         _est_fb  = _hme.get("estado_detectado", "normal")
+        if _ndvi_fb is None and _est_fb not in ("resiembra_activa", "stress_hidrico", "compactacion", "fungosis"):
+            continue   # sin imagen óptica y sin estado confirmado: no inventar zonas_estres
         _base = (0.85 if _est_fb == "resiembra_activa" else
                  0.65 if _est_fb == "stress_hidrico"   else
                  0.70 if _est_fb == "compactacion"      else
                  0.60 if _est_fb == "fungosis"          else
-                 max(0.1, 1.0 - _ndvi_fb / 0.65))
+                 max(0.1, 1.0 - float(_ndvi_fb) / 0.65))  # solo alcanzado si _ndvi_fb is not None
         _hme["zonas_estres"] = {
             "nodos": [
                 {"x": 0.25, "y": 0.15, "stress": round(_base * 0.70, 4), "zona": "Banda Izquierda Norte"},

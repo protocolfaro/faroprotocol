@@ -1280,7 +1280,7 @@ def _body_pait(vd: dict, panel_url: str = "") -> str:
         f"</tr>"
     )
 
-    high_risk = [c for c in canchas if c.get("ndvi", 1) < 0.30 or c.get("score", 100) < 40]
+    high_risk = [c for c in canchas if c.get("ndvi", 1) < 0.30 or c.get("score", 100) < 40]  # sat-fallback: ok — predicado filtro, 1 excluye cancha sin dato de lista high_risk
     alert_html = ""
     if high_risk or poli_score < 40:
         names = [c.get("nombre", "?") for c in high_risk]

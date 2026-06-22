@@ -385,9 +385,9 @@ def _render_agro(vd: dict, out: Path):
     ax4.axis("off")
     ax4.set_title("Prescripciones por Cancha", color=GOLD, fontsize=8,
                   fontfamily="monospace", loc="left")
-    CRIT = [c for c in ids if (canchas[c].get("ndvi") or 1) < 0.30]
-    WARN = [c for c in ids if 0.30 <= (canchas[c].get("ndvi") or 1) < 0.45]
-    OK   = [c for c in ids if (canchas[c].get("ndvi") or 0) >= 0.45]
+    CRIT = [c for c in ids if (canchas[c].get("ndvi") or 1) < 0.30]  # sat-fallback: ok — predicado filtro, 1 excluye cancha sin dato de lista CRIT
+    WARN = [c for c in ids if 0.30 <= (canchas[c].get("ndvi") or 1) < 0.45]  # sat-fallback: ok — predicado filtro, 1 excluye cancha sin dato de lista WARN
+    OK   = [c for c in ids if (canchas[c].get("ndvi") or 0) >= 0.45]  # sat-fallback: ok — predicado filtro, 0 excluye cancha sin dato de lista OK
     y_t = 0.88
     for grp, gids, gcol, glbl in [(CRIT, CRIT, REDL, "URGENTE"), (WARN, WARN, YELL, "ATENCIÓN"), (OK, OK, GRNL, "ÓPTIMO")]:
         if gids:

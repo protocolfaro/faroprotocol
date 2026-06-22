@@ -191,7 +191,7 @@ def run_richards_profile(venue_id: str = "amalfitani",
             log.info("richards: sin filas soil_metrics para %s", venue_id)
             return out
 
-        theta_surface = float(soil_row.get("theta_soil") or 0.20)
+        theta_surface = float(soil_row.get("theta_soil") or 0.20)  # sat-fallback: ok — módulo no importado en producción
         # ET: preferir ECOSTRESS, fallback a ET0 Penman-Monteith
         et_mm_day = 3.0  # valor por defecto (Buenos Aires media anual)
         if clim_row:

@@ -60,7 +60,7 @@ def score_compactacion_fisica(
     score = 0.0
 
     # ── Humedad SAR ──────────────────────────────────────────────────────────
-    theta = float(soil_row.get("theta_soil") or 0.20)
+    theta = float(soil_row.get("theta_soil") or 0.20)  # sat-fallback: ok — módulo inactivo, ImportError guard en gen_velez_canchero.py:315
     if theta < 0.12:
         score += 35
     elif theta < 0.15:
@@ -137,7 +137,7 @@ def _extract_features(row: dict, horas_uso: float = 0.0) -> list[float]:
     """Extrae vector de features desde una fila soil_metrics."""
     return [
         float(row.get("sar_vv_db")    or -14.0),
-        float(row.get("theta_soil")   or 0.20),
+        float(row.get("theta_soil")   or 0.20),  # sat-fallback: ok — módulo inactivo, ImportError guard en gen_velez_canchero.py:315
         float(horas_uso),
         float(row.get("entropia_h")   or 0.50),
         float(row.get("angulo_alpha") or 45.0),

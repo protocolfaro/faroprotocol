@@ -157,7 +157,7 @@ def _parse_hf_ndvi(hf_response: dict, venue_id: str,
         if isinstance(canchas_raw, dict):
             return {
                 k: {
-                    "ndvi": float(v.get("ndvi", 0)),
+                    "ndvi": float(v.get("ndvi", 0)),  # sat-fallback: ok — ndvi garantizado no-None por guard `if v.get("ndvi") is not None` en L165
                     "margen_error_kalman": float(1.0 - v.get("confidence", 0.5)),
                     "metodo_generacion": "CLOUDBREAKER_SAR_FUSION",
                 }
