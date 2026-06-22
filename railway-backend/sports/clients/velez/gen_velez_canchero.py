@@ -381,7 +381,7 @@ def _build_zones_from_vd(vd):
         _a_score = float(_estadio.get('score', 80.0))
         _a_sprev = float(_estadio.get('score_prev', _a_score))
         _a_det   = _estadio.get('detalle', '')
-        _a_ndre  = round(float(_estadio.get('ndre') or 0.42), 3)
+        _a_ndre  = _estadio.get('ndre')   # None si sin imagen óptica — no usar proxy
         _a_ndvi  = float(_estadio.get('ndvi') or 0.68)
         _a_ccci  = _estadio.get('ccci')
         _a_ccci_label = f'CCCI {_a_ccci:.3f}·sin hist' if isinstance(_a_ccci, float) else 'Sin histórico'
@@ -449,8 +449,7 @@ def _build_zones_from_vd(vd):
         # ── 2.1 NDRE real — B05 RedEdge (Sentinel-2) via satellite pipeline ──
         # Umbral N: <0.15 → deficiencia severa, 0.15-0.25 → moderada, >0.25 → OK
         _ndre_raw = c.get('ndre')
-        _ndre_val = (round(float(_ndre_raw), 3) if isinstance(_ndre_raw, (int, float))
-                     else round(ndvi_f * 0.65, 2))  # fallback proxy
+        _ndre_val = round(float(_ndre_raw), 3) if isinstance(_ndre_raw, (int, float)) else None
 
         # ── 2.2 CCCI — Canopy Chlorophyll Content Index (Barnes et al. 2000) ──
         # CCCI = NDRE / NDVI. Muestra desvío relativo vs. baseline histórico estacional.
