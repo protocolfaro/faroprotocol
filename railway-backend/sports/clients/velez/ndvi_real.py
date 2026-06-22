@@ -90,38 +90,9 @@ _CLUSTER_BBOX = (
 #
 # red / nir / green: lista de nombres de asset a probar en orden
 _STAC_SOURCES = [
-    # HLS — Harmonized Landsat+Sentinel-2 (NASA LP DAAC)
-    # 4 sensores: L8+L9+S2A+S2B → revisita efectiva 1-3 días — la mejor fuente para invierno
-    {
-        "name":       "HLS Sentinel-2 (NASA LP DAAC)",
-        "url":        "https://cmr.earthdata.nasa.gov/stac/LPCLOUD",
-        "collection": "HLSS30.v2.0",
-        "sign":       False,
-        "cloud_prop": "eo:cloud_cover",
-        "red":        ["B04"],
-        "nir":        ["B8A"],   # HLS usa B8A para NIR
-        "green":      ["B03"],
-        "blue":       ["B02"],
-        "swir1":      ["B11"],
-        "red_edge":   ["B05"],
-        "scl":        ["Fmask"],  # HLS usa Fmask para nubes
-        "scale":      "s2",
-    },
-    # HLS Landsat (L8+L9) — complementa S2 con mismo pipeline
-    {
-        "name":       "HLS Landsat (NASA LP DAAC)",
-        "url":        "https://cmr.earthdata.nasa.gov/stac/LPCLOUD",
-        "collection": "HLSL30.v2.0",
-        "sign":       False,
-        "cloud_prop": "eo:cloud_cover",
-        "red":        ["B04"],
-        "nir":        ["B05"],
-        "green":      ["B03"],
-        "blue":       ["B02"],
-        "swir1":      ["B06"],
-        "red_edge":   ["B04"],   # Landsat no tiene red-edge real
-        "scale":      "landsat",
-    },
+    # HLS (NASA LP DAAC) removido: HLSS30 = mismo S2 reprocesado a 30m (peor que 10m de PC/E84);
+    # HLSL30 = mismo Landsat ya en fuente #3. Ambos requieren Earthdata Login sin credenciales
+    # en Railway, fallaban con HTTP 404 en posiciones 1-2, sumando ~30s de overhead por ronda.
     {
         "name":       "Planetary Computer",
         "url":        "https://planetarycomputer.microsoft.com/api/stac/v1",
