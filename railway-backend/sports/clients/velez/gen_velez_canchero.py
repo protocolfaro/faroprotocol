@@ -1204,7 +1204,8 @@ ax_ins.text(-0.58, 4.4, '5mm\nCrítico', color=REDL,
 #   Decisiones de diseño:
 #     · interpolation='none' — píxeles reales sin suavizado
 #     · 'SIN IMAGEN' explícito cuando ndvi_2d es None (no relleno silencioso)
-#     · Drenaje marcado 'PENDIENTE' hasta dato InSAR real (ver línea 294)
+#     · Drenaje cierre: InSAR coherencia descartado (ruido en césped denso).
+#       Enfoque actual: física real (Van Genuchten + hidráulica C&G), validado.
 # ══════════════════════════════════════════════════════════════════════════════
 ax_sat = fig.add_subplot(gs[6])
 ax_sat.set_facecolor(BG2)
