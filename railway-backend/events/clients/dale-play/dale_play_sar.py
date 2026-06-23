@@ -1029,6 +1029,9 @@ def fetch_sar(
     tiers = [
         # A-prime: SAOCOM L-band Quad-Pol desde caché Supabase (pedido #608190 CONAE)
         # Solo activo cuando hay datos recientes (< 12 días). Si no, pasa al siguiente tier.
+        # TODO: SAOCOM_L hardcodeado a amalfitani
+        # Pedido #608190 CONAE cubre solo Amalfitani (37 granules) + Villa Olímpica (35 granules)
+        # Cuando haya datos en otras venues, pasar venue_id dinámicamente a fetch_sar()
         (lambda lon, lat, w: _try_saocom_local(lon, lat, "amalfitani"), "SAOCOM_L"),
         (_try_umbra,          "UMBRA_X"),
         (_try_s1_rtc,         "S1_RTC_PC"),
