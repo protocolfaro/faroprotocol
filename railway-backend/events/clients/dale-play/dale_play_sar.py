@@ -57,6 +57,7 @@ _KNOWN_BA_SCENE = {
 
 # ── Labels de fuentes ─────────────────────────────────────────────────────────
 _TIER_LABELS = {
+    "SAOCOM_L":      "SAOCOM-1A/1B · L-band Quad-Pol · 10m · CONAE pedido #608190 · procesado local",
     "UMBRA_X":       "Umbra Open Data CC-BY-4.0 · X-band VV Spotlight · 0.267m · COG HTTP range",
     "S1_RTC_PC":     "Sentinel-1 RTC · C-band VV · 20m · Planetary Computer · SAS token libre",
     "OPERA_RTC_S1":  "OPERA RTC-S1 (NASA) · C-band VV · 30m · AWS S3 público · ya procesado",
@@ -64,6 +65,9 @@ _TIER_LABELS = {
     "ALOS2_META":    "ALOS-2 PALSAR-2 · L-band · 25m · ASF metadata (sin pixels — auth requerida)",
     "EGMS_PROXY":    "EGMS Copernicus 2015-2022 · C-band proxy · histórico · ESTIMADO",
 }
+
+# Días máximos de antigüedad para datos SAOCOM en caché (revisita ~12 días en Argentina)
+_SAOCOM_MAX_AGE_DAYS = 12
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -902,6 +906,100 @@ def _van_genuchten_from_sar(sar_vv_db: float, sar_vh_db: float) -> tuple[float, 
     return round(theta_c, 4), round(h_suc, 2)
 
 
+def _try_saocom_local(venue_lon: float, venue_lat: float, venue_id: str = "amalfitani") -> dict:
+    """
+    Tier A-prime: recupera datos SAOCOM L-band ya procesados desde soil_metrics.
+
+    CONAE pedido #608190 — 37 granules Amalfitani, 35 Villa Olímpica.
+    Revisita SAOCOM sobre Argentina: ~12 días (órbita 16 días, cobertura parcial).
+    No hace llamadas externas: solo consulta Supabase con datos ya ingestados
+    por _ingest_saocom_file() / hermes_velez.
+
+    Retorna estructura compatible con los otros tiers de fetch_sar().
+    confianza=0.90: L-band Quad-Pol supera C-band dual-pol para biomasa y humedad.
+    """
+    import os
+    import requests as _req
+    from datetime import date as _date, timedelta
+
+    _log_entry: dict = {
+        "fuente":    "SAOCOM_L",
+        "intentado": True,
+        "resultado": "sin_datos",
+        "razon":     "",
+        "tiempo_ms": 0,
+        "confianza_obtenida": 0.0,
+    }
+
+    supa_url = os.environ.get("SUPABASE_URL", "").rstrip("/")
+    supa_key = os.environ.get("SUPABASE_KEY", "")
+    if not supa_url or not supa_key:
+        _log_entry["razon"] = "SUPABASE_URL/KEY no configurados"
+        return {"ok": False, "_log": _log_entry}
+
+    cutoff = (_date.today() - timedelta(days=_SAOCOM_MAX_AGE_DAYS)).isoformat()
+    hdrs   = {"apikey": supa_key, "Authorization": f"Bearer {supa_key}"}
+
+    t0 = time.time()
+    try:
+        r = _req.get(
+            f"{supa_url}/rest/v1/soil_metrics"
+            f"?venue_id=eq.{venue_id}"
+            f"&fuente=like.SAOCOM*"
+            f"&fecha_imagen=gte.{cutoff}"
+            f"&select=sar_vv_db,sar_vh_db,fecha_imagen,extras"
+            f"&order=fecha_imagen.desc&limit=1",
+            headers=hdrs, timeout=8,
+        )
+    except Exception as exc:
+        _log_entry["razon"]     = str(exc)[:150]
+        _log_entry["tiempo_ms"] = int((time.time() - t0) * 1000)
+        return {"ok": False, "_log": _log_entry}
+
+    _log_entry["tiempo_ms"] = int((time.time() - t0) * 1000)
+
+    if r.status_code != 200 or not r.json():
+        _log_entry["razon"] = (
+            f"HTTP {r.status_code}" if r.status_code != 200
+            else f"Sin datos SAOCOM recientes (cutoff {cutoff})"
+        )
+        return {"ok": False, "_log": _log_entry}
+
+    row    = r.json()[0]
+    vv_db  = row.get("sar_vv_db")
+    vh_db  = row.get("sar_vh_db")
+    extras = row.get("extras") or {}
+
+    if vv_db is None:
+        _log_entry["razon"] = "sar_vv_db es NULL en fila SAOCOM"
+        return {"ok": False, "_log": _log_entry}
+
+    log.info("dale_play_sar: Tier SAOCOM_L — VV=%.1fdB  fecha=%s  H=%.3f  alpha=%.1f",
+             vv_db, row.get("fecha_imagen", "?"),
+             extras.get("h_entropy", -1), extras.get("alpha_deg", -1))
+
+    _log_entry.update({
+        "resultado":          "ok_cache",
+        "razon":              f"SAOCOM L-band en cache (fecha={row.get('fecha_imagen','?')})",
+        "confianza_obtenida": 0.90,
+    })
+
+    return {
+        "ok":                  True,
+        "confianza":           0.90,
+        "venue_cubierto":      True,
+        "backscatter_db_mean": float(vv_db),
+        "backscatter_n_px":    int(extras.get("n_pixels", 0)),
+        "sar_vv_db":           float(vv_db),
+        "sar_vh_db":           float(vh_db) if vh_db is not None else None,
+        "h_entropy":           extras.get("h_entropy"),
+        "alpha_deg":           extras.get("alpha_deg"),
+        "anisotropy":          extras.get("anisotropy"),
+        "fecha_imagen":        row.get("fecha_imagen"),
+        "_log":                _log_entry,
+    }
+
+
 def fetch_sar(
     venue_lat: float = _VENUE_LAT,
     venue_lon: float = _VENUE_LON,
@@ -929,6 +1027,9 @@ def fetch_sar(
     best_conf: float        = -1.0
 
     tiers = [
+        # A-prime: SAOCOM L-band Quad-Pol desde caché Supabase (pedido #608190 CONAE)
+        # Solo activo cuando hay datos recientes (< 12 días). Si no, pasa al siguiente tier.
+        (lambda lon, lat, w: _try_saocom_local(lon, lat, "amalfitani"), "SAOCOM_L"),
         (_try_umbra,          "UMBRA_X"),
         (_try_s1_rtc,         "S1_RTC_PC"),
         (_try_opera_rtc_s1,   "OPERA_RTC_S1"),   # B2: NASA, confianza 0.75
