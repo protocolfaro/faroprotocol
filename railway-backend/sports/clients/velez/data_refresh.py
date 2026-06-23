@@ -5,7 +5,7 @@ Updates weather_live section + roger.acciones (physics prescriptions) in velez/v
 All other sections (heatmaps, IPOS, sector scores) are left untouched.
 """
 from __future__ import annotations
-import asyncio, base64, json, logging, math, os
+import asyncio, base64, gc, json, logging, math, os
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
 from urllib.request import urlopen, Request
@@ -1076,6 +1076,7 @@ def run_refresh() -> dict:
             weather.get("riego_min_fuente", "?"),
             ts,
         )
+        gc.collect()
         return {"ok": True, "ts": ts, "commit": commit_url}
     except Exception as e:
         log.error("data_refresh FAILED: %s", e)
