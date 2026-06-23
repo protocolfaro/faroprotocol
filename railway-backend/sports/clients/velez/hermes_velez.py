@@ -101,8 +101,10 @@ def calibrar_fusion_sar(
 
 def try_calibrar_desde_supabase(cancha_id: str, venue_id: str = "amalfitani") -> dict:
     """
-    Calibra la fusión SAR→NDVI usando histórico de Supabase (soil_metrics + vegetation_metrics).
-    Empareja filas por fecha_imagen. No-destructivo si < 20 pares.
+    Calibra la fusión SAR→NDVI usando histórico de Supabase.
+    Intento 1: vegetation_metrics + soil_metrics (dias=120, match exacto por fecha).
+    Fallback:  field_timeseries limpio + soil_metrics sigma0-cal (histórico completo, ±3d).
+    No-destructivo si < 20 pares en ambas fuentes.
     """
     sup = _hermes_superficie(cancha_id)
     if sup in {"sintetica", "arcilla", "indoor"}:
@@ -113,44 +115,151 @@ def try_calibrar_desde_supabase(cancha_id: str, venue_id: str = "amalfitani") ->
         if not _vs._ok():
             return {"status": "SKIP", "razon": "Supabase no configurado."}
 
+        # ── Intento 1: vegetation_metrics (dias=120, match exacto) ────────────
         soil_rows = _vs.get_soil_metrics_latest(venue_id, cancha_id=cancha_id, dias=120)
         veg_rows  = _vs.get_vegetation_metrics_latest(venue_id, cancha_id=cancha_id, dias=120)
-
-        if not soil_rows or not veg_rows:
-            return {"status": "INSUFICIENTE", "razon": "Sin histórico SAR o NDVI en Supabase."}
 
         sar_by_date:  dict[str, float] = {}
         ndvi_by_date: dict[str, float] = {}
 
-        for row in soil_rows:
+        for row in soil_rows or []:
             fecha = (row.get("fecha_imagen") or str(row.get("created_at", ""))[:10])
             val   = row.get("sar_vv_db")
             if fecha and val is not None:
                 sar_by_date[fecha] = float(val)
 
-        for row in veg_rows:
+        for row in veg_rows or []:
             fecha = (row.get("fecha_imagen") or str(row.get("created_at", ""))[:10])
             val   = row.get("ndvi")
             if fecha and val is not None:
                 ndvi_by_date[fecha] = float(val)
 
         fechas_comunes = sorted(set(sar_by_date) & set(ndvi_by_date))
-        if len(fechas_comunes) < 20:
-            return {
-                "status": "INSUFICIENTE",
-                "razon": f"Solo {len(fechas_comunes)} pares SAR+NDVI, mínimo 20.",
-            }
+        if len(fechas_comunes) >= 20:
+            sar_arr  = np.array([sar_by_date[f]  for f in fechas_comunes])
+            ndvi_arr = np.array([ndvi_by_date[f] for f in fechas_comunes])
+            resultado = calibrar_fusion_sar(cancha_id, sar_arr, ndvi_arr)
+            log.info("hermes_velez: SAR calibrado desde VEGETATION_METRICS (n=%d) cancha=%s r2=%.3f",
+                     len(fechas_comunes), cancha_id, resultado.get("r2", 0))
+            return resultado
 
-        sar_arr  = np.array([sar_by_date[f]  for f in fechas_comunes])
-        ndvi_arr = np.array([ndvi_by_date[f] for f in fechas_comunes])
-        resultado = calibrar_fusion_sar(cancha_id, sar_arr, ndvi_arr)
-        log.info("hermes_velez: calibración SAR OK cancha=%s n=%d r2=%.3f",
-                 cancha_id, len(fechas_comunes), resultado.get("r2", 0))
-        return resultado
+        # ── Fallback: field_timeseries (NDVI verificado) + sigma0-cal ─────────
+        log.info("hermes_velez: vegetation_metrics insuficiente (%d pares) — fallback field_timeseries cancha=%s",
+                 len(fechas_comunes), cancha_id)
+        return _calibrar_desde_field_timeseries(cancha_id, venue_id)
 
     except Exception as exc:
         log.warning("hermes_velez: calibración SAR (non-fatal): %s", exc)
         return {"status": "ERROR", "razon": str(exc)}
+
+
+def _calibrar_desde_field_timeseries(cancha_id: str, venue_id: str) -> dict:
+    """
+    Fallback de calibración: field_timeseries (NDVI limpio, bbox correcto) +
+    soil_metrics sigma0-cal (histórico completo sin límite de días).
+    Match ±3 días. Persiste resultado en fenologia_baselines.sar_ndvi_coef.
+    """
+    import json
+    import os
+    import requests as _req
+    from datetime import datetime as _dt, timezone
+
+    supa_url = os.environ.get("SUPABASE_URL", "").rstrip("/")
+    supa_key = os.environ.get("SUPABASE_KEY", "")
+    if not supa_url or not supa_key:
+        return {"status": "SKIP", "razon": "SUPABASE_URL/KEY no configurados."}
+
+    hdrs = {"apikey": supa_key, "Authorization": f"Bearer {supa_key}"}
+
+    # SAR: soil_metrics sigma0-cal, sin límite de días (limit=500 cubre 3+ años)
+    r_soil = _req.get(
+        f"{supa_url}/rest/v1/soil_metrics"
+        f"?venue_id=eq.{venue_id}&select=fecha_imagen,sar_vv_db,fuente"
+        f"&order=fecha_imagen.asc&limit=500",
+        headers=hdrs, timeout=12,
+    )
+    if r_soil.status_code != 200:
+        return {"status": "ERROR", "razon": f"soil_metrics HTTP {r_soil.status_code}"}
+
+    sar_by_date: dict[str, float] = {}
+    for row in r_soil.json():
+        if "sigma0-cal" not in str(row.get("fuente", "")):
+            continue
+        fecha = str(row.get("fecha_imagen") or "")[:10]
+        val   = row.get("sar_vv_db")
+        if fecha and val is not None:
+            sar_by_date[fecha] = float(val)
+
+    # NDVI: field_timeseries sin bbox_legacy (41 registros limpios verificados)
+    r_ndvi = _req.get(
+        f"{supa_url}/rest/v1/field_timeseries"
+        f"?venue_id=eq.{venue_id}&select=fecha,ndvi,fuente&order=fecha.asc&limit=200",
+        headers=hdrs, timeout=12,
+    )
+    if r_ndvi.status_code != 200:
+        return {"status": "ERROR", "razon": f"field_timeseries HTTP {r_ndvi.status_code}"}
+
+    ndvi_by_date: dict[str, float] = {}
+    for row in r_ndvi.json():
+        if str(row.get("fuente", "")).startswith("bbox_legacy"):
+            continue
+        fecha = str(row.get("fecha") or "")[:10]
+        val   = row.get("ndvi")
+        if fecha and val is not None:
+            ndvi_by_date[fecha] = float(val)
+
+    # Emparejamiento ±3 días
+    pares: list[tuple[float, float]] = []
+    for sar_f, sar_v in sorted(sar_by_date.items()):
+        sar_dt = _dt.strptime(sar_f, "%Y-%m-%d")
+        best_v, best_d = None, 999
+        for ndvi_f, ndvi_v in ndvi_by_date.items():
+            d = abs((_dt.strptime(ndvi_f, "%Y-%m-%d") - sar_dt).days)
+            if d <= 3 and d < best_d:
+                best_v, best_d = ndvi_v, d
+        if best_v is not None:
+            pares.append((sar_v, best_v))
+
+    if len(pares) < 20:
+        return {"status": "INSUFICIENTE",
+                "razon": f"field_timeseries fallback: {len(pares)} pares (mín 20)."}
+
+    sar_arr  = np.array([p[0] for p in pares])
+    ndvi_arr = np.array([p[1] for p in pares])
+    resultado = calibrar_fusion_sar(cancha_id, sar_arr, ndvi_arr)
+    resultado["fuente_ndvi"] = "field_timeseries"
+
+    log.info("hermes_velez: SAR calibrado desde FIELD_TIMESERIES fallback (n=%d) cancha=%s r2=%.3f",
+             len(pares), cancha_id, resultado.get("r2", 0))
+
+    # Persistir en fenologia_baselines para trazabilidad y Dale Play
+    try:
+        hdrs_json = {**hdrs, "Content-Type": "application/json"}
+        r_fb = _req.get(
+            f"{supa_url}/rest/v1/fenologia_baselines?venue_id=eq.{venue_id}&select=baseline",
+            headers=hdrs, timeout=8,
+        )
+        existing: dict = {}
+        if r_fb.status_code == 200 and r_fb.json():
+            existing = r_fb.json()[0].get("baseline") or {}
+        existing["sar_ndvi_coef"] = {
+            **{k: resultado[k] for k in ("slope", "intercept", "r2_ref", "n_pares") if k in resultado},
+            "fuente_ndvi":   "field_timeseries",
+            "fuente_sar":    "soil_metrics·sigma0-cal",
+            "calibrado_utc": _dt.now(timezone.utc).isoformat(),
+        }
+        _req.post(
+            f"{supa_url}/rest/v1/fenologia_baselines",
+            headers={**hdrs_json, "Prefer": "resolution=merge-duplicates,return=minimal"},
+            data=json.dumps({"venue_id": venue_id, "baseline": existing,
+                             "updated_at": _dt.now(timezone.utc).isoformat()}),
+            timeout=8,
+        )
+        log.info("hermes_velez: sar_ndvi_coef persistido en fenologia_baselines venue=%s", venue_id)
+    except Exception as exc:
+        log.warning("hermes_velez: persistir sar_ndvi_coef (non-fatal): %s", exc)
+
+    return resultado
 
 
 # ── Auditoría por cancha ───────────────────────────────────────────────────────
