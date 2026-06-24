@@ -332,11 +332,12 @@ def _composite_scene(items: list, src: dict) -> "dict[str, dict] | None":
             out[t] = _to_refl(raw[t], mode)
         return out
 
-    nir_all   = _band_all("nir")
-    red_all   = _band_all("red")
-    green_all = _band_all("green")
-    blue_all  = _band_all("blue")
-    swir1_all = _band_all("swir1")
+    nir_all      = _band_all("nir")
+    red_all      = _band_all("red")
+    green_all    = _band_all("green")
+    blue_all     = _band_all("blue")
+    swir1_all    = _band_all("swir1")
+    red_edge_all = _band_all("red_edge")
 
     if nir_all is None or red_all is None:
         return None
@@ -392,11 +393,12 @@ def _composite_scene(items: list, src: dict) -> "dict[str, dict] | None":
         c[bad_px] = np.nan
         return c
 
-    nir_c   = _comp(nir_all)
-    red_c   = _comp(red_all)
-    green_c = _comp(green_all)
-    blue_c  = _comp(blue_all)
-    swir1_c = _comp(swir1_all)
+    nir_c      = _comp(nir_all)
+    red_c      = _comp(red_all)
+    green_c    = _comp(green_all)
+    blue_c     = _comp(blue_all)
+    swir1_c    = _comp(swir1_all)
+    red_edge_c = _comp(red_edge_all)
 
     # Fecha dominante = la que más píxeles aportó al composite
     counts       = np.bincount(flat_t[~bad_px.reshape(-1)], minlength=nT)
@@ -430,6 +432,7 @@ def _composite_scene(items: list, src: dict) -> "dict[str, dict] | None":
             entry = _compute_indices(
                 _crop(nir_c), _crop(red_c), _crop(green_c),
                 _crop(blue_c), _crop(swir1_c), scl_mask, mode,
+                red_edge_c=_crop(red_edge_c),
             )
             if entry is not None:
                 entry["composite_date"]     = dom_date
@@ -439,6 +442,36 @@ def _composite_scene(items: list, src: dict) -> "dict[str, dict] | None":
             log.warning("ndvi composite: %s: %s", cid, exc)
 
     return results if results else None
+
+
+def _composite_multisource(src_items: list) -> "dict[str, dict] | None":
+    """
+    Multi-sensor BAP: merges _composite_scene results from (src, items) pairs.
+
+    Landsat 30m results are processed first; Sentinel-2 10m overrides them so
+    the final result always uses the highest-resolution sensor per cancha.
+    Only the first S2 source is composited — PC and E84 index the same scenes.
+    """
+    merged: dict[str, dict] = {}
+    s2_done = False
+    ls_groups = [(s, i) for s, i in src_items if s["scale"] != "s2"]
+    s2_groups = [(s, i) for s, i in src_items if s["scale"] == "s2"]
+    for src, items in ls_groups + s2_groups:
+        if not items:
+            continue
+        if src["scale"] == "s2" and s2_done:
+            continue
+        result = _composite_scene(items, src)
+        if not result:
+            continue
+        for entry in result.values():
+            entry["sensor"] = src["name"]
+        merged.update(result)
+        if src["scale"] == "s2":
+            s2_done = True
+        log.info("ndvi_real multisource: +%d canchas [%s · %d esc]",
+                 len(result), src["name"], len(items))
+    return merged if merged else None
 
 
 def _compute_indices(
@@ -577,11 +610,12 @@ def _read_canchas_stackstac(item, src: dict) -> dict[str, dict]:
     scl_asset: str | None = None
 
     for logical, candidates in [
-        ("nir",   src["nir"]),
-        ("red",   src["red"]),
-        ("green", src["green"]),
-        ("blue",  src.get("blue", [])),
-        ("swir1", src.get("swir1", [])),
+        ("nir",      src["nir"]),
+        ("red",      src["red"]),
+        ("green",    src["green"]),
+        ("blue",     src.get("blue", [])),
+        ("swir1",    src.get("swir1", [])),
+        ("red_edge", src.get("red_edge", [])),
     ]:
         for c in candidates:
             if c in item.assets:
@@ -645,11 +679,12 @@ def _read_canchas_stackstac(item, src: dict) -> dict[str, dict]:
         arr = cluster.sel(band=key).values
         return _to_refl(arr, mode)
 
-    nir_full   = _band_np("nir")
-    red_full   = _band_np("red")
-    green_full = _band_np("green")
-    blue_full  = _band_np("blue")
-    swir1_full = _band_np("swir1")
+    nir_full      = _band_np("nir")
+    red_full      = _band_np("red")
+    green_full    = _band_np("green")
+    blue_full     = _band_np("blue")
+    swir1_full    = _band_np("swir1")
+    red_edge_full = _band_np("red_edge")
 
     results: dict[str, dict] = {}
 
@@ -676,23 +711,26 @@ def _read_canchas_stackstac(item, src: dict) -> dict[str, dict]:
                 ri0 = max(0, ri0); ri1 = min(h_full, ri1)
                 ci0 = max(0, ci0); ci1 = min(w_full, ci1)
 
+            # Minimum 2×2 px — integer truncation can collapse 30m Landsat crops to 0
+            ri1 = min(h_full, max(ri1, ri0 + 2))
+            ci1 = min(w_full, max(ci1, ci0 + 2))
             if ri0 >= ri1 or ci0 >= ci1:
                 continue
 
             def _crop(a: np.ndarray | None) -> np.ndarray | None:
                 return a[ri0:ri1, ci0:ci1] if a is not None else None
 
-            nir_c   = _crop(nir_full)
-            red_c   = _crop(red_full)
-            green_c = _crop(green_full)
-            blue_c  = _crop(blue_full)
-            swir1_c = _crop(swir1_full)
+            nir_c      = _crop(nir_full)
+            red_c      = _crop(red_full)
+            green_c    = _crop(green_full)
+            blue_c     = _crop(blue_full)
+            swir1_c    = _crop(swir1_full)
+            red_edge_c = _crop(red_edge_full)
 
             # SCL mask: upsample 20m→10m via nearest-neighbour (np.repeat)
             scl_mask = None
             if scl_cluster is not None:
                 try:
-                    factor = resolution // 20  # 0.5 for s2 10m, but we use 2× for 20m SCL
                     scl_h, scl_w = scl_cluster.shape
                     sr0 = max(0, int(ri0 * scl_h / h_full))
                     sr1 = min(scl_h, int(ri1 * scl_h / h_full) + 1)
@@ -707,7 +745,8 @@ def _read_canchas_stackstac(item, src: dict) -> dict[str, dict]:
                 except Exception as _sm_e:
                     log.debug("ndvi_real stackstac: %s SCL crop: %s", cid, _sm_e)
 
-            entry = _compute_indices(nir_c, red_c, green_c, blue_c, swir1_c, scl_mask, mode)
+            entry = _compute_indices(nir_c, red_c, green_c, blue_c, swir1_c, scl_mask, mode,
+                                     red_edge_c=red_edge_c)
             if entry is None:
                 log.warning("ndvi_real stackstac: %s — cobertura insuficiente", cid)
                 continue
@@ -883,11 +922,11 @@ def fetch_ndvi() -> Optional[dict]:
 
     today = date.today()
 
-    for max_cloud, days in _ROUNDS:
+    for _rd_i, (max_cloud, days) in enumerate(_ROUNDS):
         dt_from = (today - timedelta(days=days)).isoformat()
         dt_to   = today.isoformat()
-        log.info("ndvi_real: ronda cloud≤%d%% ventana %dd (%s→%s)",
-                 max_cloud, days, dt_from, dt_to)
+        log.info("ndvi_real: ronda %d cloud≤%d%% ventana %dd (%s→%s)",
+                 _rd_i + 1, max_cloud, days, dt_from, dt_to)
 
         for src in _STAC_SOURCES:
             items = _search_source(src, dt_from, dt_to, max_cloud, limit=1)
@@ -933,6 +972,42 @@ def fetch_ndvi() -> Optional[dict]:
                 "canchas":            canchas,
                 "prithvi_enriquecido": prithvi_ok,
             }
+
+        # ── Mini-BAP 5d: after Round 1 fails, composite S2+Landsat before escalating ──
+        # Combina todas las escenas de los últimos 5 días de todos los sensores.
+        # Landsat Jun-19 (1%, 5d) + S2 Jun-23 (40%, 2d) → selección píxel-a-píxel →
+        # efectivamente ≤5d de frescura aunque ninguna escena individual esté limpia.
+        if _rd_i == 0:
+            _mbap_from = (today - timedelta(days=5)).isoformat()
+            _mbap_to   = today.isoformat()
+            _mbap_src_items: list = []
+            _ls_srcs = [s for s in _STAC_SOURCES if s["scale"] != "s2"]
+            _s2_srcs = [s for s in _STAC_SOURCES if s["scale"] == "s2"]
+            # Landsat first (lower priority → overridden by S2 in _composite_multisource)
+            for _msrc in _ls_srcs + _s2_srcs[:1]:
+                _mitems = _search_source(_msrc, _mbap_from, _mbap_to, max_cloud=80, limit=4)
+                if _mitems:
+                    _mbap_src_items.append((_msrc, _mitems))
+            if _mbap_src_items:
+                _n_esc = sum(len(x[1]) for x in _mbap_src_items)
+                log.info("ndvi_real Mini-BAP 5d: %d escenas · %d fuentes", _n_esc, len(_mbap_src_items))
+                _mbap_result = _composite_multisource(_mbap_src_items)
+                if _mbap_result:
+                    _mbap_dates = sorted({
+                        v.get("composite_date", _mbap_from)
+                        for v in _mbap_result.values() if isinstance(v, dict)
+                    })
+                    log.info("ndvi_real Mini-BAP OK — %d canchas · fechas=%s",
+                             len(_mbap_result), _mbap_dates)
+                    return {
+                        "fuente":              "miniBAP_5d · " + "+".join(s["name"] for s, _ in _mbap_src_items),
+                        "fecha_imagen":        _mbap_dates[-1] if _mbap_dates else _mbap_from,
+                        "nubosidad_pct":       0.0,
+                        "canchas":             _mbap_result,
+                        "prithvi_enriquecido": False,
+                        "metodo":              "COMPOSITE_MINI_BAP_5D",
+                    }
+            log.info("ndvi_real Mini-BAP 5d: sin datos — continuando a Ronda 2")
 
     # ── Ronda BAP: composite multi-temporal pixel-a-pixel ────────────────
     # Cuando ninguna escena individual tiene cobertura útil (invierno),
