@@ -31,6 +31,7 @@ GMAIL_USER          = os.environ.get("GMAIL_USER", "protocolfaro@gmail.com")
 GMAIL_CLIENT_ID     = os.environ.get("GMAIL_CLIENT_ID", "")
 GMAIL_CLIENT_SECRET = os.environ.get("GMAIL_CLIENT_SECRET", "")
 GMAIL_REFRESH_TOKEN = os.environ.get("GMAIL_REFRESH_TOKEN", "")
+GMAIL_PASS          = os.environ.get("GMAIL_APP_PASS", os.environ.get("GMAIL_PASS", ""))
 
 _MANUAL_DIR  = Path(__file__).parents[4] / "reportes_velez"
 MANUAL_PATHS: dict = {
@@ -235,43 +236,65 @@ def _get_gmail_access_token() -> str:
     return r.json()["access_token"]
 
 
+def _build_mime(to: str, subject: str, body_html: str, attachments: list = None) -> MIMEMultipart:
+    msg = MIMEMultipart("mixed")
+    msg["To"]      = to
+    msg["From"]    = GMAIL_USER
+    msg["Subject"] = subject
+    msg.attach(MIMEText(body_html, "html"))
+    for fn, data in (attachments or []):
+        part = MIMEBase("application", "octet-stream")
+        part.set_payload(data)
+        encoders.encode_base64(part)
+        part.add_header("Content-Disposition", f'attachment; filename="{fn}"')
+        msg.attach(part)
+    return msg
+
+
+def _send_email_smtp(to: str, subject: str, body_html: str, attachments: list = None) -> bool:
+    """Fallback: envía via SMTP SSL con app password."""
+    if not GMAIL_PASS:
+        log.warning("SMTP fallback: GMAIL_APP_PASS no configurado")
+        return False
+    import ssl
+    try:
+        msg = _build_mime(to, subject, body_html, attachments)
+        ctx = ssl.create_default_context()
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=20, context=ctx) as s:
+            s.login(GMAIL_USER, GMAIL_PASS)
+            s.sendmail(GMAIL_USER, [to], msg.as_bytes())
+        log.info("SMTP fallback OK → %s: %s", to, subject)
+        return True
+    except Exception as e:
+        log.error("SMTP fallback error → %s: %s", to, e)
+        return False
+
+
 def send_email(to: str, subject: str, body_html: str,
                attachments: list = None) -> bool:
-    """Enviar email via Gmail API REST (HTTPS/443 — no bloqueado por Railway)."""
-    if not GMAIL_CLIENT_ID or not GMAIL_REFRESH_TOKEN:
-        log.warning("Gmail API: credenciales no configuradas (GMAIL_CLIENT_ID / GMAIL_REFRESH_TOKEN)")
-        return False
-    try:
-        access_token = _get_gmail_access_token()
+    """Enviar email via Gmail API REST; fallback a SMTP si OAuth falla."""
+    # Intentar Gmail API OAuth primero
+    if GMAIL_CLIENT_ID and GMAIL_REFRESH_TOKEN:
+        try:
+            access_token = _get_gmail_access_token()
+            msg = _build_mime(to, subject, body_html, attachments)
+            raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
+            r = requests.post(
+                "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+                headers={"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"},
+                json={"raw": raw},
+                timeout=30,
+            )
+            if r.status_code in (200, 201):
+                log.info("Gmail API OK → %s: %s", to, subject)
+                return True
+            log.warning("Gmail API HTTP %s → %s — intentando SMTP fallback", r.status_code, to)
+        except Exception as e:
+            log.warning("Gmail API error (%s) → intentando SMTP fallback: %s", to, e)
+    else:
+        log.info("Gmail OAuth no configurado — usando SMTP directo")
 
-        msg = MIMEMultipart("mixed")
-        msg["To"]      = to
-        msg["From"]    = GMAIL_USER
-        msg["Subject"] = subject
-        msg.attach(MIMEText(body_html, "html"))
-
-        for fn, data in (attachments or []):
-            part = MIMEBase("application", "octet-stream")
-            part.set_payload(data)
-            encoders.encode_base64(part)
-            part.add_header("Content-Disposition", f'attachment; filename="{fn}"')
-            msg.attach(part)
-
-        raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
-        r = requests.post(
-            "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
-            headers={"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"},
-            json={"raw": raw},
-            timeout=30,
-        )
-        if r.status_code in (200, 201):
-            log.info("Gmail API OK → %s: %s", to, subject)
-            return True
-        log.error("Gmail API HTTP %s → %s: %s", r.status_code, to, r.text[:200])
-        return False
-    except Exception as e:
-        log.error("Gmail API error → %s: %s", to, e)
-        return False
+    return _send_email_smtp(to, subject, body_html, attachments)
 
 
 def _html_wrap(title: str, body: str, panel_url: str = "") -> str:
