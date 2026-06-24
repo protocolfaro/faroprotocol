@@ -1444,9 +1444,11 @@ except Exception as _sched_err:
 app.add_url_rule("/velez/run_now",        "velez_run_now",        velez_scheduler.route_run_now,        methods=["POST"])
 app.add_url_rule("/velez/weekly_status",  "velez_weekly_status",  velez_scheduler.route_weekly_status,  methods=["GET"])
 app.add_url_rule("/velez/test_whatsapp",  "velez_test_whatsapp",  velez_scheduler.route_test_whatsapp,  methods=["POST"])
-app.add_url_rule("/velez/test_email",     "velez_test_email",     velez_scheduler.route_test_email,     methods=["POST"])
-app.add_url_rule("/velez/test-email",    "velez_test_email_dash", velez_scheduler.route_test_email,     methods=["POST"])
-app.add_url_rule("/velez/smtp_diag",      "velez_smtp_diag",      velez_scheduler.route_smtp_diag,      methods=["GET"])
+app.add_url_rule("/velez/test_email",          "velez_test_email",          velez_scheduler.route_test_email,          methods=["POST"])
+app.add_url_rule("/velez/test-email",         "velez_test_email_dash",     velez_scheduler.route_test_email,          methods=["POST"])
+app.add_url_rule("/velez/smtp_diag",          "velez_smtp_diag",           velez_scheduler.route_smtp_diag,           methods=["GET"])
+app.add_url_rule("/velez/preview_email",      "velez_preview_email",       velez_scheduler.route_preview_email,       methods=["GET"])
+app.add_url_rule("/velez/send_preview_email", "velez_send_preview_email",  velez_scheduler.route_send_preview_email,  methods=["POST"])
 
 
 @app.route("/velez/check-pngs", methods=["GET"])

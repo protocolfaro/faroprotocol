@@ -1871,6 +1871,94 @@ def route_test_email():
         return jsonify({"ok": False, "error": str(e)}), 500
 
 
+# ── Preview email routes ───────────────────────────────────────────────────────
+
+_SLUG_TO_FULLNAME = {v: k for k, v in _SLUG_MAP.items() if "á" not in k and "é" not in k and "ó" not in k and "ú" not in k and "í" not in k}
+# Canonical mapping slug → display name
+_PREVIEW_SLUGS = {
+    "roger":    "Roger Bernal",
+    "juan":     "Juan Gonzalez",
+    "banchero": "Fernando Banchero",
+    "pait":     "Sebastian Pait",
+    "berlanga": "Fabian Berlanga",
+    "nelson":   "Nelson Pugliese",
+    "aveleyra": "Alberto Aveleyra",
+}
+
+
+def route_preview_email():
+    """GET /velez/preview_email?recipient=berlanga
+    Devuelve el HTML del email exactamente como lo recibiría el destinatario.
+    Útil para revisar antes de aprobar el envío masivo.
+    """
+    from flask import request, Response
+    recipient = request.args.get("recipient", "berlanga").lower().strip()
+    nombre = _PREVIEW_SLUGS.get(recipient)
+    if not nombre:
+        valid = ", ".join(_PREVIEW_SLUGS.keys())
+        return Response(
+            f"<p>Destinatario '{recipient}' no encontrado. Opciones: {valid}</p>",
+            mimetype="text/html", status=400,
+        )
+    body_fn = _BODY_FN_MAP.get(nombre)
+    if not body_fn:
+        return Response(f"<p>Sin template para {nombre}</p>", mimetype="text/html", status=404)
+
+    try:
+        vd = _get_velez_data()
+        panel_url = f"{PANEL_BASE_URL}#{recipient}"
+        html = body_fn(vd, panel_url=panel_url)
+        # Inject preview banner at top
+        banner = (
+            f'<div style="background:#c9a84c;color:#06080b;padding:10px 20px;'
+            f'font-family:Arial,sans-serif;font-size:13px;font-weight:bold">'
+            f'[PREVIEW] Así vería este email: <b>{nombre}</b> — '
+            f'<a href="/velez/preview_email?recipient={recipient}" style="color:#06080b">recargar</a>'
+            f'</div>'
+        )
+        html = html.replace("<html>", "<html>", 1)
+        html = html.replace("<body", banner + "<body", 1)
+        log.info("preview_email: renderizado para %s", nombre)
+        return Response(html, mimetype="text/html")
+    except Exception as e:
+        log.error("preview_email excepción (%s): %s", nombre, e)
+        return Response(f"<p>Error: {e}</p>", mimetype="text/html", status=500)
+
+
+def route_send_preview_email():
+    """POST /velez/send_preview_email  body: {"recipient": "berlanga"}
+    Manda el email de preview a protocolfaro@gmail.com con asunto [PREVIEW].
+    """
+    from flask import request, jsonify
+    data = request.get_json(silent=True) or {}
+    recipient = data.get("recipient", request.args.get("recipient", "berlanga")).lower().strip()
+    nombre = _PREVIEW_SLUGS.get(recipient)
+    if not nombre:
+        return jsonify({"ok": False, "error": f"recipient '{recipient}' desconocido"}), 400
+
+    body_fn = _BODY_FN_MAP.get(nombre)
+    if not body_fn:
+        return jsonify({"ok": False, "error": f"sin template para {nombre}"}), 404
+
+    try:
+        vd = _get_velez_data()
+        panel_url = f"{PANEL_BASE_URL}#{recipient}"
+        html = body_fn(vd, panel_url=panel_url)
+        date_str = datetime.now(_ART).strftime("%d/%m/%Y")
+        subject = f"[PREVIEW] Faro · Reporte semanal · Vélez · {date_str} — vista de {nombre}"
+        ok = send_email(
+            to="protocolfaro@gmail.com",
+            subject=subject,
+            body_html=html,
+            attachments=None,
+        )
+        log.info("send_preview_email: %s → protocolfaro@gmail.com %s", nombre, "OK" if ok else "FAIL")
+        return jsonify({"ok": ok, "recipient": nombre, "to": "protocolfaro@gmail.com", "subject": subject})
+    except Exception as e:
+        log.error("send_preview_email excepción (%s): %s", nombre, e)
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
 if __name__ == "__main__":
     import sys
     logging.basicConfig(
