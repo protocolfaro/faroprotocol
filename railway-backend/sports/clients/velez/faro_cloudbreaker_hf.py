@@ -80,7 +80,7 @@ def _last_clean_optical(venue_id: str) -> dict | None:
     return None
 
 
-def _call_hf_api(sar: dict, optical: dict | None) -> dict | None:
+def _call_hf_api(sar: dict, optical: dict | None, venue_id: str = "") -> dict | None:
     """
     Llama a HF Inference API con la fusión SAR+óptico.
 
@@ -100,7 +100,7 @@ def _call_hf_api(sar: dict, optical: dict | None) -> dict | None:
             "ndvi_last":   optical.get("ndvi") if optical else None,
             "evi2_last":   optical.get("evi2") if optical else None,
             "bsi_last":    optical.get("bsi")  if optical else None,
-            "venue_id":    sar.get("venue_id", "amalfitani"),
+            "venue_id":    venue_id or sar.get("venue_id"),
             "fecha":       str(date.today()),
         }
     }
@@ -181,7 +181,7 @@ def _parse_hf_ndvi(hf_response: dict, venue_id: str,
     return None
 
 
-def _vg_ndvi_proxy(sar: dict, cancha_id: str | None) -> dict | None:
+def _vg_ndvi_proxy(sar: dict, cancha_id: str | None, venue_id: str = "") -> dict | None:
     """
     Proxy de último recurso: estima NDVI desde theta_soil cuando HF falla.
     NDVI ≈ 0.35 + 0.80 * (theta - 0.10), clamp [0.10, 0.85]
@@ -190,7 +190,7 @@ def _vg_ndvi_proxy(sar: dict, cancha_id: str | None) -> dict | None:
     if theta is None:
         return None
     ndvi_est = max(0.10, min(0.85, 0.35 + 0.80 * (float(theta) - 0.10)))
-    cid = cancha_id or sar.get("venue_id", "amalfitani")
+    cid = cancha_id or venue_id or sar.get("venue_id")
     return {
         cid: {
             "ndvi": round(ndvi_est, 3),
@@ -222,13 +222,13 @@ def reconstruct(venue_id: str = "amalfitani",
     canchas_out = None
 
     # Intento 1: HF API
-    hf_resp = _call_hf_api(sar, optical)
+    hf_resp = _call_hf_api(sar, optical, venue_id=venue_id)
     if hf_resp:
         canchas_out = _parse_hf_ndvi(hf_resp, venue_id, cancha_id)
 
     # Intento 2: proxy VG
     if not canchas_out:
-        canchas_out = _vg_ndvi_proxy(sar, cancha_id)
+        canchas_out = _vg_ndvi_proxy(sar, cancha_id, venue_id=venue_id)
 
     if not canchas_out:
         return None

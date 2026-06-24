@@ -1058,8 +1058,13 @@ def fetch_ndvi() -> Optional[dict]:
         }
 
     # ── CloudBreaker HF — fusión SAR→S2 para cada venue ─────────────────
+    # CB_VENUES env var (comma-separated) controla qué venues se intentan.
+    # Ejemplo Railway: CB_VENUES=amalfitani,villa_olimpica,poli
+    _cb_venues = [v.strip() for v in
+                  os.environ.get("CB_VENUES", "amalfitani,villa_olimpica").split(",")
+                  if v.strip()]
     _cb_merged: dict = {}
-    for _cbv in ["amalfitani", "villa_olimpica"]:
+    for _cbv in _cb_venues:
         try:
             import faro_cloudbreaker_hf as _cbhf
             _cb = _cbhf.reconstruct(venue_id=_cbv)
