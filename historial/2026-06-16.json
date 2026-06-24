@@ -41,9 +41,9 @@
     ],
     "semana": "2026-06-22"
   },
-  "updated_at": "2026-06-24T15:43:54Z",
+  "updated_at": "2026-06-24T23:08:03Z",
   "weather_live": {
-    "timestamp": "2026-06-24T15:34:27",
+    "timestamp": "2026-06-24T16:02:25",
     "fuentes": [
       "nasa-power",
       "soilgrids",
@@ -2411,13 +2411,6 @@
     "costo_agua_ars": 0,
     "lluvia_48h_mm": 0.0,
     "lluvia_max_1h_mm": 0.0,
-    "_kalman_heatmaps": {
-      "1fa": {
-        "ndvi": 0.062,
-        "margen_error_kalman": 0.0646,
-        "metodo_generacion": "KALMAN_LSTM_EXTENDED"
-      }
-    },
     "_temporal_eye": {
       "1fa": {
         "cid": "1fa",
@@ -2429,54 +2422,54 @@
         "eventos": [],
         "alertas_roger": [],
         "estado_detectado": "normal",
-        "prescripcion_operativa": "Cancha 1FA: DESCANSO — 1845 pers.h acumuladas esta semana, NDVI=0.043 — cerrar hasta recuperacion minima (48hs)",
+        "prescripcion_operativa": "Cancha 1FA: DESCANSO — 1845 pers.h acumuladas esta semana, NDVI=0.241 — cerrar hasta recuperacion minima (48hs)",
         "zonas_estres": {
           "nodos": [
             {
               "x": 0.25,
               "y": 0.15,
-              "stress": 0.4874,
+              "stress": 0.4463,
               "zona": "Banda Izquierda Norte"
             },
             {
               "x": 0.75,
               "y": 0.15,
-              "stress": 0.4874,
+              "stress": 0.4463,
               "zona": "Banda Derecha Norte"
             },
             {
               "x": 0.25,
               "y": 0.5,
-              "stress": 0.6138,
+              "stress": 0.562,
               "zona": "Pasillo Central Norte"
             },
             {
               "x": 0.75,
               "y": 0.5,
-              "stress": 0.5777,
+              "stress": 0.5289,
               "zona": "Pasillo Central Sur"
             },
             {
               "x": 0.25,
               "y": 0.85,
-              "stress": 0.5416,
+              "stress": 0.4959,
               "zona": "Banda Izquierda Sur"
             },
             {
               "x": 0.75,
               "y": 0.85,
-              "stress": 0.5416,
+              "stress": 0.4959,
               "zona": "Banda Derecha Sur"
             }
           ],
           "zona_critica": "Normal",
           "prioridad": 1,
-          "stress_max": 0.6138
+          "stress_max": 0.562
         }
       },
       "2fa": {
         "cid": "2fa",
-        "n_observaciones": 0,
+        "n_observaciones": 1,
         "delta_5d": null,
         "delta_30d": null,
         "tendencia_14d": null,
@@ -2484,54 +2477,54 @@
         "eventos": [],
         "alertas_roger": [],
         "estado_detectado": "normal",
-        "prescripcion_operativa": "Cancha 2FA: Dormancia invernal — NDVI=sin dato (normal Jun-Ago) — sin intervencion urgente hoy",
+        "prescripcion_operativa": "Cancha 2FA: Dormancia invernal — NDVI=0.284 (normal Jun-Ago) — sin intervencion urgente hoy",
         "zonas_estres": {
           "nodos": [
             {
               "x": 0.25,
               "y": 0.15,
-              "stress": 0.3445,
+              "stress": 0.4205,
               "zona": "Banda Izquierda Norte"
             },
             {
               "x": 0.75,
               "y": 0.15,
-              "stress": 0.3445,
+              "stress": 0.4205,
               "zona": "Banda Derecha Norte"
             },
             {
               "x": 0.25,
               "y": 0.5,
-              "stress": 0.4338,
+              "stress": 0.5295,
               "zona": "Pasillo Central Norte"
             },
             {
               "x": 0.75,
               "y": 0.5,
-              "stress": 0.4082,
+              "stress": 0.4983,
               "zona": "Pasillo Central Sur"
             },
             {
               "x": 0.25,
               "y": 0.85,
-              "stress": 0.3827,
+              "stress": 0.4672,
               "zona": "Banda Izquierda Sur"
             },
             {
               "x": 0.75,
               "y": 0.85,
-              "stress": 0.3827,
+              "stress": 0.4672,
               "zona": "Banda Derecha Sur"
             }
           ],
           "zona_critica": "Normal",
           "prioridad": 1,
-          "stress_max": 0.4338
+          "stress_max": 0.5295
         }
       },
       "3fa": {
         "cid": "3fa",
-        "n_observaciones": 0,
+        "n_observaciones": 1,
         "delta_5d": null,
         "delta_30d": null,
         "tendencia_14d": null,
@@ -2539,54 +2532,54 @@
         "eventos": [],
         "alertas_roger": [],
         "estado_detectado": "normal",
-        "prescripcion_operativa": "Cancha 3FA: Dormancia invernal — NDVI=sin dato (normal Jun-Ago) — sin intervencion urgente hoy",
+        "prescripcion_operativa": "Cancha 3FA: Dormancia invernal — NDVI=0.440 (normal Jun-Ago) — sin intervencion urgente hoy",
         "zonas_estres": {
           "nodos": [
             {
               "x": 0.25,
               "y": 0.15,
-              "stress": 0.3596,
+              "stress": 0.4033,
               "zona": "Banda Izquierda Norte"
             },
             {
               "x": 0.75,
               "y": 0.15,
-              "stress": 0.3596,
+              "stress": 0.4033,
               "zona": "Banda Derecha Norte"
             },
             {
               "x": 0.25,
               "y": 0.5,
-              "stress": 0.4529,
+              "stress": 0.5078,
               "zona": "Pasillo Central Norte"
             },
             {
               "x": 0.75,
               "y": 0.5,
-              "stress": 0.4263,
+              "stress": 0.4779,
               "zona": "Pasillo Central Sur"
             },
             {
               "x": 0.25,
               "y": 0.85,
-              "stress": 0.3996,
+              "stress": 0.4481,
               "zona": "Banda Izquierda Sur"
             },
             {
               "x": 0.75,
               "y": 0.85,
-              "stress": 0.3996,
+              "stress": 0.4481,
               "zona": "Banda Derecha Sur"
             }
           ],
           "zona_critica": "Normal",
           "prioridad": 1,
-          "stress_max": 0.4529
+          "stress_max": 0.5078
         }
       },
       "4fa": {
         "cid": "4fa",
-        "n_observaciones": 0,
+        "n_observaciones": 1,
         "delta_5d": null,
         "delta_30d": null,
         "tendencia_14d": null,
@@ -2594,54 +2587,54 @@
         "eventos": [],
         "alertas_roger": [],
         "estado_detectado": "normal",
-        "prescripcion_operativa": "Cancha 4FA: Dormancia invernal — NDVI=sin dato (normal Jun-Ago) — sin intervencion urgente hoy",
+        "prescripcion_operativa": "Cancha 4FA: Dormancia invernal — NDVI=0.256 (normal Jun-Ago) — sin intervencion urgente hoy",
         "zonas_estres": {
           "nodos": [
             {
               "x": 0.25,
               "y": 0.15,
-              "stress": 0.3445,
+              "stress": 0.4263,
               "zona": "Banda Izquierda Norte"
             },
             {
               "x": 0.75,
               "y": 0.15,
-              "stress": 0.3445,
+              "stress": 0.4263,
               "zona": "Banda Derecha Norte"
             },
             {
               "x": 0.25,
               "y": 0.5,
-              "stress": 0.4338,
+              "stress": 0.5368,
               "zona": "Pasillo Central Norte"
             },
             {
               "x": 0.75,
               "y": 0.5,
-              "stress": 0.4082,
+              "stress": 0.5052,
               "zona": "Pasillo Central Sur"
             },
             {
               "x": 0.25,
               "y": 0.85,
-              "stress": 0.3827,
+              "stress": 0.4737,
               "zona": "Banda Izquierda Sur"
             },
             {
               "x": 0.75,
               "y": 0.85,
-              "stress": 0.3827,
+              "stress": 0.4737,
               "zona": "Banda Derecha Sur"
             }
           ],
           "zona_critica": "Normal",
           "prioridad": 1,
-          "stress_max": 0.4338
+          "stress_max": 0.5368
         }
       },
       "5fa": {
         "cid": "5fa",
-        "n_observaciones": 0,
+        "n_observaciones": 1,
         "delta_5d": null,
         "delta_30d": null,
         "tendencia_14d": null,
@@ -2649,54 +2642,54 @@
         "eventos": [],
         "alertas_roger": [],
         "estado_detectado": "normal",
-        "prescripcion_operativa": "Cancha 5FA: Dormancia invernal — NDVI=sin dato (normal Jun-Ago) — sin intervencion urgente hoy",
+        "prescripcion_operativa": "Cancha 5FA: Dormancia invernal — NDVI=0.428 (normal Jun-Ago) — sin intervencion urgente hoy",
         "zonas_estres": {
           "nodos": [
             {
               "x": 0.25,
               "y": 0.15,
-              "stress": 0.3613,
+              "stress": 0.4074,
               "zona": "Banda Izquierda Norte"
             },
             {
               "x": 0.75,
               "y": 0.15,
-              "stress": 0.3613,
+              "stress": 0.4074,
               "zona": "Banda Derecha Norte"
             },
             {
               "x": 0.25,
               "y": 0.5,
-              "stress": 0.455,
+              "stress": 0.5131,
               "zona": "Pasillo Central Norte"
             },
             {
               "x": 0.75,
               "y": 0.5,
-              "stress": 0.4283,
+              "stress": 0.4829,
               "zona": "Pasillo Central Sur"
             },
             {
               "x": 0.25,
               "y": 0.85,
-              "stress": 0.4015,
+              "stress": 0.4527,
               "zona": "Banda Izquierda Sur"
             },
             {
               "x": 0.75,
               "y": 0.85,
-              "stress": 0.4015,
+              "stress": 0.4527,
               "zona": "Banda Derecha Sur"
             }
           ],
           "zona_critica": "Normal",
           "prioridad": 1,
-          "stress_max": 0.455
+          "stress_max": 0.5131
         }
       },
       "6fa": {
         "cid": "6fa",
-        "n_observaciones": 0,
+        "n_observaciones": 1,
         "delta_5d": null,
         "delta_30d": null,
         "tendencia_14d": null,
@@ -2704,54 +2697,54 @@
         "eventos": [],
         "alertas_roger": [],
         "estado_detectado": "normal",
-        "prescripcion_operativa": "Cancha 6FA: Dormancia invernal — NDVI=sin dato (normal Jun-Ago) — sin intervencion urgente hoy",
+        "prescripcion_operativa": "Cancha 6FA: Dormancia invernal — NDVI=0.339 (normal Jun-Ago) — sin intervencion urgente hoy",
         "zonas_estres": {
           "nodos": [
             {
               "x": 0.25,
               "y": 0.15,
-              "stress": 0.3445,
+              "stress": 0.4091,
               "zona": "Banda Izquierda Norte"
             },
             {
               "x": 0.75,
               "y": 0.15,
-              "stress": 0.3445,
+              "stress": 0.4091,
               "zona": "Banda Derecha Norte"
             },
             {
               "x": 0.25,
               "y": 0.5,
-              "stress": 0.4338,
+              "stress": 0.5151,
               "zona": "Pasillo Central Norte"
             },
             {
               "x": 0.75,
               "y": 0.5,
-              "stress": 0.4082,
+              "stress": 0.4848,
               "zona": "Pasillo Central Sur"
             },
             {
               "x": 0.25,
               "y": 0.85,
-              "stress": 0.3827,
+              "stress": 0.4545,
               "zona": "Banda Izquierda Sur"
             },
             {
               "x": 0.75,
               "y": 0.85,
-              "stress": 0.3827,
+              "stress": 0.4545,
               "zona": "Banda Derecha Sur"
             }
           ],
           "zona_critica": "Normal",
           "prioridad": 1,
-          "stress_max": 0.4338
+          "stress_max": 0.5151
         }
       },
       "7fa": {
         "cid": "7fa",
-        "n_observaciones": 0,
+        "n_observaciones": 1,
         "delta_5d": null,
         "delta_30d": null,
         "tendencia_14d": null,
@@ -2759,54 +2752,54 @@
         "eventos": [],
         "alertas_roger": [],
         "estado_detectado": "normal",
-        "prescripcion_operativa": "Cancha 7FA: Dormancia invernal — NDVI=sin dato (normal Jun-Ago) — sin intervencion urgente hoy",
+        "prescripcion_operativa": "Cancha 7FA: Dormancia invernal — NDVI=0.255 (normal Jun-Ago) — sin intervencion urgente hoy",
         "zonas_estres": {
           "nodos": [
             {
               "x": 0.25,
               "y": 0.15,
-              "stress": 0.3445,
+              "stress": 0.4265,
               "zona": "Banda Izquierda Norte"
             },
             {
               "x": 0.75,
               "y": 0.15,
-              "stress": 0.3445,
+              "stress": 0.4265,
               "zona": "Banda Derecha Norte"
             },
             {
               "x": 0.25,
               "y": 0.5,
-              "stress": 0.4338,
+              "stress": 0.5371,
               "zona": "Pasillo Central Norte"
             },
             {
               "x": 0.75,
               "y": 0.5,
-              "stress": 0.4082,
+              "stress": 0.5055,
               "zona": "Pasillo Central Sur"
             },
             {
               "x": 0.25,
               "y": 0.85,
-              "stress": 0.3827,
+              "stress": 0.4739,
               "zona": "Banda Izquierda Sur"
             },
             {
               "x": 0.75,
               "y": 0.85,
-              "stress": 0.3827,
+              "stress": 0.4739,
               "zona": "Banda Derecha Sur"
             }
           ],
           "zona_critica": "Normal",
           "prioridad": 1,
-          "stress_max": 0.4338
+          "stress_max": 0.5371
         }
       },
       "8fa": {
         "cid": "8fa",
-        "n_observaciones": 0,
+        "n_observaciones": 1,
         "delta_5d": null,
         "delta_30d": null,
         "tendencia_14d": null,
@@ -2814,54 +2807,54 @@
         "eventos": [],
         "alertas_roger": [],
         "estado_detectado": "normal",
-        "prescripcion_operativa": "Cancha 8FA: DESCANSO — 676 pers.h acumuladas esta semana, NDVI=sin dato — cerrar hasta recuperacion minima (48hs)",
+        "prescripcion_operativa": "Cancha 8FA: DESCANSO — 676 pers.h acumuladas esta semana, NDVI=0.255 — cerrar hasta recuperacion minima (48hs)",
         "zonas_estres": {
           "nodos": [
             {
               "x": 0.25,
               "y": 0.15,
-              "stress": 0.3613,
+              "stress": 0.4434,
               "zona": "Banda Izquierda Norte"
             },
             {
               "x": 0.75,
               "y": 0.15,
-              "stress": 0.3613,
+              "stress": 0.4434,
               "zona": "Banda Derecha Norte"
             },
             {
               "x": 0.25,
               "y": 0.5,
-              "stress": 0.455,
+              "stress": 0.5583,
               "zona": "Pasillo Central Norte"
             },
             {
               "x": 0.75,
               "y": 0.5,
-              "stress": 0.4283,
+              "stress": 0.5255,
               "zona": "Pasillo Central Sur"
             },
             {
               "x": 0.25,
               "y": 0.85,
-              "stress": 0.4015,
+              "stress": 0.4926,
               "zona": "Banda Izquierda Sur"
             },
             {
               "x": 0.75,
               "y": 0.85,
-              "stress": 0.4015,
+              "stress": 0.4926,
               "zona": "Banda Derecha Sur"
             }
           ],
           "zona_critica": "Normal",
           "prioridad": 1,
-          "stress_max": 0.455
+          "stress_max": 0.5583
         }
       },
       "9fa": {
         "cid": "9fa",
-        "n_observaciones": 0,
+        "n_observaciones": 1,
         "delta_5d": null,
         "delta_30d": null,
         "tendencia_14d": null,
@@ -2869,54 +2862,54 @@
         "eventos": [],
         "alertas_roger": [],
         "estado_detectado": "normal",
-        "prescripcion_operativa": "Cancha 9FA: DESCANSO — 676 pers.h acumuladas esta semana, NDVI=sin dato — cerrar hasta recuperacion minima (48hs)",
+        "prescripcion_operativa": "Cancha 9FA: DESCANSO — 676 pers.h acumuladas esta semana, NDVI=0.318 — cerrar hasta recuperacion minima (48hs)",
         "zonas_estres": {
           "nodos": [
             {
               "x": 0.25,
               "y": 0.15,
-              "stress": 0.3613,
+              "stress": 0.4303,
               "zona": "Banda Izquierda Norte"
             },
             {
               "x": 0.75,
               "y": 0.15,
-              "stress": 0.3613,
+              "stress": 0.4303,
               "zona": "Banda Derecha Norte"
             },
             {
               "x": 0.25,
               "y": 0.5,
-              "stress": 0.455,
+              "stress": 0.5418,
               "zona": "Pasillo Central Norte"
             },
             {
               "x": 0.75,
               "y": 0.5,
-              "stress": 0.4283,
+              "stress": 0.51,
               "zona": "Pasillo Central Sur"
             },
             {
               "x": 0.25,
               "y": 0.85,
-              "stress": 0.4015,
+              "stress": 0.4781,
               "zona": "Banda Izquierda Sur"
             },
             {
               "x": 0.75,
               "y": 0.85,
-              "stress": 0.4015,
+              "stress": 0.4781,
               "zona": "Banda Derecha Sur"
             }
           ],
           "zona_critica": "Normal",
           "prioridad": 1,
-          "stress_max": 0.455
+          "stress_max": 0.5418
         }
       },
       "10fa": {
         "cid": "10fa",
-        "n_observaciones": 0,
+        "n_observaciones": 1,
         "delta_5d": null,
         "delta_30d": null,
         "tendencia_14d": null,
@@ -2924,54 +2917,54 @@
         "eventos": [],
         "alertas_roger": [],
         "estado_detectado": "normal",
-        "prescripcion_operativa": "Cancha 10FA: Dormancia invernal — NDVI=sin dato (normal Jun-Ago) — sin intervencion urgente hoy",
+        "prescripcion_operativa": "Cancha 10FA: Dormancia invernal — NDVI=0.321 (normal Jun-Ago) — sin intervencion urgente hoy",
         "zonas_estres": {
           "nodos": [
             {
               "x": 0.25,
               "y": 0.15,
-              "stress": 0.3445,
+              "stress": 0.4128,
               "zona": "Banda Izquierda Norte"
             },
             {
               "x": 0.75,
               "y": 0.15,
-              "stress": 0.3445,
+              "stress": 0.4128,
               "zona": "Banda Derecha Norte"
             },
             {
               "x": 0.25,
               "y": 0.5,
-              "stress": 0.4338,
+              "stress": 0.5198,
               "zona": "Pasillo Central Norte"
             },
             {
               "x": 0.75,
               "y": 0.5,
-              "stress": 0.4082,
+              "stress": 0.4892,
               "zona": "Pasillo Central Sur"
             },
             {
               "x": 0.25,
               "y": 0.85,
-              "stress": 0.3827,
+              "stress": 0.4587,
               "zona": "Banda Izquierda Sur"
             },
             {
               "x": 0.75,
               "y": 0.85,
-              "stress": 0.3827,
+              "stress": 0.4587,
               "zona": "Banda Derecha Sur"
             }
           ],
           "zona_critica": "Normal",
           "prioridad": 1,
-          "stress_max": 0.4338
+          "stress_max": 0.5198
         }
       },
       "1fp": {
         "cid": "1fp",
-        "n_observaciones": 0,
+        "n_observaciones": 1,
         "delta_5d": null,
         "delta_30d": null,
         "tendencia_14d": null,
@@ -2979,54 +2972,54 @@
         "eventos": [],
         "alertas_roger": [],
         "estado_detectado": "normal",
-        "prescripcion_operativa": "Cancha 1FP: Dormancia invernal — NDVI=sin dato (normal Jun-Ago) — sin intervencion urgente hoy",
+        "prescripcion_operativa": "Cancha 1FP: Dormancia invernal — NDVI=0.320 (normal Jun-Ago) — sin intervencion urgente hoy",
         "zonas_estres": {
           "nodos": [
             {
               "x": 0.25,
               "y": 0.15,
-              "stress": 0.3445,
+              "stress": 0.413,
               "zona": "Banda Izquierda Norte"
             },
             {
               "x": 0.75,
               "y": 0.15,
-              "stress": 0.3445,
+              "stress": 0.413,
               "zona": "Banda Derecha Norte"
             },
             {
               "x": 0.25,
               "y": 0.5,
-              "stress": 0.4338,
+              "stress": 0.5201,
               "zona": "Pasillo Central Norte"
             },
             {
               "x": 0.75,
               "y": 0.5,
-              "stress": 0.4082,
+              "stress": 0.4895,
               "zona": "Pasillo Central Sur"
             },
             {
               "x": 0.25,
               "y": 0.85,
-              "stress": 0.3827,
+              "stress": 0.4589,
               "zona": "Banda Izquierda Sur"
             },
             {
               "x": 0.75,
               "y": 0.85,
-              "stress": 0.3827,
+              "stress": 0.4589,
               "zona": "Banda Derecha Sur"
             }
           ],
           "zona_critica": "Normal",
           "prioridad": 1,
-          "stress_max": 0.4338
+          "stress_max": 0.5201
         }
       },
       "2fp": {
         "cid": "2fp",
-        "n_observaciones": 0,
+        "n_observaciones": 1,
         "delta_5d": null,
         "delta_30d": null,
         "tendencia_14d": null,
@@ -3034,49 +3027,49 @@
         "eventos": [],
         "alertas_roger": [],
         "estado_detectado": "normal",
-        "prescripcion_operativa": "Cancha 2FP: Dormancia invernal — NDVI=sin dato (normal Jun-Ago) — sin intervencion urgente hoy",
+        "prescripcion_operativa": "Cancha 2FP: Dormancia invernal — NDVI=0.332 (normal Jun-Ago) — sin intervencion urgente hoy",
         "zonas_estres": {
           "nodos": [
             {
               "x": 0.25,
               "y": 0.15,
-              "stress": 0.3445,
+              "stress": 0.4105,
               "zona": "Banda Izquierda Norte"
             },
             {
               "x": 0.75,
               "y": 0.15,
-              "stress": 0.3445,
+              "stress": 0.4105,
               "zona": "Banda Derecha Norte"
             },
             {
               "x": 0.25,
               "y": 0.5,
-              "stress": 0.4338,
+              "stress": 0.5169,
               "zona": "Pasillo Central Norte"
             },
             {
               "x": 0.75,
               "y": 0.5,
-              "stress": 0.4082,
+              "stress": 0.4865,
               "zona": "Pasillo Central Sur"
             },
             {
               "x": 0.25,
               "y": 0.85,
-              "stress": 0.3827,
+              "stress": 0.4561,
               "zona": "Banda Izquierda Sur"
             },
             {
               "x": 0.75,
               "y": 0.85,
-              "stress": 0.3827,
+              "stress": 0.4561,
               "zona": "Banda Derecha Sur"
             }
           ],
           "zona_critica": "Normal",
           "prioridad": 1,
-          "stress_max": 0.4338
+          "stress_max": 0.5169
         }
       },
       "_resumen": {
@@ -3099,18 +3092,18 @@
           "2fp": "normal"
         },
         "prescripciones": {
-          "1fa": "Cancha 1FA: DESCANSO — 1845 pers.h acumuladas esta semana, NDVI=0.043 — cerrar hasta recuperacion minima (48hs)",
-          "2fa": "Cancha 2FA: Dormancia invernal — NDVI=sin dato (normal Jun-Ago) — sin intervencion urgente hoy",
-          "3fa": "Cancha 3FA: Dormancia invernal — NDVI=sin dato (normal Jun-Ago) — sin intervencion urgente hoy",
-          "4fa": "Cancha 4FA: Dormancia invernal — NDVI=sin dato (normal Jun-Ago) — sin intervencion urgente hoy",
-          "5fa": "Cancha 5FA: Dormancia invernal — NDVI=sin dato (normal Jun-Ago) — sin intervencion urgente hoy",
-          "6fa": "Cancha 6FA: Dormancia invernal — NDVI=sin dato (normal Jun-Ago) — sin intervencion urgente hoy",
-          "7fa": "Cancha 7FA: Dormancia invernal — NDVI=sin dato (normal Jun-Ago) — sin intervencion urgente hoy",
-          "8fa": "Cancha 8FA: DESCANSO — 676 pers.h acumuladas esta semana, NDVI=sin dato — cerrar hasta recuperacion minima (48hs)",
-          "9fa": "Cancha 9FA: DESCANSO — 676 pers.h acumuladas esta semana, NDVI=sin dato — cerrar hasta recuperacion minima (48hs)",
-          "10fa": "Cancha 10FA: Dormancia invernal — NDVI=sin dato (normal Jun-Ago) — sin intervencion urgente hoy",
-          "1fp": "Cancha 1FP: Dormancia invernal — NDVI=sin dato (normal Jun-Ago) — sin intervencion urgente hoy",
-          "2fp": "Cancha 2FP: Dormancia invernal — NDVI=sin dato (normal Jun-Ago) — sin intervencion urgente hoy"
+          "1fa": "Cancha 1FA: DESCANSO — 1845 pers.h acumuladas esta semana, NDVI=0.241 — cerrar hasta recuperacion minima (48hs)",
+          "2fa": "Cancha 2FA: Dormancia invernal — NDVI=0.284 (normal Jun-Ago) — sin intervencion urgente hoy",
+          "3fa": "Cancha 3FA: Dormancia invernal — NDVI=0.440 (normal Jun-Ago) — sin intervencion urgente hoy",
+          "4fa": "Cancha 4FA: Dormancia invernal — NDVI=0.256 (normal Jun-Ago) — sin intervencion urgente hoy",
+          "5fa": "Cancha 5FA: Dormancia invernal — NDVI=0.428 (normal Jun-Ago) — sin intervencion urgente hoy",
+          "6fa": "Cancha 6FA: Dormancia invernal — NDVI=0.339 (normal Jun-Ago) — sin intervencion urgente hoy",
+          "7fa": "Cancha 7FA: Dormancia invernal — NDVI=0.255 (normal Jun-Ago) — sin intervencion urgente hoy",
+          "8fa": "Cancha 8FA: DESCANSO — 676 pers.h acumuladas esta semana, NDVI=0.255 — cerrar hasta recuperacion minima (48hs)",
+          "9fa": "Cancha 9FA: DESCANSO — 676 pers.h acumuladas esta semana, NDVI=0.318 — cerrar hasta recuperacion minima (48hs)",
+          "10fa": "Cancha 10FA: Dormancia invernal — NDVI=0.321 (normal Jun-Ago) — sin intervencion urgente hoy",
+          "1fp": "Cancha 1FP: Dormancia invernal — NDVI=0.320 (normal Jun-Ago) — sin intervencion urgente hoy",
+          "2fp": "Cancha 2FP: Dormancia invernal — NDVI=0.332 (normal Jun-Ago) — sin intervencion urgente hoy"
         },
         "zonas_estres": {
           "1fa": {
@@ -3118,516 +3111,516 @@
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.4874,
+                "stress": 0.4463,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.4874,
+                "stress": 0.4463,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.6138,
+                "stress": 0.562,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.5777,
+                "stress": 0.5289,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.5416,
+                "stress": 0.4959,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.5416,
+                "stress": 0.4959,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.6138
+            "stress_max": 0.562
           },
           "2fa": {
             "nodos": [
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.3445,
+                "stress": 0.4205,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.3445,
+                "stress": 0.4205,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.4338,
+                "stress": 0.5295,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.4082,
+                "stress": 0.4983,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.3827,
+                "stress": 0.4672,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.3827,
+                "stress": 0.4672,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.4338
+            "stress_max": 0.5295
           },
           "3fa": {
             "nodos": [
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.3596,
+                "stress": 0.4033,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.3596,
+                "stress": 0.4033,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.4529,
+                "stress": 0.5078,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.4263,
+                "stress": 0.4779,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.3996,
+                "stress": 0.4481,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.3996,
+                "stress": 0.4481,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.4529
+            "stress_max": 0.5078
           },
           "4fa": {
             "nodos": [
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.3445,
+                "stress": 0.4263,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.3445,
+                "stress": 0.4263,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.4338,
+                "stress": 0.5368,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.4082,
+                "stress": 0.5052,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.3827,
+                "stress": 0.4737,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.3827,
+                "stress": 0.4737,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.4338
+            "stress_max": 0.5368
           },
           "5fa": {
             "nodos": [
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.3613,
+                "stress": 0.4074,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.3613,
+                "stress": 0.4074,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.455,
+                "stress": 0.5131,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.4283,
+                "stress": 0.4829,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.4015,
+                "stress": 0.4527,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.4015,
+                "stress": 0.4527,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.455
+            "stress_max": 0.5131
           },
           "6fa": {
             "nodos": [
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.3445,
+                "stress": 0.4091,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.3445,
+                "stress": 0.4091,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.4338,
+                "stress": 0.5151,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.4082,
+                "stress": 0.4848,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.3827,
+                "stress": 0.4545,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.3827,
+                "stress": 0.4545,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.4338
+            "stress_max": 0.5151
           },
           "7fa": {
             "nodos": [
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.3445,
+                "stress": 0.4265,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.3445,
+                "stress": 0.4265,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.4338,
+                "stress": 0.5371,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.4082,
+                "stress": 0.5055,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.3827,
+                "stress": 0.4739,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.3827,
+                "stress": 0.4739,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.4338
+            "stress_max": 0.5371
           },
           "8fa": {
             "nodos": [
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.3613,
+                "stress": 0.4434,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.3613,
+                "stress": 0.4434,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.455,
+                "stress": 0.5583,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.4283,
+                "stress": 0.5255,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.4015,
+                "stress": 0.4926,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.4015,
+                "stress": 0.4926,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.455
+            "stress_max": 0.5583
           },
           "9fa": {
             "nodos": [
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.3613,
+                "stress": 0.4303,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.3613,
+                "stress": 0.4303,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.455,
+                "stress": 0.5418,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.4283,
+                "stress": 0.51,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.4015,
+                "stress": 0.4781,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.4015,
+                "stress": 0.4781,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.455
+            "stress_max": 0.5418
           },
           "10fa": {
             "nodos": [
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.3445,
+                "stress": 0.4128,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.3445,
+                "stress": 0.4128,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.4338,
+                "stress": 0.5198,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.4082,
+                "stress": 0.4892,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.3827,
+                "stress": 0.4587,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.3827,
+                "stress": 0.4587,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.4338
+            "stress_max": 0.5198
           },
           "1fp": {
             "nodos": [
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.3445,
+                "stress": 0.413,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.3445,
+                "stress": 0.413,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.4338,
+                "stress": 0.5201,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.4082,
+                "stress": 0.4895,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.3827,
+                "stress": 0.4589,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.3827,
+                "stress": 0.4589,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.4338
+            "stress_max": 0.5201
           },
           "2fp": {
             "nodos": [
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.3445,
+                "stress": 0.4105,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.3445,
+                "stress": 0.4105,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.4338,
+                "stress": 0.5169,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.4082,
+                "stress": 0.4865,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.3827,
+                "stress": 0.4561,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.3827,
+                "stress": 0.4561,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.4338
+            "stress_max": 0.5169
           }
         }
       }
@@ -3672,12 +3665,12 @@
           "id": "1fa",
           "nombre": "1FA",
           "score": 38,
-          "score_prev": 17,
+          "score_prev": 38,
           "sem": "rojo",
           "ndvi": 0.241,
-          "ndvi_prev": 0.043,
+          "ndvi_prev": 0.241,
           "detalle": "NDVI 0.24 · Cancha al límite — necesita descanso · 120 pers · 12.5h · Dormancia estacional",
-          "prescripcion_operativa": "Cancha 1FA: DESCANSO — 1845 pers.h acumuladas esta semana, NDVI=0.043 — cerrar hasta recuperacion minima (48hs)",
+          "prescripcion_operativa": "Cancha 1FA: DESCANSO — 1845 pers.h acumuladas esta semana, NDVI=0.241 — cerrar hasta recuperacion minima (48hs)",
           "ndvi_historial": [
             0.043,
             0.241
@@ -3688,43 +3681,43 @@
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.4874,
+                "stress": 0.4463,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.4874,
+                "stress": 0.4463,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.6138,
+                "stress": 0.562,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.5777,
+                "stress": 0.5289,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.5416,
+                "stress": 0.4959,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.5416,
+                "stress": 0.4959,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.6138
+            "stress_max": 0.562
           },
           "ndre": 0.15,
           "ccci": 0.6224,
@@ -3751,12 +3744,12 @@
           "id": "2fa",
           "nombre": "2FA",
           "score": 71,
-          "score_prev": 45,
+          "score_prev": 71,
           "sem": "verde",
           "ndvi": 0.284,
-          "ndvi_prev": null,
+          "ndvi_prev": 0.284,
           "detalle": "NDVI 0.28 · Sin actividad registrada · 0 pers · 0h · Dormancia estacional",
-          "prescripcion_operativa": "Cancha 2FA: Dormancia invernal — NDVI=sin dato (normal Jun-Ago) — sin intervencion urgente hoy",
+          "prescripcion_operativa": "Cancha 2FA: Dormancia invernal — NDVI=0.284 (normal Jun-Ago) — sin intervencion urgente hoy",
           "ndvi_historial": [
             0.047,
             0.284
@@ -3767,43 +3760,43 @@
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.3445,
+                "stress": 0.4205,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.3445,
+                "stress": 0.4205,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.4338,
+                "stress": 0.5295,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.4082,
+                "stress": 0.4983,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.3827,
+                "stress": 0.4672,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.3827,
+                "stress": 0.4672,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.4338
+            "stress_max": 0.5295
           },
           "ndre": 0.195,
           "ccci": 0.6866,
@@ -3830,12 +3823,12 @@
           "id": "3fa",
           "nombre": "3FA",
           "score": 80,
-          "score_prev": 40,
+          "score_prev": 80,
           "sem": "verde",
           "ndvi": 0.44,
-          "ndvi_prev": null,
+          "ndvi_prev": 0.44,
           "detalle": "NDVI 0.44 · Cancha descansada · 30 pers · 3.0h · Dormancia estacional",
-          "prescripcion_operativa": "Cancha 3FA: Dormancia invernal — NDVI=sin dato (normal Jun-Ago) — sin intervencion urgente hoy",
+          "prescripcion_operativa": "Cancha 3FA: Dormancia invernal — NDVI=0.440 (normal Jun-Ago) — sin intervencion urgente hoy",
           "ndvi_historial": [
             0.071,
             0.44
@@ -3846,43 +3839,43 @@
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.3596,
+                "stress": 0.4033,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.3596,
+                "stress": 0.4033,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.4529,
+                "stress": 0.5078,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.4263,
+                "stress": 0.4779,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.3996,
+                "stress": 0.4481,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.3996,
+                "stress": 0.4481,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.4529
+            "stress_max": 0.5078
           },
           "ndre": 0.283,
           "ccci": 0.6432,
@@ -3909,12 +3902,12 @@
           "id": "4fa",
           "nombre": "4FA",
           "score": 68,
-          "score_prev": 50,
+          "score_prev": 68,
           "sem": "amarillo",
           "ndvi": 0.256,
-          "ndvi_prev": null,
+          "ndvi_prev": 0.256,
           "detalle": "NDVI 0.26 · Sin actividad registrada · 0 pers · 0h · Dormancia estacional",
-          "prescripcion_operativa": "Cancha 4FA: Dormancia invernal — NDVI=sin dato (normal Jun-Ago) — sin intervencion urgente hoy",
+          "prescripcion_operativa": "Cancha 4FA: Dormancia invernal — NDVI=0.256 (normal Jun-Ago) — sin intervencion urgente hoy",
           "ndvi_historial": [
             0.086,
             0.256
@@ -3925,43 +3918,43 @@
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.3445,
+                "stress": 0.4263,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.3445,
+                "stress": 0.4263,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.4338,
+                "stress": 0.5368,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.4082,
+                "stress": 0.5052,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.3827,
+                "stress": 0.4737,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.3827,
+                "stress": 0.4737,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.4338
+            "stress_max": 0.5368
           },
           "ndre": 0.172,
           "ccci": 0.6719,
@@ -3988,12 +3981,12 @@
           "id": "5fa",
           "nombre": "5FA",
           "score": 77,
-          "score_prev": 38,
+          "score_prev": 77,
           "sem": "verde",
           "ndvi": 0.428,
-          "ndvi_prev": null,
+          "ndvi_prev": 0.428,
           "detalle": "NDVI 0.43 · Uso normal · 30 pers · 3.5h · Dormancia estacional",
-          "prescripcion_operativa": "Cancha 5FA: Dormancia invernal — NDVI=sin dato (normal Jun-Ago) — sin intervencion urgente hoy",
+          "prescripcion_operativa": "Cancha 5FA: Dormancia invernal — NDVI=0.428 (normal Jun-Ago) — sin intervencion urgente hoy",
           "ndvi_historial": [
             0.074,
             0.428
@@ -4004,43 +3997,43 @@
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.3613,
+                "stress": 0.4074,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.3613,
+                "stress": 0.4074,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.455,
+                "stress": 0.5131,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.4283,
+                "stress": 0.4829,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.4015,
+                "stress": 0.4527,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.4015,
+                "stress": 0.4527,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.455
+            "stress_max": 0.5131
           },
           "ndre": 0.273,
           "ccci": 0.6379,
@@ -4067,12 +4060,12 @@
           "id": "6fa",
           "nombre": "6FA",
           "score": 77,
-          "score_prev": 48,
+          "score_prev": 77,
           "sem": "verde",
           "ndvi": 0.339,
-          "ndvi_prev": null,
+          "ndvi_prev": 0.339,
           "detalle": "NDVI 0.34 · Sin actividad registrada · 0 pers · 0h · Dormancia estacional",
-          "prescripcion_operativa": "Cancha 6FA: Dormancia invernal — NDVI=sin dato (normal Jun-Ago) — sin intervencion urgente hoy",
+          "prescripcion_operativa": "Cancha 6FA: Dormancia invernal — NDVI=0.339 (normal Jun-Ago) — sin intervencion urgente hoy",
           "ndvi_historial": [
             0.077,
             0.339
@@ -4083,43 +4076,43 @@
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.3445,
+                "stress": 0.4091,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.3445,
+                "stress": 0.4091,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.4338,
+                "stress": 0.5151,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.4082,
+                "stress": 0.4848,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.3827,
+                "stress": 0.4545,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.3827,
+                "stress": 0.4545,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.4338
+            "stress_max": 0.5151
           },
           "ndre": 0.222,
           "ccci": 0.6549,
@@ -4146,12 +4139,12 @@
           "id": "7fa",
           "nombre": "7FA",
           "score": 68,
-          "score_prev": 49,
+          "score_prev": 68,
           "sem": "amarillo",
           "ndvi": 0.255,
-          "ndvi_prev": null,
+          "ndvi_prev": 0.255,
           "detalle": "NDVI 0.26 · Sin actividad registrada · 0 pers · 0h · Dormancia estacional",
-          "prescripcion_operativa": "Cancha 7FA: Dormancia invernal — NDVI=sin dato (normal Jun-Ago) — sin intervencion urgente hoy",
+          "prescripcion_operativa": "Cancha 7FA: Dormancia invernal — NDVI=0.255 (normal Jun-Ago) — sin intervencion urgente hoy",
           "ndvi_historial": [
             0.083,
             0.255
@@ -4162,43 +4155,43 @@
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.3445,
+                "stress": 0.4265,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.3445,
+                "stress": 0.4265,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.4338,
+                "stress": 0.5371,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.4082,
+                "stress": 0.5055,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.3827,
+                "stress": 0.4739,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.3827,
+                "stress": 0.4739,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.4338
+            "stress_max": 0.5371
           },
           "ndre": 0.176,
           "ccci": 0.6902,
@@ -4225,12 +4218,12 @@
           "id": "8fa",
           "nombre": "8FA",
           "score": 57,
-          "score_prev": 38,
+          "score_prev": 57,
           "sem": "amarillo",
           "ndvi": 0.255,
-          "ndvi_prev": null,
+          "ndvi_prev": 0.255,
           "detalle": "NDVI 0.26 · Uso normal · 45 pers · 6.5h · Dormancia estacional",
-          "prescripcion_operativa": "Cancha 8FA: DESCANSO — 676 pers.h acumuladas esta semana, NDVI=sin dato — cerrar hasta recuperacion minima (48hs)",
+          "prescripcion_operativa": "Cancha 8FA: DESCANSO — 676 pers.h acumuladas esta semana, NDVI=0.255 — cerrar hasta recuperacion minima (48hs)",
           "ndvi_historial": [
             0.079,
             0.255
@@ -4241,43 +4234,43 @@
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.3613,
+                "stress": 0.4434,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.3613,
+                "stress": 0.4434,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.455,
+                "stress": 0.5583,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.4283,
+                "stress": 0.5255,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.4015,
+                "stress": 0.4926,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.4015,
+                "stress": 0.4926,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.455
+            "stress_max": 0.5583
           },
           "ndre": 0.176,
           "ccci": 0.6902,
@@ -4304,12 +4297,12 @@
           "id": "9fa",
           "nombre": "9FA",
           "score": 71,
-          "score_prev": 43,
+          "score_prev": 71,
           "sem": "verde",
           "ndvi": 0.318,
-          "ndvi_prev": null,
+          "ndvi_prev": 0.318,
           "detalle": "NDVI 0.32 · Cancha descansada · 15 pers · 3.0h · Dormancia estacional",
-          "prescripcion_operativa": "Cancha 9FA: DESCANSO — 676 pers.h acumuladas esta semana, NDVI=sin dato — cerrar hasta recuperacion minima (48hs)",
+          "prescripcion_operativa": "Cancha 9FA: DESCANSO — 676 pers.h acumuladas esta semana, NDVI=0.318 — cerrar hasta recuperacion minima (48hs)",
           "ndvi_historial": [
             0.061,
             0.318
@@ -4320,43 +4313,43 @@
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.3613,
+                "stress": 0.4303,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.3613,
+                "stress": 0.4303,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.455,
+                "stress": 0.5418,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.4283,
+                "stress": 0.51,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.4015,
+                "stress": 0.4781,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.4015,
+                "stress": 0.4781,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.455
+            "stress_max": 0.5418
           },
           "ndre": 0.228,
           "ccci": 0.717,
@@ -4383,12 +4376,12 @@
           "id": "10fa",
           "nombre": "10FA",
           "score": 75,
-          "score_prev": 53,
+          "score_prev": 75,
           "sem": "verde",
           "ndvi": 0.321,
-          "ndvi_prev": null,
+          "ndvi_prev": 0.321,
           "detalle": "NDVI 0.32 · Sin actividad registrada · 0 pers · 0h · Dormancia estacional",
-          "prescripcion_operativa": "Cancha 10FA: Dormancia invernal — NDVI=sin dato (normal Jun-Ago) — sin intervencion urgente hoy",
+          "prescripcion_operativa": "Cancha 10FA: Dormancia invernal — NDVI=0.321 (normal Jun-Ago) — sin intervencion urgente hoy",
           "ndvi_historial": [
             0.117,
             0.321
@@ -4399,43 +4392,43 @@
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.3445,
+                "stress": 0.4128,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.3445,
+                "stress": 0.4128,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.4338,
+                "stress": 0.5198,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.4082,
+                "stress": 0.4892,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.3827,
+                "stress": 0.4587,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.3827,
+                "stress": 0.4587,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.4338
+            "stress_max": 0.5198
           },
           "ndre": 0.221,
           "ccci": 0.6885,
@@ -4462,12 +4455,12 @@
           "id": "1fp",
           "nombre": "1FP",
           "score": 67,
-          "score_prev": 36,
+          "score_prev": 67,
           "sem": "amarillo",
           "ndvi": 0.32,
-          "ndvi_prev": null,
+          "ndvi_prev": 0.32,
           "detalle": "NDVI 0.32 · Cancha descansada · 30 pers · 3.0h · Dormancia estacional",
-          "prescripcion_operativa": "Cancha 1FP: Dormancia invernal — NDVI=sin dato (normal Jun-Ago) — sin intervencion urgente hoy",
+          "prescripcion_operativa": "Cancha 1FP: Dormancia invernal — NDVI=0.320 (normal Jun-Ago) — sin intervencion urgente hoy",
           "ndvi_historial": [
             0.034,
             0.32
@@ -4478,43 +4471,43 @@
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.3445,
+                "stress": 0.413,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.3445,
+                "stress": 0.413,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.4338,
+                "stress": 0.5201,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.4082,
+                "stress": 0.4895,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.3827,
+                "stress": 0.4589,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.3827,
+                "stress": 0.4589,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.4338
+            "stress_max": 0.5201
           },
           "ndre": 0.234,
           "ccci": 0.7313,
@@ -4541,12 +4534,12 @@
           "id": "2fp",
           "nombre": "2FP",
           "score": 76,
-          "score_prev": 45,
+          "score_prev": 76,
           "sem": "verde",
           "ndvi": 0.332,
-          "ndvi_prev": null,
+          "ndvi_prev": 0.332,
           "detalle": "NDVI 0.33 · Sin actividad registrada · 0 pers · 0h · Dormancia estacional",
-          "prescripcion_operativa": "Cancha 2FP: Dormancia invernal — NDVI=sin dato (normal Jun-Ago) — sin intervencion urgente hoy",
+          "prescripcion_operativa": "Cancha 2FP: Dormancia invernal — NDVI=0.332 (normal Jun-Ago) — sin intervencion urgente hoy",
           "ndvi_historial": [
             0.044,
             0.332
@@ -4557,43 +4550,43 @@
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.3445,
+                "stress": 0.4105,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.3445,
+                "stress": 0.4105,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.4338,
+                "stress": 0.5169,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.4082,
+                "stress": 0.4865,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.3827,
+                "stress": 0.4561,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.3827,
+                "stress": 0.4561,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.4338
+            "stress_max": 0.5169
           },
           "ndre": 0.218,
           "ccci": 0.6566,
@@ -4652,10 +4645,10 @@
       "kpis": [
         {
           "label": "NDVI 1FA",
-          "value": "0.043",
+          "value": "0.241",
           "value_prev": "0.043",
           "unit": "",
-          "sub": "CRÍTICO — carga extrema + NDVI en crisis · conf:ALTA",
+          "sub": "CRÍTICO — carga extrema · dormancia invernal · conf:ALTA",
           "sem": "rojo"
         },
         {
@@ -4668,20 +4661,18 @@
         },
         {
           "label": "Score VO",
-          "value": "42",
+          "value": "69",
           "value_prev": "42",
           "unit": "",
           "sub": "Promedio 12 canchas · 2026-06-24",
-          "sem": "rojo"
+          "sem": "amarillo"
         }
       ],
       "acciones": [
         "Ventana de corte: VENTANA ÓPTIMA — 26 mm · 1200 RPM",
-        "1FA: DESCANSO URGENTE — 1845 pers·h · NDVI 0.043 [conf:ALTA] — no programar sesiones hasta recuperación",
-        "8FA: DESCANSO URGENTE — 676 pers·h · NDVI 0.000 [conf:MEDIA] — no programar sesiones hasta recuperación",
-        "9FA: DESCANSO URGENTE — 676 pers·h · NDVI 0.000 [conf:MEDIA] — no programar sesiones hasta recuperación",
-        "3FA: NDVI 0.000 [conf:MEDIA] crítico bajo 180 pers·h esta semana — resembrar zona central",
-        "5FA: NDVI 0.000 [conf:MEDIA] crítico bajo 298 pers·h esta semana — resembrar zona central"
+        "1FA: DESCANSO URGENTE — 1845 pers·h · NDVI 0.241 [conf:ALTA] — no programar sesiones hasta recuperación",
+        "8FA: DESCANSO URGENTE — 676 pers·h · NDVI 0.255 [conf:ALTA] — no programar sesiones hasta recuperación",
+        "9FA: DESCANSO URGENTE — 676 pers·h · NDVI 0.318 [conf:ALTA] — no programar sesiones hasta recuperación"
       ],
       "tareas_semana": [
         {
@@ -4766,54 +4757,54 @@
           "gndvi": 0.239,
           "n_status": "grave",
           "n_rec": "Fertilizar URGENTE — deficiencia N grave",
-          "prescripcion_operativa": "Cancha 1FA: DESCANSO — 1845 pers.h acumuladas esta semana, NDVI=0.043 — cerrar hasta recuperacion minima (48hs)",
+          "prescripcion_operativa": "Cancha 1FA: DESCANSO — 1845 pers.h acumuladas esta semana, NDVI=0.241 — cerrar hasta recuperacion minima (48hs)",
           "estado_detectado": "normal",
           "zonas_estres": {
             "nodos": [
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.4874,
+                "stress": 0.4463,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.4874,
+                "stress": 0.4463,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.6138,
+                "stress": 0.562,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.5777,
+                "stress": 0.5289,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.5416,
+                "stress": 0.4959,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.5416,
+                "stress": 0.4959,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.6138
+            "stress_max": 0.562
           },
-          "hermes_umbral_dinamico": 0.1403,
+          "hermes_umbral_dinamico": 0.1914,
           "hermes_confianza": "ALTA",
-          "hermes_status": "ALERTA_ANOMALIA",
+          "hermes_status": "NOMINAL_GREEN",
           "hermes_ndvi_fuente": "OPTICO_DIRECTO",
           "pct_baja_ndvi": 50,
           "focos_reales": [
@@ -4983,55 +4974,55 @@
           "gndvi": 0.263,
           "n_status": "grave",
           "n_rec": "Fertilizar URGENTE — deficiencia N grave",
-          "prescripcion_operativa": "Cancha 8FA: DESCANSO — 676 pers.h acumuladas esta semana, NDVI=sin dato — cerrar hasta recuperacion minima (48hs)",
+          "prescripcion_operativa": "Cancha 8FA: DESCANSO — 676 pers.h acumuladas esta semana, NDVI=0.255 — cerrar hasta recuperacion minima (48hs)",
           "estado_detectado": "normal",
           "zonas_estres": {
             "nodos": [
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.3613,
+                "stress": 0.4434,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.3613,
+                "stress": 0.4434,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.455,
+                "stress": 0.5583,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.4283,
+                "stress": 0.5255,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.4015,
+                "stress": 0.4926,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.4015,
+                "stress": 0.4926,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.455
+            "stress_max": 0.5583
           },
-          "hermes_umbral_dinamico": 0.4004,
-          "hermes_confianza": "MEDIA",
+          "hermes_umbral_dinamico": 0.2054,
+          "hermes_confianza": "ALTA",
           "hermes_status": "NOMINAL_GREEN",
-          "hermes_ndvi_fuente": "SAR_ESTIMADO",
+          "hermes_ndvi_fuente": "OPTICO_DIRECTO",
           "pct_baja_ndvi": 46,
           "focos_reales": [
             {
@@ -5191,55 +5182,55 @@
           "gndvi": 0.311,
           "n_status": "grave",
           "n_rec": "Fertilizar URGENTE — deficiencia N grave",
-          "prescripcion_operativa": "Cancha 9FA: DESCANSO — 676 pers.h acumuladas esta semana, NDVI=sin dato — cerrar hasta recuperacion minima (48hs)",
+          "prescripcion_operativa": "Cancha 9FA: DESCANSO — 676 pers.h acumuladas esta semana, NDVI=0.318 — cerrar hasta recuperacion minima (48hs)",
           "estado_detectado": "normal",
           "zonas_estres": {
             "nodos": [
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.3613,
+                "stress": 0.4303,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.3613,
+                "stress": 0.4303,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.455,
+                "stress": 0.5418,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.4283,
+                "stress": 0.51,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.4015,
+                "stress": 0.4781,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.4015,
+                "stress": 0.4781,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.455
+            "stress_max": 0.5418
           },
-          "hermes_umbral_dinamico": 0.4004,
-          "hermes_confianza": "MEDIA",
+          "hermes_umbral_dinamico": 0.2684,
+          "hermes_confianza": "ALTA",
           "hermes_status": "NOMINAL_GREEN",
-          "hermes_ndvi_fuente": "SAR_ESTIMADO",
+          "hermes_ndvi_fuente": "OPTICO_DIRECTO",
           "pct_baja_ndvi": 24,
           "focos_reales": [
             {
@@ -5399,55 +5390,55 @@
           "gndvi": 0.391,
           "n_status": "grave",
           "n_rec": "Fertilizar URGENTE — deficiencia N grave",
-          "prescripcion_operativa": "Cancha 5FA: Dormancia invernal — NDVI=sin dato (normal Jun-Ago) — sin intervencion urgente hoy",
+          "prescripcion_operativa": "Cancha 5FA: Dormancia invernal — NDVI=0.428 (normal Jun-Ago) — sin intervencion urgente hoy",
           "estado_detectado": "normal",
           "zonas_estres": {
             "nodos": [
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.3613,
+                "stress": 0.4074,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.3613,
+                "stress": 0.4074,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.455,
+                "stress": 0.5131,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.4283,
+                "stress": 0.4829,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.4015,
+                "stress": 0.4527,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.4015,
+                "stress": 0.4527,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.455
+            "stress_max": 0.5131
           },
-          "hermes_umbral_dinamico": 0.4004,
-          "hermes_confianza": "MEDIA",
+          "hermes_umbral_dinamico": 0.3784,
+          "hermes_confianza": "ALTA",
           "hermes_status": "NOMINAL_GREEN",
-          "hermes_ndvi_fuente": "SAR_ESTIMADO",
+          "hermes_ndvi_fuente": "OPTICO_DIRECTO",
           "pct_baja_ndvi": 28,
           "focos_reales": [
             {
@@ -5598,55 +5589,55 @@
           "gndvi": 0.416,
           "n_status": "grave",
           "n_rec": "Fertilizar URGENTE — deficiencia N grave",
-          "prescripcion_operativa": "Cancha 3FA: Dormancia invernal — NDVI=sin dato (normal Jun-Ago) — sin intervencion urgente hoy",
+          "prescripcion_operativa": "Cancha 3FA: Dormancia invernal — NDVI=0.440 (normal Jun-Ago) — sin intervencion urgente hoy",
           "estado_detectado": "normal",
           "zonas_estres": {
             "nodos": [
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.3596,
+                "stress": 0.4033,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.3596,
+                "stress": 0.4033,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.4529,
+                "stress": 0.5078,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.4263,
+                "stress": 0.4779,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.3996,
+                "stress": 0.4481,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.3996,
+                "stress": 0.4481,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.4529
+            "stress_max": 0.5078
           },
-          "hermes_umbral_dinamico": 0.4004,
-          "hermes_confianza": "MEDIA",
+          "hermes_umbral_dinamico": 0.3904,
+          "hermes_confianza": "ALTA",
           "hermes_status": "NOMINAL_GREEN",
-          "hermes_ndvi_fuente": "SAR_ESTIMADO",
+          "hermes_ndvi_fuente": "OPTICO_DIRECTO",
           "pct_baja_ndvi": 6,
           "focos_reales": [
             {
@@ -5797,55 +5788,55 @@
           "gndvi": 0.292,
           "n_status": "grave",
           "n_rec": "Fertilizar URGENTE — deficiencia N grave",
-          "prescripcion_operativa": "Cancha 2FA: Dormancia invernal — NDVI=sin dato (normal Jun-Ago) — sin intervencion urgente hoy",
+          "prescripcion_operativa": "Cancha 2FA: Dormancia invernal — NDVI=0.284 (normal Jun-Ago) — sin intervencion urgente hoy",
           "estado_detectado": "normal",
           "zonas_estres": {
             "nodos": [
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.3445,
+                "stress": 0.4205,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.3445,
+                "stress": 0.4205,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.4338,
+                "stress": 0.5295,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.4082,
+                "stress": 0.4983,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.3827,
+                "stress": 0.4672,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.3827,
+                "stress": 0.4672,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.4338
+            "stress_max": 0.5295
           },
-          "hermes_umbral_dinamico": 0.4004,
-          "hermes_confianza": "MEDIA",
+          "hermes_umbral_dinamico": 0.2344,
+          "hermes_confianza": "ALTA",
           "hermes_status": "NOMINAL_GREEN",
-          "hermes_ndvi_fuente": "SAR_ESTIMADO",
+          "hermes_ndvi_fuente": "OPTICO_DIRECTO",
           "pct_baja_ndvi": 31,
           "focos_reales": [
             {
@@ -6014,55 +6005,55 @@
           "gndvi": 0.259,
           "n_status": "grave",
           "n_rec": "Fertilizar URGENTE — deficiencia N grave",
-          "prescripcion_operativa": "Cancha 4FA: Dormancia invernal — NDVI=sin dato (normal Jun-Ago) — sin intervencion urgente hoy",
+          "prescripcion_operativa": "Cancha 4FA: Dormancia invernal — NDVI=0.256 (normal Jun-Ago) — sin intervencion urgente hoy",
           "estado_detectado": "normal",
           "zonas_estres": {
             "nodos": [
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.3445,
+                "stress": 0.4263,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.3445,
+                "stress": 0.4263,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.4338,
+                "stress": 0.5368,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.4082,
+                "stress": 0.5052,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.3827,
+                "stress": 0.4737,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.3827,
+                "stress": 0.4737,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.4338
+            "stress_max": 0.5368
           },
-          "hermes_umbral_dinamico": 0.4004,
-          "hermes_confianza": "MEDIA",
+          "hermes_umbral_dinamico": 0.2064,
+          "hermes_confianza": "ALTA",
           "hermes_status": "NOMINAL_GREEN",
-          "hermes_ndvi_fuente": "SAR_ESTIMADO",
+          "hermes_ndvi_fuente": "OPTICO_DIRECTO",
           "pct_baja_ndvi": 45,
           "focos_reales": [
             {
@@ -6213,55 +6204,55 @@
           "gndvi": 0.317,
           "n_status": "grave",
           "n_rec": "Fertilizar URGENTE — deficiencia N grave",
-          "prescripcion_operativa": "Cancha 6FA: Dormancia invernal — NDVI=sin dato (normal Jun-Ago) — sin intervencion urgente hoy",
+          "prescripcion_operativa": "Cancha 6FA: Dormancia invernal — NDVI=0.339 (normal Jun-Ago) — sin intervencion urgente hoy",
           "estado_detectado": "normal",
           "zonas_estres": {
             "nodos": [
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.3445,
+                "stress": 0.4091,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.3445,
+                "stress": 0.4091,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.4338,
+                "stress": 0.5151,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.4082,
+                "stress": 0.4848,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.3827,
+                "stress": 0.4545,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.3827,
+                "stress": 0.4545,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.4338
+            "stress_max": 0.5151
           },
-          "hermes_umbral_dinamico": 0.4004,
-          "hermes_confianza": "MEDIA",
+          "hermes_umbral_dinamico": 0.2894,
+          "hermes_confianza": "ALTA",
           "hermes_status": "NOMINAL_GREEN",
-          "hermes_ndvi_fuente": "SAR_ESTIMADO",
+          "hermes_ndvi_fuente": "OPTICO_DIRECTO",
           "pct_baja_ndvi": 30,
           "focos_reales": [
             {
@@ -6412,55 +6403,55 @@
           "gndvi": 0.263,
           "n_status": "grave",
           "n_rec": "Fertilizar URGENTE — deficiencia N grave",
-          "prescripcion_operativa": "Cancha 7FA: Dormancia invernal — NDVI=sin dato (normal Jun-Ago) — sin intervencion urgente hoy",
+          "prescripcion_operativa": "Cancha 7FA: Dormancia invernal — NDVI=0.255 (normal Jun-Ago) — sin intervencion urgente hoy",
           "estado_detectado": "normal",
           "zonas_estres": {
             "nodos": [
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.3445,
+                "stress": 0.4265,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.3445,
+                "stress": 0.4265,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.4338,
+                "stress": 0.5371,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.4082,
+                "stress": 0.5055,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.3827,
+                "stress": 0.4739,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.3827,
+                "stress": 0.4739,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.4338
+            "stress_max": 0.5371
           },
-          "hermes_umbral_dinamico": 0.4004,
-          "hermes_confianza": "MEDIA",
+          "hermes_umbral_dinamico": 0.2054,
+          "hermes_confianza": "ALTA",
           "hermes_status": "NOMINAL_GREEN",
-          "hermes_ndvi_fuente": "SAR_ESTIMADO",
+          "hermes_ndvi_fuente": "OPTICO_DIRECTO",
           "pct_baja_ndvi": 45,
           "focos_reales": [
             {
@@ -6620,55 +6611,55 @@
           "gndvi": 0.312,
           "n_status": "grave",
           "n_rec": "Fertilizar URGENTE — deficiencia N grave",
-          "prescripcion_operativa": "Cancha 10FA: Dormancia invernal — NDVI=sin dato (normal Jun-Ago) — sin intervencion urgente hoy",
+          "prescripcion_operativa": "Cancha 10FA: Dormancia invernal — NDVI=0.321 (normal Jun-Ago) — sin intervencion urgente hoy",
           "estado_detectado": "normal",
           "zonas_estres": {
             "nodos": [
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.3445,
+                "stress": 0.4128,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.3445,
+                "stress": 0.4128,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.4338,
+                "stress": 0.5198,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.4082,
+                "stress": 0.4892,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.3827,
+                "stress": 0.4587,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.3827,
+                "stress": 0.4587,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.4338
+            "stress_max": 0.5198
           },
-          "hermes_umbral_dinamico": 0.4004,
-          "hermes_confianza": "MEDIA",
+          "hermes_umbral_dinamico": 0.2714,
+          "hermes_confianza": "ALTA",
           "hermes_status": "NOMINAL_GREEN",
-          "hermes_ndvi_fuente": "SAR_ESTIMADO",
+          "hermes_ndvi_fuente": "OPTICO_DIRECTO",
           "pct_baja_ndvi": 21,
           "focos_reales": [
             {
@@ -6828,55 +6819,55 @@
           "gndvi": 0.319,
           "n_status": "grave",
           "n_rec": "Fertilizar URGENTE — deficiencia N grave",
-          "prescripcion_operativa": "Cancha 1FP: Dormancia invernal — NDVI=sin dato (normal Jun-Ago) — sin intervencion urgente hoy",
+          "prescripcion_operativa": "Cancha 1FP: Dormancia invernal — NDVI=0.320 (normal Jun-Ago) — sin intervencion urgente hoy",
           "estado_detectado": "normal",
           "zonas_estres": {
             "nodos": [
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.3445,
+                "stress": 0.413,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.3445,
+                "stress": 0.413,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.4338,
+                "stress": 0.5201,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.4082,
+                "stress": 0.4895,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.3827,
+                "stress": 0.4589,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.3827,
+                "stress": 0.4589,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.4338
+            "stress_max": 0.5201
           },
-          "hermes_umbral_dinamico": 0.4004,
-          "hermes_confianza": "MEDIA",
+          "hermes_umbral_dinamico": 0.2704,
+          "hermes_confianza": "ALTA",
           "hermes_status": "NOMINAL_GREEN",
-          "hermes_ndvi_fuente": "SAR_ESTIMADO",
+          "hermes_ndvi_fuente": "OPTICO_DIRECTO",
           "pct_baja_ndvi": 18,
           "focos_reales": [
             {
@@ -7060,55 +7051,55 @@
           "gndvi": 0.318,
           "n_status": "grave",
           "n_rec": "Fertilizar URGENTE — deficiencia N grave",
-          "prescripcion_operativa": "Cancha 2FP: Dormancia invernal — NDVI=sin dato (normal Jun-Ago) — sin intervencion urgente hoy",
+          "prescripcion_operativa": "Cancha 2FP: Dormancia invernal — NDVI=0.332 (normal Jun-Ago) — sin intervencion urgente hoy",
           "estado_detectado": "normal",
           "zonas_estres": {
             "nodos": [
               {
                 "x": 0.25,
                 "y": 0.15,
-                "stress": 0.3445,
+                "stress": 0.4105,
                 "zona": "Banda Izquierda Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.15,
-                "stress": 0.3445,
+                "stress": 0.4105,
                 "zona": "Banda Derecha Norte"
               },
               {
                 "x": 0.25,
                 "y": 0.5,
-                "stress": 0.4338,
+                "stress": 0.5169,
                 "zona": "Pasillo Central Norte"
               },
               {
                 "x": 0.75,
                 "y": 0.5,
-                "stress": 0.4082,
+                "stress": 0.4865,
                 "zona": "Pasillo Central Sur"
               },
               {
                 "x": 0.25,
                 "y": 0.85,
-                "stress": 0.3827,
+                "stress": 0.4561,
                 "zona": "Banda Izquierda Sur"
               },
               {
                 "x": 0.75,
                 "y": 0.85,
-                "stress": 0.3827,
+                "stress": 0.4561,
                 "zona": "Banda Derecha Sur"
               }
             ],
             "zona_critica": "Normal",
             "prioridad": 1,
-            "stress_max": 0.4338
+            "stress_max": 0.5169
           },
-          "hermes_umbral_dinamico": 0.4004,
-          "hermes_confianza": "MEDIA",
+          "hermes_umbral_dinamico": 0.2824,
+          "hermes_confianza": "ALTA",
           "hermes_status": "NOMINAL_GREEN",
-          "hermes_ndvi_fuente": "SAR_ESTIMADO",
+          "hermes_ndvi_fuente": "OPTICO_DIRECTO",
           "pct_baja_ndvi": 7,
           "focos_reales": [
             {
@@ -7334,7 +7325,7 @@
             "stress_max": 0.9262,
             "fuente": "synthetic-fallback"
           },
-          "hermes_umbral_dinamico": 0.1453,
+          "hermes_umbral_dinamico": 0.2353,
           "hermes_confianza": "ALTA",
           "hermes_status": "ALERTA_ANOMALIA",
           "hermes_ndvi_fuente": "OPTICO_DIRECTO",
@@ -7584,9 +7575,9 @@
             "stress_max": 0.8954,
             "fuente": "synthetic-fallback"
           },
-          "hermes_umbral_dinamico": 0.1653,
+          "hermes_umbral_dinamico": 0.1914,
           "hermes_confianza": "ALTA",
-          "hermes_status": "ALERTA_ANOMALIA",
+          "hermes_status": "NOMINAL_GREEN",
           "hermes_ndvi_fuente": "OPTICO_DIRECTO",
           "pct_baja_ndvi": 43,
           "focos_reales": [
@@ -7798,7 +7789,7 @@
             "stress_max": 0.9262,
             "fuente": "synthetic-fallback"
           },
-          "hermes_umbral_dinamico": 0.1453,
+          "hermes_umbral_dinamico": 0.1733,
           "hermes_confianza": "ALTA",
           "hermes_status": "ALERTA_ANOMALIA",
           "hermes_ndvi_fuente": "OPTICO_DIRECTO",
@@ -7944,7 +7935,7 @@
             "stress_max": 0.9323,
             "fuente": "synthetic-fallback"
           },
-          "hermes_umbral_dinamico": 0.1413,
+          "hermes_umbral_dinamico": 0.2013,
           "hermes_confianza": "ALTA",
           "hermes_status": "ALERTA_ANOMALIA",
           "hermes_ndvi_fuente": "OPTICO_DIRECTO",
@@ -8100,7 +8091,7 @@
             "stress_max": 0.9415,
             "fuente": "synthetic-fallback"
           },
-          "hermes_umbral_dinamico": 0.1353,
+          "hermes_umbral_dinamico": 0.2113,
           "hermes_confianza": "ALTA",
           "hermes_status": "ALERTA_ANOMALIA",
           "hermes_ndvi_fuente": "OPTICO_DIRECTO",
@@ -8396,7 +8387,7 @@
       "heatmaps_meta": {
         "fuente": "sentinel-2-l2a · Planetary Computer · 2026-06-16 · nub 0%",
         "semana": "2026-06-16",
-        "updated_at": "2026-06-24T15:43:54Z"
+        "updated_at": "2026-06-24T23:08:03Z"
       }
     },
     "juan": {
@@ -8952,7 +8943,7 @@
   },
   "historial_meta": {
     "semana": "2026-06-16",
-    "committed_at": "2026-06-24T15:44:09Z",
+    "committed_at": "2026-06-24T23:08:18Z",
     "fuente": "Faro Protocol · Railway auto-commit"
   }
 }
