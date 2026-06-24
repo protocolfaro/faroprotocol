@@ -10,10 +10,7 @@ from datetime import datetime, date, timezone, timedelta
 from pathlib import Path
 
 _ART = timezone(timedelta(hours=-3))  # America/Argentina/Buenos_Aires (no DST)
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from email.mime.base import MIMEBase
-from email import encoders
+from email.mime.multipart import MIMEMultipart  # kept for smtp_diag only
 from urllib.request import urlopen, Request as UReq
 
 import requests
@@ -32,6 +29,8 @@ GMAIL_CLIENT_ID     = os.environ.get("GMAIL_CLIENT_ID", "")
 GMAIL_CLIENT_SECRET = os.environ.get("GMAIL_CLIENT_SECRET", "")
 GMAIL_REFRESH_TOKEN = os.environ.get("GMAIL_REFRESH_TOKEN", "")
 GMAIL_PASS          = os.environ.get("GMAIL_APP_PASS", os.environ.get("GMAIL_PASS", ""))
+RESEND_API_KEY      = os.environ.get("RESEND_API_KEY", "")
+RESEND_FROM         = os.environ.get("RESEND_FROM", "Faro Protocol <protocolfaro@gmail.com>")
 
 _MANUAL_DIR  = Path(__file__).parents[4] / "reportes_velez"
 MANUAL_PATHS: dict = {
@@ -224,77 +223,39 @@ def _get_report_paths(config: dict) -> dict:
     }
 
 
-def _get_gmail_access_token() -> str:
-    """Obtener access token usando refresh token (HTTPS/443 — no bloqueado por Railway)."""
-    r = requests.post("https://oauth2.googleapis.com/token", data={
-        "client_id":     GMAIL_CLIENT_ID,
-        "client_secret": GMAIL_CLIENT_SECRET,
-        "refresh_token": GMAIL_REFRESH_TOKEN,
-        "grant_type":    "refresh_token",
-    }, timeout=10)
-    r.raise_for_status()
-    return r.json()["access_token"]
-
-
-def _build_mime(to: str, subject: str, body_html: str, attachments: list = None) -> MIMEMultipart:
-    msg = MIMEMultipart("mixed")
-    msg["To"]      = to
-    msg["From"]    = GMAIL_USER
-    msg["Subject"] = subject
-    msg.attach(MIMEText(body_html, "html"))
-    for fn, data in (attachments or []):
-        part = MIMEBase("application", "octet-stream")
-        part.set_payload(data)
-        encoders.encode_base64(part)
-        part.add_header("Content-Disposition", f'attachment; filename="{fn}"')
-        msg.attach(part)
-    return msg
-
-
-def _send_email_smtp(to: str, subject: str, body_html: str, attachments: list = None) -> bool:
-    """Fallback: envía via SMTP SSL con app password."""
-    if not GMAIL_PASS:
-        log.warning("SMTP fallback: GMAIL_APP_PASS no configurado")
-        return False
-    import ssl
-    try:
-        msg = _build_mime(to, subject, body_html, attachments)
-        ctx = ssl.create_default_context()
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=20, context=ctx) as s:
-            s.login(GMAIL_USER, GMAIL_PASS)
-            s.sendmail(GMAIL_USER, [to], msg.as_bytes())
-        log.info("SMTP fallback OK → %s: %s", to, subject)
-        return True
-    except Exception as e:
-        log.error("SMTP fallback error → %s: %s", to, e)
-        return False
-
 
 def send_email(to: str, subject: str, body_html: str,
                attachments: list = None) -> bool:
-    """Enviar email via Gmail API REST; fallback a SMTP si OAuth falla."""
-    # Intentar Gmail API OAuth primero
-    if GMAIL_CLIENT_ID and GMAIL_REFRESH_TOKEN:
-        try:
-            access_token = _get_gmail_access_token()
-            msg = _build_mime(to, subject, body_html, attachments)
-            raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
-            r = requests.post(
-                "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
-                headers={"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"},
-                json={"raw": raw},
-                timeout=30,
-            )
-            if r.status_code in (200, 201):
-                log.info("Gmail API OK → %s: %s", to, subject)
-                return True
-            log.warning("Gmail API HTTP %s → %s — intentando SMTP fallback", r.status_code, to)
-        except Exception as e:
-            log.warning("Gmail API error (%s) → intentando SMTP fallback: %s", to, e)
-    else:
-        log.info("Gmail OAuth no configurado — usando SMTP directo")
-
-    return _send_email_smtp(to, subject, body_html, attachments)
+    """Enviar email via Resend (HTTPS — no bloqueado por Railway)."""
+    if not RESEND_API_KEY:
+        log.warning("send_email: RESEND_API_KEY no configurado")
+        return False
+    try:
+        payload: dict = {
+            "from":    RESEND_FROM,
+            "to":      [to],
+            "subject": subject,
+            "html":    body_html,
+        }
+        if attachments:
+            payload["attachments"] = [
+                {"filename": fn, "content": base64.b64encode(data).decode()}
+                for fn, data in attachments
+            ]
+        r = requests.post(
+            "https://api.resend.com/emails",
+            headers={"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"},
+            json=payload,
+            timeout=30,
+        )
+        if r.status_code in (200, 201):
+            log.info("Resend OK → %s: %s", to, subject)
+            return True
+        log.error("Resend HTTP %s → %s: %s", r.status_code, to, r.text[:200])
+        return False
+    except Exception as e:
+        log.error("Resend error → %s: %s", to, e)
+        return False
 
 
 def _html_wrap(title: str, body: str, panel_url: str = "") -> str:
@@ -1781,16 +1742,14 @@ def run_refresh_only(force: bool = False) -> dict:
 
 def register_jobs(scheduler) -> None:
     from apscheduler.triggers.cron import CronTrigger
-    # PAUSADO — reactivar cuando se confirmen reportes y SMTP
-    # scheduler.add_job(
-    #     run_weekly_job,
-    #     CronTrigger(day_of_week="mon", hour=10, minute=0, timezone="UTC"),
-    #     id="weekly_report",
-    #     replace_existing=True,
-    #     misfire_grace_time=7200,
-    # )
-    # log.info("Weekly job registered — Lunes 07:00 ART (10:00 UTC)")
-    log.info("Weekly job PAUSADO — reactivar manualmente cuando se confirmen reportes")
+    scheduler.add_job(
+        run_weekly_job,
+        CronTrigger(day_of_week="mon", hour=10, minute=0, timezone="UTC"),
+        id="weekly_report",
+        replace_existing=True,
+        misfire_grace_time=7200,
+    )
+    log.info("Weekly job registrado — Lunes 07:00 ART (10:00 UTC)")
 
 
 # ── Flask route handlers (registered in app.py) ───────────────────────────────
