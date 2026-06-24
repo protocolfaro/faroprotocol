@@ -481,15 +481,16 @@ def _compute_hand(venue_id: str) -> HydroMetrics:
             median_fill = np.nanmedian(dem)
             dem = np.where(nan_mask, median_fill, dem)
 
-        # HAND simplificado para terreno plano:
-        # 1. Identificar cauces potenciales = píxeles en percentil < 5% (mínimo local)
-        # 2. HAND[i] = dem[i] - dem_cauce más cercano vía distancia euclidiana
-        p5       = np.nanpercentile(dem, 5)
-        cauce    = dem <= p5                              # máscara de cauce potencial
-        dist, _  = ndi.distance_transform_edt(~cauce)    # distancia al cauce más cercano
-        # Elevación del cauce más cercano (interpolación por asignación al vecino más próximo)
-        dem_norm = dem - p5                               # elevación relativa sobre mínimo
-        hand     = np.clip(dem_norm, 0, None)
+        # HAND: cada píxel → elevación relativa al cauce más cercano.
+        # Cauce potencial = píxeles en percentil < 5% de elevación.
+        # Para cada píxel no-cauce, ndi.distance_transform_edt devuelve el índice
+        # del píxel de cauce más próximo → usamos su elevación como referencia.
+        p5     = np.nanpercentile(dem, 5)
+        cauce  = dem <= p5
+        _, idx = ndi.distance_transform_edt(~cauce, return_indices=True)
+        # idx shape: (2, H, W) — filas y columnas del cauce más próximo
+        nearest_elev = dem[idx[0], idx[1]]
+        hand         = np.clip(dem - nearest_elev, 0, None)
 
         hand_mean = float(np.nanmean(hand))
         hand_p90  = float(np.nanpercentile(hand, 90))
@@ -670,7 +671,7 @@ class FaroAuditor:
 
 # ── Persistencia Supabase ─────────────────────────────────────────────────────
 
-def _persist(report: FaroV2Report) -> bool:
+def persist_to_supabase(report: FaroV2Report) -> bool:
     """INSERT en faro_v2_reports. Retorna True si OK."""
     url = _SUPA_URL()
     key = _SUPA_KEY()
@@ -678,11 +679,7 @@ def _persist(report: FaroV2Report) -> bool:
         log.warning("persist: SUPABASE_URL/KEY no configurados")
         return False
     try:
-        payload = {
-            **{k: asdict(v) if hasattr(v, "__dataclass_fields__") else v
-               for k, v in asdict(report).items()},
-            "created_at": datetime.utcnow().isoformat() + "Z",
-        }
+        payload = {**asdict(report), "created_at": datetime.utcnow().isoformat() + "Z"}
         r = requests.post(
             f"{url}/rest/v1/faro_v2_reports",
             headers = {
@@ -704,6 +701,65 @@ def _persist(report: FaroV2Report) -> bool:
     except Exception as e:
         log.error("persist (non-fatal): %s", e)
         return False
+
+
+_persist = persist_to_supabase  # alias interno
+
+
+def record_prometheus_metrics(report: FaroV2Report,
+                               path: str = "/tmp/faro_metrics.prom") -> None:
+    """
+    Escribe métricas en formato Prometheus text exposition a /tmp/faro_metrics.prom.
+    No requiere prometheus_client — pure stdlib, compatible con cualquier scraper.
+    faro_monitoring.py lee este archivo para servir /metrics via Flask.
+    """
+    v   = report.venue_id
+    now = datetime.utcnow().timestamp()
+
+    def _g(name: str, value: float | None, help_text: str = "") -> list[str]:
+        if value is None:
+            return []
+        lines = []
+        if help_text:
+            lines.append(f"# HELP {name} {help_text}")
+        lines.append(f'# TYPE {name} gauge')
+        lines.append(f'{name}{{venue="{v}"}} {value}')
+        return lines
+
+    metrics: list[str] = [
+        f"# Faro Engine V2 metrics — generated {datetime.utcnow().isoformat()}Z",
+        *_g("faro_pipeline_duration_seconds", report.duration_s,
+            "Duración del pipeline en segundos"),
+        *_g("faro_pipeline_errors_total", float(len(report.errors)),
+            "Cantidad de componentes con error"),
+        *_g("faro_audit_verified", float(report.audit.verified),
+            "1=TSA RFC3161 verificado, 0=sin sello"),
+        *_g("faro_solar_ghi_wh_m2", report.solar.ghi_wh_m2,
+            "Irradiación global horizontal Wh/m²/día"),
+        *_g("faro_solar_et0_mm_dia", report.solar.et0_mm_dia,
+            "Evapotranspiración referencia FAO-56 mm/día"),
+        *_g("faro_sar_vv_db", report.sar.vv_gamma0_db,
+            "SAR OPERA RTC VV gamma0 dB"),
+        *_g("faro_sar_theta_soil", report.sar.theta_soil,
+            "Humedad suelo volumétrica Van Genuchten m³/m³"),
+        *_g("faro_sar_h_suction_cm", report.sar.h_suction_cm,
+            "Tensión mátrica Van Genuchten cm"),
+        *_g("faro_hydro_hand_mean_m", report.hydro.hand_mean_m,
+            "HAND medio sobre AOI metros"),
+        *_g("faro_canopy_height_mean_m", report.canopy.altura_media_m,
+            "ETH canopy height media metros"),
+        *_g("faro_lband_hh_db", report.lband.hh_mean_db,
+            "ALOS PALSAR L-band HH dB (baseline histórico)"),
+        *_g("faro_run_timestamp", now, "UNIX timestamp del último run"),
+        "",  # trailing newline requerido por Prometheus
+    ]
+
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("\n".join(metrics))
+        log.info("metrics: escrito %d métricas a %s", len([l for l in metrics if "venue=" in l]), path)
+    except Exception as e:
+        log.warning("metrics write (non-fatal): %s", e)
 
 
 # ── FaroEngine ────────────────────────────────────────────────────────────────
@@ -775,6 +831,8 @@ class FaroEngine:
         report = self.auditor.certify(report)
         report.duration_s = round(time.time() - t0, 2)
 
+        record_prometheus_metrics(report)
+
         status = "✅" if not report.errors else f"⚠ {len(report.errors)} errores"
         log.info("FaroEngine V2 END — %.1fs %s | SHA256=%s… | TSA=%s",
                  report.duration_s, status,
@@ -784,7 +842,7 @@ class FaroEngine:
 
     def run_and_persist(self, skip: list[str] | None = None) -> "FaroV2Report":
         report = self.run(skip=skip)
-        _persist(report)
+        persist_to_supabase(report)
         return report
 
 
