@@ -1663,7 +1663,20 @@ def run_weekly_job() -> dict:
     global _last_weekly
     log.info("=== Weekly job starting ===")
 
-    # Satellite pipeline as guaranteed weekly fallback (daily run may have been skipped)
+    # FaroEngine V2 — guaranteed weekly run: SAR + solar + HAND para ambos venues
+    try:
+        from faro_v2_engine import FaroEngine
+        for _venue in ["amalfitani", "villa_olimpica"]:
+            try:
+                _rpt = FaroEngine(_venue).run_and_persist(skip=["canopy", "lband"])
+                log.info("FaroEngine V2 weekly %s OK — SHA256=%s…",
+                         _venue, _rpt.audit.sha256[:16])
+            except Exception as _ve:
+                log.warning("FaroEngine V2 weekly %s (non-fatal): %s", _venue, _ve)
+    except Exception as _fe:
+        log.warning("FaroEngine V2 weekly (non-fatal): %s", _fe)
+
+    # Satellite pipeline — NDVI per-cancha + PNGs + GitHub push
     try:
         import satellite_pipeline
         sat_result = satellite_pipeline.run_satellite_cycle()
@@ -1707,7 +1720,25 @@ def run_refresh_only() -> dict:
     Los emails al club solo salen vía run_weekly_job() (job lunes 10:00 UTC).
     """
     log.info("=== run_refresh_only: inicio ===")
-    result: dict = {"satellite": None, "pngs": 0}
+    result: dict = {"satellite": None, "pngs": 0, "faro_v2": None}
+
+    # FaroEngine V2 — SAR soil moisture + HAND + solar (Supabase faro_v2_reports)
+    # Corre primero: satellite_pipeline ya lo incluye como step 9, pero este bloque
+    # garantiza que el reporte V2 se persiste aunque satellite_pipeline falle.
+    try:
+        from faro_v2_engine import FaroEngine
+        _v2: dict = {}
+        for _venue in ["amalfitani", "villa_olimpica"]:
+            try:
+                _rpt = FaroEngine(_venue).run_and_persist(skip=["canopy", "lband"])
+                _v2[_venue] = {"ok": True, "sha256": _rpt.audit.sha256[:16]}
+            except Exception as _ve:
+                _v2[_venue] = {"ok": False, "error": str(_ve)[:120]}
+        result["faro_v2"] = _v2
+        log.info("FaroEngine V2 standalone: %s", _v2)
+    except Exception as exc:
+        log.warning("FaroEngine V2 (non-fatal): %s", exc)
+
     try:
         import satellite_pipeline
         result["satellite"] = satellite_pipeline.run_satellite_cycle()

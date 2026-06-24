@@ -380,3 +380,28 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
+# ── pytest wrappers ───────────────────────────────────────────────────────────
+# Permiten correr con: pytest test_tramos_a_b_c_d.py -v
+# Las funciones _test_* retornan True en PASS o WARN, False en FAIL.
+# Tramos B y C se auto-omiten (WARN→True) si las credenciales no están configuradas.
+
+def test_tramo_a():
+    """Mini-BAP 5d cascade via ndvi_real.fetch_ndvi()."""
+    assert _test_tramo_a(), "Tramo A FAIL — ver salida arriba"
+
+
+def test_tramo_b():
+    """OpenEO CDSE (auto-skip si sin CDSE_USER/PASS)."""
+    assert _test_tramo_b(), "Tramo B FAIL — ver salida arriba"
+
+
+def test_tramo_c():
+    """HyP3 InSAR async (auto-skip si sin NASA_EARTHDATA_USER/PASS)."""
+    assert _test_tramo_c(), "Tramo C FAIL — ver salida arriba"
+
+
+def test_tramo_d():
+    """CloudBreaker SAR fusion (WARN si sin datos SAR en Supabase)."""
+    assert _test_tramo_d(), "Tramo D FAIL — ver salida arriba"

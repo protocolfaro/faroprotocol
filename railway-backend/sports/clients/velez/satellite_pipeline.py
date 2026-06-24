@@ -521,6 +521,26 @@ def run_satellite_cycle(ndvi_data: dict = None, force: bool = False) -> dict:
     except Exception as e:
         log.warning("satellite_pipeline: historico CSV falló: %s", e)
 
+    # 9. FaroEngine V2 — SAR soil moisture + HAND + solar para ambos venues
+    _faro_v2: dict = {}
+    try:
+        _here_fp = os.path.dirname(os.path.abspath(__file__))
+        if _here_fp not in sys.path:
+            sys.path.insert(0, _here_fp)
+        from faro_v2_engine import FaroEngine
+        for _venue in ["amalfitani", "villa_olimpica"]:
+            try:
+                _rpt = FaroEngine(_venue).run_and_persist(skip=["canopy", "lband"])
+                _faro_v2[_venue] = {"ok": True, "sha256": _rpt.audit.sha256[:16],
+                                    "errors": len(_rpt.errors)}
+                log.info("FaroEngine V2 %s OK — SHA256=%s… errors=%d",
+                         _venue, _rpt.audit.sha256[:16], len(_rpt.errors))
+            except Exception as _ve:
+                log.warning("FaroEngine V2 %s (non-fatal): %s", _venue, _ve)
+                _faro_v2[_venue] = {"ok": False, "error": str(_ve)[:120]}
+    except Exception as _fe_err:
+        log.warning("FaroEngine V2 (non-fatal): %s", _fe_err)
+
     log.info("=== satellite_pipeline OK — %s · %d canchas · %d PNGs ===",
              img_date, len(ndvi_map), len(png_bytes))
     _record_run(_run_ts, img_date, _median_ndvi, True, canchas=len(ndvi_map))
@@ -533,6 +553,7 @@ def run_satellite_cycle(ndvi_data: dict = None, force: bool = False) -> dict:
         "pngs_subidos":    len(hm_urls),
         "commit_ndvi":     commit_ndvi,
         "historial":       hist_result,
+        "faro_v2":         _faro_v2,
     }
 
 

@@ -90,6 +90,23 @@ def health():
     })
 
 
+@app.route("/metrics")
+def prometheus_metrics():
+    """Prometheus text exposition — lee /tmp/faro_metrics.prom escrito por FaroEngine V2."""
+    import time as _time
+    from flask import Response as _Resp
+    path = os.environ.get("PROMETHEUS_METRICS_PATH", "/tmp/faro_metrics.prom")
+    if not os.path.exists(path):
+        return _Resp(
+            "# faro_metrics.prom not found — run FaroEngine first\n",
+            mimetype="text/plain; version=0.0.4", status=200,
+        )
+    age_s = _time.time() - os.path.getmtime(path)
+    content = open(path, encoding="utf-8").read()
+    content += f"\n# Last updated {age_s:.0f}s ago\n"
+    return _Resp(content, mimetype="text/plain; version=0.0.4")
+
+
 @app.route("/velez/health")
 def velez_health():
     """System health: data freshness, satellite state, InSAR status, env config."""
