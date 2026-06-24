@@ -1037,6 +1037,19 @@ def fetch_ndvi() -> Optional[dict]:
             }
         log.warning("ndvi_real BAP [%s]: composite sin píxeles válidos", _src["name"])
 
+    # ── OpenEO CDSE — composite server-side cuando BAP local falla ────────
+    # Ventaja: procesamiento en CDSE sin descargar tiles completos; SCL mask
+    # server-side; latencia 2-3h desde el pase. Requiere COPERNICUS_USER+PASS.
+    try:
+        from ndvi_openeo import fetch_ndvi_openeo as _oeo_fetch
+        _oeo_result = _oeo_fetch(window_days=45)
+        if _oeo_result:
+            log.info("ndvi_real: OpenEO CDSE OK — %d canchas",
+                     len(_oeo_result.get("canchas", {})))
+            return _oeo_result
+    except Exception as _oeo_e:
+        log.warning("ndvi_real: openeo CDSE (non-fatal): %s", _oeo_e)
+
     # ── Kalman gap-fill — fallback temporal cuando no hay óptico ─────────
     _kalman_merged: dict = {}
     for _kv in ["amalfitani", "villa_olimpica"]:

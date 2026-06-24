@@ -931,7 +931,7 @@ def run_refresh() -> dict:
                     for _cid in _vo_canchas:
                         try:
                             _ins_sm(
-                                venue_id="amalfitani",
+                                venue_id="villa_olimpica",
                                 cancha_id=_cid,
                                 is_hibrido=(_cid == "1fa"),
                                 sar_vv_db=_sar_vv,
@@ -964,8 +964,7 @@ def run_refresh() -> dict:
         # ── climate_metrics: persistir ciclo diario en Supabase ──────────────
         try:
             from velez_supabase import insert_climate_metrics as _ins_cm
-            _cm_ok = _ins_cm(
-                venue_id="amalfitani",
+            _cm_kwargs = dict(
                 et0_mm_dia=weather.get("et0_mm_dia"),
                 deficit_hidrico_mm=weather.get("deficit_hidrico_mm"),
                 gdd_acumulado_7d=weather.get("gdd_acumulado_7d"),
@@ -974,11 +973,13 @@ def run_refresh() -> dict:
                 ventana_corte=weather.get("_ventana_corte"),
                 altura_corte_mm=weather.get("_altura_corte_mm"),
             )
-            if _cm_ok:
-                log.info("climate_metrics: INSERT OK para amalfitani")
-            else:
-                log.error("climate_metrics: INSERT FALLÓ — Supabase no configurado o schema mismatch. "
-                          "Verificar /velez/diag-supabase y ejecutar fix_data_lake_schema.sql")
+            for _cm_venue in ["amalfitani", "villa_olimpica"]:
+                _cm_ok = _ins_cm(venue_id=_cm_venue, **_cm_kwargs)
+                if _cm_ok:
+                    log.info("climate_metrics: INSERT OK para %s", _cm_venue)
+                else:
+                    log.error("climate_metrics: INSERT FALLÓ para %s — Supabase no configurado o schema mismatch. "
+                              "Verificar /velez/diag-supabase y ejecutar fix_data_lake_schema.sql", _cm_venue)
         except Exception as _cm_exc:
             log.error("climate_metrics write FAILED: %s", _cm_exc)
         # ─────────────────────────────────────────────────────────────────────

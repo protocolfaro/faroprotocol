@@ -10,8 +10,8 @@ Incidence angle: 38° (Sentinel-1 IW typical). LOS → vertical: v = LOS / cos(3
 Auth: EARTHDATA_USERNAME + EARTHDATA_PASSWORD env vars (NASA Earthdata account).
 """
 from __future__ import annotations
-import logging, math, os, tempfile
-from datetime import date, timedelta
+import json, logging, math, os, tempfile
+from datetime import date, datetime, timedelta
 from typing import Optional
 
 log = logging.getLogger(__name__)
@@ -22,7 +22,8 @@ _DEG_PER_M_LON = 1 / 91_300   # at lat ≈ -34.6 (Argentina)
 _INCIDENCE_DEG = 38.0
 _COS_INC       = math.cos(math.radians(_INCIDENCE_DEG))
 
-_ASF_SEARCH_URL = "https://api.daac.asf.alaska.edu/services/search/param"
+_ASF_SEARCH_URL   = "https://api.daac.asf.alaska.edu/services/search/param"
+_PENDING_JOB_PATH = "/tmp/faro_pending_hyp3.json"   # survives within a Railway process
 
 
 def _bbox(lat: float, lon: float, w_m: float = 80, h_m: float = 60, buf_m: float = 15) -> tuple:
@@ -309,6 +310,14 @@ _SECTOR_TO_CANCHA: dict[str, str | None] = {
     "piletas":           None,
 }
 
+_SECTOR_TO_VENUE: dict[str, str | None] = {
+    "estadio":           "amalfitani",
+    "poli_basquet":      "villa_olimpica",
+    "poli_playon_norte": "villa_olimpica",
+    "sede_anexo_norte":  None,
+    "piletas":           None,
+}
+
 
 def _write_soil_metrics(sector_backscatter: dict[str, float], fuente: str,
                         fecha_imagen: str) -> None:
@@ -325,11 +334,14 @@ def _write_soil_metrics(sector_backscatter: dict[str, float], fuente: str,
 
     for sector_id, vv_db in sector_backscatter.items():
         cancha_id = _SECTOR_TO_CANCHA.get(sector_id)
+        venue_id  = _SECTOR_TO_VENUE.get(sector_id)
+        if venue_id is None:
+            continue
         try:
             vh_db = round(vv_db - 7.5, 2)  # typical C-band VV/VH cross-pol ratio for grass
             theta, h_suc = _van_genuchten_from_sar(vv_db, vh_db)
             insert_soil_metrics(
-                venue_id      = "amalfitani",  # FIX: era "velez", rompia todos los modulos cientificos
+                venue_id      = venue_id,
                 cancha_id     = cancha_id or sector_id,
                 sar_vv_db     = vv_db,
                 sar_vh_db     = vh_db,
@@ -342,10 +354,169 @@ def _write_soil_metrics(sector_backscatter: dict[str, float], fuente: str,
             log.debug("insar soil_metrics insert %s (non-fatal): %s", sector_id, _ie)
 
 
+# ── Async job state — persiste dentro del proceso Railway ────────────────────
+
+def _save_pending_job(job_id: str, job_name: str, g1: dict, g2: dict,
+                      date1: str, date2: str) -> None:
+    state = {
+        "job_id":       job_id,
+        "job_name":     job_name,
+        "date1":        date1,
+        "date2":        date2,
+        "submitted_at": datetime.utcnow().isoformat(),
+    }
+    try:
+        with open(_PENDING_JOB_PATH, "w") as _f:
+            json.dump(state, _f)
+        log.info("insar_hyp3: job pendiente guardado — %s (%s→%s)", job_id, date1, date2)
+    except Exception as _e:
+        log.debug("insar_hyp3: save pending job: %s", _e)
+
+
+def _load_pending_job() -> dict | None:
+    try:
+        if os.path.exists(_PENDING_JOB_PATH):
+            with open(_PENDING_JOB_PATH) as _f:
+                return json.load(_f)
+    except Exception:
+        pass
+    return None
+
+
+def _clear_pending_job() -> None:
+    try:
+        if os.path.exists(_PENDING_JOB_PATH):
+            os.unlink(_PENDING_JOB_PATH)
+    except Exception:
+        pass
+
+
+def _hyp3_client():
+    import hyp3_sdk
+    username = (os.environ.get("NASA_EARTHDATA_USER")
+                or os.environ.get("EARTHDATA_USERNAME", ""))
+    password = (os.environ.get("NASA_EARTHDATA_PASS")
+                or os.environ.get("EARTHDATA_PASSWORD", ""))
+    if not username or not password:
+        raise EnvironmentError(
+            "NASA_EARTHDATA_USER + NASA_EARTHDATA_PASS not set in Railway env vars"
+        )
+    return hyp3_sdk.HyP3(username=username, password=password)
+
+
+def _submit_job_nowait(granule1: dict, granule2: dict,
+                       date1: str, date2: str) -> tuple[str, str]:
+    """Submit D-InSAR job and return (job_id, job_name) immediately — no polling."""
+    hyp3      = _hyp3_client()
+    name1     = granule1.get("granuleName") or granule1.get("sceneName", "")
+    name2     = granule2.get("granuleName") or granule2.get("sceneName", "")
+    job_label = f"faro_{date1}_{date2}"
+    log.info("insar_hyp3: submitting job %s + %s (async)", name1[:50], name2[:50])
+    job = hyp3.submit_insar_job(name1, name2, name=job_label,
+                                looks="20x4", include_displacement_maps=True)
+    return job.job_id, job_label
+
+
+def _check_and_collect(state: dict) -> "dict | str | None":
+    """
+    Poll pending HyP3 job once.
+    Returns: result dict (SUCCEEDED), "running" (PENDING/RUNNING), None (FAILED/expired/not found).
+    """
+    job_id   = state["job_id"]
+    job_name = state.get("job_name", "")
+    date1    = state.get("date1", "?")
+    date2    = state.get("date2", "?")
+
+    # Expire jobs older than 3 hours (typical max HyP3 processing time)
+    try:
+        elapsed_s = (datetime.utcnow() -
+                     datetime.fromisoformat(state["submitted_at"])).total_seconds()
+    except Exception:
+        elapsed_s = 0
+    if elapsed_s > 10800:
+        log.warning("insar_hyp3: job %s expirado (>3h) — descartando", job_id)
+        return None
+
+    try:
+        hyp3 = _hyp3_client()
+        # Search by job_name (unique per date pair) → fast, small result set
+        batch = hyp3.get_jobs(name=job_name) if job_name else hyp3.get_jobs()
+        job   = next((j for j in batch if j.job_id == job_id), None)
+    except Exception as exc:
+        log.warning("insar_hyp3: status check falló: %s — reintentando próximo ciclo", exc)
+        return "running"
+
+    if job is None:
+        log.warning("insar_hyp3: job %s no encontrado en HyP3 — descartando", job_id)
+        return None
+
+    log.info("insar_hyp3: job %s status=%s (elapsed %.0fmin)",
+             job_id, job.status_code, elapsed_s / 60)
+
+    if job.status_code in ("PENDING", "RUNNING"):
+        return "running"
+
+    if job.status_code == "FAILED":
+        log.warning("insar_hyp3: job %s FAILED", job_id)
+        return None
+
+    if job.status_code != "SUCCEEDED":
+        return None
+
+    # ── Descargar y procesar resultado ────────────────────────────────────
+    log.info("insar_hyp3: SUCCEEDED — descargando par %s→%s", date1, date2)
+    disp_path = amp_path = None
+    try:
+        disp_path, amp_path = _download_insar_files(job)
+        sector_mm           = _read_sector_displacement(disp_path)
+    except Exception as exc:
+        log.warning("insar_hyp3: descarga/lectura falló: %s", exc)
+        return None
+    finally:
+        for _p in filter(None, [disp_path, amp_path]):
+            try: os.remove(_p)
+            except Exception: pass
+        if disp_path:
+            try: os.rmdir(os.path.dirname(disp_path))
+            except Exception: pass
+
+    if not sector_mm:
+        return None
+
+    fuente_str = f"Sentinel-1 InSAR · ASF HyP3 · par {date1}/{date2}"
+    if amp_path:
+        try:
+            sector_bs = _read_sector_backscatter(amp_path)
+            if sector_bs:
+                _write_soil_metrics(sector_bs, fuente=fuente_str, fecha_imagen=date2)
+        except Exception as _be:
+            log.debug("insar_hyp3: backscatter (non-fatal): %s", _be)
+
+    log.info("✅ InSAR async — par %s/%s · %d sectores · %s",
+             date1, date2, len(sector_mm),
+             ", ".join(f"{k}:{v:+.2f}mm" for k, v in sector_mm.items()))
+    return {
+        "fuente":         fuente_str,
+        "fecha_ref":      date1,
+        "fecha_sec":      date2,
+        "incidencia_deg": _INCIDENCE_DEG,
+        "sectores":       sector_mm,
+    }
+
+
 def fetch_insar() -> Optional[dict]:
     """
-    Full S1 InSAR pipeline: search → pair → submit → wait → download → read.
-    Returns dict with sector displacements + metadata, or None on any failure.
+    Two-phase async InSAR pipeline.
+
+    Fase 2 (check): si hay un job pendiente en /tmp, consulta su estado.
+      - SUCCEEDED → descarga y retorna resultados
+      - RUNNING   → retorna None (volver a intentar próximo ciclo)
+      - FAILED    → limpia y cae a Fase 1
+
+    Fase 1 (submit): busca granules S1, encuentra par 12d, submite job sin bloquear.
+      Retorna None — los resultados llegan en el siguiente ciclo (~30-60 min).
+
+    El ciclo típico: ciclo 1 submite, ciclo 2 (30-60 min después) descarga.
     """
     try:
         import hyp3_sdk   # noqa — validate imports early
@@ -354,6 +525,20 @@ def fetch_insar() -> Optional[dict]:
         log.warning("insar_hyp3: missing dependency %s — skipping", exc)
         return None
 
+    # ── Fase 2: verificar job pendiente ──────────────────────────────────
+    pending = _load_pending_job()
+    if pending:
+        result = _check_and_collect(pending)
+        if result == "running":
+            log.info("insar_hyp3: job %s aún procesando — esperando próximo ciclo",
+                     pending["job_id"])
+            return None
+        _clear_pending_job()
+        if isinstance(result, dict):
+            return result   # ✅ resultados listos
+        log.info("insar_hyp3: job previo falló/expiró — submiteando nuevo job")
+
+    # ── Fase 1: buscar par y submitear ────────────────────────────────────
     try:
         granules = _search_slc_granules(days_back=26)
     except Exception as exc:
@@ -361,73 +546,24 @@ def fetch_insar() -> Optional[dict]:
         return None
 
     if not granules:
-        log.warning("insar_hyp3: ⚠️  No S1 SLC granules found in last 26 days")
+        log.warning("insar_hyp3: sin granules S1 SLC en los últimos 26 días")
         return None
 
     pair = _find_pair(granules)
     if not pair:
-        log.warning("insar_hyp3: ⚠️  No coherent 12-day pair found")
+        log.warning("insar_hyp3: sin par coherente de 12 días")
         return None
 
-    g1, g2   = pair
-    date1    = (g1.get("startTime") or "")[:10]
-    date2    = (g2.get("startTime") or "")[:10]
-    log.info("insar_hyp3: selected pair %s → %s", date1, date2)
+    g1, g2 = pair
+    date1  = (g1.get("startTime") or "")[:10]
+    date2  = (g2.get("startTime") or "")[:10]
+    log.info("insar_hyp3: par seleccionado %s → %s", date1, date2)
 
     try:
-        job = _submit_and_wait(g1, g2)
+        job_id, job_name = _submit_job_nowait(g1, g2, date1, date2)
+        _save_pending_job(job_id, job_name, g1, g2, date1, date2)
+        log.info("insar_hyp3: job submiteado %s — resultados en próximo ciclo", job_id)
     except Exception as exc:
-        log.warning("insar_hyp3: HyP3 job failed: %s", exc)
-        return None
+        log.warning("insar_hyp3: submit falló: %s", exc)
 
-    disp_path = amp_path = None
-    try:
-        disp_path, amp_path = _download_insar_files(job)
-        sector_mm           = _read_sector_displacement(disp_path)
-    except Exception as exc:
-        log.warning("insar_hyp3: read failed: %s", exc)
-        return None
-    finally:
-        for p in (disp_path, amp_path):
-            if p:
-                try:
-                    os.remove(p)
-                except Exception:
-                    pass
-        if disp_path:
-            try:
-                os.rmdir(os.path.dirname(disp_path))
-            except Exception:
-                pass
-
-    if not sector_mm:
-        log.warning("insar_hyp3: ⚠️  No valid sector readings from displacement map")
-        return None
-
-    fuente_str = f"Sentinel-1 InSAR · ASF HyP3 · par {date1}/{date2}"
-
-    # SAR backscatter from amplitude TIF → soil_metrics (non-blocking)
-    if amp_path:
-        try:
-            sector_bs = _read_sector_backscatter(amp_path)
-            if sector_bs:
-                _write_soil_metrics(sector_bs, fuente=fuente_str, fecha_imagen=date2)
-            else:
-                log.debug("insar_hyp3: amp TIF returned no backscatter — soil_metrics skipped")
-        except Exception as _be:
-            log.debug("insar_hyp3: backscatter read (non-fatal): %s", _be)
-    else:
-        log.debug("insar_hyp3: no amp TIF in zip — soil_metrics skipped (displacement only)")
-
-    log.info(
-        "✅ InSAR — par %s/%s · %d sectores · %s",
-        date1, date2, len(sector_mm),
-        ", ".join(f"{k}:{v:+.2f}mm" for k, v in sector_mm.items()),
-    )
-    return {
-        "fuente":         fuente_str,
-        "fecha_ref":      date1,
-        "fecha_sec":      date2,
-        "incidencia_deg": _INCIDENCE_DEG,
-        "sectores":       sector_mm,
-    }
+    return None  # resultados disponibles en el próximo ciclo
