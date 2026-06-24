@@ -210,11 +210,15 @@ def _push_heatmap_ndvi_update(ndvi_data: dict) -> str:
                     entry["ndwi"] = cdata["ndwi"]
                 hm[cid] = entry
 
-    # Always write derived Nivel-2 metrics to GitHub heatmaps (ndre, pct_baja_ndvi, focos_reales)
-    # regardless of Supabase availability, so gen_velez_canchero.py can read them from the JSON.
+    # Always write NDVI + derived Nivel-2 metrics to GitHub heatmaps regardless of Supabase.
+    # push_velez_data() reads ndvi from the GitHub JSON, so it must be current here.
     _hm2 = roger.setdefault("heatmaps", {})
     for _cid2, _cd2 in canchas.items():
         _e2 = _hm2.setdefault(_cid2, {})
+        if _cd2.get("ndvi") is not None:
+            _e2["ndvi"] = round(float(_cd2["ndvi"]), 4)
+        if _cd2.get("gndvi") is not None:
+            _e2["gndvi"] = round(float(_cd2["gndvi"]), 4)
         if _cd2.get("ndre") is not None:
             _e2["ndre"] = round(float(_cd2["ndre"]), 3)
         if _cd2.get("ccci") is not None:
