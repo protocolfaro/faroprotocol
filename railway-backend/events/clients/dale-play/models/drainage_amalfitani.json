@@ -2,191 +2,213 @@
   "venue": "Estadio José Amalfitani",
   "lat": -34.6379,
   "lon": -58.5288,
-  "fecha_analisis": "2026-06-01",
-  "metodo": "Sentinel-2 B11/B12 SWIR · Landsat TIRS · SAR C-band VV/VH · Ksat HiHydroSoil v2.0 (pedotransfer Rawls & Brakensiek sobre SoilGrids)",
+  "fecha_analisis": "2026-06-24",
+  "metodo": "Infraestructura real C&G — 14 líneas DRENAFLEX AWACOR 118mm + 2 colectores AWACOR 218mm (Norte+Sur) + 4 cámaras vértices + guardaganado 380ml/15cm · Manning Q=AR^(2/3)S^(1/2)/n",
   "campo": {
     "largo_m": 105,
     "ancho_m": 68,
+    "area_m2": 7140,
     "orientacion": "N-S"
   },
-  "firma_satelital": {
-    "swir_b11_mean": 0.18,
-    "swir_b12_mean": 0.12,
-    "ndwi": -0.21,
-    "tirs_celsius": 22.5,
-    "sar_vv_db": -12.4,
-    "sar_vh_db": -19.8,
-    "sar_vvvh_ratio": 7.4,
-    "anomalia_termica_ns": true
+  "infraestructura": {
+    "n_lineas_internas": 14,
+    "paso_lineas_m": 5.0,
+    "diametro_interno_mm": 118,
+    "diametro_principal_mm": 218,
+    "n_colectores_principales": 2,
+    "perimetral_ml": 380,
+    "ancho_canaleta_perimetral_cm": 15,
+    "camaras_vertices": 4,
+    "profundidad_min_m": 0.4,
+    "profundidad_max_m": 0.6,
+    "fosa_descarga_pos": "Norte",
+    "orientacion_lineas": "E-O",
+    "pendiente_hidraulica_pct": 0.5,
+    "reutilizacion_riego": true
   },
   "hidraulica": {
-    "textura": {
-      "clay_pct": 35.0,
-      "sand_pct": 25.0,
-      "silt_pct": 40.0,
-      "fuente": "[ESTIMADO] Perfil edafológico BHCP"
-    },
-    "ksat": {
-      "ksat_mm_h": 1.2,
-      "textura_usda": "Clay loam / Clay",
-      "riesgo_hidrico": "alto",
-      "fuente": "Pedotransfer Rawls & Brakensiek 1985 / HiHydroSoil v2.0 equivalent"
-    },
-    "nota": "Ksat estimado via función de pedotransferencia Rawls & Brakensiek (1985) aplicada a textura SoilGrids v2.0. HiHydroSoil v2.0 (FutureWater) no tiene API REST pública — acceso requiere descarga de TIF via FTP registrado."
+    "q_por_linea_ls": 6.71,
+    "q_total_lineas_ls": 93.94,
+    "q_colector_uno_ls": 34.49,
+    "q_colectores_total_ls": 68.98,
+    "n_colectores": 2,
+    "q_efectivo_ls": 68.98,
+    "q_lluvia_diseno_ls": 99.17,
+    "superavit_ls": -30.19,
+    "sistema_suficiente": false,
+    "tiempo_vac_10mm_min": 17.3,
+    "lluvia_diseno_mm_h": 50.0,
+    "manning_n": 0.011,
+    "nota": "Sistema INSUFICIENTE para lluvia de diseño 50.0mm/h. 2 colectores 218mm en paralelo: 68.98L/s total. Tiempo vaciado 10mm lluvia: ~17.3 min."
   },
+  "lluvia_48h_mm": 0.0,
   "zonas": [
     {
-      "id": "canal_central",
-      "nombre": "Canal N-S",
+      "id": "fosa_descarga",
+      "nombre": "Fosa de Descarga (Norte / Platea Sur Baja)",
       "tipo": "exclusion",
-      "descripcion": "Canal principal N-S. No apoyar estructuras > 2 t sobre esta franja.",
+      "descripcion": "Punto de descarga final de toda la red de drenaje. Agua reutilizada para riego. Suelo excavado con diferente compactación. Prohibido apoyar estructuras. Radio de exclusión: 3m desde borde fosa.",
       "x_pct": [
-        44,
-        56
+        5,
+        22
       ],
       "y_pct": [
-        0,
-        100
+        78,
+        98
       ],
-      "capacidad_kpa": 27,
+      "capacidad_kpa": 25,
       "riesgo": "alto",
       "color": "rojo",
-      "capacidad_orig_kpa": 32,
-      "ksat_factor": 0.85,
-      "nota_ksat": "Ksat=1.2 mm/h → factor capacidad 1.0"
+      "infraestructura": "Fosa descarga · recibe 2 colectores 218mm · plano 02 C&G"
     },
     {
-      "id": "colector_sur",
-      "nombre": "Colector Sur",
+      "id": "colector_cabecera_norte",
+      "nombre": "Colector 218mm — Cabecera Norte",
       "tipo": "exclusion",
-      "descripcion": "Cañería colectora 1.2 m prof. Escenario: usar tarimas distribuidoras (mín. 2.5 m²/punto).",
+      "descripcion": "Cañería colectora 218mm AWACOR detrás del arco Norte. Recibe las 7 líneas 118mm del sector Norte. Franja de 1m a cada lado: sin cargas puntuales. Tarimas distribuidoras obligatorias.",
       "x_pct": [
-        15,
-        85
-      ],
-      "y_pct": [
-        0,
-        18
-      ],
-      "capacidad_kpa": 24,
-      "riesgo": "alto",
-      "color": "rojo",
-      "capacidad_orig_kpa": 28,
-      "ksat_factor": 0.85,
-      "nota_ksat": "Ksat=1.2 mm/h → factor capacidad 1.0"
-    },
-    {
-      "id": "lateral_este",
-      "nombre": "Lateral E",
-      "tipo": "precaucion",
-      "descripcion": "Canal lateral este. Torres de sonido: plataformas distribuidoras de carga.",
-      "x_pct": [
-        72,
-        85
-      ],
-      "y_pct": [
-        18,
-        82
-      ],
-      "capacidad_kpa": 49,
-      "riesgo": "medio",
-      "color": "amarillo",
-      "capacidad_orig_kpa": 58,
-      "ksat_factor": 0.85,
-      "nota_ksat": "Ksat=1.2 mm/h → factor capacidad 1.0"
-    },
-    {
-      "id": "lateral_oeste",
-      "nombre": "Lateral O",
-      "tipo": "precaucion",
-      "descripcion": "Canal lateral oeste. Igual que Lateral Este — usar plataformas.",
-      "x_pct": [
-        15,
-        28
-      ],
-      "y_pct": [
-        18,
-        82
-      ],
-      "capacidad_kpa": 49,
-      "riesgo": "medio",
-      "color": "amarillo",
-      "capacidad_orig_kpa": 58,
-      "ksat_factor": 0.85,
-      "nota_ksat": "Ksat=1.2 mm/h → factor capacidad 1.0"
-    },
-    {
-      "id": "area_norte",
-      "nombre": "Área Norte",
-      "tipo": "seguro",
-      "descripcion": "Suelo firme. Barricada y consola FOH aptos sin restricciones.",
-      "x_pct": [
-        20,
-        80
+        5,
+        95
       ],
       "y_pct": [
         82,
+        98
+      ],
+      "capacidad_kpa": 38,
+      "riesgo": "alto",
+      "color": "rojo",
+      "infraestructura": "Colector 218mm AWACOR · pendiente 0.5% → vértices → fosa Norte"
+    },
+    {
+      "id": "colector_cabecera_sur",
+      "nombre": "Colector 218mm — Cabecera Sur",
+      "tipo": "exclusion",
+      "descripcion": "Cañería colectora 218mm AWACOR detrás del arco Sur. Recibe las 7 líneas 118mm del sector Sur. Franja de 1m a cada lado: sin cargas puntuales. Tarimas distribuidoras obligatorias.",
+      "x_pct": [
+        5,
+        95
+      ],
+      "y_pct": [
+        2,
+        18
+      ],
+      "capacidad_kpa": 38,
+      "riesgo": "alto",
+      "color": "rojo",
+      "infraestructura": "Colector 218mm AWACOR · pendiente 0.5% → vértices → fosa Norte"
+    },
+    {
+      "id": "perimetral_guardaganado",
+      "nombre": "Perímetro — Drenaje Guardaganado (380ml, 15cm)",
+      "tipo": "precaucion",
+      "descripcion": "Canaleta tipo guardaganado, 15cm de ancho, 380 metros lineales. Montado sobre camino de césped sintético perimetral (no sobre el campo). Agua fluye del centro hacia los vértices → cámaras → fosa. Estructuras en borde de campo: calzar con plataformas distribuidoras.",
+      "x_pct": [
+        0,
         100
       ],
-      "capacidad_kpa": 100,
+      "y_pct": [
+        0,
+        5
+      ],
+      "capacidad_kpa": 52,
       "riesgo": "medio",
       "color": "amarillo",
-      "capacidad_orig_kpa": 118,
-      "ksat_factor": 0.85,
-      "nota_ksat": "Riesgo escalado: Ksat=1.2 mm/h indica drenaje lento"
+      "infraestructura": "Guardaganado 380ml · 15cm ancho · camino sintético perimetral"
     },
     {
-      "id": "cuadrante_este",
-      "nombre": "Centro E",
-      "tipo": "seguro",
-      "descripcion": "Cuadrante este del centro. Capacidad nominal.",
+      "id": "camaras_vertices",
+      "nombre": "Cámaras Vértices (×4)",
+      "tipo": "exclusion",
+      "descripcion": "4 cámaras colectoras en los vértices del campo. Reciben agua de las 14 líneas internas + perimetral guardaganado. Punto de máxima concentración de flujo. Radio de exclusión 2m desde cada cámara.",
       "x_pct": [
-        56,
-        85
+        0,
+        12
+      ],
+      "y_pct": [
+        0,
+        12
+      ],
+      "capacidad_kpa": 30,
+      "riesgo": "alto",
+      "color": "rojo",
+      "infraestructura": "4 cámaras en esquinas · confluencia líneas internas + perimetral"
+    },
+    {
+      "id": "franjas_drenaje_norte",
+      "nombre": "Franjas Drenaje — Sector Norte (líneas 1-7)",
+      "tipo": "precaucion",
+      "descripcion": "Franjas de excavación líneas 1-7, sector Norte. DRENAFLEX AWACOR 118mm a 0.40-0.60m de profundidad. Líneas parten desde mediocampo hacia cabecera Norte. Evitar cargas puntuales alineadas E-O sobre la franja. OK transversal.",
+      "x_pct": [
+        5,
+        95
+      ],
+      "y_pct": [
+        52,
+        80
+      ],
+      "capacidad_kpa": 65,
+      "riesgo": "medio",
+      "color": "amarillo",
+      "infraestructura": "7 líneas 118mm · paso 5m · orientación E-O → colector Norte"
+    },
+    {
+      "id": "franjas_drenaje_sur",
+      "nombre": "Franjas Drenaje — Sector Sur (líneas 8-14)",
+      "tipo": "precaucion",
+      "descripcion": "Franjas de excavación líneas 8-14, sector Sur. DRENAFLEX AWACOR 118mm a 0.40-0.60m de profundidad. Líneas parten desde mediocampo hacia cabecera Sur. Evitar cargas puntuales alineadas E-O sobre la franja.",
+      "x_pct": [
+        5,
+        95
       ],
       "y_pct": [
         20,
-        80
+        48
       ],
-      "capacidad_kpa": 89,
+      "capacidad_kpa": 62,
       "riesgo": "medio",
       "color": "amarillo",
-      "capacidad_orig_kpa": 105,
-      "ksat_factor": 0.85,
-      "nota_ksat": "Riesgo escalado: Ksat=1.2 mm/h indica drenaje lento"
+      "infraestructura": "7 líneas 118mm · paso 5m · orientación E-O → colector Sur"
     },
     {
-      "id": "cuadrante_oeste",
-      "nombre": "Centro O",
+      "id": "mediocampo",
+      "nombre": "Mediocampo",
       "tipo": "seguro",
-      "descripcion": "Cuadrante oeste del centro. Capacidad nominal.",
+      "descripcion": "Punto de partida de las 14 líneas de drenaje. Menor flujo acumulado que las cabeceras. Zona óptima para FOH, consola de sonido y estructuras livianas.",
       "x_pct": [
-        15,
-        44
+        8,
+        92
       ],
       "y_pct": [
-        20,
-        80
+        44,
+        56
       ],
-      "capacidad_kpa": 89,
-      "riesgo": "medio",
-      "color": "amarillo",
-      "capacidad_orig_kpa": 105,
-      "ksat_factor": 0.85,
-      "nota_ksat": "Riesgo escalado: Ksat=1.2 mm/h indica drenaje lento"
+      "capacidad_kpa": 115,
+      "riesgo": "bajo",
+      "color": "verde",
+      "infraestructura": "Punto de partida drenes — mínimo flujo acumulado"
     }
   ],
   "exclusiones": [
-    "Escenario: tarimas distribuidoras (mín. 2.5 m²/punto de carga) sobre toda la zona Colector Sur",
-    "Torres L/R: verificar que pie de torre no caiga sobre Canal N-S — desplazar 0.5 m si es necesario"
+    "Fosa descarga Norte: radio mínimo de exclusión 3m desde borde",
+    "Colectores 218mm (Norte+Sur): franja 1m a cada lado — tarimas distribuidoras obligatorias",
+    "4 cámaras en vértices: radio de exclusión 2m desde cada cámara",
+    "Líneas 118mm: evitar cargas puntuales alineadas E-O sobre la franja de la cañería",
+    "Perímetro guardaganado (canaleta 15cm): estructuras en borde deben calzarse (plataformas mín. 2m²)"
   ],
   "resumen": {
-    "zonas_exclusion": 2,
-    "zonas_precaucion": 2,
-    "zonas_seguras": 3,
-    "capacidad_min_kpa": 24,
-    "capacidad_max_kpa": 100,
+    "zonas_exclusion": 4,
+    "zonas_precaucion": 3,
+    "zonas_seguras": 1,
+    "capacidad_min_kpa": 25,
+    "capacidad_max_kpa": 115,
     "riesgo_global": "alto",
-    "ksat_mm_h": 1.2
-  }
+    "q_efectivo_ls": 68.98,
+    "sistema_suficiente": false,
+    "n_lineas_drenaje": 14,
+    "n_colectores": 2,
+    "perimetral_ml": 380,
+    "ancho_canaleta_cm": 15,
+    "camaras_vertices": 4
+  },
+  "fuente_datos": "Planos constructivos C&G · Estadio José Amalfitani · DRENAFLEX AWACOR 118mm + AWACOR CL Y PL 218mm"
 }

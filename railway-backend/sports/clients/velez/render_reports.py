@@ -317,10 +317,12 @@ def _render_agro(vd: dict, out: Path):
     canchas = gndvi_d.get("canchas", {})
     fecha   = datetime.now().strftime("%d/%m/%Y")
 
-    ids  = sorted(canchas.keys())
-    ndvi = [canchas[c].get("ndvi", 0) or 0 for c in ids]
-    gnvi = [canchas[c].get("gndvi", 0) or 0 for c in ids]
-    cols = [GRNL if v >= 0.45 else (REDL if v < 0.30 else YELL) for v in ndvi]
+    ids      = sorted(canchas.keys())
+    ndvi_raw = [canchas[c].get("ndvi") for c in ids]                   # None si sin satélite
+    ndvi     = [v if v is not None else 0.0 for v in ndvi_raw]         # altura de barra
+    gnvi     = [canchas[c].get("gndvi", 0) or 0 for c in ids]
+    cols     = [WDIM if v is None else (GRNL if v >= 0.45 else (REDL if v < 0.30 else YELL))
+                for v in ndvi_raw]
 
     fig = _setup_fig(12, 10)
     _header(fig, "ANÁLISIS AGRONÓMICO — Villa Olímpica", f"Sentinel-2 · {fecha}")

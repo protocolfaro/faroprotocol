@@ -124,7 +124,7 @@ def _build_zones_from_vd(vd):
     zones = []
     for c in canchas[:5]:
         sem      = c.get('sem', 'amarillo')
-        ndvi     = c.get('ndvi', 0.5)
+        ndvi     = c.get('ndvi')
         score    = c.get('score', 60)
         s_prev   = c.get('score_prev', score)
         detalle  = c.get('detalle', '')
@@ -137,7 +137,7 @@ def _build_zones_from_vd(vd):
             'estado': _sem_estado.get(sem, 'ATENCIÓN'),
             'accion': accion_short,
             'ndvi': ndvi,
-            'ndre': round(ndvi * 0.65, 2),
+            'ndre': round(ndvi * 0.65, 2) if ndvi is not None else None,
             'n_kg': _sem_n.get(sem, 0),
             'riego': _sem_riego.get(sem, 18),
             'resiembra': _sem_res.get(sem, 'No'),

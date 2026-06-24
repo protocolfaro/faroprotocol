@@ -168,8 +168,7 @@ def push_velez_data(ipos: dict, ts: str) -> str:
         cid  = cancha.get("id", "")
         # Prefer real NDVI from Planetary Computer pipeline; fall back to existing value
         hm_e = hm.get(cid)
-        ndvi = (hm_e.get("ndvi") if isinstance(hm_e, dict) and hm_e.get("ndvi") is not None
-                else cancha.get("ndvi", 0.4))
+        ndvi = (hm_e.get("ndvi") if isinstance(hm_e, dict) else cancha.get("ndvi"))  # None si sin imagen óptica
 
         # Shadow permanent % from shadow_maps analysis
         sm_data     = shadow_maps.get(cid, {})
@@ -179,7 +178,7 @@ def push_velez_data(ipos: dict, ts: str) -> str:
         # Only append when value changes by ≥0.01 to avoid filling 5 slots within one week
         # (push_velez_data is called both from IPOS sync and satellite pipeline).
         ndvi_hist = list(cancha.get("ndvi_historial") or [])
-        if not ndvi_hist or abs(ndvi - ndvi_hist[-1]) >= 0.01:
+        if ndvi is not None and (not ndvi_hist or abs(ndvi - ndvi_hist[-1]) >= 0.01):
             ndvi_hist.append(ndvi)
         ndvi_hist = ndvi_hist[-5:]
         recovering = _positive_trend(ndvi_hist)

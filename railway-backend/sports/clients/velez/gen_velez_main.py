@@ -81,7 +81,7 @@ if _vd_path:
             _sem_col = {'verde': 'verde', 'amarillo': 'amarillo', 'rojo': 'rojo'}
             ZONES = [{
                 'name': c.get("nombre", c.get("id", f"Cancha {i+1}")),
-                'ndvi': c.get("ndvi", 0.5),
+                'ndvi': c.get("ndvi"),
                 'temp': 23.0,
                 'insar': 1.0,
                 'sem': c.get("sem", "amarillo"),

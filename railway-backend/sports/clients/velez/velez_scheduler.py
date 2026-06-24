@@ -689,7 +689,7 @@ def _zona_tipo(cancha: dict, acciones: list, month: int) -> tuple:
     cid    = cancha.get("id", "")
     nombre = cancha.get("nombre", "")
     s_raw  = cancha.get("sem", "amarillo")
-    ndvi   = cancha.get("ndvi") or 0
+    ndvi   = cancha.get("ndvi")   # None si sin imagen óptica
     winter = month in (5, 6, 7, 8)
     ac     = _accion_cancha(cid, nombre, acciones)
     fungic = any("fungicida" in a.lower() for a in ac)
@@ -698,7 +698,7 @@ def _zona_tipo(cancha: dict, acciones: list, month: int) -> tuple:
     dren   = any("drenaje"   in a.lower() for a in ac)
     if winter and s_raw != "rojo" and not resem and not fungic:
         return "OK · descanso invernal", "#4a9e6a"
-    if resem or (s_raw == "rojo" and ndvi < 0.05):
+    if resem or (s_raw == "rojo" and ndvi is not None and ndvi < 0.05):
         return "RESEMBRAR urgente", "#d94f4f"
     if fungic:
         return "FUNGICIDA — Dollar Spot", "#c084fc"
@@ -721,7 +721,7 @@ def _focos_cancha(cancha: dict, acciones: list, month: int) -> list:
     cid    = cancha.get("id", "")
     nombre = cancha.get("nombre", "")
     s_raw  = cancha.get("sem", "amarillo")
-    ndvi   = cancha.get("ndvi") or 0
+    ndvi   = cancha.get("ndvi")   # None si sin imagen óptica
     winter = month in (5, 6, 7, 8)
     ac     = _accion_cancha(cid, nombre, acciones)
     focos  = []
@@ -731,7 +731,7 @@ def _focos_cancha(cancha: dict, acciones: list, month: int) -> list:
         focos.append({"n": 2, "lbl": "Agua/Drenaje", "color": "#38bdf8"})
     if any("fertiliz" in a.lower() for a in ac):
         focos.append({"n": 3, "lbl": "Nutrición — fertilizar", "color": "#f59e0b"})
-    if any("resembrar" in a.lower() for a in ac) or (ndvi < 0.05 and s_raw == "rojo" and not winter):
+    if any("resembrar" in a.lower() for a in ac) or (ndvi is not None and ndvi < 0.05 and s_raw == "rojo" and not winter):
         focos.append({"n": 4, "lbl": "Resembrar", "color": "#d94f4f"})
     return focos
 

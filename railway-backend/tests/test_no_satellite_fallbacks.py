@@ -9,8 +9,7 @@ Detecta tres patrones via análisis AST (sin ejecutar el código):
   B: x if x is not None else 0.XX     — IfExp con sat field en el test y else numérico ≠ 0
   C: campo.get('ndvi', 0.XX)          — default explícito numérico en .get()
 
-No detecta: fórmulas proxy (ndvi * 0.65, rvi * 0.4). Para eso existe
-  test_canchero_viz.py::test_zones_ndvi_none_when_no_satellite (runtime).
+  D: ndvi * 0.65                         — BinOp con Name de sat_field sin guard None previo
 
 Para suprimir un caso legítimo documentado, añadir en la misma línea:
   # sat-fallback: ok — <razón>
@@ -89,6 +88,23 @@ def _find_violations(path: Path) -> list[tuple[int, str]]:
             if not suppressed(ln):
                 results.append((ln,
                     f"PatternC  .get('{node.args[0].value}', {node.args[1].value})"))
+
+        # Pattern D: obj.get("sat_field") usado directamente en BinOp sin intermediar None check.
+        # Ejemplo: row.get("ndvi") * 100  — TypeError si None, falso valor si tiene default.
+        # No detecta: ndvi = obj.get("ndvi"); ndvi * 100  (variable intermedia, cubierto por A/B/C).
+        if isinstance(node, ast.BinOp) and isinstance(node.op, (ast.Mult, ast.Div, ast.Add, ast.Sub)):
+            ln = getattr(node, 'lineno', 0)
+            if not suppressed(ln):
+                for operand in (node.left, node.right):
+                    if (isinstance(operand, ast.Call)
+                            and isinstance(operand.func, ast.Attribute)
+                            and operand.func.attr == 'get'
+                            and operand.args
+                            and isinstance(operand.args[0], ast.Constant)
+                            and operand.args[0].value in _SAT_FIELDS):
+                        results.append((ln,
+                            f"PatternD  .get('{operand.args[0].value}') in BinOp without None guard"))
+                        break
 
     return results
 

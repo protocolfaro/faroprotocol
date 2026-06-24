@@ -37,7 +37,9 @@ _NDVI_CRISIS_FALLBACK: dict[int, float] = {
 _VO_ORDER = ["1fa","2fa","3fa","4fa","5fa","6fa","7fa","8fa","9fa","10fa","1fp","2fp"]
 
 
-def _crisis(ndvi: float, month: int, hermes_umbral: Optional[float] = None) -> bool:
+def _crisis(ndvi: float | None, month: int, hermes_umbral: Optional[float] = None) -> bool:
+    if ndvi is None:
+        return False   # sin imagen óptica: no declarar crisis sin dato
     umbral = hermes_umbral if hermes_umbral is not None else _NDVI_CRISIS_FALLBACK.get(month, 0.10)
     return ndvi < umbral
 
@@ -105,7 +107,7 @@ def generate_acciones(
         if not isinstance(hm, dict):
             continue
 
-        ndvi  = hm.get("ndvi")  or 0.0
+        ndvi  = hm.get("ndvi")   # None si sin imagen óptica
         gndvi = hm.get("gndvi") or 0.0
         ipos  = hm.get("ipos")  or 0.0
         metodo = hm.get("metodo_generacion", "real")
@@ -139,7 +141,7 @@ def generate_acciones(
             p6_nitro.append((lbl, gndvi))
 
         # P7: resembrar en primavera
-        if is_spring and ipos < 50 and ndvi < 0.06:
+        if is_spring and ipos < 50 and ndvi is not None and ndvi < 0.06:
             p7_resembrar.append((lbl, ndvi, src_tag + conf_tag))
 
     if fung_nivel == "alto":
