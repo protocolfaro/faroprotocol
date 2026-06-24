@@ -1513,6 +1513,9 @@ _BODY_FN_MAP = {
     "Alberto Aveleyra":  _body_aveleyra,
 }
 
+# Solo Roger tiene panel desplegado. El resto no recibe panel_url en el email.
+_HAS_PANEL = {"roger"}
+
 _SLUG_MAP = {
     "Roger Bernal":      "roger",
     "Juan Gonzalez":     "juan",
@@ -1629,7 +1632,7 @@ def send_all_reports(config: dict = None, vd: dict = None) -> dict:
         if not nombre or not email:
             continue
         slug      = _SLUG_MAP.get(nombre, nombre.lower().split()[0])
-        panel_url = f"{PANEL_BASE_URL}#{slug}"
+        panel_url = f"{PANEL_BASE_URL}#{slug}" if slug in _HAS_PANEL else ""
         body_fn   = _BODY_FN_MAP.get(nombre)
         if body_fn:
             try:
@@ -1929,7 +1932,7 @@ def route_preview_email():
 
     try:
         vd = _get_velez_data()
-        panel_url = f"{PANEL_BASE_URL}#{recipient}"
+        panel_url = f"{PANEL_BASE_URL}#{recipient}" if recipient in _HAS_PANEL else ""
         html = body_fn(vd, panel_url=panel_url)
         # Inject preview banner at top
         banner = (
@@ -1965,7 +1968,7 @@ def route_send_preview_email():
 
     try:
         vd = _get_velez_data()
-        panel_url = f"{PANEL_BASE_URL}#{recipient}"
+        panel_url = f"{PANEL_BASE_URL}#{recipient}" if recipient in _HAS_PANEL else ""
         html = body_fn(vd, panel_url=panel_url)
         date_str = datetime.now(_ART).strftime("%d/%m/%Y")
         subject = f"[PREVIEW] Faro · Reporte semanal · Vélez · {date_str} — vista de {nombre}"
