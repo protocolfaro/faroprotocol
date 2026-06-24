@@ -377,50 +377,11 @@ def _fetch_canopy_height(venue_id: str) -> CanopyMetrics:
 def _fetch_lband_baseline(venue_id: str,
                           año_inicio: int = 2015,
                           año_fin:    int = 2024) -> LBandBaseline:
+    """TODO — Tramo G future: JAXA/ALOS/PALSAR/YEARLY/SAR_EPOCH baseline integration.
+    Planned: L-band HH/HV gamma0 dB (2015-2024, 25m) vía GEE earthengine-api.
+    Retorna baseline vacío hasta que se implemente.
     """
-    JAXA/ALOS/PALSAR/YEARLY/SAR_EPOCH (v2.5.0): mosaico anual L-band, 25m, 2015-2024.
-    HH+HV DN → dB (calibración JAXA: dB = 20·log10(DN) - 83).
-    Baseline histórico de humedad/deformación que complementa el C-band actual.
-    """
-    v = _v(venue_id)
-    try:
-        import ee
-        _init_ee()
-
-        geom      = ee.Geometry.BBox(*v["bbox"])
-        col       = (ee.ImageCollection("JAXA/ALOS/PALSAR/YEARLY/SAR_EPOCH")
-                       .filterDate(f"{año_inicio}-01-01", f"{año_fin}-12-31")
-                       .filterBounds(geom))
-        composite = col.select(["HH", "HV"]).mean()
-
-        stats = composite.reduceRegion(
-            reducer   = ee.Reducer.mean(),
-            geometry  = geom,
-            scale     = 25,
-            maxPixels = 1e6,
-        ).getInfo()
-
-        hh_dn = stats.get("HH")
-        hv_dn = stats.get("HV")
-        n     = col.size().getInfo()
-
-        # PALSAR DN → gamma0 dB (calibración JAXA oficial)
-        hh_db = round(20 * math.log10(max(hh_dn, 1)) - 83, 2) if hh_dn else None
-        hv_db = round(20 * math.log10(max(hv_dn, 1)) - 83, 2) if hv_dn else None
-
-        log.info("lband ALOS %s: HH=%.2f dB HV=%.2f dB (%d años)",
-                 venue_id, hh_db or 0, hv_db or 0, n)
-        return LBandBaseline(
-            año_inicio = año_inicio,
-            año_fin    = año_fin,
-            hh_mean_db = hh_db,
-            hv_mean_db = hv_db,
-            n_años     = n,
-        )
-    except ImportError:
-        log.warning("lband ALOS: earthengine-api no instalado — skipping")
-    except Exception as e:
-        log.warning("lband ALOS (non-fatal) %s: %s", venue_id, e)
+    log.debug("lband: Tramo G future — returning empty baseline for %s", venue_id)
     return LBandBaseline()
 
 
@@ -706,62 +667,6 @@ def persist_to_supabase(report: FaroV2Report) -> bool:
 _persist = persist_to_supabase  # alias interno
 
 
-def record_prometheus_metrics(report: FaroV2Report,
-                               path: str = "/tmp/faro_metrics.prom") -> None:
-    """
-    Escribe métricas en formato Prometheus text exposition a /tmp/faro_metrics.prom.
-    No requiere prometheus_client — pure stdlib, compatible con cualquier scraper.
-    faro_monitoring.py lee este archivo para servir /metrics via Flask.
-    """
-    v   = report.venue_id
-    now = datetime.utcnow().timestamp()
-
-    def _g(name: str, value: float | None, help_text: str = "") -> list[str]:
-        if value is None:
-            return []
-        lines = []
-        if help_text:
-            lines.append(f"# HELP {name} {help_text}")
-        lines.append(f'# TYPE {name} gauge')
-        lines.append(f'{name}{{venue="{v}"}} {value}')
-        return lines
-
-    metrics: list[str] = [
-        f"# Faro Engine V2 metrics — generated {datetime.utcnow().isoformat()}Z",
-        *_g("faro_pipeline_duration_seconds", report.duration_s,
-            "Duración del pipeline en segundos"),
-        *_g("faro_pipeline_errors_total", float(len(report.errors)),
-            "Cantidad de componentes con error"),
-        *_g("faro_audit_verified", float(report.audit.verified),
-            "1=TSA RFC3161 verificado, 0=sin sello"),
-        *_g("faro_solar_ghi_wh_m2", report.solar.ghi_wh_m2,
-            "Irradiación global horizontal Wh/m²/día"),
-        *_g("faro_solar_et0_mm_dia", report.solar.et0_mm_dia,
-            "Evapotranspiración referencia FAO-56 mm/día"),
-        *_g("faro_sar_vv_db", report.sar.vv_gamma0_db,
-            "SAR OPERA RTC VV gamma0 dB"),
-        *_g("faro_sar_theta_soil", report.sar.theta_soil,
-            "Humedad suelo volumétrica Van Genuchten m³/m³"),
-        *_g("faro_sar_h_suction_cm", report.sar.h_suction_cm,
-            "Tensión mátrica Van Genuchten cm"),
-        *_g("faro_hydro_hand_mean_m", report.hydro.hand_mean_m,
-            "HAND medio sobre AOI metros"),
-        *_g("faro_canopy_height_mean_m", report.canopy.altura_media_m,
-            "ETH canopy height media metros"),
-        *_g("faro_lband_hh_db", report.lband.hh_mean_db,
-            "ALOS PALSAR L-band HH dB (baseline histórico)"),
-        *_g("faro_run_timestamp", now, "UNIX timestamp del último run"),
-        "",  # trailing newline requerido por Prometheus
-    ]
-
-    try:
-        with open(path, "w", encoding="utf-8") as f:
-            f.write("\n".join(metrics))
-        log.info("metrics: escrito %d métricas a %s", len([l for l in metrics if "venue=" in l]), path)
-    except Exception as e:
-        log.warning("metrics write (non-fatal): %s", e)
-
-
 # ── FaroEngine ────────────────────────────────────────────────────────────────
 
 class FaroEngine:
@@ -808,7 +713,8 @@ class FaroEngine:
         self.venue_id = venue_id
         self.auditor  = FaroAuditor(tsa_url=tsa_url)
 
-    def run(self, skip: list[str] | None = None) -> "FaroV2Report":
+    def run(self, skip: list[str] | None = None,
+            skip_audit: bool = False) -> "FaroV2Report":
         skip  = set(skip or [])
         today = date.today().isoformat()
         t0    = time.time()
@@ -828,20 +734,21 @@ class FaroEngine:
                 report.errors.append(msg)
                 log.error("FaroEngine component %s FAILED: %s", name, e)
 
-        report = self.auditor.certify(report)
-        report.duration_s = round(time.time() - t0, 2)
+        if not skip_audit:
+            report = self.auditor.certify(report)
 
-        record_prometheus_metrics(report)
+        report.duration_s = round(time.time() - t0, 2)
 
         status = "✅" if not report.errors else f"⚠ {len(report.errors)} errores"
         log.info("FaroEngine V2 END — %.1fs %s | SHA256=%s… | TSA=%s",
                  report.duration_s, status,
-                 report.audit.sha256[:16],
-                 "OK" if report.audit.verified else "FAILED")
+                 report.audit.sha256[:16] if report.audit.sha256 else "—",
+                 "OK" if report.audit.verified else "SKIPPED/FAILED")
         return report
 
-    def run_and_persist(self, skip: list[str] | None = None) -> "FaroV2Report":
-        report = self.run(skip=skip)
+    def run_and_persist(self, skip: list[str] | None = None,
+                        skip_audit: bool = False) -> "FaroV2Report":
+        report = self.run(skip=skip, skip_audit=skip_audit)
         persist_to_supabase(report)
         return report
 
@@ -877,12 +784,15 @@ if __name__ == "__main__":
                         help="Guardar resultado en Supabase")
     parser.add_argument("--json",    action="store_true",
                         help="Output JSON completo")
-    parser.add_argument("--tsa",     default=_SIGSTORE_TSA,
+    parser.add_argument("--tsa",        default=_SIGSTORE_TSA,
                         help="URL de la TSA RFC 3161")
+    parser.add_argument("--skip-audit", action="store_true",
+                        help="Omitir FaroAuditor (SHA-256 + TSA RFC 3161)")
     args = parser.parse_args()
 
     engine = FaroEngine(args.venue, tsa_url=args.tsa)
-    report = engine.run_and_persist(skip=args.skip) if args.persist else engine.run(skip=args.skip)
+    run_kw = dict(skip=args.skip, skip_audit=args.skip_audit)
+    report = engine.run_and_persist(**run_kw) if args.persist else engine.run(**run_kw)
 
     if args.json:
         print(report.to_json())

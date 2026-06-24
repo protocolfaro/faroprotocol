@@ -1,20 +1,20 @@
 """
-faro_monitoring.py — Observabilidad y calidad de datos para Faro Engine V2.
+faro_monitoring.py — Observabilidad standalone para Faro Engine V2.
 
-Tres responsabilidades:
-  1. check_data_quality()  — 5 pilares: freshness, completeness, bounds, schema, lineage
-  2. alert_to_slack()      — webhook Slack cuando health < verde
-  3. Flask /metrics        — endpoint Prometheus (lee /tmp/faro_metrics.prom)
+Responsabilidades:
+  1. record_prometheus_metrics() — escribe /tmp/faro_metrics.prom desde un FaroV2Report
+  2. check_data_quality()        — 5 pilares: freshness, completeness, bounds, schema, lineage
+  3. alert_to_slack()            — webhook Slack cuando health < verde
+  4. Flask /metrics + /health    — servidor Prometheus para scraping local
 
-Puede correrse standalone como servidor de métricas:
-    python faro_monitoring.py --port 9090
+Uso standalone (servidor de métricas):
+    python faro_monitoring.py serve --port 9090
 
-O importarse para quality checks:
-    from faro_monitoring import check_data_quality, run_and_alert
+Diseño: no importa faro_v2_engine en producción (evita imports circulares).
+Acepta dicts planos (asdict(FaroV2Report(...))) como entrada a check_data_quality.
 
 Env vars:
   SLACK_WEBHOOK_URL           webhook Slack para alertas
-  SUPABASE_URL + SUPABASE_KEY lectura de reportes para quality checks
   PROMETHEUS_METRICS_PATH     path del archivo .prom (default /tmp/faro_metrics.prom)
 """
 from __future__ import annotations
@@ -36,10 +36,8 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 if _HERE not in sys.path:
     sys.path.insert(0, _HERE)
 
-_METRICS_PATH    = os.environ.get("PROMETHEUS_METRICS_PATH", "/tmp/faro_metrics.prom")
-_SLACK_WEBHOOK   = lambda: os.environ.get("SLACK_WEBHOOK_URL", "")
-_SUPA_URL        = lambda: os.environ.get("SUPABASE_URL", "")
-_SUPA_KEY        = lambda: os.environ.get("SUPABASE_KEY", "")
+_METRICS_PATH  = os.environ.get("PROMETHEUS_METRICS_PATH", "/tmp/faro_metrics.prom")
+_SLACK_WEBHOOK = lambda: os.environ.get("SLACK_WEBHOOK_URL", "")
 
 # Umbrales físicos para pillar "bounds"
 _BOUNDS: dict[str, tuple[float, float]] = {
@@ -244,33 +242,23 @@ def _pillar_schema(report_data: dict) -> PillarResult:
 
 
 def _pillar_lineage(report_data: dict) -> PillarResult:
-    """
-    Pillar 5 — Lineage.
-    Verifica que exista audit trail: SHA-256 válido + TSA verificado.
-    """
-    audit = report_data.get("audit") or {}
-    sha   = audit.get("sha256", "")
-    tsa   = audit.get("tsa_token_b64")
-    ts    = audit.get("timestamp_iso", "")
-    vrf   = audit.get("verified", False)
+    """Pillar 5 — Lineage. Chequea: audit.sha256 válido, timestamp_iso presente, errors vacío."""
+    audit  = report_data.get("audit") or {}
+    sha    = audit.get("sha256", "")
+    ts     = audit.get("timestamp_iso", "")
+    errors = report_data.get("errors") or []
 
     issues: list[str] = []
     if not sha or len(sha) != 64:
         issues.append("sha256 inválido o ausente")
     if not ts:
         issues.append("timestamp_iso ausente")
-    if not vrf:
-        issues.append("TSA no verificado")
-    if not tsa:
-        issues.append("sin token RFC 3161")
+    if errors:
+        issues.append(f"{len(errors)} errores en pipeline")
 
-    score = max(0.0, 1.0 - len(issues) * 0.25)
-    # SHA-256 solo ya es lineage parcial
-    if sha and len(sha) == 64 and not vrf:
-        score = max(score, 0.5)
-
-    status = "green" if score >= 0.9 else ("yellow" if score >= 0.5 else "red")
-    detail = "SHA-256 + TSA OK" if not issues else "; ".join(issues)
+    score  = max(0.0, 1.0 - len(issues) / 3)
+    status = "green" if not issues else ("yellow" if len(issues) == 1 else "red")
+    detail = "SHA-256 + timestamp + sin errores" if not issues else "; ".join(issues)
     return PillarResult("lineage", round(score, 3), status, detail)
 
 
@@ -297,30 +285,72 @@ def check_data_quality(report_data: dict) -> DataQualityReport:
     )
 
 
-def check_latest_from_supabase(venue_id: str) -> Optional[DataQualityReport]:
+# ── Prometheus metrics writer ─────────────────────────────────────────────────
+
+def record_prometheus_metrics(report_data,
+                               path: str = "/tmp/faro_metrics.prom") -> None:
     """
-    Fetches el reporte más reciente de Supabase y corre check_data_quality.
-    Retorna None si no hay conectividad o no existe el reporte.
+    Escribe métricas en formato Prometheus text exposition.
+    Acepta FaroV2Report (dataclass) o dict equivalente. Sin deps externas.
     """
-    url = _SUPA_URL()
-    key = _SUPA_KEY()
-    if not url or not key:
-        log.warning("quality_check: SUPABASE_URL/KEY no configurados")
-        return None
+    if hasattr(report_data, "__dataclass_fields__"):
+        from dataclasses import asdict as _asdict
+        report_data = _asdict(report_data)
+    v   = report_data.get("venue_id", "unknown")
+    now = datetime.utcnow().timestamp()
+
+    def _g(name: str, value, help_text: str = "") -> list[str]:
+        if value is None:
+            return []
+        try:
+            fval = float(value)
+        except (TypeError, ValueError):
+            return []
+        lines = []
+        if help_text:
+            lines.append(f"# HELP {name} {help_text}")
+        lines.append(f'# TYPE {name} gauge')
+        lines.append(f'{name}{{venue="{v}"}} {fval}')
+        return lines
+
+    solar  = report_data.get("solar")  or {}
+    sar    = report_data.get("sar")    or {}
+    hydro  = report_data.get("hydro")  or {}
+    canopy = report_data.get("canopy") or {}
+    audit  = report_data.get("audit")  or {}
+
+    metrics: list[str] = [
+        f"# Faro Engine V2 metrics — generated {datetime.utcnow().isoformat()}Z",
+        *_g("faro_pipeline_duration_seconds", report_data.get("duration_s"),
+            "Duración del pipeline en segundos"),
+        *_g("faro_pipeline_errors_total",     float(len(report_data.get("errors") or [])),
+            "Cantidad de componentes con error"),
+        *_g("faro_audit_verified",            float(bool(audit.get("verified"))),
+            "1=TSA RFC3161 verificado, 0=sin sello"),
+        *_g("faro_solar_ghi_wh_m2",           solar.get("ghi_wh_m2"),
+            "Irradiación global horizontal Wh/m²/día"),
+        *_g("faro_solar_et0_mm_dia",          solar.get("et0_mm_dia"),
+            "Evapotranspiración referencia FAO-56 mm/día"),
+        *_g("faro_sar_vv_db",                 sar.get("vv_gamma0_db"),
+            "SAR OPERA RTC VV gamma0 dB"),
+        *_g("faro_sar_theta_soil",            sar.get("theta_soil"),
+            "Humedad suelo volumétrica Van Genuchten m³/m³"),
+        *_g("faro_sar_h_suction_cm",          sar.get("h_suction_cm"),
+            "Tensión mátrica Van Genuchten cm"),
+        *_g("faro_hydro_hand_mean_m",         hydro.get("hand_mean_m"),
+            "HAND medio sobre AOI metros"),
+        *_g("faro_canopy_height_mean_m",      canopy.get("altura_media_m"),
+            "ETH canopy height media metros"),
+        *_g("faro_run_timestamp",             now, "UNIX timestamp del último run"),
+        "",
+    ]
+
     try:
-        r = requests.get(
-            f"{url}/rest/v1/faro_v2_reports",
-            headers = {"apikey": key, "Authorization": f"Bearer {key}"},
-            params  = {"venue_id": f"eq.{venue_id}", "order": "created_at.desc", "limit": "1"},
-            timeout = 10,
-        )
-        if r.status_code != 200 or not r.json():
-            log.warning("quality_check: sin reporte para %s (HTTP %s)", venue_id, r.status_code)
-            return None
-        return check_data_quality(r.json()[0])
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("\n".join(metrics))
+        log.info("metrics: escrito a %s", path)
     except Exception as e:
-        log.warning("quality_check Supabase (non-fatal): %s", e)
-        return None
+        log.warning("metrics write (non-fatal): %s", e)
 
 
 # ── Slack alerting ────────────────────────────────────────────────────────────
@@ -368,15 +398,7 @@ def alert_to_slack(qr: DataQualityReport, webhook_url: str = "") -> bool:
     return False
 
 
-def run_and_alert(venue_id: str) -> Optional[DataQualityReport]:
-    """Shortcut: check_latest_from_supabase + alert_to_slack si no verde."""
-    qr = check_latest_from_supabase(venue_id)
-    if qr:
-        alert_to_slack(qr)
-    return qr
-
-
-# ── Prometheus metrics Flask endpoint ────────────────────────────────────────
+# ── Flask /metrics + /health ─────────────────────────────────────────────────
 
 def _build_flask_app():
     """Construye la Flask app con /metrics y /health."""
@@ -420,29 +442,7 @@ def _build_flask_app():
             status=200 if status == "ok" else 503,
         )
 
-    @app.route("/quality/<venue_id>")
-    def quality(venue_id: str):
-        if venue_id not in _valid_venues():
-            return Response(json.dumps({"error": "venue no registrado"}),
-                            mimetype="application/json", status=404)
-        qr = check_latest_from_supabase(venue_id)
-        if not qr:
-            return Response(
-                json.dumps({"error": "sin reporte en Supabase para " + venue_id}),
-                mimetype="application/json", status=503,
-            )
-        return Response(json.dumps({**qr.to_dict(), "summary": qr.summary()}),
-                        mimetype="application/json")
-
     return app
-
-
-def _valid_venues() -> list[str]:
-    try:
-        from faro_v2_engine import VENUE_REGISTRY
-        return list(VENUE_REGISTRY.keys())
-    except ImportError:
-        return ["amalfitani", "villa_olimpica"]
 
 
 # ── CLI ───────────────────────────────────────────────────────────────────────
@@ -456,40 +456,15 @@ if __name__ == "__main__":
         datefmt = "%H:%M:%S",
     )
 
-    parser = argparse.ArgumentParser(description="Faro Monitoring — /metrics + quality checks")
-    sub = parser.add_subparsers(dest="cmd")
-
-    srv = sub.add_parser("serve", help="Iniciar servidor /metrics Flask")
-    srv.add_argument("--port",  type=int, default=9090)
-    srv.add_argument("--host",  default="0.0.0.0")
-    srv.add_argument("--debug", action="store_true")
-
-    chk = sub.add_parser("check", help="Correr quality check de un venue")
-    chk.add_argument("--venue", default="amalfitani")
-    chk.add_argument("--alert", action="store_true",
-                     help="Enviar alerta a Slack si no verde")
-
+    parser = argparse.ArgumentParser(description="Faro Monitoring — servidor /metrics Prometheus")
+    parser.add_argument("--port",  type=int, default=9090)
+    parser.add_argument("--host",  default="0.0.0.0")
+    parser.add_argument("--debug", action="store_true")
     args = parser.parse_args()
 
-    if args.cmd == "serve":
-        app = _build_flask_app()
-        if not app:
-            print("ERROR: Flask no instalado — pip install flask")
-            sys.exit(1)
-        print(f"Faro Monitoring — http://{args.host}:{args.port}/metrics")
-        app.run(host=args.host, port=args.port, debug=args.debug)
-
-    elif args.cmd == "check":
-        qr = check_latest_from_supabase(args.venue)
-        if not qr:
-            print(f"Sin datos en Supabase para venue={args.venue}")
-            sys.exit(1)
-        print(qr.summary())
-        if args.alert:
-            sent = alert_to_slack(qr)
-            if sent:
-                print("Alerta enviada a Slack.")
-        sys.exit(0 if qr.overall_status == "green" else 1)
-
-    else:
-        parser.print_help()
+    app = _build_flask_app()
+    if not app:
+        print("ERROR: Flask no instalado — pip install flask")
+        sys.exit(1)
+    print(f"Faro Monitoring — http://{args.host}:{args.port}/metrics")
+    app.run(host=args.host, port=args.port, debug=args.debug)

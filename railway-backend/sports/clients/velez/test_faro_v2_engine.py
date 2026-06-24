@@ -51,9 +51,9 @@ from faro_v2_engine import (
     _fetch_solar,
     _van_genuchten,
     persist_to_supabase,
-    record_prometheus_metrics,
     _v,
 )
+from faro_monitoring import record_prometheus_metrics
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -563,3 +563,44 @@ def test_cli_args_custom_venue_and_skip(monkeypatch):
     assert "lband"      in args.skip
     assert args.json    is True
     assert args.persist is True
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Integration helpers (moved from faro_monitoring — no pytest auto-discovery)
+# Úsalos manualmente: check_latest_from_supabase("amalfitani")
+# ─────────────────────────────────────────────────────────────────────────────
+
+def check_latest_from_supabase(venue_id: str):
+    """
+    Fetch el reporte más reciente de Supabase y corre check_data_quality.
+    Requiere SUPABASE_URL + SUPABASE_KEY en el entorno.
+    Retorna DataQualityReport o None.
+    """
+    import requests as _req
+    from faro_monitoring import check_data_quality
+
+    url = os.environ.get("SUPABASE_URL", "")
+    key = os.environ.get("SUPABASE_KEY", "")
+    if not url or not key:
+        return None
+    try:
+        r = _req.get(
+            f"{url}/rest/v1/faro_v2_reports",
+            headers={"apikey": key, "Authorization": f"Bearer {key}"},
+            params={"venue_id": f"eq.{venue_id}", "order": "created_at.desc", "limit": "1"},
+            timeout=10,
+        )
+        if r.status_code != 200 or not r.json():
+            return None
+        return check_data_quality(r.json()[0])
+    except Exception:
+        return None
+
+
+def run_and_alert(venue_id: str):
+    """Shortcut: check_latest_from_supabase + alert_to_slack si no verde."""
+    from faro_monitoring import alert_to_slack
+    qr = check_latest_from_supabase(venue_id)
+    if qr:
+        alert_to_slack(qr)
+    return qr
