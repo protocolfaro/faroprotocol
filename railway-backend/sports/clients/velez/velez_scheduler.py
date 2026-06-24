@@ -1740,12 +1740,11 @@ def get_last_weekly() -> dict:
     return _last_weekly
 
 
-def run_refresh_only() -> dict:
+def run_refresh_only(force: bool = False) -> dict:
     """Regenera datos y PNGs. SIN emails ni WhatsApp.
-    Único target válido para /velez/run_now y faro_cerebro._trigger_run_now().
-    Los emails al club solo salen vía run_weekly_job() (job lunes 10:00 UTC).
+    force=True: re-procesa la imagen aunque ya esté en Supabase (útil después de fixes de código).
     """
-    log.info("=== run_refresh_only: inicio ===")
+    log.info("=== run_refresh_only: inicio (force=%s) ===", force)
     result: dict = {"satellite": None, "pngs": 0, "faro_v2": None}
 
     # FaroEngine V2 — SAR soil moisture + HAND + solar (Supabase faro_v2_reports)
@@ -1767,7 +1766,7 @@ def run_refresh_only() -> dict:
 
     try:
         import satellite_pipeline
-        result["satellite"] = satellite_pipeline.run_satellite_cycle()
+        result["satellite"] = satellite_pipeline.run_satellite_cycle(force=force)
         log.info("satellite_pipeline: %s", result["satellite"])
     except Exception as exc:
         log.warning("satellite_pipeline (non-fatal): %s", exc)
@@ -1910,6 +1909,18 @@ _PREVIEW_SLUGS = {
     "nelson":   "Nelson Pugliese",
     "aveleyra": "Alberto Aveleyra",
 }
+
+
+def route_force_reprocess():
+    """POST /velez/force_reprocess
+    Re-procesa la imagen satelital actual aunque ya esté en Supabase.
+    Usar después de fixes de código (coordenadas, bandas, etc.) para que apliquen al dato existente.
+    """
+    from flask import jsonify
+    log.info("force_reprocess: iniciando re-procesamiento forzado")
+    threading.Thread(target=run_refresh_only, kwargs={"force": True}, daemon=True).start()
+    return jsonify({"status": "started", "force": True,
+                    "msg": "Re-procesamiento forzado iniciado — ver Railway logs"})
 
 
 def route_preview_email():

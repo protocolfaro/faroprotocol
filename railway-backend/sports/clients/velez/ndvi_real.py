@@ -129,11 +129,11 @@ _STAC_SOURCES = [
         "collection": "landsat-c2-l2",
         "sign":       False,
         "cloud_prop": "eo:cloud_cover",
-        "red":        ["SR_B4", "red"],
-        "nir":        ["SR_B5", "nir"],
-        "green":      ["SR_B3", "green"],
-        "blue":       ["SR_B2", "blue"],
-        "swir1":      ["SR_B6", "swir16"],
+        "red":        ["SR_B4", "sr_b4", "red"],
+        "nir":        ["SR_B5", "sr_b5", "nir"],
+        "green":      ["SR_B3", "sr_b3", "green"],
+        "blue":       ["SR_B2", "sr_b2", "blue"],
+        "swir1":      ["SR_B6", "sr_b6", "swir16"],
         # no SCL for Landsat — CLOSDI handles shadows inline
         "scale":      "ls",
     },
@@ -310,6 +310,7 @@ def _composite_scene(items: list, src: dict) -> "dict[str, dict] | None":
             dtype="float32",
             fill_value=float("nan"),
             xy_coords="center",
+            rescale=False,  # _to_refl() applies the correct scale per sensor
         ).compute()   # (time, band, Y, X)
     except Exception as exc:
         log.warning("ndvi composite: stackstac load falló: %s", exc)
