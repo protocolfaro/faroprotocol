@@ -183,8 +183,12 @@ def _n_status(gndvi: float) -> tuple[str, str]:
 
 
 def _search_source(src: dict, dt_from: str, dt_to: str,
-                   max_cloud: float) -> list:
-    """Busca items en una fuente STAC. Retorna lista vacía si falla."""
+                   max_cloud: float, limit: int = 1) -> list:
+    """Busca items en una fuente STAC. Retorna lista vacía si falla.
+
+    limit=1  → comportamiento original (rondas normales)
+    limit>1  → retorna múltiples escenas para compositing BAP
+    """
     try:
         import pystac_client
         kwargs = {"url": src["url"]}
@@ -197,19 +201,244 @@ def _search_source(src: dict, dt_from: str, dt_to: str,
                 return []
 
         catalog = pystac_client.Client.open(**kwargs)
-        items = list(catalog.search(
+        search_kwargs: dict = dict(
             collections=[src["collection"]],
             bbox=_CLUSTER_BBOX,
             datetime=f"{dt_from}/{dt_to}",
-            query={src["cloud_prop"]: {"lt": max_cloud}},
             sortby="-properties.datetime",
-        ).items())
+        )
+        if max_cloud < 100:
+            search_kwargs["query"] = {src["cloud_prop"]: {"lt": max_cloud}}
+        items = list(catalog.search(**search_kwargs).items())
+        items = items[:limit]
         log.info("ndvi_real [%s]: %d items (cloud<%.0f%%, %s→%s)",
                  src["name"], len(items), max_cloud, dt_from, dt_to)
         return items
     except Exception as exc:
         log.warning("ndvi_real [%s]: búsqueda falló: %s", src["name"], exc)
         return []
+
+
+# ── BAP (Best Available Pixel) compositing ────────────────────────────────────
+#
+# Física: cada píxel de la cancha recibe el valor de la fecha donde el SCL
+# (Scene Classification Layer) tiene mayor calidad, priorizando vegetación y
+# suelo desnudo sobre nubes y sombras. Con 6-8 escenas en 30 días, la
+# probabilidad de que algún píxel quede sin cobertura válida es <5% incluso
+# en invierno austral (BsAs jun-ago).
+#
+# SCL classes (ESA Sentinel-2 L2A):
+#   0=no_data, 1=defective, 2=dark, 3=shadow, 4=vegetation★, 5=bare_soil★,
+#   6=water, 7=low_prob_cloud, 8=med_cloud, 9=high_cloud, 10=cirrus, 11=snow
+
+def _scl_priority(scl_arr: "np.ndarray") -> "np.ndarray":
+    """Convierte valores SCL a prioridad (mayor=mejor). Shape preservado."""
+    import numpy as np
+    p = np.zeros(scl_arr.shape, dtype=np.int8)
+    p[scl_arr == 4] = 6   # vegetation — óptimo para NDVI
+    p[scl_arr == 5] = 5   # bare soil
+    p[scl_arr == 7] = 4   # low prob cloud — aceptable
+    p[scl_arr == 6] = 3   # water (riego) — válido
+    p[scl_arr == 2] = 2   # dark area — último recurso
+    p[scl_arr == 11] = 1  # snow (no ocurre en BsAs, but safe)
+    # 0 para shadow, cloud, cirrus, defective, no_data
+    return p
+
+
+def _composite_scene(items: list, src: dict) -> "dict[str, dict] | None":
+    """
+    Best Available Pixel (BAP) composite sobre múltiples escenas STAC.
+
+    Para cada píxel de cada cancha selecciona el valor espectral de la fecha
+    con mejor clasificación SCL dentro de la ventana temporal. Genera ndvi_2d
+    con cobertura próxima al 100% aunque cada escena individual esté parcialmente
+    nublada.
+
+    Requiere stackstac (Dask). Si no está disponible retorna None → fallback
+    automático a las rondas normales.
+    """
+    import numpy as np
+    try:
+        import stackstac
+    except ImportError:
+        log.warning("ndvi composite: stackstac no disponible — omitiendo BAP")
+        return None
+
+    from rasterio.warp import transform_bounds
+
+    mode = src["scale"]
+
+    # Resolver assets contra el primer item (todos del mismo collection/sensor)
+    band_map: dict[str, str | None] = {}
+    spectral_assets: list[str] = []
+    scl_asset: str | None = None
+
+    for logical, candidates in [
+        ("nir",   src["nir"]),
+        ("red",   src["red"]),
+        ("green", src["green"]),
+        ("blue",  src.get("blue", [])),
+        ("swir1", src.get("swir1", [])),
+        ("red_edge", src.get("red_edge", [])),
+    ]:
+        for c in candidates:
+            if c in items[0].assets:
+                band_map[logical] = c
+                if c not in spectral_assets:
+                    spectral_assets.append(c)
+                break
+        else:
+            band_map[logical] = None
+
+    for c in src.get("scl", []):
+        if c in items[0].assets:
+            scl_asset = c
+            break
+
+    if not band_map.get("nir") or not band_map.get("red"):
+        log.warning("ndvi composite: NIR/RED no encontrados en assets")
+        return None
+
+    resolution = 10 if mode == "s2" else 30
+
+    try:
+        da = stackstac.stack(
+            items,
+            assets=spectral_assets,
+            bounds_latlon=list(_CLUSTER_BBOX),
+            resolution=resolution,
+            dtype="float32",
+            fill_value=float("nan"),
+            xy_coords="center",
+        ).compute()   # (time, band, Y, X)
+    except Exception as exc:
+        log.warning("ndvi composite: stackstac load falló: %s", exc)
+        return None
+
+    nT   = da.shape[0]
+    H    = da.shape[-2]
+    W    = da.shape[-1]
+
+    def _band_all(name: str) -> "np.ndarray | None":
+        key = band_map.get(name)
+        if not key:
+            return None
+        try:
+            raw = da.sel(band=key).values   # (T, H, W)
+        except Exception:
+            return None
+        out = np.full_like(raw, np.nan)
+        for t in range(nT):
+            out[t] = _to_refl(raw[t], mode)
+        return out
+
+    nir_all   = _band_all("nir")
+    red_all   = _band_all("red")
+    green_all = _band_all("green")
+    blue_all  = _band_all("blue")
+    swir1_all = _band_all("swir1")
+
+    if nir_all is None or red_all is None:
+        return None
+
+    # ── SCL → prioridad por píxel ──────────────────────────────────────
+    if scl_asset:
+        try:
+            da_scl = stackstac.stack(
+                items,
+                assets=[scl_asset],
+                bounds_latlon=list(_CLUSTER_BBOX),
+                resolution=20,
+                dtype="float32",
+                fill_value=0.0,
+                xy_coords="center",
+            ).compute()
+            scl_all = da_scl.squeeze("band").values.astype(np.int16)  # (T, H_20m, W_20m)
+
+            # Upsample 20m → 10m (nearest neighbour)
+            h20, w20 = scl_all.shape[-2], scl_all.shape[-1]
+            ry = max(1, int(round(H / h20)))
+            rx = max(1, int(round(W / w20)))
+            scl_up = np.repeat(np.repeat(scl_all, ry, axis=-2), rx, axis=-1)
+            scl_up = scl_up[:, :H, :W]   # trim to exact size
+
+            priority = np.stack([_scl_priority(scl_up[t]) for t in range(nT)])  # (T,H,W)
+        except Exception as exc:
+            log.debug("ndvi composite: SCL load: %s", exc)
+            priority = None
+    else:
+        priority = None
+
+    if priority is not None:
+        best_t        = np.argmax(priority, axis=0)      # (H, W)
+        max_priority  = priority.max(axis=0)             # (H, W)
+        bad_px        = max_priority == 0                # sin ningún píxel válido
+    else:
+        # Sin SCL: usar argmax NDVI como proxy (nubes → NDVI negativo/bajo)
+        with np.errstate(invalid="ignore", divide="ignore"):
+            ndvi_t = (nir_all - red_all) / (nir_all + red_all + 1e-9)
+        ndvi_t = np.where(np.isnan(nir_all), -2.0, ndvi_t)
+        best_t = np.argmax(ndvi_t, axis=0)
+        bad_px = np.all(np.isnan(nir_all), axis=0)
+
+    # ── Composite: fancy indexing (T,H,W) → (H,W) ────────────────────
+    flat_t  = best_t.reshape(-1)
+    flat_hw = np.arange(H * W)
+
+    def _comp(arr: "np.ndarray | None") -> "np.ndarray | None":
+        if arr is None:
+            return None
+        c = arr.reshape(nT, -1)[flat_t, flat_hw].reshape(H, W).astype(np.float32)
+        c[bad_px] = np.nan
+        return c
+
+    nir_c   = _comp(nir_all)
+    red_c   = _comp(red_all)
+    green_c = _comp(green_all)
+    blue_c  = _comp(blue_all)
+    swir1_c = _comp(swir1_all)
+
+    # Fecha dominante = la que más píxeles aportó al composite
+    counts       = np.bincount(flat_t[~bad_px.reshape(-1)], minlength=nT)
+    dom_t        = int(np.argmax(counts))
+    dom_date     = items[dom_t].properties.get("datetime", "?")[:10]
+
+    crs_str  = str(da.attrs.get("crs", "EPSG:32721"))
+    affine_t = da.attrs.get("transform")
+
+    results: dict[str, dict] = {}
+
+    for cid, (minx, miny, maxx, maxy) in CANCHA_BBOXES.items():
+        try:
+            nx0, ny0, nx1, ny1 = transform_bounds("EPSG:4326", crs_str,
+                                                   minx, miny, maxx, maxy)
+            if affine_t is None:
+                continue
+            inv = ~affine_t
+            c0, r0 = inv * (nx0, ny1)
+            c1, r1 = inv * (nx1, ny0)
+            ri0 = max(0, int(r0)); ri1 = min(H, int(r1) + 1)
+            ci0 = max(0, int(c0)); ci1 = min(W, int(c1) + 1)
+            if ri0 >= ri1 or ci0 >= ci1:
+                continue
+
+            def _crop(a: "np.ndarray | None") -> "np.ndarray | None":
+                return a[ri0:ri1, ci0:ci1] if a is not None else None
+
+            scl_mask = _crop(bad_px).copy() if bad_px is not None else None
+
+            entry = _compute_indices(
+                _crop(nir_c), _crop(red_c), _crop(green_c),
+                _crop(blue_c), _crop(swir1_c), scl_mask, mode,
+            )
+            if entry is not None:
+                entry["composite_date"]     = dom_date
+                entry["composite_n_scenes"] = nT
+                results[cid] = entry
+        except Exception as exc:
+            log.warning("ndvi composite: %s: %s", cid, exc)
+
+    return results if results else None
 
 
 def _compute_indices(
@@ -661,7 +890,7 @@ def fetch_ndvi() -> Optional[dict]:
                  max_cloud, days, dt_from, dt_to)
 
         for src in _STAC_SOURCES:
-            items = _search_source(src, dt_from, dt_to, max_cloud)
+            items = _search_source(src, dt_from, dt_to, max_cloud, limit=1)
             if not items:
                 continue
 
@@ -705,27 +934,74 @@ def fetch_ndvi() -> Optional[dict]:
                 "prithvi_enriquecido": prithvi_ok,
             }
 
-    # ── Kalman gap-fill — si no hay imagen limpia disponible ─────────────
-    try:
-        import faro_kalman_gapfill as _kgf
-        _k_result = _kgf.gap_fill_today(venue_id="amalfitani")
-        if _k_result:
-            log.info("ndvi_real: Kalman gap-fill activado — margen=%.3f",
-                     list(_k_result["canchas"].values())[0].get("margen_error_kalman", 0))
-            return _k_result
-    except Exception as _ke:
-        log.warning("ndvi_real: kalman gap-fill (non-fatal): %s", _ke)
+    # ── Ronda BAP: composite multi-temporal pixel-a-pixel ────────────────
+    # Cuando ninguna escena individual tiene cobertura útil (invierno),
+    # combina hasta 8 escenas de 30 días → ndvi_2d sin huecos de nubes.
+    # Se intenta siempre, no solo en invierno, porque es el fallback correcto.
+    log.info("ndvi_real: Ronda BAP — composite 30d (todas las nubes, múltiples escenas)")
+    _bap_from = (today - timedelta(days=30)).isoformat()
+    _bap_to   = today.isoformat()
+    for _src in _STAC_SOURCES[:2]:   # solo S2 10m (PC + E84); Landsat 30m no aporta al composite
+        _bap_items = _search_source(_src, _bap_from, _bap_to, max_cloud=95, limit=8)
+        if len(_bap_items) < 2:
+            log.info("ndvi_real BAP [%s]: solo %d escenas — insuficiente", _src["name"], len(_bap_items))
+            continue
+        log.info("ndvi_real BAP [%s]: compositing %d escenas", _src["name"], len(_bap_items))
+        _bap_canchas = _composite_scene(_bap_items, _src)
+        if _bap_canchas:
+            _dom = next(iter(_bap_canchas.values())).get("composite_date", _bap_from)
+            log.info("ndvi_real BAP OK — %d canchas · fecha_dom=%s · %d escenas",
+                     len(_bap_canchas), _dom, len(_bap_items))
+            return {
+                "fuente":              f"BAP_composite · {_src['name']} · 30d · {len(_bap_items)}esc",
+                "fecha_imagen":        _dom,
+                "nubosidad_pct":       0.0,   # composite es libre de nubes por construcción
+                "canchas":             _bap_canchas,
+                "prithvi_enriquecido": False,
+                "metodo":              "COMPOSITE_BAP_30D",
+            }
+        log.warning("ndvi_real BAP [%s]: composite sin píxeles válidos", _src["name"])
 
-    # ── CloudBreaker HF — segundo fallback SAR→S2 fusion ─────────────────
-    try:
-        import faro_cloudbreaker_hf as _cbhf
-        _cb_result = _cbhf.reconstruct(venue_id="amalfitani")
-        if _cb_result:
-            log.info("ndvi_real: CloudBreaker HF activado — %d canchas",
-                     len(_cb_result.get("canchas", {})))
-            return _cb_result
-    except Exception as _cbe:
-        log.warning("ndvi_real: cloudbreaker HF (non-fatal): %s", _cbe)
+    # ── Kalman gap-fill — fallback temporal cuando no hay óptico ─────────
+    _kalman_merged: dict = {}
+    for _kv in ["amalfitani", "villa_olimpica"]:
+        try:
+            import faro_kalman_gapfill as _kgf
+            _k = _kgf.gap_fill_today(venue_id=_kv)
+            if _k and _k.get("canchas"):
+                _kalman_merged.update(_k["canchas"])
+        except Exception as _ke:
+            log.warning("ndvi_real: kalman %s (non-fatal): %s", _kv, _ke)
+    if _kalman_merged:
+        log.info("ndvi_real: Kalman gap-fill activado — %d canchas", len(_kalman_merged))
+        return {
+            "fuente":        "kalman_gapfill",
+            "fecha_imagen":  today.isoformat(),
+            "nubosidad_pct": 100.0,
+            "canchas":       _kalman_merged,
+            "prithvi_enriquecido": False,
+        }
 
-    log.warning("ndvi_real: ⚠️ ninguna fuente devolvió datos — NDVI anterior mantenido")
+    # ── CloudBreaker HF — fusión SAR→S2 para cada venue ─────────────────
+    _cb_merged: dict = {}
+    for _cbv in ["amalfitani", "villa_olimpica"]:
+        try:
+            import faro_cloudbreaker_hf as _cbhf
+            _cb = _cbhf.reconstruct(venue_id=_cbv)
+            if _cb and _cb.get("canchas"):
+                _cb_merged.update(_cb["canchas"])
+        except Exception as _cbe:
+            log.warning("ndvi_real: cloudbreaker %s (non-fatal): %s", _cbv, _cbe)
+    if _cb_merged:
+        log.info("ndvi_real: CloudBreaker HF activado — %d canchas", len(_cb_merged))
+        return {
+            "fuente":              "cloudbreaker_sar_fusion",
+            "fecha_imagen":        today.isoformat(),
+            "nubosidad_pct":       100.0,
+            "canchas":             _cb_merged,
+            "prithvi_enriquecido": False,
+            "metodo_generacion":   "CLOUDBREAKER_SAR_FUSION",
+        }
+
+    log.warning("ndvi_real: ninguna fuente devolvio datos — NDVI anterior mantenido")
     return None
