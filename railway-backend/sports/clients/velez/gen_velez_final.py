@@ -153,8 +153,9 @@ def _build_zones_from_vd(vd):
     return zones
 
 import os as _os, json as _json
-_vd_path   = _os.environ.get("FARO_VD_PATH")
-_insar_mm  = None   # Panel 5: deformación global Amalfitani (mm)
+_vd_path        = _os.environ.get("FARO_VD_PATH")
+_insar_mm       = None   # Panel 5: deformación global Amalfitani (mm)
+_tribunas_insar = None   # Panel 5: per-tribuna {norte, sur, este, oeste} (mm) — HyP3 D-InSAR
 if _vd_path:
     try:
         with open(_vd_path, encoding="utf-8") as _f:
@@ -162,8 +163,9 @@ if _vd_path:
         _zones_real = _build_zones_from_vd(_vd_data)
         if _zones_real:
             ZONES = _zones_real
-        # InSAR global (mm) para Panel 5
-        _insar_mm = _vd_data.get("sectores", {}).get("estadio", {}).get("insar_mm")
+        _est_data       = _vd_data.get("sectores", {}).get("estadio", {})
+        _insar_mm       = _est_data.get("insar_mm")
+        _tribunas_insar = _est_data.get("tribunas_insar")  # {norte: mm, sur: mm, ...}
     except Exception as _e:
         print(f"FARO_VD_PATH final: {_e} — usando datos hardcodeados")
 _out_path = _os.environ.get("FARO_OUT_PATH")
@@ -654,8 +656,13 @@ ax_ins.text(0.5, 1.02, 'PANEL InSAR · DEFORMACIÓN ESTRUCTURAL — TRIBUNAS',
     ha='center', va='bottom', fontfamily='monospace')
 
 labels = ['Norte', 'Sur', 'Este', 'Oeste']
-if _insar_mm is not None:
-    # Valor global del assembler — mismo para todas las tribunas hasta tener per-tribuna
+_trib_keys = ['norte', 'sur', 'este', 'oeste']
+if _tribunas_insar and sum(1 for k in _trib_keys if _tribunas_insar.get(k) is not None) >= 2:
+    # Datos reales por tribuna — Sentinel-1 D-InSAR via HyP3 (4 bboxes separados)
+    _fb = _insar_mm if _insar_mm is not None else 0.22
+    vals   = [round(float(_tribunas_insar.get(k) or _fb), 2) for k in _trib_keys]
+    colors = [GRNL if v < 1.0 else (YELL if v < 2.0 else REDL) for v in vals]
+elif _insar_mm is not None:
     vals   = [round(_insar_mm, 2)] * 4
     colors = [GRNL if _insar_mm < 1.0 else (YELL if _insar_mm < 2.0 else REDL)] * 4
 else:
@@ -678,13 +685,17 @@ for bar_, val in zip(bars, vals):
         f'{val:.2f}mm', color=clr, fontsize=9, fontweight='bold',
         ha='center', va='bottom', fontfamily='monospace')
 
-# alert arrow on Oeste
-ax_ins.annotate('⚠ INSPECCIÓN\nESTRUCTURAL\nRECOMENDADA',
-    xy=(3, 2.80), xytext=(2.3, 3.5),
-    color=REDXL, fontsize=8, fontweight='bold', fontfamily='monospace',
-    arrowprops=dict(arrowstyle='->', color=REDXL, lw=1.5),
-    bbox=dict(facecolor='#1a0000', edgecolor=REDL, linewidth=1.2,
-              pad=4, boxstyle='round,pad=0.3'))
+# alert arrow — points dynamically to the bar with the highest InSAR deformation
+_max_val = max(vals)
+_max_idx = vals.index(_max_val)
+if _max_val >= 2.0:
+    _xt = _max_idx - 0.8 if _max_idx >= 2 else _max_idx + 0.8
+    ax_ins.annotate('⚠ INSPECCIÓN\nESTRUCTURAL\nRECOMENDADA',
+        xy=(_max_idx, _max_val), xytext=(_xt, _max_val + 0.7),
+        color=REDXL, fontsize=8, fontweight='bold', fontfamily='monospace',
+        arrowprops=dict(arrowstyle='->', color=REDXL, lw=1.5),
+        bbox=dict(facecolor='#1a0000', edgecolor=REDL, linewidth=1.2,
+                  pad=4, boxstyle='round,pad=0.3'))
 
 ax_ins.set_xlim(-0.6, 3.8)
 ax_ins.set_ylim(0, 4.8)

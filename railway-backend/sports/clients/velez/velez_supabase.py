@@ -73,6 +73,8 @@ Migration notes:
       created_at TIMESTAMPTZ DEFAULT NOW()
   );
   CREATE INDEX IF NOT EXISTS idx_climate_metrics_venue_ts ON climate_metrics (venue_id, created_at DESC);
+  -- Migration: add ECOSTRESS ET column (safe to re-run)
+  ALTER TABLE climate_metrics ADD COLUMN IF NOT EXISTS et_ecostress_mm NUMERIC;
 """
 from __future__ import annotations
 import json, logging, os, time

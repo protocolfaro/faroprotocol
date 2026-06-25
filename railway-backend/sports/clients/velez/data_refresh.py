@@ -644,13 +644,18 @@ def push_weather_update(weather_live: dict) -> str:
 
 # ── InSAR sector mapping ──────────────────────────────────────────────────────
 
-# insar_hyp3 sector_id → (velez_data.json sector key, display label)
+# insar_hyp3 sector_id → (velez_sectores sector_id, display label)
+# Tribuna entries store as separate sector rows; assembler aggregates into estadio.tribunas_insar
 _INSAR_SECTOR_MAP: dict[str, tuple[str, str]] = {
-    "estadio":           ("estadio", "InSAR Estadio"),
-    "poli_basquet":      ("poli",    "InSAR Básquet"),
-    "poli_playon_norte": ("poli",    "InSAR Playón Norte"),
-    "sede_anexo_norte":  ("sede",    "InSAR Anexo Norte"),
-    "piletas":           ("piletas", "InSAR Piletas"),
+    "estadio":                ("estadio",               "InSAR Estadio"),
+    "estadio_tribuna_norte":  ("estadio_tribuna_norte", "InSAR Tribuna Norte"),
+    "estadio_tribuna_sur":    ("estadio_tribuna_sur",   "InSAR Tribuna Sur"),
+    "estadio_tribuna_este":   ("estadio_tribuna_este",  "InSAR Tribuna Este"),
+    "estadio_tribuna_oeste":  ("estadio_tribuna_oeste", "InSAR Tribuna Oeste"),
+    "poli_basquet":           ("poli",                  "InSAR Básquet"),
+    "poli_playon_norte":      ("poli",                  "InSAR Playón Norte"),
+    "sede_anexo_norte":       ("sede",                  "InSAR Anexo Norte"),
+    "piletas":                ("piletas",               "InSAR Piletas"),
 }
 
 
@@ -661,6 +666,7 @@ def push_insar_update(insar_result: dict) -> str:
 
     # Build sectores update dict (shared by Supabase and GitHub paths)
     poli_vals: list[tuple[float, str]] = []
+    tribuna_vals: dict[str, float] = {}   # {norte|sur|este|oeste: mm}
     sectores_upd: dict = {}
     for insar_id, val_mm in sector_mm.items():
         json_key, label = _INSAR_SECTOR_MAP.get(insar_id, (None, None))
@@ -669,11 +675,26 @@ def push_insar_update(insar_result: dict) -> str:
         if json_key == "poli":
             poli_vals.append((val_mm, label))
             continue
+        # Tribuna: store as separate sector row AND aggregate into estadio mean
+        if json_key.startswith("estadio_tribuna_"):
+            trib_key = json_key.replace("estadio_tribuna_", "")   # "norte", "sur", "este", "oeste"
+            tribuna_vals[trib_key] = val_mm
+            sectores_upd[json_key] = {"insar_mm": val_mm, "detalle": f"{label}: {val_mm:+.2f} mm"}
+            continue
         sectores_upd[json_key] = {"insar_mm": val_mm, "detalle": f"{label}: {val_mm:+.2f} mm"}
     if poli_vals:
         mean_mm    = round(sum(v for v, _ in poli_vals) / len(poli_vals), 2)
         poli_label = poli_vals[0][1]
         sectores_upd["poli"] = {"insar_mm": mean_mm, "detalle": f"{poli_label}: {mean_mm:+.2f} mm"}
+    # If per-tribuna data available and no global estadio entry, derive estadio from tribuna mean
+    if tribuna_vals and "estadio" not in sectores_upd:
+        mean_mm = round(sum(tribuna_vals.values()) / len(tribuna_vals), 2)
+        n = len(tribuna_vals)
+        sectores_upd["estadio"] = {
+            "insar_mm": mean_mm,
+            "detalle":  f"InSAR Estadio: {mean_mm:+.2f} mm · media {n} tribunas",
+        }
+        log.info("push_insar_update: tribuna mean %.2f mm (%d tribunas)", mean_mm, n)
 
     # Primary: Supabase UPSERT
     if sectores_upd:

@@ -1651,17 +1651,41 @@ def run_weekly_job() -> dict:
     log.info("=== Weekly job starting ===")
 
     # FaroEngine V2 — guaranteed weekly run: SAR + solar + HAND para ambos venues
+    # villa_olimpica también genera per-cancha SAR (12 subsets del mismo granule OPERA)
     try:
         from faro_v2_engine import FaroEngine
         for _venue in ["amalfitani", "villa_olimpica"]:
             try:
                 _rpt = FaroEngine(_venue).run_and_persist(skip=["canopy", "lband"])
-                log.info("FaroEngine V2 weekly %s OK — SHA256=%s…",
-                         _venue, _rpt.audit.sha256[:16])
+                log.info("FaroEngine V2 weekly %s OK — SHA256=%s… por_cancha=%d",
+                         _venue, _rpt.audit.sha256[:16],
+                         len(_rpt.sar.por_cancha) if _rpt.sar else 0)
             except Exception as _ve:
                 log.warning("FaroEngine V2 weekly %s (non-fatal): %s", _venue, _ve)
     except Exception as _fe:
         log.warning("FaroEngine V2 weekly (non-fatal): %s", _fe)
+
+    # ECOSTRESS (ECO3ETPTJPL 70m) + SMAP Enhanced L3 — NASA Earthdata via earthaccess
+    # Resultado: climate_metrics.et_ecostress_mm + soil_metrics.theta_smap
+    # Hermes los expone a weather_live en el ciclo siguiente; assembler step 3 los lee
+    try:
+        from faro_ecostress import run_ecostress_cycle
+        _eco = run_ecostress_cycle("amalfitani")
+        log.info("ECOSTRESS weekly: ET=%.3f mm/día · SMAP θ=%s · alerta_et=%s",
+                 _eco.get("et_ecostress_mm") or 0,
+                 _eco.get("theta_smap"), _eco.get("alerta_et"))
+    except Exception as _eco_err:
+        log.warning("ECOSTRESS weekly (non-fatal): %s", _eco_err)
+
+    # Landsat 9 TIRS — LST 30m superficie del campo (°C) → soil_metrics.temp_superficie_c
+    # Alerta si temp > 35°C + θ_soil < 0.15 (estrés hídrico severo) o > 40°C (quemadura raíces)
+    try:
+        from faro_landsat_thermal import run_landsat_cycle
+        _lst = run_landsat_cycle("amalfitani")
+        log.info("Landsat thermal weekly: LST=%.1f°C · alerta_calor=%s",
+                 _lst.get("temp_superficie_c") or 0, _lst.get("alerta_calor"))
+    except Exception as _lst_err:
+        log.warning("Landsat thermal weekly (non-fatal): %s", _lst_err)
 
     # Satellite pipeline — NDVI per-cancha + PNGs + GitHub push
     try:
@@ -1709,21 +1733,37 @@ def run_refresh_only(force: bool = False) -> dict:
     result: dict = {"satellite": None, "pngs": 0, "faro_v2": None}
 
     # FaroEngine V2 — SAR soil moisture + HAND + solar (Supabase faro_v2_reports)
-    # Corre primero: satellite_pipeline ya lo incluye como step 9, pero este bloque
-    # garantiza que el reporte V2 se persiste aunque satellite_pipeline falle.
+    # villa_olimpica también genera per-cancha SAR (12 subsets del mismo granule OPERA)
     try:
         from faro_v2_engine import FaroEngine
         _v2: dict = {}
         for _venue in ["amalfitani", "villa_olimpica"]:
             try:
                 _rpt = FaroEngine(_venue).run_and_persist(skip=["canopy", "lband"])
-                _v2[_venue] = {"ok": True, "sha256": _rpt.audit.sha256[:16]}
+                _v2[_venue] = {
+                    "ok": True, "sha256": _rpt.audit.sha256[:16],
+                    "por_cancha": len(_rpt.sar.por_cancha) if _rpt.sar else 0,
+                }
             except Exception as _ve:
                 _v2[_venue] = {"ok": False, "error": str(_ve)[:120]}
         result["faro_v2"] = _v2
         log.info("FaroEngine V2 standalone: %s", _v2)
     except Exception as exc:
         log.warning("FaroEngine V2 (non-fatal): %s", exc)
+
+    # ECOSTRESS + Landsat thermal — NASA missions, resultado en climate_metrics / soil_metrics
+    try:
+        from faro_ecostress import run_ecostress_cycle
+        result["ecostress"] = run_ecostress_cycle("amalfitani")
+        log.info("ECOSTRESS refresh: %s", result["ecostress"])
+    except Exception as exc:
+        log.warning("ECOSTRESS (non-fatal): %s", exc)
+    try:
+        from faro_landsat_thermal import run_landsat_cycle
+        result["landsat_thermal"] = run_landsat_cycle("amalfitani")
+        log.info("Landsat thermal refresh: %s", result["landsat_thermal"])
+    except Exception as exc:
+        log.warning("Landsat thermal (non-fatal): %s", exc)
 
     try:
         import satellite_pipeline

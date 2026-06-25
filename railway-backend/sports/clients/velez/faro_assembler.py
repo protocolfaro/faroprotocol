@@ -67,6 +67,22 @@ def _apply_supabase_overlay(vd: dict) -> None:
             vd.setdefault("sectores", {}).setdefault(sid, {}).update(
                 {k: v for k, v in s.items() if k not in ("sector_id", "updated_at")}
             )
+        # Tribunas InSAR — sectores estadio_tribuna_* → estadio.tribunas_insar dict
+        tribunas_insar: dict = {}
+        for sid, s in overlay.get("sectores", {}).items():
+            if sid.startswith("estadio_tribuna_"):
+                trib_key = sid.replace("estadio_tribuna_", "")   # "norte","sur","este","oeste"
+                mm = s.get("insar_mm")
+                if mm is not None:
+                    tribunas_insar[trib_key] = mm
+        if tribunas_insar:
+            est = vd.setdefault("sectores", {}).setdefault("estadio", {})
+            est["tribunas_insar"] = tribunas_insar
+            # Derive global insar_mm from tribuna mean if not already set by direct measurement
+            if est.get("insar_mm") is None:
+                est["insar_mm"] = round(sum(tribunas_insar.values()) / len(tribunas_insar), 2)
+            log.info("assembler: tribunas_insar OK — %s", tribunas_insar)
+
         # canchas en sectores.canchero.canchas + weather_live + usuarios.roger.heatmaps
         canchas_ov = overlay.get("canchas", {})
         if canchas_ov:
@@ -404,12 +420,37 @@ def _apply_faro_v2_overlay(vd: dict, venue_id: str) -> None:
             est["hand_mean_m"] = hydro["hand_mean_m"]
             est["hand_zona"]   = hydro.get("zona_riesgo")
 
+        # ── Per-cancha SAR (VO) — subsets procesados del mismo granule OPERA ────
+        # FaroEngine almacena por_cancha dentro del JSONB sar: [{id, vv_db, vh_db, theta_soil}]
+        por_cancha = sar.get("por_cancha") or []
+        if por_cancha:
+            cancha_sar: dict = {c["id"]: c for c in por_cancha if c.get("id")}
+            cancha_list = (vd.get("sectores", {})
+                             .get("canchero", {})
+                             .get("canchas", []))
+            updated = 0
+            for c in cancha_list:
+                cid = c.get("id", "")
+                csar = cancha_sar.get(cid)
+                if not csar:
+                    continue
+                if csar.get("vv_db") is not None:
+                    c["sar_vv_db"] = csar["vv_db"]
+                    c["sar_vh_db"] = csar.get("vh_db")
+                if csar.get("theta_soil") is not None:
+                    c["theta_soil"] = csar["theta_soil"]
+                    c["humedad_suelo_pct"] = round(float(csar["theta_soil"]) * 100, 1)
+                updated += 1
+            if updated:
+                log.info("assembler: faro_v2 por_cancha OK — %d canchas con SAR individual", updated)
+
         log.info(
-            "assembler: faro_v2_overlay OK — fecha=%s vv_db=%s ghi_kwh=%.3f hand=%.2fm",
+            "assembler: faro_v2_overlay OK — fecha=%s vv_db=%s ghi_kwh=%.3f hand=%.2fm por_cancha=%d",
             row.get("fecha", "?"),
             sar.get("vv_gamma0_db"),
             float(sol.get("ghi_wh_m2") or 0) / 1000,
             float(hydro.get("hand_mean_m") or 0),
+            len(por_cancha),
         )
     except Exception as e:
         log.warning("assembler: faro_v2_overlay (non-fatal): %s", e)

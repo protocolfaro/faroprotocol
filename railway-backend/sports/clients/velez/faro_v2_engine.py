@@ -95,6 +95,27 @@ VENUE_REGISTRY: dict[str, dict] = {
     },
 }
 
+# Per-cancha bboxes para Villa Olímpica — layout grilla 4 col × 3 fila (N→S)
+# Resolución OPERA RTC-S1: 30m. Cada bbox ~145m×108m ≈ 5×4 píxeles → suficiente para promedio.
+# Coordenadas estimadas en base al footprint del complejo; refinar con relevamiento catastral.
+CANCHA_BBOXES_VO: dict[str, tuple] = {
+    # Fila norte (lat ~ -34.641)
+    "1fa":  (-58.5241, -34.6456, -58.5225, -34.6446),
+    "2fa":  (-58.5216, -34.6456, -58.5200, -34.6446),
+    "3fa":  (-58.5191, -34.6456, -58.5175, -34.6446),
+    "4fa":  (-58.5166, -34.6456, -58.5150, -34.6446),
+    # Fila media (lat ~ -34.642)
+    "5fa":  (-58.5241, -34.6427, -58.5225, -34.6417),
+    "6fa":  (-58.5216, -34.6427, -58.5200, -34.6417),
+    "7fa":  (-58.5191, -34.6427, -58.5175, -34.6417),
+    "8fa":  (-58.5166, -34.6427, -58.5150, -34.6417),
+    # Fila sur (lat ~ -34.639)
+    "9fa":  (-58.5241, -34.6398, -58.5225, -34.6388),
+    "10fa": (-58.5216, -34.6398, -58.5200, -34.6388),
+    "1fp":  (-58.5191, -34.6398, -58.5175, -34.6388),
+    "2fp":  (-58.5166, -34.6398, -58.5150, -34.6388),
+}
+
 
 def _v(venue_id: str) -> dict:
     v = VENUE_REGISTRY.get(venue_id)
@@ -123,6 +144,7 @@ class SARMetrics:
     h_suction_cm:   Optional[float] = None  # tensión mátrica Van Genuchten cm
     n_granules:     int = 0
     fuente:         str = "opera-rtc-s1"
+    por_cancha:     list = field(default_factory=list)  # [{id, vv_db, vh_db, theta_soil, h_suction_cm}]
 
 
 @dataclass
@@ -336,6 +358,98 @@ def _fetch_sar_opera(venue_id: str, days_back: int = 12) -> SARMetrics:
     except Exception as e:
         log.warning("sar opera (non-fatal) %s: %s", venue_id, e)
         return SARMetrics(fecha=today.isoformat())
+
+
+# ── Per-cancha SAR para Villa Olímpica ───────────────────────────────────────
+
+def _enrich_sar_per_cancha_vo(sar: SARMetrics, venue_id: str, days_back: int = 12) -> SARMetrics:
+    """
+    Descarga OPERA RTC-S1 una vez para el bbox completo de VO, luego calcula
+    VV/VH/θ por sub-bbox de cada cancha. Un único pull de datos → 12 valores distintos.
+    Requiere las mismas credenciales que _fetch_sar_opera().
+    Resultado se guarda en sar.por_cancha (lista, persistida en faro_v2_reports.sar JSONB).
+    """
+    if venue_id != "villa_olimpica":
+        return sar
+    try:
+        import earthaccess
+        import pystac_client
+        import stackstac
+        import dask
+    except ImportError:
+        return sar
+
+    v     = _v(venue_id)
+    today = date.today()
+    start = (today - timedelta(days=days_back)).isoformat()
+
+    try:
+        if not os.environ.get("EARTHDATA_USERNAME") and _NASA_USER():
+            os.environ["EARTHDATA_USERNAME"] = _NASA_USER()
+        if not os.environ.get("EARTHDATA_PASSWORD") and _NASA_PASS():
+            os.environ["EARTHDATA_PASSWORD"] = _NASA_PASS()
+        earthaccess.login(strategy="environment")
+
+        catalog = pystac_client.Client.open("https://cmr.earthdata.nasa.gov/stac/ASF")
+        search  = catalog.search(
+            collections = ["OPERA_L2_RTC-S1_V1"],
+            bbox        = v["bbox"],
+            datetime    = f"{start}/{today.isoformat()}",
+            max_items   = 8,
+        )
+        items = list(search.items())
+        if not items:
+            return sar
+
+        # Stack completo del venue (una sola descarga)
+        stack = stackstac.stack(
+            items,
+            assets     = ["VV", "VH"],
+            bounds     = v["bbox"],
+            resolution = 30,
+            dtype      = "float32",
+            fill_value = float("nan"),
+        )
+        with dask.config.set(scheduler="synchronous"):
+            arr = stack.mean(dim="time").compute()   # (band, Y, X)
+
+        vv_all = arr.sel(band="VV")
+        vh_all = arr.sel(band="VH")
+
+        por_cancha: list = []
+        for cid, (cmin_lon, cmin_lat, cmax_lon, cmax_lat) in CANCHA_BBOXES_VO.items():
+            try:
+                # stackstac y=lat (descendente), x=lon (ascendente)
+                vv_crop = vv_all.sel(x=slice(cmin_lon, cmax_lon),
+                                     y=slice(cmax_lat, cmin_lat))
+                vh_crop = vh_all.sel(x=slice(cmin_lon, cmax_lon),
+                                     y=slice(cmax_lat, cmin_lat))
+                vv_lin = float(vv_crop.mean().item())
+                vh_lin = float(vh_crop.mean().item())
+                if np.isnan(vv_lin):
+                    continue
+                vv_db = round(10 * np.log10(max(vv_lin, 1e-6)), 2)
+                vh_db = (round(10 * np.log10(max(vh_lin, 1e-6)), 2)
+                         if not np.isnan(vh_lin) else round(vv_db - 7.5, 2))
+                theta, h_suc = _van_genuchten(vv_db, vh_db)
+                por_cancha.append({
+                    "id":          cid,
+                    "vv_db":       vv_db,
+                    "vh_db":       vh_db,
+                    "theta_soil":  theta,
+                    "h_suction_cm": h_suc,
+                })
+            except Exception as _ce:
+                log.debug("sar per-cancha %s (skip): %s", cid, _ce)
+
+        if por_cancha:
+            sar.por_cancha = por_cancha
+            log.info("sar per-cancha VO: %d canchas procesadas en %d granules",
+                     len(por_cancha), len(items))
+    except Exception as e:
+        log.warning("sar per-cancha VO (non-fatal): %s", e)
+
+    return sar
 
 
 # ── Ingesta C: Canopy Height — ETH 10m via GEE ───────────────────────────────
@@ -739,6 +853,13 @@ class FaroEngine:
                 msg = f"{name}: {e}"
                 report.errors.append(msg)
                 log.error("FaroEngine component %s FAILED: %s", name, e)
+
+        # Per-cancha SAR para Villa Olímpica — subset espacial del mismo granule OPERA descargado
+        if self.venue_id == "villa_olimpica" and "sar" not in skip:
+            try:
+                report.sar = _enrich_sar_per_cancha_vo(report.sar, self.venue_id)
+            except Exception as _pce:
+                log.warning("FaroEngine per-cancha SAR (non-fatal): %s", _pce)
 
         if not skip_audit:
             report = self.auditor.certify(report)

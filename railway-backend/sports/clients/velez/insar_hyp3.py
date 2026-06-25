@@ -34,11 +34,20 @@ def _bbox(lat: float, lon: float, w_m: float = 80, h_m: float = 60, buf_m: float
 
 # ── Sector bboxes — rigid-surface infrastructure targets ──────────────────────
 SECTOR_BBOXES: dict[str, tuple] = {
-    "estadio":           _bbox(-34.6373, -58.5240, w_m=200, h_m=150),
-    "poli_basquet":      _bbox(-34.6390, -58.5195, w_m=60,  h_m=50),
-    "poli_playon_norte": _bbox(-34.6385, -58.5188, w_m=90,  h_m=70),
-    "sede_anexo_norte":  _bbox(-34.6360, -58.5228, w_m=50,  h_m=40),
-    "piletas":           _bbox(-34.6395, -58.5210, w_m=70,  h_m=55),
+    # ── Estadio Amalfitani — global + 4 tribunas individuales ────────────────
+    # Tribuna bboxes aíslan la señal InSAR por stand para detectar asentamiento diferencial.
+    # Cada stand es ~150m×28m (norte/sur) o ~28m×120m (este/oeste), resolución 20m Sentinel-1.
+    "estadio":                _bbox(-34.6373, -58.5240, w_m=200, h_m=150),
+    "estadio_tribuna_norte":  _bbox(-34.6353, -58.5237, w_m=150, h_m=28, buf_m=5),
+    "estadio_tribuna_sur":    _bbox(-34.6397, -58.5237, w_m=150, h_m=28, buf_m=5),
+    "estadio_tribuna_este":   _bbox(-34.6373, -58.5209, w_m=28,  h_m=120, buf_m=5),
+    "estadio_tribuna_oeste":  _bbox(-34.6373, -58.5265, w_m=28,  h_m=120, buf_m=5),
+    # ── Polideportivo Feijóo ──────────────────────────────────────────────────
+    "poli_basquet":           _bbox(-34.6390, -58.5195, w_m=60,  h_m=50),
+    "poli_playon_norte":      _bbox(-34.6385, -58.5188, w_m=90,  h_m=70),
+    # ── Sede + Piletas ────────────────────────────────────────────────────────
+    "sede_anexo_norte":       _bbox(-34.6360, -58.5228, w_m=50,  h_m=40),
+    "piletas":                _bbox(-34.6395, -58.5210, w_m=70,  h_m=55),
 }
 
 
