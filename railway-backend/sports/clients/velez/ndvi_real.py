@@ -134,7 +134,7 @@ _STAC_SOURCES = [
         "green":      ["SR_B3", "sr_b3", "green"],
         "blue":       ["SR_B2", "sr_b2", "blue"],
         "swir1":      ["SR_B6", "sr_b6", "swir16"],
-        # no SCL for Landsat — CLOSDI handles shadows inline
+        "qa_pixel":   ["QA_PIXEL", "qa_pixel"],   # C2 L2 cloud/shadow bitmap — replaces CLOSDI
         "scale":      "ls",
     },
 ]
@@ -245,6 +245,13 @@ def _scl_priority(scl_arr: "np.ndarray") -> "np.ndarray":
     return p
 
 
+def _landsat_cloud_mask(qa_arr: "np.ndarray") -> "np.ndarray":
+    """Landsat C2 L2 QA_PIXEL: bits 1-4 (dilated cloud, cirrus, cloud, cloud shadow)."""
+    import numpy as np
+    qa = qa_arr.astype(np.uint16)
+    return (((qa >> 1) | (qa >> 2) | (qa >> 3) | (qa >> 4)) & 1).astype(bool)
+
+
 def _composite_scene(items: list, src: dict) -> "dict[str, dict] | None":
     """
     Best Available Pixel (BAP) composite sobre múltiples escenas STAC.
@@ -294,6 +301,13 @@ def _composite_scene(items: list, src: dict) -> "dict[str, dict] | None":
         if c in items[0].assets:
             scl_asset = c
             break
+
+    qa_asset: str | None = None
+    if src.get("scale") == "ls":
+        for c in src.get("qa_pixel", []):
+            if c in items[0].assets:
+                qa_asset = c
+                break
 
     if not band_map.get("nir") or not band_map.get("red"):
         log.warning("ndvi composite: NIR/RED no encontrados en assets")
@@ -368,6 +382,35 @@ def _composite_scene(items: list, src: dict) -> "dict[str, dict] | None":
         except Exception as exc:
             log.debug("ndvi composite: SCL load: %s", exc)
             priority = None
+    elif qa_asset:
+        # ── QA_PIXEL → NDVI-weighted priority para Landsat C2 L2 BAP ──────────
+        # Priority 1-99 (NDVI-ranked) for cloud-free pixels, 0 for masked pixels.
+        # Picks the greenest valid observation per pixel across the composite window.
+        try:
+            da_qa = stackstac.stack(
+                items,
+                assets=[qa_asset],
+                bounds_latlon=list(_CLUSTER_BBOX),
+                resolution=30,
+                dtype="float32",
+                fill_value=0.0,
+                xy_coords="center",
+            ).compute()
+            qa_all  = da_qa.squeeze("band").values.astype(np.uint16)
+            cloud_t = np.stack([_landsat_cloud_mask(qa_all[t]) for t in range(nT)])
+            if cloud_t.shape[-2:] != (H, W):
+                ry = max(1, int(round(H / cloud_t.shape[-2])))
+                rx = max(1, int(round(W / cloud_t.shape[-1])))
+                cloud_t = np.repeat(np.repeat(cloud_t, ry, axis=-2), rx, axis=-1)
+                cloud_t = cloud_t[:, :H, :W]
+            with np.errstate(invalid="ignore", divide="ignore"):
+                ndvi_t = (nir_all - red_all) / (nir_all + red_all + 1e-9)
+            cloud_bad   = cloud_t | np.isnan(nir_all)
+            ndvi_scaled = np.clip(ndvi_t * 50 + 51, 1, 99).astype(np.int8)
+            priority    = np.where(cloud_bad, np.int8(0), ndvi_scaled)
+        except Exception as exc:
+            log.debug("ndvi composite: QA_PIXEL load non-fatal: %s", exc)
+            priority = None
     else:
         priority = None
 
@@ -376,7 +419,7 @@ def _composite_scene(items: list, src: dict) -> "dict[str, dict] | None":
         max_priority  = priority.max(axis=0)             # (H, W)
         bad_px        = max_priority == 0                # sin ningún píxel válido
     else:
-        # Sin SCL: usar argmax NDVI como proxy (nubes → NDVI negativo/bajo)
+        # Sin SCL ni QA_PIXEL: argmax NDVI como proxy (nubes → NDVI negativo/bajo)
         with np.errstate(invalid="ignore", divide="ignore"):
             ndvi_t = (nir_all - red_all) / (nir_all + red_all + 1e-9)
         ndvi_t = np.where(np.isnan(nir_all), -2.0, ndvi_t)
@@ -666,6 +709,26 @@ def _read_canchas_stackstac(item, src: dict) -> dict[str, dict]:
         except Exception as _scl_e:
             log.debug("ndvi_real stackstac: SCL load non-fatal: %s", _scl_e)
 
+    # ── QA_PIXEL for Landsat C2 L2 cloud masking (when no SCL available) ─────
+    qa_cluster: np.ndarray | None = None
+    if mode == "ls" and scl_cluster is None:
+        _qa_name = next((c for c in src.get("qa_pixel", []) if c in item.assets), None)
+        if _qa_name:
+            try:
+                da_qa = stackstac.stack(
+                    [item],
+                    assets=[_qa_name],
+                    bounds_latlon=list(_CLUSTER_BBOX),
+                    resolution=30,
+                    dtype="float32",
+                    fill_value=0.0,
+                    xy_coords="center",
+                )
+                qa_cluster = (da_qa.squeeze("time").squeeze("band")
+                              .compute().values.astype(np.uint16))
+            except Exception as _qa_e:
+                log.debug("ndvi_real stackstac: QA_PIXEL load non-fatal: %s", _qa_e)
+
     # ── Spatial helpers ───────────────────────────────────────────────────────
     crs_str  = str(da.attrs.get("crs", "EPSG:32721"))
     affine_t = da.attrs.get("transform")   # affine.Affine
@@ -745,6 +808,18 @@ def _read_canchas_stackstac(item, src: dict) -> dict[str, dict]:
                     scl_mask = np.isin(up[:h_c, :w_c], list(frozenset({0, 1, 3, 8, 9, 10})))
                 except Exception as _sm_e:
                     log.debug("ndvi_real stackstac: %s SCL crop: %s", cid, _sm_e)
+            elif qa_cluster is not None:
+                try:
+                    h_c = ri1 - ri0; w_c = ci1 - ci0
+                    qa_crop = qa_cluster[ri0:ri1, ci0:ci1]
+                    if qa_crop.shape != (h_c, w_c):
+                        ry = max(1, h_c // max(1, qa_crop.shape[0]))
+                        rx = max(1, w_c // max(1, qa_crop.shape[1]))
+                        qa_up = np.repeat(np.repeat(qa_crop, ry, axis=0), rx, axis=1)
+                        qa_crop = qa_up[:h_c, :w_c]
+                    scl_mask = _landsat_cloud_mask(qa_crop)
+                except Exception as _qam_e:
+                    log.debug("ndvi_real stackstac: %s QA_PIXEL crop: %s", cid, _qam_e)
 
             entry = _compute_indices(nir_c, red_c, green_c, blue_c, swir1_c, scl_mask, mode,
                                      red_edge_c=red_edge_c)
@@ -812,6 +887,7 @@ def _read_canchas_rasterio(item, src: dict) -> dict[str, dict]:
     swir1_url    = _opt("swir1")
     red_edge_url = _opt("red_edge")  # B05 Sentinel-2 705nm — NDRE real
     scl_url      = _opt("scl")
+    qa_url       = _opt("qa_pixel") if mode == "ls" else None
 
     # SCL classes to discard: no_data, defective, cloud shadow, medium cloud, high cloud, cirrus
     _SCL_BAD = frozenset({0, 1, 3, 8, 9, 10})
@@ -827,6 +903,7 @@ def _read_canchas_rasterio(item, src: dict) -> dict[str, dict]:
         s_swir1    = stack.enter_context(rasterio.open(swir1_url))    if swir1_url    else None
         s_red_edge = stack.enter_context(rasterio.open(red_edge_url)) if red_edge_url else None
         s_scl      = stack.enter_context(rasterio.open(scl_url))      if scl_url      else None
+        s_qa       = stack.enter_context(rasterio.open(qa_url))       if qa_url       else None
 
         crs = s_nir.crs
 
@@ -868,6 +945,15 @@ def _read_canchas_rasterio(item, src: dict) -> dict[str, dict]:
                             scl_mask = np.isin(scl_raw, list(_SCL_BAD))
                     except Exception as _se:
                         log.debug("ndvi_real: %s SCL non-fatal: %s", cid, _se)
+                elif s_qa is not None:
+                    try:
+                        qa_raw = s_qa.read(1, window=_win(s_qa),
+                                           resampling=Resampling.nearest).astype("float32")
+                        qa_raw = _resize(qa_raw)
+                        if qa_raw is not None and qa_raw.shape == nir_raw.shape:
+                            scl_mask = _landsat_cloud_mask(qa_raw.astype(np.uint16))
+                    except Exception as _qe:
+                        log.debug("ndvi_real: %s QA_PIXEL non-fatal: %s", cid, _qe)
 
                 # Optional bands — 20m bands (swir1, red_edge) are resized to 10m NIR grid
                 blue_r  = None
