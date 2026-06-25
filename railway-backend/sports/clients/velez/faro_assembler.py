@@ -358,6 +358,48 @@ def _build_roger_canchas(vd: dict) -> list:
     return roger_canchas
 
 
+def _parse_detalle_fields(vd: dict) -> None:
+    """
+    Extrae campos numéricos de los strings 'detalle' de sectores estáticos.
+    El JSON estático solo tiene texto; los gen scripts necesitan floats.
+    """
+    import re
+    secs = vd.get("sectores", {})
+
+    # estadio: "NDVI cubierta: 0.61 · InSAR: 0.22 mm"
+    est = secs.get("estadio", {})
+    det = est.get("detalle", "")
+    if est.get("ndvi") is None and det:
+        m = re.search(r'NDVI[^:]*:\s*([0-9.]+)', det, re.IGNORECASE)
+        if m:
+            est["ndvi"] = float(m.group(1))
+    if est.get("insar_mm") is None and det:
+        m = re.search(r'InSAR[:\s]+([0-9.]+)\s*mm', det, re.IGNORECASE)
+        if m:
+            est["insar_mm"] = float(m.group(1))
+
+    # poli: "Básquet InSAR: 0.85 mm · Playón: 0.72 mm"
+    poli = secs.get("poli", {})
+    det_p = poli.get("detalle", "")
+    if poli.get("techo_insar") is None and det_p:
+        m = re.search(r'InSAR[:\s]+([0-9.]+)\s*mm', det_p, re.IGNORECASE)
+        if m:
+            poli["techo_insar"] = float(m.group(1))
+    if poli.get("techo_sem") is None:
+        poli["techo_sem"] = poli.get("sem", "amarillo")
+
+    # solar: "Eficiencia: 71% · 13 paneles en falla"
+    sol = secs.get("solar", {})
+    det_s = sol.get("detalle", "")
+    if sol.get("eficiencia_pct") is None and det_s:
+        m = re.search(r'Eficiencia[:\s]+([0-9]+)%', det_s, re.IGNORECASE)
+        if m:
+            sol["eficiencia_pct"] = float(m.group(1))
+
+    log.info("assembler: detalle fields parsed — estadio ndvi=%s insar_mm=%s solar eff=%s",
+             est.get("ndvi"), est.get("insar_mm"), sol.get("eficiencia_pct"))
+
+
 def assemble_report(venue_id: str = "amalfitani") -> dict:
     """
     Ensambla el VelezReport canónico.
@@ -371,6 +413,7 @@ def assemble_report(venue_id: str = "amalfitani") -> dict:
     _apply_surface_rules(vd)
     _apply_solar_overlay(vd)
     _apply_piletas_overlay(vd)
+    _parse_detalle_fields(vd)   # extrae floats de strings detalle (estadio ndvi, insar_mm, solar eff)
     # Vista unificada Roger: Amalfitani + 12 canchas VO con todos los campos científicos
     vd["roger_canchas"] = _build_roger_canchas(vd)
     vd["_assembled_at"] = datetime.now(timezone.utc).isoformat()

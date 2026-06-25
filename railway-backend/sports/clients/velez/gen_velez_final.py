@@ -153,7 +153,8 @@ def _build_zones_from_vd(vd):
     return zones
 
 import os as _os, json as _json
-_vd_path = _os.environ.get("FARO_VD_PATH")
+_vd_path   = _os.environ.get("FARO_VD_PATH")
+_insar_mm  = None   # Panel 5: deformación global Amalfitani (mm)
 if _vd_path:
     try:
         with open(_vd_path, encoding="utf-8") as _f:
@@ -161,6 +162,8 @@ if _vd_path:
         _zones_real = _build_zones_from_vd(_vd_data)
         if _zones_real:
             ZONES = _zones_real
+        # InSAR global (mm) para Panel 5
+        _insar_mm = _vd_data.get("sectores", {}).get("estadio", {}).get("insar_mm")
     except Exception as _e:
         print(f"FARO_VD_PATH final: {_e} — usando datos hardcodeados")
 _out_path = _os.environ.get("FARO_OUT_PATH")
@@ -651,8 +654,13 @@ ax_ins.text(0.5, 1.02, 'PANEL InSAR · DEFORMACIÓN ESTRUCTURAL — TRIBUNAS',
     ha='center', va='bottom', fontfamily='monospace')
 
 labels = ['Norte', 'Sur', 'Este', 'Oeste']
-vals   = [0.85, 1.20, 0.60, 2.80]
-colors = [GRNL, YELL, GRNL, REDL]
+if _insar_mm is not None:
+    # Valor global del assembler — mismo para todas las tribunas hasta tener per-tribuna
+    vals   = [round(_insar_mm, 2)] * 4
+    colors = [GRNL if _insar_mm < 1.0 else (YELL if _insar_mm < 2.0 else REDL)] * 4
+else:
+    vals   = [0.85, 1.20, 0.60, 2.80]
+    colors = [GRNL, YELL, GRNL, REDL]
 x_pos = np.arange(len(labels))
 
 bars = ax_ins.bar(x_pos, vals, color=colors, edgecolor=BG, linewidth=0.8,

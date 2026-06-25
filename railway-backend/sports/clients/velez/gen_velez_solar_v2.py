@@ -39,8 +39,10 @@ if _vd_path:
         with open(_vd_path, encoding="utf-8") as _f:
             _vd = json.load(_f)
         _s = _vd.get("sectores", {}).get("solar", {})
-        if isinstance(_s.get("score"), (int, float)):
-            avg_eff    = float(_s["score"])
+        # eficiencia_pct parsed by assembler from detalle; fallback to score
+        _eff_src = _s.get("eficiencia_pct") or _s.get("score")
+        if isinstance(_eff_src, (int, float)):
+            avg_eff    = float(_eff_src)
             actual_kwp = INSTALLED_KWP * avg_eff / 100
             loss_kwp   = INSTALLED_KWP - actual_kwp
         solar_detalle = _s.get("detalle")
