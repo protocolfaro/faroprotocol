@@ -273,6 +273,11 @@ def _fetch_sar_opera(venue_id: str, days_back: int = 12) -> SARMetrics:
         return SARMetrics(fecha=today.isoformat())
 
     try:
+        # Bridge Railway var names (NASA_EARTHDATA_USER/PASS) to what earthaccess expects
+        if not os.environ.get("EARTHDATA_USERNAME") and _NASA_USER():
+            os.environ["EARTHDATA_USERNAME"] = _NASA_USER()
+        if not os.environ.get("EARTHDATA_PASSWORD") and _NASA_PASS():
+            os.environ["EARTHDATA_PASSWORD"] = _NASA_PASS()
         earthaccess.login(strategy="environment")
 
         catalog = pystac_client.Client.open("https://cmr.earthdata.nasa.gov/stac/ASF")
@@ -429,6 +434,7 @@ def _compute_hand(venue_id: str) -> HydroMetrics:
             resolution = 30,
             dtype      = "float32",
             fill_value = float("nan"),
+            rescale    = False,
         )
         with dask.config.set(scheduler="synchronous"):
             dem = dem_stack.mean(dim="time").squeeze().compute().values

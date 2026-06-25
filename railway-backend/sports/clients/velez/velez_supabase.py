@@ -551,12 +551,16 @@ def insert_vegetation_metrics(*, venue_id: str, cancha_id: str | None = None,
         "venue_id": venue_id, "cancha_id": cancha_id, "is_hibrido": is_hibrido,
         "fecha_imagen": fecha_imagen, "dias_antiguedad": dias_ant,
         "ndvi": ndvi, "gndvi": gndvi, "evi2": evi2, "bsi": bsi, "ndwi": ndwi,
-        "ndre": ndre, "ccci": ccci,
         "confianza_pct": confianza_pct, "fuente": fuente,
         "ndvi_sintetico": ndvi_sintetico,
         "margen_error_kalman": margen_error_kalman,
         "metodo_generacion": metodo_generacion,
     }
+    # Only include ndre/ccci when present — missing Supabase columns cause HTTP 400
+    if ndre is not None:
+        row["ndre"] = ndre
+    if ccci is not None:
+        row["ccci"] = ccci
     url = f"{_base()}/rest/v1/vegetation_metrics"
     try:
         r = _req.post(url, headers=_hdrs(), data=json.dumps(row, default=str), timeout=8)

@@ -1440,6 +1440,20 @@ except Exception as _sched_err:
     _scheduler = None
     log.error("Scheduler failed to start (non-fatal): %s", _sched_err)
 
+def _route_velez_test_report():
+    """POST /velez/test_report — genera PNGs _TEST con datos live y manda mail."""
+    import threading
+    import velez_test_report as _vtr
+    def _bg():
+        try:
+            result = _vtr.run_test_report()
+            log.info("velez_test_report result: %s", result)
+        except Exception as _e:
+            log.error("velez_test_report bg error: %s", _e)
+    threading.Thread(target=_bg, daemon=True, name="velez_test_report").start()
+    return jsonify({"status": "started", "msg": "Generando PNGs _TEST y enviando mail — puede tardar ~3min"})
+
+
 # ── Scheduler routes ──────────────────────────────────────────────────────────
 app.add_url_rule("/velez/run_now",        "velez_run_now",        velez_scheduler.route_run_now,        methods=["POST"])
 app.add_url_rule("/velez/weekly_status",  "velez_weekly_status",  velez_scheduler.route_weekly_status,  methods=["GET"])
@@ -1450,6 +1464,7 @@ app.add_url_rule("/velez/smtp_diag",          "velez_smtp_diag",           velez
 app.add_url_rule("/velez/preview_email",      "velez_preview_email",       velez_scheduler.route_preview_email,       methods=["GET"])
 app.add_url_rule("/velez/send_preview_email", "velez_send_preview_email",  velez_scheduler.route_send_preview_email,  methods=["POST"])
 app.add_url_rule("/velez/force_reprocess",    "velez_force_reprocess",     velez_scheduler.route_force_reprocess,     methods=["POST"])
+app.add_url_rule("/velez/test_report",        "velez_test_report",         _route_velez_test_report,                  methods=["POST"])
 
 
 @app.route("/velez/check-pngs", methods=["GET"])
