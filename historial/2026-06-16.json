@@ -41,7 +41,7 @@
     ],
     "semana": "2026-06-22"
   },
-  "updated_at": "2026-06-25T14:43:22Z",
+  "updated_at": "2026-06-25T17:15:53Z",
   "weather_live": {
     "timestamp": "2026-06-25T09:00:14",
     "fuentes": [
@@ -8421,7 +8421,7 @@
       "heatmaps_meta": {
         "fuente": "sentinel-2-l2a · Planetary Computer · 2026-06-16 · nub 0%",
         "semana": "2026-06-16",
-        "updated_at": "2026-06-25T14:43:22Z"
+        "updated_at": "2026-06-25T17:15:53Z"
       }
     },
     "juan": {
@@ -8977,7 +8977,7 @@
   },
   "historial_meta": {
     "semana": "2026-06-16",
-    "committed_at": "2026-06-25T14:43:46Z",
+    "committed_at": "2026-06-25T17:16:15Z",
     "fuente": "Faro Protocol · Railway auto-commit"
   }
 }
