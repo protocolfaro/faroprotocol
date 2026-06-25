@@ -1687,6 +1687,31 @@ def run_weekly_job() -> dict:
     except Exception as _lst_err:
         log.warning("Landsat thermal weekly (non-fatal): %s", _lst_err)
 
+    # GOES-16 ABI — nubosidad tiempo real (AWS S3 público, 10-min refresh)
+    try:
+        from faro_goes16 import run_goes16_cycle
+        _g16 = run_goes16_cycle("amalfitani")
+        log.info("GOES-16 weekly: nubosidad=%.1f%% clara=%s",
+                 _g16.get("nubosidad_pct") or 0, _g16.get("escena_clara"))
+    except Exception as _g16_err:
+        log.warning("GOES-16 weekly (non-fatal): %s", _g16_err)
+
+    # CYGNSS L3 25km — humedad suelo macro (contexto venue, 12-24h revisita)
+    try:
+        from faro_cygnss import run_cygnss_cycle
+        _cyg = run_cygnss_cycle("amalfitani")
+        log.info("CYGNSS weekly: SM=%.4f m³/m³", _cyg.get("sm_cygnss_m3m3") or 0)
+    except Exception as _cyg_err:
+        log.warning("CYGNSS weekly (non-fatal): %s", _cyg_err)
+
+    # GPM IMERG Daily Late — precipitación acumulada 24h (4-6h latencia)
+    try:
+        from faro_gpm import run_gpm_cycle
+        _gpm = run_gpm_cycle("amalfitani")
+        log.info("GPM weekly: precip=%.2f mm/día", _gpm.get("precip_gpm_mm") or 0)
+    except Exception as _gpm_err:
+        log.warning("GPM weekly (non-fatal): %s", _gpm_err)
+
     # Satellite pipeline — NDVI per-cancha + PNGs + GitHub push
     try:
         import satellite_pipeline
@@ -1764,6 +1789,32 @@ def run_refresh_only(force: bool = False) -> dict:
         log.info("Landsat thermal refresh: %s", result["landsat_thermal"])
     except Exception as exc:
         log.warning("Landsat thermal (non-fatal): %s", exc)
+
+    # GOES-16 ABI — nubosidad tiempo real (AWS S3 público, sin auth)
+    try:
+        from faro_goes16 import run_goes16_cycle
+        result["goes16"] = run_goes16_cycle("amalfitani")
+        log.info("GOES-16 refresh: nubosidad=%.1f%% clara=%s",
+                 result["goes16"].get("nubosidad_pct") or 0,
+                 result["goes16"].get("escena_clara"))
+    except Exception as exc:
+        log.warning("GOES-16 (non-fatal): %s", exc)
+
+    # CYGNSS L3 — humedad suelo macro 25km
+    try:
+        from faro_cygnss import run_cygnss_cycle
+        result["cygnss"] = run_cygnss_cycle("amalfitani")
+        log.info("CYGNSS refresh: SM=%.4f m³/m³", result["cygnss"].get("sm_cygnss_m3m3") or 0)
+    except Exception as exc:
+        log.warning("CYGNSS (non-fatal): %s", exc)
+
+    # GPM IMERG — precipitación diaria acumulada
+    try:
+        from faro_gpm import run_gpm_cycle
+        result["gpm"] = run_gpm_cycle("amalfitani")
+        log.info("GPM refresh: precip=%.2f mm/día", result["gpm"].get("precip_gpm_mm") or 0)
+    except Exception as exc:
+        log.warning("GPM (non-fatal): %s", exc)
 
     try:
         import satellite_pipeline

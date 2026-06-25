@@ -75,6 +75,11 @@ Migration notes:
   CREATE INDEX IF NOT EXISTS idx_climate_metrics_venue_ts ON climate_metrics (venue_id, created_at DESC);
   -- Migration: add ECOSTRESS ET column (safe to re-run)
   ALTER TABLE climate_metrics ADD COLUMN IF NOT EXISTS et_ecostress_mm NUMERIC;
+  -- Migration: GOES-16 nubosidad + GPM precipitación (safe to re-run)
+  ALTER TABLE climate_metrics ADD COLUMN IF NOT EXISTS nubosidad_goes16_pct NUMERIC;
+  ALTER TABLE climate_metrics ADD COLUMN IF NOT EXISTS precip_gpm_mm NUMERIC;
+  -- Migration: CYGNSS macro soil moisture 25km (safe to re-run)
+  ALTER TABLE soil_metrics ADD COLUMN IF NOT EXISTS sm_cygnss_m3m3 NUMERIC;
 """
 from __future__ import annotations
 import json, logging, os, time
