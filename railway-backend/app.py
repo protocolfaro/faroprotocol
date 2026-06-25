@@ -1465,6 +1465,7 @@ app.add_url_rule("/velez/preview_email",      "velez_preview_email",       velez
 app.add_url_rule("/velez/send_preview_email", "velez_send_preview_email",  velez_scheduler.route_send_preview_email,  methods=["POST"])
 app.add_url_rule("/velez/force_reprocess",    "velez_force_reprocess",     velez_scheduler.route_force_reprocess,     methods=["POST"])
 app.add_url_rule("/velez/test_report",        "velez_test_report",         _route_velez_test_report,                  methods=["POST"])
+app.add_url_rule("/velez/debug_vd",           "velez_debug_vd",            velez_scheduler.route_debug_vd,            methods=["GET"])
 
 
 @app.route("/velez/check-pngs", methods=["GET"])

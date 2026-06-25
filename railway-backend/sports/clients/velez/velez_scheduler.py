@@ -1770,6 +1770,63 @@ def route_weekly_status():
     })
 
 
+def route_debug_vd():
+    """GET /velez/debug_vd — vuelca campos clave del assembler para diagnóstico."""
+    from flask import jsonify
+    vd = _get_velez_data()
+
+    # canchas — ndvi, score, sem por cancha
+    canchas_raw = vd.get("sectores", {}).get("canchero", {}).get("canchas", [])
+    canchas_diag = [
+        {
+            "id":    c.get("id"),
+            "ndvi":  c.get("ndvi"),
+            "score": c.get("score"),
+            "sem":   c.get("sem"),
+            "ndre":  c.get("ndre"),
+            "ccci":  c.get("ccci"),
+            "fuente": c.get("fuente"),
+        }
+        for c in canchas_raw
+    ]
+
+    # weather_live — campos que usan los gen scripts
+    wl = vd.get("weather_live", {})
+    wl_diag = {k: wl.get(k) for k in (
+        "deficit_hidrico_mm", "et0_mm_dia", "smith_kerns_pct",
+        "riesgo_dollar_spot_pct", "gdd_acumulado_7d",
+        "sar_vv_db", "humedad_suelo_pct",
+        "lluvia_max_1h_mm", "lluvia_48h_mm",
+        "riego_min_sector",
+    )}
+
+    # solar — sector solar score + ghi
+    solar = vd.get("sectores", {}).get("solar", {})
+    solar_diag = {k: solar.get(k) for k in ("score", "sem", "ghi_kwh_m2", "eficiencia_pct")}
+
+    # insar — sector estadio
+    estadio = vd.get("sectores", {}).get("estadio", {})
+    insar_diag = {k: estadio.get(k) for k in ("insar_mm", "score", "sem", "detalle")}
+
+    # hermes — confianza + fuentes activas
+    hermes = vd.get("hermes", {})
+    hermes_diag = {
+        "confianza": hermes.get("confianza_consolidada"),
+        "fuentes_activas": hermes.get("fuentes_activas"),
+        "alertas": hermes.get("alertas", [])[:5],
+    }
+
+    return jsonify({
+        "assembled_at": vd.get("_assembled_at"),
+        "canchas":      canchas_diag,
+        "weather_live": wl_diag,
+        "solar":        solar_diag,
+        "insar_estadio": insar_diag,
+        "hermes":       hermes_diag,
+        "roger_canchas_count": len(vd.get("roger_canchas", [])),
+    })
+
+
 def route_test_whatsapp():
     from flask import request, jsonify
     nombre = (request.get_json(silent=True) or {}).get("nombre")
