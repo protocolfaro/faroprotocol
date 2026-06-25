@@ -1795,7 +1795,7 @@ def route_debug_vd():
     wl_diag = {k: wl.get(k) for k in (
         "deficit_hidrico_mm", "et0_mm_dia", "smith_kerns_pct",
         "riesgo_dollar_spot_pct", "gdd_acumulado_7d",
-        "sar_vv_db", "humedad_suelo_pct",
+        "sar_vv_db", "sar_vh_db", "humedad_suelo_pct", "humedad_suelo_smc",
         "lluvia_max_1h_mm", "lluvia_48h_mm",
         "riego_min_sector",
     )}
@@ -1804,9 +1804,10 @@ def route_debug_vd():
     solar = vd.get("sectores", {}).get("solar", {})
     solar_diag = {k: solar.get(k) for k in ("score", "sem", "ghi_kwh_m2", "eficiencia_pct")}
 
-    # insar — sector estadio
+    # estadio — InSAR + HAND + NDVI
     estadio = vd.get("sectores", {}).get("estadio", {})
-    insar_diag = {k: estadio.get(k) for k in ("insar_mm", "score", "sem", "detalle")}
+    insar_diag = {k: estadio.get(k) for k in ("insar_mm", "ndvi", "score", "sem", "detalle",
+                                                "hand_mean_m", "hand_zona")}
 
     # hermes — confianza + fuentes activas
     hermes = vd.get("hermes", {})

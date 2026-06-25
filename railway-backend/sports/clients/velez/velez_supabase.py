@@ -855,3 +855,29 @@ def get_piletas_latest(dias: int = 7) -> list[dict]:
     except Exception as exc:
         log.warning("velez_piletas get: %s", exc)
     return []
+
+
+# ── faro_v2_reports ───────────────────────────────────────────────────────────
+
+def get_faro_v2_latest(venue_id: str, dias: int = 14) -> dict | None:
+    """
+    Retorna la fila más reciente de faro_v2_reports para el venue.
+    Contiene sar (VV/VH/theta_soil), solar (ghi_wh_m2/et0), hydro (HAND),
+    canopy y lband — generados por FaroEngine V2.
+    """
+    if not _ok():
+        return None
+    from datetime import date as _date, timedelta as _td
+    since = (_date.today() - _td(days=dias)).isoformat()
+    url = (f"{_base()}/rest/v1/faro_v2_reports"
+           f"?venue_id=eq.{venue_id}&fecha=gte.{since}"
+           f"&order=fecha.desc,created_at.desc&limit=1&select=*")
+    try:
+        r = _req.get(url, headers=_hdrs(), timeout=8)
+        if r.status_code == 200:
+            rows = r.json()
+            return rows[0] if rows else None
+        log.warning("faro_v2_reports get HTTP %s", r.status_code)
+    except Exception as exc:
+        log.warning("get_faro_v2_latest: %s", exc)
+    return None

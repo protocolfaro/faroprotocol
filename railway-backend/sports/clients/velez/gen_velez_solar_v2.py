@@ -32,6 +32,7 @@ avg_eff       = None
 actual_kwp    = None
 loss_kwp      = None
 solar_detalle = None
+ghi_kwh_m2    = None   # GHI diario desde faro_v2_reports (Open-Meteo/ERA5)
 
 _vd_path = os.environ.get("FARO_VD_PATH")
 if _vd_path:
@@ -46,6 +47,9 @@ if _vd_path:
             actual_kwp = INSTALLED_KWP * avg_eff / 100
             loss_kwp   = INSTALLED_KWP - actual_kwp
         solar_detalle = _s.get("detalle")
+        # GHI real desde faro_v2_reports → _apply_faro_v2_overlay() del assembler
+        if isinstance(_s.get("ghi_kwh_m2"), (int, float)):
+            ghi_kwh_m2 = float(_s["ghi_kwh_m2"])
     except Exception as _e:
         print(f"FARO_VD_PATH solar: {_e}")
 
@@ -198,15 +202,33 @@ if avg_eff is not None:
             transform=ax1.transAxes, color=WDIM+'aa', fontsize=8,
             ha='center', va='bottom', fontfamily='monospace')
 
-    ax1.text(0.84, 0.78, 'PANELES OK\nDEGRADADOS\nFALLA\nSOMBRA',
-        transform=ax1.transAxes, color=WDIM+'55', fontsize=7,
-        ha='center', va='top', fontfamily='monospace', linespacing=1.8)
-    ax1.text(0.84, 0.52, '—\n—\n—\n—',
-        transform=ax1.transAxes, color=WDIM+'44', fontsize=9,
-        ha='center', va='top', fontfamily='monospace', linespacing=1.8)
-    ax1.text(0.84, 0.08, 'Sin dato individual',
-        transform=ax1.transAxes, color=WDIM+'44', fontsize=7,
-        ha='center', va='bottom', fontfamily='monospace')
+    # GHI real (faro_v2_reports / Open-Meteo ERA5) — cuarto KPI si disponible
+    if ghi_kwh_m2 is not None:
+        ax1.add_patch(FancyBboxPatch((0.71, 0.05), 0.26, 0.82,
+            boxstyle='round,pad=0.008', transform=ax1.transAxes,
+            facecolor=BG3, edgecolor=WDIM+'44', linewidth=0.9, zorder=2))
+        ax1.text(0.84, 0.78, 'IRRADIACIÓN\nDIARIA (GHI)',
+            transform=ax1.transAxes, color=WDIM,
+            fontsize=7.5, ha='center', va='top', fontfamily='monospace', linespacing=1.3)
+        ax1.text(0.84, 0.43, f'{ghi_kwh_m2:.2f}',
+            transform=ax1.transAxes, color=WHITE,
+            fontsize=22, fontweight='bold', ha='center', va='center', fontfamily='monospace')
+        ax1.text(0.84, 0.16, 'kWh/m²·día',
+            transform=ax1.transAxes, color=WDIM,
+            fontsize=9, ha='center', va='center', fontfamily='monospace')
+        ax1.text(0.84, 0.07, 'Open-Meteo ERA5',
+            transform=ax1.transAxes, color=WDIM+'66',
+            fontsize=6.5, ha='center', va='bottom', fontfamily='monospace')
+    else:
+        ax1.text(0.84, 0.78, 'PANELES OK\nDEGRADADOS\nFALLA\nSOMBRA',
+            transform=ax1.transAxes, color=WDIM+'55', fontsize=7,
+            ha='center', va='top', fontfamily='monospace', linespacing=1.8)
+        ax1.text(0.84, 0.52, '—\n—\n—\n—',
+            transform=ax1.transAxes, color=WDIM+'44', fontsize=9,
+            ha='center', va='top', fontfamily='monospace', linespacing=1.8)
+        ax1.text(0.84, 0.08, 'Sin dato individual',
+            transform=ax1.transAxes, color=WDIM+'44', fontsize=7,
+            ha='center', va='bottom', fontfamily='monospace')
 else:
     ax1.text(0.5, 0.50, 'SIN DATO',
         transform=ax1.transAxes, color=WDIM, fontsize=22, fontweight='bold',

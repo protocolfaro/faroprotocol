@@ -358,6 +358,63 @@ def _build_roger_canchas(vd: dict) -> list:
     return roger_canchas
 
 
+def _apply_faro_v2_overlay(vd: dict, venue_id: str) -> None:
+    """
+    7. faro_v2_reports → overlay SAR, solar GHI, HAND sobre vd.
+    Conecta FaroEngine V2 (sar/solar/hydro) con el assembler —
+    sin esto los gen scripts usaban defaults hardcodeados.
+    """
+    try:
+        _here = os.path.dirname(os.path.abspath(__file__))
+        if _here not in sys.path:
+            sys.path.insert(0, _here)
+        import velez_supabase as _vs
+        row = _vs.get_faro_v2_latest(venue_id, dias=14)
+        if not row:
+            log.info("assembler: faro_v2_overlay — sin datos recientes en faro_v2_reports")
+            return
+
+        wl  = vd.setdefault("weather_live", {})
+        sec = vd.setdefault("sectores", {})
+
+        # ── SAR C-band (OPERA RTC-S1): backscatter + θ_soil ──────────────────
+        # gen_velez_canchero usa weather_live.sar_vv_db para el modelo de compactación
+        sar = row.get("sar") or {}
+        if sar.get("vv_gamma0_db") is not None and wl.get("sar_vv_db") is None:
+            wl["sar_vv_db"] = sar["vv_gamma0_db"]
+        if sar.get("vh_gamma0_db") is not None and wl.get("sar_vh_db") is None:
+            wl["sar_vh_db"] = sar["vh_gamma0_db"]
+        # θ_soil SAR → humedad_suelo_pct si hermes no lo proveyó
+        if sar.get("theta_soil") is not None and wl.get("humedad_suelo_pct") is None:
+            wl["humedad_suelo_pct"] = round(float(sar["theta_soil"]) * 100, 1)
+
+        # ── Solar GHI + ET₀ ──────────────────────────────────────────────────
+        # gen_velez_solar_v2 lee sectores.solar.ghi_kwh_m2 para el panel ejecutivo
+        sol = row.get("solar") or {}
+        if sol.get("ghi_wh_m2") is not None:
+            sec.setdefault("solar", {})["ghi_kwh_m2"] = round(float(sol["ghi_wh_m2"]) / 1000, 3)
+        if sol.get("et0_mm_dia") is not None and wl.get("et0_mm_dia") is None:
+            wl["et0_mm_dia"] = sol["et0_mm_dia"]
+
+        # ── HAND — drenaje gravitacional (Copernicus DEM 30m) ─────────────────
+        # gen scripts pueden leer sectores.estadio.hand_mean_m para info de drenaje
+        hydro = row.get("hydro") or {}
+        if hydro.get("hand_mean_m") is not None:
+            est = sec.setdefault("estadio", {})
+            est["hand_mean_m"] = hydro["hand_mean_m"]
+            est["hand_zona"]   = hydro.get("zona_riesgo")
+
+        log.info(
+            "assembler: faro_v2_overlay OK — fecha=%s vv_db=%s ghi_kwh=%.3f hand=%.2fm",
+            row.get("fecha", "?"),
+            sar.get("vv_gamma0_db"),
+            float(sol.get("ghi_wh_m2") or 0) / 1000,
+            float(hydro.get("hand_mean_m") or 0),
+        )
+    except Exception as e:
+        log.warning("assembler: faro_v2_overlay (non-fatal): %s", e)
+
+
 def _parse_detalle_fields(vd: dict) -> None:
     """
     Extrae campos numéricos de los strings 'detalle' de sectores estáticos.
@@ -413,7 +470,8 @@ def assemble_report(venue_id: str = "amalfitani") -> dict:
     _apply_surface_rules(vd)
     _apply_solar_overlay(vd)
     _apply_piletas_overlay(vd)
-    _parse_detalle_fields(vd)   # extrae floats de strings detalle (estadio ndvi, insar_mm, solar eff)
+    _apply_faro_v2_overlay(vd, venue_id)   # SAR vv/vh, GHI solar, HAND hydro desde faro_v2_reports
+    _parse_detalle_fields(vd)              # extrae floats de detalle strings (fallback si v2 no tiene datos)
     # Vista unificada Roger: Amalfitani + 12 canchas VO con todos los campos científicos
     vd["roger_canchas"] = _build_roger_canchas(vd)
     vd["_assembled_at"] = datetime.now(timezone.utc).isoformat()
