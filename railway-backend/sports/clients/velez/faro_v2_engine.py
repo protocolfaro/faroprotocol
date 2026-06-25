@@ -273,69 +273,124 @@ def _fetch_solar(venue_id: str, dias: int = 3) -> SolarMetrics:
         return SolarMetrics(fecha=today.isoformat())
 
 
-# ── Ingesta B: SAR — OPERA L2 RTC-S1 via earthaccess + stackstac ─────────────
+# ── SAR source discovery — OPERA (CONUS) → Planetary Computer (global) ────────
 
-def _fetch_sar_opera(venue_id: str, days_back: int = 12) -> SARMetrics:
+def _search_sar_items(bbox: tuple, days_back: int = 30) -> tuple[list, str]:
     """
-    OPERA RTC-S1-V1 (JPL): SAR gamma0 normalizado por terreno, 30m, C-band.
-    earthaccess gestiona las credenciales S3 temporales automáticamente.
-    Busca vía CMR-STAC (público), descarga en streaming (sin escritura a disco).
+    Busca granules SAR gamma0. OPERA primero (CONUS), PC como fallback (global).
+    Retorna (items, fuente_str). dias_back=30 cubre el ciclo de 12d de Sentinel-1 + latencia.
+    """
+    try:
+        import pystac_client
+    except ImportError:
+        return [], "none"
+
+    today  = date.today()
+    start  = (today - timedelta(days=days_back)).isoformat()
+    dt_str = f"{start}/{today.isoformat()}"
+
+    # 1. OPERA L2 RTC-S1-V1 — NASA/ASF CMR STAC (cobertura CONUS)
+    try:
+        cat   = pystac_client.Client.open("https://cmr.earthdata.nasa.gov/stac/ASF")
+        items = list(cat.search(
+            collections = ["OPERA_L2_RTC-S1_V1"],
+            bbox        = bbox,
+            datetime    = dt_str,
+            max_items   = 8,
+        ).items())
+        if items:
+            log.info("sar: OPERA %d granules", len(items))
+            return items, "opera-rtc-s1"
+    except Exception as _e:
+        log.debug("sar OPERA search: %s", _e)
+
+    # 2. Sentinel-1 RTC — Microsoft Planetary Computer (cobertura global, sin creds NASA)
+    try:
+        import planetary_computer as _pc
+        cat   = pystac_client.Client.open(
+            "https://planetarycomputer.microsoft.com/api/stac/v1",
+            modifier = _pc.sign_inplace,
+        )
+        items = list(cat.search(
+            collections = ["sentinel-1-rtc"],
+            bbox        = bbox,
+            datetime    = dt_str,
+            max_items   = 8,
+        ).items())
+        if items:
+            log.info("sar: Planetary Computer Sentinel-1 RTC %d granules", len(items))
+            return items, "sentinel-1-rtc/planetary-computer"
+    except Exception as _e:
+        log.debug("sar PC search: %s", _e)
+
+    return [], "none"
+
+
+def _sar_asset_names(items: list) -> tuple[str, str]:
+    """Detecta nombres de assets VV/VH (OPERA: mayúsculas, PC: minúsculas)."""
+    if not items:
+        return "VV", "VH"
+    keys = set(items[0].assets.keys())
+    return ("VV", "VH") if "VV" in keys else ("vv", "vh")
+
+
+# ── Ingesta B: SAR — OPERA RTC-S1 (CONUS) + Sentinel-1 RTC/PC (global) ───────
+
+def _fetch_sar_opera(venue_id: str, days_back: int = 30) -> SARMetrics:
+    """
+    SAR gamma0 backscatter + humedad de suelo Van Genuchten.
+    Fuentes en orden: OPERA L2 RTC-S1-V1 (NASA, 30m) → Sentinel-1 RTC/Planetary Computer (10m).
+    OPERA cubre CONUS; PC cubre Sudamérica y el resto del mundo.
     """
     v     = _v(venue_id)
     today = date.today()
-    start = (today - timedelta(days=days_back)).isoformat()
 
     try:
-        import earthaccess
-        import pystac_client
         import stackstac
         import dask
     except ImportError as e:
-        log.warning("sar opera: dep faltante %s — skipping", e)
+        log.warning("sar: dep faltante %s — skipping", e)
         return SARMetrics(fecha=today.isoformat())
 
     try:
-        # Bridge Railway var names (NASA_EARTHDATA_USER/PASS) to what earthaccess expects
+        # Credenciales NASA — necesarias para descarga OPERA S3 (no bloquea si faltan para PC)
         if not os.environ.get("EARTHDATA_USERNAME") and _NASA_USER():
             os.environ["EARTHDATA_USERNAME"] = _NASA_USER()
         if not os.environ.get("EARTHDATA_PASSWORD") and _NASA_PASS():
             os.environ["EARTHDATA_PASSWORD"] = _NASA_PASS()
-        earthaccess.login(strategy="environment")
+        try:
+            import earthaccess
+            earthaccess.login(strategy="environment")
+        except Exception:
+            pass
 
-        catalog = pystac_client.Client.open("https://cmr.earthdata.nasa.gov/stac/ASF")
-        search  = catalog.search(
-            collections = ["OPERA_L2_RTC-S1_V1"],
-            bbox        = v["bbox"],
-            datetime    = f"{start}/{today.isoformat()}",
-            max_items   = 8,
-        )
-        items = list(search.items())
+        items, fuente = _search_sar_items(v["bbox"], days_back)
 
         if not items:
-            log.warning("sar opera: 0 granules en %dd para %s", days_back, venue_id)
+            log.warning("sar: 0 granules en %dd para %s (OPERA+PC)", days_back, venue_id)
             return SARMetrics(fecha=today.isoformat())
 
-        log.info("sar opera: %d granules encontrados", len(items))
-
+        av, avh = _sar_asset_names(items)
         stack = stackstac.stack(
             items,
-            assets     = ["VV", "VH"],
+            assets     = [av, avh],
             bounds     = v["bbox"],
             resolution = 30,
             dtype      = "float32",
             fill_value = float("nan"),
         )
 
-        # Media temporal + espacial — compute en single thread (Railway CPU)
         with dask.config.set(scheduler="synchronous"):
             arr = stack.mean(dim=["time", "y", "x"]).compute()
 
-        bands    = [str(b).upper() for b in arr.band.values]
-        vv_lin   = float(arr.sel(band="VV").values) if "VV" in bands else None
-        vh_lin   = float(arr.sel(band="VH").values) if "VH" in bands else None
+        # Normalizar nombres de banda a mayúsculas para manejo uniforme
+        arr    = arr.assign_coords(band=[str(b).upper() for b in arr.band.values])
+        bands  = list(arr.band.values)
+        vv_lin = float(arr.sel(band="VV").values) if "VV" in bands else None
+        vh_lin = float(arr.sel(band="VH").values) if "VH" in bands else None
 
         if vv_lin is None or np.isnan(vv_lin):
-            log.warning("sar opera: VV NaN tras compute — sin datos válidos")
+            log.warning("sar: VV NaN tras compute — sin datos válidos")
             return SARMetrics(fecha=today.isoformat())
 
         vv_db  = round(10 * np.log10(max(vv_lin, 1e-6)), 2)
@@ -344,8 +399,8 @@ def _fetch_sar_opera(venue_id: str, days_back: int = 12) -> SARMetrics:
 
         theta, h_suc = _van_genuchten(vv_db, vh_db)
 
-        log.info("sar opera %s: VV=%.2f dB VH=%.2f dB θ=%.3f h=%.1f cm",
-                 venue_id, vv_db, vh_db, theta, h_suc)
+        log.info("sar %s: VV=%.2f dB VH=%.2f dB θ=%.3f h=%.1f cm [%s]",
+                 venue_id, vv_db, vh_db, theta, h_suc, fuente)
         return SARMetrics(
             fecha        = today.isoformat(),
             vv_gamma0_db = vv_db,
@@ -353,58 +408,41 @@ def _fetch_sar_opera(venue_id: str, days_back: int = 12) -> SARMetrics:
             theta_soil   = theta,
             h_suction_cm = h_suc,
             n_granules   = len(items),
-            fuente       = f"opera-rtc-s1 · {len(items)} granules",
+            fuente       = f"{fuente} · {len(items)} granules",
         )
     except Exception as e:
-        log.warning("sar opera (non-fatal) %s: %s", venue_id, e)
+        log.warning("sar (non-fatal) %s: %s", venue_id, e)
         return SARMetrics(fecha=today.isoformat())
 
 
 # ── Per-cancha SAR para Villa Olímpica ───────────────────────────────────────
 
-def _enrich_sar_per_cancha_vo(sar: SARMetrics, venue_id: str, days_back: int = 12) -> SARMetrics:
+def _enrich_sar_per_cancha_vo(sar: SARMetrics, venue_id: str, days_back: int = 30) -> SARMetrics:
     """
-    Descarga OPERA RTC-S1 una vez para el bbox completo de VO, luego calcula
+    Descarga SAR gamma0 una vez para el bbox completo de VO, luego calcula
     VV/VH/θ por sub-bbox de cada cancha. Un único pull de datos → 12 valores distintos.
-    Requiere las mismas credenciales que _fetch_sar_opera().
+    Usa _search_sar_items: OPERA primero, Planetary Computer como fallback global.
     Resultado se guarda en sar.por_cancha (lista, persistida en faro_v2_reports.sar JSONB).
     """
     if venue_id != "villa_olimpica":
         return sar
     try:
-        import earthaccess
-        import pystac_client
         import stackstac
         import dask
     except ImportError:
         return sar
 
-    v     = _v(venue_id)
-    today = date.today()
-    start = (today - timedelta(days=days_back)).isoformat()
+    v = _v(venue_id)
 
     try:
-        if not os.environ.get("EARTHDATA_USERNAME") and _NASA_USER():
-            os.environ["EARTHDATA_USERNAME"] = _NASA_USER()
-        if not os.environ.get("EARTHDATA_PASSWORD") and _NASA_PASS():
-            os.environ["EARTHDATA_PASSWORD"] = _NASA_PASS()
-        earthaccess.login(strategy="environment")
-
-        catalog = pystac_client.Client.open("https://cmr.earthdata.nasa.gov/stac/ASF")
-        search  = catalog.search(
-            collections = ["OPERA_L2_RTC-S1_V1"],
-            bbox        = v["bbox"],
-            datetime    = f"{start}/{today.isoformat()}",
-            max_items   = 8,
-        )
-        items = list(search.items())
+        items, fuente = _search_sar_items(v["bbox"], days_back)
         if not items:
             return sar
 
-        # Stack completo del venue (una sola descarga)
+        av, avh = _sar_asset_names(items)
         stack = stackstac.stack(
             items,
-            assets     = ["VV", "VH"],
+            assets     = [av, avh],
             bounds     = v["bbox"],
             resolution = 30,
             dtype      = "float32",
@@ -413,13 +451,14 @@ def _enrich_sar_per_cancha_vo(sar: SARMetrics, venue_id: str, days_back: int = 1
         with dask.config.set(scheduler="synchronous"):
             arr = stack.mean(dim="time").compute()   # (band, Y, X)
 
+        # Normalizar a mayúsculas
+        arr    = arr.assign_coords(band=[str(b).upper() for b in arr.band.values])
         vv_all = arr.sel(band="VV")
         vh_all = arr.sel(band="VH")
 
         por_cancha: list = []
         for cid, (cmin_lon, cmin_lat, cmax_lon, cmax_lat) in CANCHA_BBOXES_VO.items():
             try:
-                # stackstac y=lat (descendente), x=lon (ascendente)
                 vv_crop = vv_all.sel(x=slice(cmin_lon, cmax_lon),
                                      y=slice(cmax_lat, cmin_lat))
                 vh_crop = vh_all.sel(x=slice(cmin_lon, cmax_lon),
@@ -433,10 +472,10 @@ def _enrich_sar_per_cancha_vo(sar: SARMetrics, venue_id: str, days_back: int = 1
                          if not np.isnan(vh_lin) else round(vv_db - 7.5, 2))
                 theta, h_suc = _van_genuchten(vv_db, vh_db)
                 por_cancha.append({
-                    "id":          cid,
-                    "vv_db":       vv_db,
-                    "vh_db":       vh_db,
-                    "theta_soil":  theta,
+                    "id":           cid,
+                    "vv_db":        vv_db,
+                    "vh_db":        vh_db,
+                    "theta_soil":   theta,
                     "h_suction_cm": h_suc,
                 })
             except Exception as _ce:
@@ -444,8 +483,7 @@ def _enrich_sar_per_cancha_vo(sar: SARMetrics, venue_id: str, days_back: int = 1
 
         if por_cancha:
             sar.por_cancha = por_cancha
-            log.info("sar per-cancha VO: %d canchas procesadas en %d granules",
-                     len(por_cancha), len(items))
+            log.info("sar per-cancha VO: %d canchas [%s]", len(por_cancha), fuente)
     except Exception as e:
         log.warning("sar per-cancha VO (non-fatal): %s", e)
 
