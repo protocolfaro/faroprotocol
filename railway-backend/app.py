@@ -910,6 +910,23 @@ def velez_panel_roger_canonical():
         return jsonify({"error": str(e), "_assembled_at": None}), 500
 
 
+@app.route("/velez/panel-data", methods=["GET"])
+def velez_panel_data():
+    """Panel data endpoint — same as canonical but CORS-open and no-cache for live panel."""
+    try:
+        if _VELEZ_PATH not in sys.path:
+            sys.path.insert(0, _VELEZ_PATH)
+        from faro_assembler import assemble_report
+        vd = assemble_report("amalfitani")
+        resp = jsonify(vd)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["Cache-Control"] = "no-store"
+        return resp
+    except Exception as e:
+        log.warning("/velez/panel-data error: %s", e)
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/velez/panel-roger", methods=["GET"])
 def velez_panel_roger():
     """
