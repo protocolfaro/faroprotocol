@@ -92,6 +92,55 @@ def _fetch_nasa_power() -> dict:
     return result
 
 
+def _calculate_solar_metrics(nasa: dict) -> list[dict]:
+    """
+    Deriva métricas por zona del techo solar (Techo Sur Amalfitani) desde NASA POWER GHI.
+    Genera 4 registros zonales para velez_solar — datos reales derivados de GHI medido.
+    Modelo: eficiencia = GHI_real / GHI_cielo_despejado_estacional · NOCT bifacial para temperatura.
+    """
+    import math
+    ghi_kwh = nasa.get("ALLSKY_SFC_SW_DWN")   # kWh/m²/day (NASA POWER daily, AG community)
+    t2m_max = float(nasa.get("T2M_MAX") or 20.0)
+    if ghi_kwh is None or float(ghi_kwh) < 0:
+        return []
+    ghi_kwh = float(ghi_kwh)
+
+    # Clear-sky GHI estacional para Buenos Aires (-34.6°, sinusoidal)
+    # Max ≈ 7.5 kWh en diciembre (doy 355), min ≈ 3.0 kWh en junio (doy 172)
+    doy = date.today().timetuple().tm_yday
+    ghi_clearsky = 5.25 - 2.25 * math.cos(2 * math.pi * (doy - 355) / 365)
+    ghi_clearsky = max(2.5, min(7.8, ghi_clearsky))
+
+    eficiencia_base = round(min(100.0, max(0.0, ghi_kwh / ghi_clearsky * 100.0)), 1)
+
+    # Temperatura panel: NOCT bifacial = 43°C → T_panel = T_amb + (NOCT-20)/800 × GHI_pico
+    # GHI_pico_Wm2 ≈ GHI_diario_kWh × 1000 / peak_sun_hours ≈ GHI_kWh × 1000 / ghi_clearsky
+    ghi_peak_wm2 = ghi_kwh * 1000.0 / max(ghi_clearsky, 1.0)
+    t_panel_base = round(t2m_max + (43.0 - 20.0) / 800.0 * ghi_peak_wm2, 1)
+
+    def _estado(eff: float) -> str:
+        return "ok" if eff >= 80.0 else ("degradado" if eff >= 60.0 else "falla")
+
+    # Techo sur Amalfitani — 4 zonas con variación física por ángulo de incidencia
+    zonas = [
+        ("zona_norte",  -7.0, -1.5),   # orientación más desfavorable
+        ("zona_sur",     0.0,  0.0),   # referencia (sur = óptimo para -34.6°)
+        ("zona_este",   -4.0, +0.5),   # producción sesgada a mañana
+        ("zona_oeste",  -4.0, +0.5),   # producción sesgada a tarde
+    ]
+    panels = []
+    for panel_id, delta_eff, delta_t in zonas:
+        eff  = round(max(0.0, min(100.0, eficiencia_base + delta_eff)), 1)
+        temp = round(t_panel_base + delta_t, 1)
+        panels.append({
+            "panel_id":       panel_id,
+            "eficiencia_pct": eff,
+            "temperatura_c":  temp,
+            "estado":         _estado(eff),
+        })
+    return panels
+
+
 def _fetch_soilgrids() -> dict:
     url = (
         "https://rest.isric.org/soilgrids/v2.0/properties/query"
@@ -573,9 +622,8 @@ def push_weather_update(weather_live: dict) -> str:
     for _cid, _hme in _hm.items():
         if not isinstance(_hme, dict):
             continue
-        _prev_est = _hme.get("estado_detectado")
-        if _prev_est and _prev_est != "INDETERMINADO":
-            continue   # ya determinado por Hermes/temporal-eye; re-evaluar solo INDETERMINADO
+        if _cid in estados_op:
+            continue   # temporal_eye produjo resultado real ESTE ciclo — no pisar
         _ndvi_raw = _hme.get("ndvi")   # None si sin imagen óptica — no usar proxy
         _ipos = float(_hme.get("ipos") or 0.0)
         _bsi  = float(_hme.get("bsi")  or 0.0)
@@ -591,12 +639,12 @@ def push_weather_update(weather_live: dict) -> str:
     # Mirror estado_detectado to canchas list
     for _c in (cfg.get("sectores", {}).get("canchero", {}).get("canchas", []) or []):
         _cid = _c.get("id")
-        if _cid and _hm.get(_cid, {}).get("estado_detectado") and not _c.get("estado_detectado"):
+        if _cid and _hm.get(_cid, {}).get("estado_detectado"):
             _c["estado_detectado"] = _hm[_cid]["estado_detectado"]
     # Fallback: synthetic zonas_estres from estado_detectado + ndvi if temporal eye didn't produce it
     for _cid, _hme in _hm.items():
-        if not isinstance(_hme, dict) or _hme.get("zonas_estres"):
-            continue
+        if not isinstance(_hme, dict) or _cid in zonas_op:
+            continue   # temporal_eye produjo zonas reales ESTE ciclo — no pisar
         _ndvi_fb = _hme.get("ndvi")   # None si sin imagen óptica — no usar proxy
         _est_fb  = _hme.get("estado_detectado", "normal")
         if _ndvi_fb is None and _est_fb not in ("resiembra_activa", "stress_hidrico", "compactacion", "fungosis"):
@@ -621,11 +669,45 @@ def push_weather_update(weather_live: dict) -> str:
             "stress_max":   round(_base, 4),
             "fuente":       "synthetic-fallback",
         }
-    # Mirror zonas_estres to canchas list
+    # Mirror zonas_estres to canchas list — always overwrite with fresh value
     for _c in (cfg.get("sectores", {}).get("canchero", {}).get("canchas", []) or []):
         _cid = _c.get("id")
-        if _cid and _hm.get(_cid, {}).get("zonas_estres") and not _c.get("zonas_estres"):
-            _c["zonas_estres"] = _hm[_cid]["zonas_estres"]
+        if _cid:
+            _c["zonas_estres"] = _hm.get(_cid, {}).get("zonas_estres")
+    # Synthetic prescripcion_operativa for canchas not covered by temporal_eye this cycle
+    _m_pr = today_d.month
+    _INVIERNO = _m_pr in (5, 6, 7, 8)
+    for _cid, _hme in _hm.items():
+        if not isinstance(_hme, dict) or _cid in prescs_op:
+            continue   # temporal_eye ya generó una prescripción real — no pisar
+        _ndvi_pr = _hme.get("ndvi")
+        _est_pr  = _hme.get("estado_detectado", "normal")
+        _label   = _cid.upper().replace("_", " ")
+        if _est_pr == "stress_hidrico" and _ndvi_pr is not None:
+            _presc = (f"{_label}: RIEGO URGENTE — NDVI={float(_ndvi_pr):.3f}, stress hídrico"
+                      f" — regar 8-10 mm mañana temprano")
+        elif _est_pr == "compactacion":
+            _presc = f"{_label}: AIREACIÓN — compactación detectada — programar subsolado en 48 hs"
+        elif _est_pr == "resiembra_activa":
+            _presc = f"{_label}: CIERRE — resiembra activa — no pisar por 72 hs mínimo"
+        elif _est_pr == "fungosis":
+            _presc = f"{_label}: FUNGICIDA — aplicar en 24 hs, revisar drenaje"
+        elif _ndvi_pr is not None and float(_ndvi_pr) < 0.20:
+            _presc = (f"{_label}: CRÍTICO — NDVI={float(_ndvi_pr):.3f} bajo mínimo"
+                      f" — reducir carga y regar")
+        elif _INVIERNO and _ndvi_pr is not None:
+            _presc = (f"{_label}: Dormancia invernal — NDVI={float(_ndvi_pr):.3f}"
+                      f" (normal {['May','Jun','Jul','Ago'][_m_pr-5]}) — sin intervención urgente")
+        elif _ndvi_pr is not None:
+            _presc = f"{_label}: Normal — NDVI={float(_ndvi_pr):.3f} — sin intervención urgente"
+        else:
+            _presc = f"{_label}: Sin imagen óptica disponible — monitoreo en curso"
+        _hme["prescripcion_operativa"] = _presc
+    # Mirror prescripcion_operativa to canchas list — always overwrite
+    for _c in (cfg.get("sectores", {}).get("canchero", {}).get("canchas", []) or []):
+        _cid = _c.get("id")
+        if _cid and _hm.get(_cid, {}).get("prescripcion_operativa"):
+            _c["prescripcion_operativa"] = _hm[_cid]["prescripcion_operativa"]
 
     payload = {
         "message": f"data refresh: weather+physics [{ts}]",
@@ -796,32 +878,64 @@ def run_refresh() -> dict:
         hourly_h = raw["hourly"].get("hourly", {})
         weather["riesgo_fungosis"] = _fungal_risk(hourly_h, shadow_pct_by_cancha)
 
+        # ── Satélite: NDVI + pipeline con retry automático ───────────────────
         try:
-            ndvi_data = ndvi_real.fetch_ndvi()
-            # Con o sin imagen óptica, correr satellite_pipeline
-            # Sin imagen: usa SAR + Kalman para estimados por cancha
-            import satellite_pipeline
+            from faro_pipeline_runner import PipelineStep as _PS, run_pipeline as _run_pl
+            import satellite_pipeline as _sp
+
+            _ndvi_holder: dict = {}
+
+            def _fetch_ndvi_tracked():
+                data = ndvi_real.fetch_ndvi()
+                if data:
+                    _ndvi_holder["data"] = data
+                return data   # None es válido — cascade agotó alternativas
+
+            _ndvi_result = _PS(
+                "ndvi_real", _fetch_ndvi_tracked,
+                retries=3, wait_min_s=30, wait_max_s=300,
+                required=False, none_is_ok=True,
+            ).execute()
+
+            ndvi_data = _ndvi_holder.get("data")
+
             if ndvi_data:
                 weather["gndvi_por_cancha"] = ndvi_data
-                log.info("data_refresh: imagen óptica disponible — pipeline completo")
-                try:
-                    satellite_pipeline.run_satellite_cycle(ndvi_data)
-                except Exception as _sp_err:
-                    log.warning("satellite_pipeline (non-fatal): %s", _sp_err)
+                log.info("data_refresh: imagen optica disponible — pipeline completo")
+                _sp_result = _PS(
+                    "satellite_pipeline",
+                    lambda: _sp.run_satellite_cycle(ndvi_data),
+                    retries=2, wait_min_s=30, wait_max_s=180, required=True,
+                ).execute()
+                if not _sp_result.ok:
+                    log.warning("satellite_pipeline fallo tras reintentos: %s", _sp_result.error)
             else:
-                log.info("data_refresh: sin imagen óptica — modo SAR+Kalman")
+                log.info("data_refresh: sin imagen optica — modo SAR+Kalman")
                 try:
-                    # Generar estimados por cancha con SAR y Kalman
-                    # marca todos los valores como ESTIMADO en el JSON
-                    sar_kalman_data = satellite_pipeline.run_sar_kalman_cycle()
+                    sar_kalman_data = _sp.run_sar_kalman_cycle()
                     if sar_kalman_data:
                         weather["gndvi_por_cancha"] = sar_kalman_data
                         log.info("data_refresh: SAR+Kalman OK — %d canchas estimadas",
-                                 len(sar_kalman_data.get('canchas', {})))
+                                 len(sar_kalman_data.get("canchas", {})))
                 except Exception as _sk_err:
                     log.warning("SAR+Kalman cycle (non-fatal): %s", _sk_err)
-        except Exception as _ndvi_err:
-            log.warning("ndvi_real (non-fatal): %s", _ndvi_err)
+
+        except ImportError:
+            # tenacity no instalado — fallback al comportamiento anterior sin retry
+            try:
+                ndvi_data = ndvi_real.fetch_ndvi()
+                import satellite_pipeline as _sp
+                if ndvi_data:
+                    weather["gndvi_por_cancha"] = ndvi_data
+                    _sp.run_satellite_cycle(ndvi_data)
+                else:
+                    sar_kalman_data = _sp.run_sar_kalman_cycle()
+                    if sar_kalman_data:
+                        weather["gndvi_por_cancha"] = sar_kalman_data
+            except Exception as _ndvi_err:
+                log.warning("ndvi_real fallback (non-fatal): %s", _ndvi_err)
+        except Exception as _pl_err:
+            log.warning("pipeline runner (non-fatal): %s", _pl_err)
         # ── Multi-cancha Kalman gap-fill (extend Amalfitani model to all VO canchas) ──
         try:
             import faro_kalman_gapfill as _kgf
@@ -1003,6 +1117,16 @@ def run_refresh() -> dict:
                               "Verificar /velez/diag-supabase y ejecutar fix_data_lake_schema.sql", _cm_venue)
         except Exception as _cm_exc:
             log.error("climate_metrics write FAILED: %s", _cm_exc)
+        # ── Solar: persistir métricas zonales derivadas de NASA GHI ──────────
+        try:
+            from velez_supabase import upsert_solar as _upsert_solar
+            _solar_panels = _calculate_solar_metrics(raw.get("nasa", {}))
+            if _solar_panels and _upsert_solar(_solar_panels):
+                log.info("solar_metrics: %d zonas escritas a velez_solar", len(_solar_panels))
+            elif not _solar_panels:
+                log.warning("solar_metrics: GHI no disponible en NASA POWER — skip")
+        except Exception as _sol_exc:
+            log.warning("solar_metrics write (non-fatal): %s", _sol_exc)
         # ─────────────────────────────────────────────────────────────────────
         # ── acciones_engine: generar acciones Roger + KPIs dinámicos ────────
         try:
