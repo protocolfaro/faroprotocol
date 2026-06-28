@@ -375,3 +375,38 @@ def generate_all(ipos_results: dict, semana_label: str, ndvi_map: dict = None) -
         plt.close(fig)
 
     return out_bytes, verify_hashes
+
+
+# ── Paleta Elevagro (LinearSegmentedColormap, 256 niveles) ───────────────────
+_ELEVAGRO_COLORS = [
+    '#D73027',  # Rojo: Estrés crítico / Suelo desnudo
+    '#F46D43',  # Naranja: Alerta / Pérdida de vigor
+    '#FDAE61',  # Amarillo: Transición / Falta nutrientes
+    '#D9EF8B',  # Verde Lima: Densidad media
+    '#66BD63',  # Verde Brillante: Saludable
+    '#1A9850',  # Verde Profundo: Óptimo
+]
+ELEVAGRO_CMAP = LinearSegmentedColormap.from_list("ElevagroStyle", _ELEVAGRO_COLORS, N=256)
+ELEVAGRO_CMAP.set_bad(color='#ECEFF1')
+
+
+def generate_elevagro_style_heatmap(ndvi_matrix: np.ndarray, save_path: str) -> None:
+    """
+    Genera un PNG NDVI con paleta Elevagro/QGIS de alta fidelidad.
+    LinearSegmentedColormap 256 niveles + interpolación hanning.
+    NaN/nubes → gris #ECEFF1 neutro.
+    """
+    display_data = np.copy(ndvi_matrix)
+
+    fig, ax = plt.subplots(figsize=(8, 6), dpi=300)
+    ax.imshow(
+        display_data,
+        cmap=ELEVAGRO_CMAP,
+        interpolation='hanning',
+        origin='upper',
+    )
+    ax.axis('off')
+    fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
+    plt.savefig(save_path, bbox_inches='tight', pad_inches=0, transparent=True, dpi=300)
+    plt.close()
+    print(f"✓ Heatmap Elevagro-style saved: {save_path}")

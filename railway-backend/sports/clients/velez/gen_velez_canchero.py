@@ -546,11 +546,6 @@ def _build_zones_from_vd(vd):
     return zones
 
 import os as _os, json as _json
-try:
-    import bonillo_semaforo as _bs
-except ImportError:
-    _bs = None
-_bonillo_data: dict = {}
 _vd_path = _os.environ.get("FARO_VD_PATH")
 _insar_sectors: dict | None = None   # 1.4: sector InSAR mm values from JSON
 if _vd_path:
@@ -566,9 +561,6 @@ if _vd_path:
                       for k in ("estadio", "poli", "sede", "piletas")}
         if any(v is not None for v in _ins_check.values()):
             _insar_sectors = _ins_check
-        # 8: calidad superficie — mediciones físicas de campo desde roger.mediciones
-        if _bs:
-            _bonillo_data = _bs.extract_from_vd(_vd_data)
     except Exception as _e:
         print(f"FARO_VD_PATH canchero: {_e} — usando datos hardcodeados")
 _out_path = _os.environ.get("FARO_OUT_PATH")
@@ -776,10 +768,10 @@ fig = plt.figure(figsize=(FW, FH), dpi=DPI, facecolor=BG)
 fig.subplots_adjust(left=0.03, right=0.97, top=0.99, bottom=0.01, hspace=0.0)
 
 gs = gridspec.GridSpec(
-    10, 1,
+    9, 1,
     figure=fig,
     hspace=0.06,
-    height_ratios=[1.6, 1.8, 4.5, 4.5, 2.0, 2.2, 7.0, 1.5, 2.0, 0.85],
+    height_ratios=[1.6, 1.8, 4.5, 4.5, 2.0, 2.2, 7.0, 1.5, 0.85],
 )
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1046,10 +1038,17 @@ ax_map2.text(5.0, 0.10,
 from matplotlib.colors import LinearSegmentedColormap as LSC
 
 def ndvi_colormap():
-    colors = [(0.55, 0.0, 0.0), (0.85, 0.35, 0.0),
-              (0.95, 0.75, 0.1), (0.4, 0.75, 0.2),
-              (0.05, 0.45, 0.05)]
-    return LSC.from_list('ndvi', colors)
+    colors = [
+        '#D73027',  # Rojo: Estrés crítico / Suelo desnudo
+        '#F46D43',  # Naranja: Alerta / Pérdida de vigor
+        '#FDAE61',  # Amarillo: Transición / Falta nutrientes
+        '#D9EF8B',  # Verde Lima: Densidad media
+        '#66BD63',  # Verde Brillante: Saludable
+        '#1A9850',  # Verde Profundo: Óptimo
+    ]
+    cmap = LSC.from_list('ElevagroStyle', colors, N=256)
+    cmap.set_bad(color='#ECEFF1')
+    return cmap
 
 ax_fus = fig.add_subplot(gs[4])
 ax_fus.set_facecolor(BG2)
@@ -1155,10 +1154,10 @@ x_pos_ins  = np.arange(len(labels_ins))
 bars = ax_ins.bar(x_pos_ins, vals_ins, color=colors_ins, edgecolor=BG,
                   linewidth=0.8, zorder=3, width=0.55)
 
-ax_ins.axhline(2.0, color=REDL, linewidth=1.8, linestyle='--', zorder=4)
+ax_ins.axhline(2.0, color='#555555', linewidth=1.0, linestyle='--', alpha=0.5, zorder=4)
 _n_ins   = len(vals_ins)
-ax_ins.text(_n_ins - 0.45, 2.08, '← umbral 2mm', color=REDL,
-    fontsize=8.5, fontweight='bold', va='bottom', fontfamily='monospace')
+ax_ins.text(_n_ins - 0.45, 2.08, '← umbral 2mm', color=WDIM,
+    fontsize=8.5, va='bottom', fontfamily='monospace')
 
 for bar_, val in zip(bars, vals_ins):
     clr = REDXL if val >= 2.0 else WHITE
@@ -1278,7 +1277,7 @@ for _hi, _z in enumerate(ZONES):
             origin='upper',
             extent=[0, _cols, 0, _rows],
             aspect='auto',
-            interpolation='none',   # píxeles crudos, sin suavizado
+            interpolation='hanning',
             zorder=1,
         )
 
@@ -1499,107 +1498,9 @@ ax_cmp.axhline(0.0, color=GOLD+"44", linewidth=0.5)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 8 · CALIDAD CAMPO — SEMÁFORO BONILLO / UEFA-STRI
+# 8 · FOOTER
 # ══════════════════════════════════════════════════════════════════════════════
-ax_bon = fig.add_subplot(gs[8])
-ax_bon.set_facecolor(BG2)
-ax_bon.set_xlim(0, 1); ax_bon.set_ylim(0, 1)
-ax_bon.axis('off')
-
-ax_bon.text(0.5, 0.97,
-    'CALIDAD DE SUPERFICIE · ESTÁNDAR UEFA/STRI — MEDICIONES DE CAMPO',
-    transform=ax_bon.transAxes,
-    color=GOLD, fontsize=8.5, fontweight='bold',
-    ha='center', va='top', fontfamily='monospace')
-
-ax_bon.plot([0.01, 0.99], [0.89, 0.89], color=GOLD + '33', linewidth=0.5,
-    transform=ax_bon.transAxes)
-
-if not _bonillo_data:
-    ax_bon.text(0.5, 0.60,
-        'Pendiente — Roger debe cargar mediciones via /velez/medicion  (tipo: clegg)',
-        transform=ax_bon.transAxes,
-        color=WDIM, fontsize=8, ha='center', va='center',
-        fontfamily='monospace')
-    ax_bon.text(0.5, 0.38,
-        'Verde: Compact. 70-90 CG  ·  Tracc. >=30 Nm  ·  '
-        'Altura 24-28 mm  ·  Humedad 20-30%  ·  Raices >85 mm',
-        transform=ax_bon.transAxes,
-        color=WDIM + '77', fontsize=6.5, ha='center', va='center',
-        fontfamily='monospace')
-else:
-    _bon_col_xs = [0.012, 0.160, 0.315, 0.470, 0.625, 0.780]
-    _bon_hdrs   = ['ZONA', 'Compact. CG', 'Traccion Nm', 'Altura mm', 'Humedad %', 'Raices mm']
-    _bon_ranges = ['',     '70-90',        '>=30',        '24-28',     '20-30',     '>85']
-
-    _bon_hdr_y = 0.84
-    for _hx, _hdr, _rng in zip(_bon_col_xs, _bon_hdrs, _bon_ranges):
-        ax_bon.text(_hx, _bon_hdr_y, _hdr,
-            transform=ax_bon.transAxes,
-            color=GOLD, fontsize=5.5, fontweight='bold',
-            va='top', fontfamily='monospace')
-        if _rng:
-            ax_bon.text(_hx, _bon_hdr_y - 0.10, f'V: {_rng}',
-                transform=ax_bon.transAxes,
-                color=GRNL + 'AA', fontsize=4.5,
-                va='top', fontfamily='monospace')
-
-    ax_bon.plot([0.01, 0.99], [0.70, 0.70], color=GOLD + '22', linewidth=0.4,
-        transform=ax_bon.transAxes)
-
-    _bon_row_h = max(0.030, 0.66 / max(len(ZONES), 1))
-    _bon_row_y0 = 0.68
-
-    _bon_metrics = _bs.METRICS if _bs else []
-    for _bi, _z in enumerate(ZONES):
-        _bry = _bon_row_y0 - _bi * _bon_row_h
-        _zkey = _z['name'].lower()
-        _bd   = _bonillo_data.get(_zkey, {})
-
-        _bbg = BG3 if _bi % 2 == 0 else BG2
-        ax_bon.add_patch(mpatches.Rectangle(
-            (0.010, _bry - _bon_row_h * 0.45), 0.980, _bon_row_h * 0.90,
-            facecolor=_bbg, edgecolor=GOLD + '11', linewidth=0.3,
-            transform=ax_bon.transAxes, zorder=1))
-
-        ax_bon.text(_bon_col_xs[0], _bry, _z['name'],
-            transform=ax_bon.transAxes,
-            color=WHITE, fontsize=5.5, fontweight='bold',
-            va='center', fontfamily='monospace', zorder=2)
-
-        for _mci, (_mkey, _, _munit, _, _) in enumerate(_bon_metrics):
-            _bmx = _bon_col_xs[_mci + 1]
-            _mval = _bd.get(_mkey)
-            if _mval is not None:
-                _msem = _bs.classify(_mkey, float(_mval))
-                _mc   = SEM_COLOR[_msem]
-                ax_bon.plot(_bmx - 0.006, _bry, 'o', ms=3.5, color=_mc,
-                    transform=ax_bon.transAxes, zorder=3, clip_on=False)
-                ax_bon.text(_bmx + 0.004, _bry, f'{_mval:.0f}',
-                    transform=ax_bon.transAxes,
-                    color=_mc, fontsize=5.5, fontweight='bold',
-                    va='center', fontfamily='monospace', zorder=3)
-            else:
-                ax_bon.text(_bmx, _bry, '—',
-                    transform=ax_bon.transAxes,
-                    color=WDIM + '55', fontsize=5.5,
-                    va='center', fontfamily='monospace', zorder=2)
-
-    ax_bon.text(0.012, 0.01,
-        'Fuente: UEFA/STRI standard  ·  '
-        'Lecturas ingresadas por Roger via /velez/medicion  ·  '
-        'Verde: 70-90 CG  /  >=30 Nm  /  24-28 mm  /  20-30%  /  >85 mm',
-        transform=ax_bon.transAxes,
-        color=WDIM + '77', fontsize=4.8, va='bottom',
-        fontfamily='monospace')
-
-ax_bon.axhline(0.0, color=GOLD + '22', linewidth=0.4)
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# 9 · FOOTER
-# ══════════════════════════════════════════════════════════════════════════════
-ax_ftr = fig.add_subplot(gs[9])
+ax_ftr = fig.add_subplot(gs[8])
 ax_ftr.set_facecolor(BG)
 ax_ftr.set_xlim(0, 1); ax_ftr.set_ylim(0, 1)
 ax_ftr.axis('off')
