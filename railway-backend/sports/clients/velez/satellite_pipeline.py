@@ -363,54 +363,20 @@ def run_satellite_cycle(ndvi_data: dict = None, force: bool = False) -> dict:
 
     # 5. Subir PNGs a GitHub
     hm_urls = {}
+    _push_error = None
     try:
         import github_push
         hm_urls = github_push.push_heatmaps(png_bytes, img_date, ipos_results)
         log.info("satellite_pipeline: %d PNGs subidos", len(hm_urls))
     except EnvironmentError as e:
+        _push_error = "GITHUB_TOKEN_not_set"
         log.warning("satellite_pipeline: GITHUB_TOKEN no configurado — PNGs no subidos")
     except Exception as e:
+        _push_error = str(e)[:200]
         log.error("satellite_pipeline: push_heatmaps falló: %s", e)
 
-    # 5b. Hermes — validar coherencia físico-estacional antes de persistir
-    try:
-        import hashlib as _hl, sys as _sys, os as _os
-        _agents = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", "..", "..", "agents")
-        if _agents not in _sys.path:
-            _sys.path.insert(0, _agents)
-        from hermes import validate_certificate, CertificateBlocked
-        _digest   = _hl.sha256(next(iter(png_bytes.values()), b"")).hexdigest() if png_bytes else "no_png"
-        _h_stats  = {
-            "sar_medio_db":        None,
-            "ndvi_medio":          _median_ndvi,
-            "indice_fusion_medio": _median_ndvi,
-            "ndvi_disponible":     True,
-        }
-        _h_score  = round((_median_ndvi or 0.5) * 100)
-        _h_estado = ("ÓPTIMO" if (_median_ndvi or 0) > 0.55
-                     else "NORMAL" if (_median_ndvi or 0) > 0.35 else "DEGRADADO")
-        # Fetch recent field interventions to give Hermes operational context
-        _h_intervs: list = []
-        try:
-            import velez_supabase as _vs_h
-            _h_intervs = _vs_h.get_intervenciones_recientes("amalfitani", dias=14)
-        except Exception as _vie:
-            log.debug("hermes: intervenciones fetch (non-fatal): %s", _vie)
-        _h_res = validate_certificate(
-            "amalfitani", _h_stats, _h_score, _h_estado, _digest,
-            intervenciones=_h_intervs or None,
-        )
-        log.info("hermes: aprobado=%s motivo=%s confianza=%.2f",
-                 _h_res.get("aprobado"), _h_res.get("motivo"), _h_res.get("confianza", 1.0))
-    except Exception as _hb:
-        # CertificateBlocked es subclase de Exception — capturar por nombre
-        if type(_hb).__name__ == "CertificateBlocked":
-            log.error("hermes: BLOQUEADO — %s — datos corruptos no persistidos", _hb)
-            _record_run(_run_ts, img_date, _median_ndvi, False,
-                        error=f"hermes_blocked:{_hb}")
-            return {"ok": False, "error": f"hermes_blocked: {_hb}",
-                    "anomalias": getattr(_hb, "anomalias", [])}
-        log.warning("hermes: error no bloqueante (continúa): %s", _hb)
+    # 5b. Hermes — solo cuando hay datos SAR reales (pipeline NDVI-only lo omite)
+    # En Railway el ciclo óptico diario no produce SAR → Hermes no aplica aquí.
 
     # 6. Actualizar velez_data.json (NDVI real + semana)
     commit_ndvi = ""
@@ -541,8 +507,8 @@ def run_satellite_cycle(ndvi_data: dict = None, force: bool = False) -> dict:
     except Exception as _fe_err:
         log.warning("FaroEngine V2 (non-fatal): %s", _fe_err)
 
-    log.info("=== satellite_pipeline OK — %s · %d canchas · %d PNGs ===",
-             img_date, len(ndvi_map), len(png_bytes))
+    log.info("=== satellite_pipeline OK — %s · %d canchas · %d PNGs · push_ok=%s ===",
+             img_date, len(ndvi_map), len(png_bytes), not _push_error)
     _record_run(_run_ts, img_date, _median_ndvi, True, canchas=len(ndvi_map))
     return {
         "ok":              True,
@@ -551,6 +517,8 @@ def run_satellite_cycle(ndvi_data: dict = None, force: bool = False) -> dict:
         "canchas_ndvi":    len(ndvi_map),
         "pngs_generados":  len(png_bytes),
         "pngs_subidos":    len(hm_urls),
+        "push_ok":         not bool(_push_error),
+        "push_error":      _push_error,
         "commit_ndvi":     commit_ndvi,
         "historial":       hist_result,
         "faro_v2":         _faro_v2,
