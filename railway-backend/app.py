@@ -967,6 +967,50 @@ def velez_panel_roger():
         return jsonify({"error": str(e), "_assembled_at": None}), 500
 
 
+@app.route("/velez/prescriptions", methods=["GET"])
+def velez_prescriptions():
+    """
+    Surgical prescription map — 6 zones per cancha with urgency-ranked actions.
+    Uses IPOS traffic load + weather_live (ET₀, soil, fungal risk, GDD) to compute
+    per-zone interventions: AEREAR / REGAR / FUNGICIDA / FERTILIZAR / DRENAR.
+    No PIN required — read-only computed output.
+    """
+    try:
+        if _VELEZ_PATH not in sys.path:
+            sys.path.insert(0, _VELEZ_PATH)
+        from faro_assembler import assemble_report
+        import faro_prescription as fp
+
+        vd = assemble_report("amalfitani")
+        roger_canchas = vd.get("roger_canchas", [])
+        weather_live  = vd.get("weather_live", {})
+
+        # Fallback: build minimal cancha list from older sectores format
+        if not roger_canchas:
+            estadio = vd.get("sectores", {}).get("estadio")
+            vo_list = vd.get("sectores", {}).get("canchero", {}).get("canchas", [])
+            if estadio:
+                roger_canchas = [{"id": "amalfitani", **estadio}] + vo_list
+            else:
+                roger_canchas = vo_list
+
+        # Inject heatmap_archivo from roger heatmaps if missing
+        hm_dict = vd.get("usuarios", {}).get("roger", {}).get("heatmaps", {})
+        for c in roger_canchas:
+            cid = c.get("id") or c.get("cancha_id", "")
+            if cid and not c.get("heatmap_archivo"):
+                c["heatmap_archivo"] = hm_dict.get(cid, {}).get("heatmap_archivo")
+
+        payload = fp.generate_prescriptions(roger_canchas, weather_live)
+        resp = jsonify(payload)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["Cache-Control"] = "no-store"
+        return resp
+    except Exception as e:
+        log.warning("/velez/prescriptions error: %s", e)
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/velez/amalfitani-geojson", methods=["GET"])
 def velez_amalfitani_geojson():
     """GeoJSON FeatureCollection — ALL system canchas with correct coordinates.
