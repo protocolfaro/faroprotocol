@@ -25,11 +25,6 @@ log = logging.getLogger(__name__)
 
 _VD_RAW_URL = "https://raw.githubusercontent.com/protocolfaro/faro-paneles/main/velez/velez_data.json"
 
-_SOIL_SCIENTIFIC = (
-    "entropia_h", "angulo_alpha", "compactacion_index_ml",
-    "temp_superficie_c", "theta_5cm", "theta_10cm", "theta_20cm", "theta_smap",
-)
-_VEG_SCIENTIFIC = ("ndvi_2_5m", "bsi_2_5m", "ndwi_2_5m")
 
 
 def _load_static_json() -> dict:
@@ -170,46 +165,76 @@ def _apply_hermes(vd: dict, venue_id: str) -> None:
         vd.setdefault("hermes", {})
 
 
-def _enrich_canchas_scientific(vd: dict, venue_id: str) -> None:
-    """4. Enriquecer cada cancha con campos científicos de soil_metrics / vegetation_metrics."""
-    cancha_list = vd.get("sectores", {}).get("canchero", {}).get("canchas", [])
-    if not cancha_list:
-        return
+def _apply_poli_overlay(vd: dict) -> None:
+    """Populates sectores.poli with real techo KPIs + canchas[] from vegetation_metrics."""
     try:
         _here = os.path.dirname(os.path.abspath(__file__))
         if _here not in sys.path:
             sys.path.insert(0, _here)
         import velez_supabase as _vs
-        soil_rows = _vs.get_soil_metrics_latest(venue_id, None, dias=14)
-        veg_rows  = _vs.get_vegetation_metrics_latest(venue_id, None, dias=15)
-        # Indexar por cancha_id (tomar el más reciente = primera fila)
-        soil_by: dict = {}
-        for r in soil_rows:
-            cid = r.get("cancha_id")
-            if cid and cid not in soil_by:
-                soil_by[cid] = r
+        veg_rows = _vs.get_vegetation_metrics_latest("amalfitani", None, dias=15)
         veg_by: dict = {}
         for r in veg_rows:
-            cid = r.get("cancha_id")
-            if cid and cid not in veg_by:
+            cid = r.get("cancha_id", "")
+            if cid.startswith("poli_") and cid not in veg_by:
                 veg_by[cid] = r
-        for c in cancha_list:
-            cid = c.get("id", "")
-            if not cid:
-                continue
-            soil = soil_by.get(cid)
-            veg  = veg_by.get(cid)
-            if soil:
-                for f in _SOIL_SCIENTIFIC:
-                    if soil.get(f) is not None:
-                        c[f] = soil[f]
-            if veg:
-                for f in _VEG_SCIENTIFIC:
-                    if veg.get(f) is not None:
-                        c[f] = veg[f]
-        log.info("assembler: enriquecimiento científico OK (%d canchas)", len(cancha_list))
+        poli = vd.setdefault("sectores", {}).setdefault("poli", {})
+        # Alias insar_mm → techo_insar (already populated by _apply_supabase_overlay)
+        if poli.get("insar_mm") is not None and "techo_insar" not in poli:
+            poli["techo_insar"] = poli["insar_mm"]
+        # Alias thermal_temp → techo_temp
+        thermal = poli.get("thermal_temp") or poli.get("temp_superficie")
+        if thermal is not None and "techo_temp" not in poli:
+            poli["techo_temp"] = thermal
+        # Build ordered canchas list matching CANCHAS order in gen_velez_poli.py
+        _CANCHA_ORDER = [
+            "poli_tenis1", "poli_tenis2", "poli_hockey",
+            "poli_basquet", "poli_f11", "poli_f8a",
+        ]
+        canchas_out = []
+        for cid in _CANCHA_ORDER:
+            r = veg_by.get(cid, {})
+            entry: dict = {}
+            if r.get("ndvi") is not None:
+                entry["ndvi"] = round(float(r["ndvi"]), 3)
+            if r.get("sem"):
+                entry["sem"] = r["sem"]
+            canchas_out.append(entry)
+        poli["canchas"] = canchas_out
+        log.info("assembler: poli_overlay OK — %d/%d canchas con ndvi",
+                 sum(1 for c in canchas_out if c.get("ndvi") is not None), len(canchas_out))
     except Exception as e:
-        log.warning("assembler: enriquecimiento científico (non-fatal): %s", e)
+        log.warning("assembler: poli_overlay (non-fatal): %s", e)
+
+
+def _apply_sede_overlay(vd: dict) -> None:
+    """Aliases velez_sectores sede fields for gen_velez_sede.py."""
+    try:
+        sede = vd.setdefault("sectores", {}).setdefault("sede", {})
+        if sede.get("insar_mm") is not None and "insar_deformacion" not in sede:
+            sede["insar_deformacion"] = sede["insar_mm"]
+        thermal = sede.get("thermal_temp") or sede.get("temp_superficie")
+        if thermal is not None and "thermal" not in sede:
+            sede["thermal"] = thermal
+        log.info("assembler: sede_overlay OK — insar_deformacion=%s thermal=%s",
+                 sede.get("insar_deformacion"), sede.get("thermal"))
+    except Exception as e:
+        log.warning("assembler: sede_overlay (non-fatal): %s", e)
+
+
+def _apply_instituto_overlay(vd: dict) -> None:
+    """Aliases velez_sectores instituto fields for gen_velez_instituto.py."""
+    try:
+        inst = vd.setdefault("sectores", {}).setdefault("instituto", {})
+        if inst.get("insar_mm") is not None and "insar_deformacion" not in inst:
+            inst["insar_deformacion"] = inst["insar_mm"]
+        thermal = inst.get("thermal_temp") or inst.get("temp_superficie")
+        if thermal is not None and "thermal" not in inst:
+            inst["thermal"] = thermal
+        log.info("assembler: instituto_overlay OK — insar_deformacion=%s thermal=%s",
+                 inst.get("insar_deformacion"), inst.get("thermal"))
+    except Exception as e:
+        log.warning("assembler: instituto_overlay (non-fatal): %s", e)
 
 
 def _apply_surface_rules(vd: dict) -> None:
@@ -301,7 +326,13 @@ def _apply_solar_overlay(vd: dict) -> None:
                                  if k not in ("id", "created_at")}
         solar = vd.setdefault("sectores", {}).setdefault("solar", {})
         solar["panel_data"] = by_panel
-        log.info("assembler: solar overlay OK (%d paneles)", len(by_panel))
+        # Compute avg efficiency so gen_velez_solar_v2 shows Panel Ejecutivo
+        effs = [p["eficiencia_pct"] for p in by_panel.values()
+                if isinstance(p.get("eficiencia_pct"), (int, float))]
+        if effs:
+            solar.setdefault("eficiencia_pct", round(sum(effs) / len(effs), 1))
+        log.info("assembler: solar overlay OK (%d paneles, eff=%s%%)",
+                 len(by_panel), solar.get("eficiencia_pct"))
     except Exception as e:
         log.warning("assembler: solar overlay (non-fatal): %s", e)
 
@@ -358,6 +389,7 @@ def _build_roger_canchas(vd: dict) -> list:
         "humedad_estimada":      amalf_hermes.get("humedad_estimada"),
         "hermes_alertas":        amalf_hermes.get("alertas", []),
         "hermes_confianza":      amalf_hermes.get("confianza"),
+        "heatmap_archivo":       "heatmap_amalfitani.png",
     })
 
     # 12 canchas Villa Olímpica
@@ -369,6 +401,7 @@ def _build_roger_canchas(vd: dict) -> list:
         entry["humedad_estimada"] = c_hermes.get("humedad_estimada")
         entry["hermes_alertas"]   = c_hermes.get("alertas", [])
         entry["hermes_confianza"] = c_hermes.get("confianza")
+        entry["heatmap_archivo"]  = f"heatmap_{cid}.png"
         roger_canchas.append(entry)
 
     return roger_canchas
@@ -507,7 +540,9 @@ def assemble_report(venue_id: str = "amalfitani") -> dict:
     vd = _load_static_json()
     _apply_supabase_overlay(vd)
     _apply_hermes(vd, venue_id)
-    _enrich_canchas_scientific(vd, venue_id)
+    _apply_poli_overlay(vd)
+    _apply_sede_overlay(vd)
+    _apply_instituto_overlay(vd)
     _apply_surface_rules(vd)
     _apply_solar_overlay(vd)
     _apply_piletas_overlay(vd)
@@ -515,6 +550,13 @@ def assemble_report(venue_id: str = "amalfitani") -> dict:
     _parse_detalle_fields(vd)              # extrae floats de detalle strings (fallback si v2 no tiene datos)
     # Vista unificada Roger: Amalfitani + 12 canchas VO con todos los campos científicos
     vd["roger_canchas"] = _build_roger_canchas(vd)
+    for _c in vd.get("sectores", {}).get("canchero", {}).get("canchas", []):
+        _cid = _c.get("id", "")
+        if _cid:
+            _c.setdefault("heatmap_archivo", f"heatmap_{_cid}.png")
+    _est = vd.get("sectores", {}).get("estadio")
+    if isinstance(_est, dict):
+        _est.setdefault("heatmap_archivo", "heatmap_amalfitani.png")
     vd["_assembled_at"] = datetime.now(timezone.utc).isoformat()
     vd["_venue_id"]     = venue_id
     log.info("assembler: reporte ensamblado para %s — %d roger_canchas [%s]",
