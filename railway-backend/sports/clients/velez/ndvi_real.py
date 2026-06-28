@@ -45,9 +45,9 @@ from utils import coords_to_bbox
 #   7FA/8FA/9FA/10FA: 95x63m
 
 def _bbox(lat: float, lon: float,
-          w_m: float = 105, h_m: float = 68, buf_m: float = 5) -> tuple:
-    """Cancha bbox con buffer mínimo (5m) para evitar artefactos de borde S2.
-    snap_bounds=True en stackstac alinea a límites exactos de píxel."""
+          w_m: float = 105, h_m: float = 68, buf_m: float = 10) -> tuple:
+    """Cancha bbox con buffer de 1 pixel S2 (10m) — absorbe error de geolocalización
+    post-GRI (~4.2m CE90). snap_bounds=True maneja alineación a grilla de píxel."""
     box = coords_to_bbox(lat, lon, h_m=h_m + 2 * buf_m, w_m=w_m + 2 * buf_m)
     return tuple(box)
 
@@ -924,7 +924,7 @@ def _read_canchas_rasterio(item, src: dict) -> dict[str, dict]:
                 native = transform_bounds("EPSG:4326", crs, minx, miny, maxx, maxy)
 
                 def _win(s):
-                    return from_bounds(*native, transform=s.transform)
+                    return from_bounds(*native, transform=s.transform).round_offsets().round_lengths()
 
                 nir_raw   = s_nir.read(1,   window=_win(s_nir)).astype("float32")
                 red_raw   = s_red.read(1,   window=_win(s_red)).astype("float32")
