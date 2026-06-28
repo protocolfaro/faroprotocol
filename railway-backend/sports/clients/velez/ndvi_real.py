@@ -45,8 +45,8 @@ from utils import coords_to_bbox
 #   7FA/8FA/9FA/10FA: 95x63m
 
 def _bbox(lat: float, lon: float,
-          w_m: float = 105, h_m: float = 68, buf_m: float = 12) -> tuple:
-    """Cancha bbox con buffer, usando coords_to_bbox de core/utils."""
+          w_m: float = 105, h_m: float = 68, buf_m: float = 0) -> tuple:
+    """Cancha bbox exacto al campo — sin buffer para alineación pixel-perfecta con SVG."""
     box = coords_to_bbox(lat, lon, h_m=h_m + 2 * buf_m, w_m=w_m + 2 * buf_m)
     return tuple(box)
 
@@ -129,12 +129,12 @@ _STAC_SOURCES = [
         "collection": "landsat-c2-l2",
         "sign":       False,
         "cloud_prop": "eo:cloud_cover",
-        "red":        ["SR_B4", "sr_b4", "red"],
-        "nir":        ["SR_B5", "sr_b5", "nir"],
-        "green":      ["SR_B3", "sr_b3", "green"],
-        "blue":       ["SR_B2", "sr_b2", "blue"],
-        "swir1":      ["SR_B6", "sr_b6", "swir16"],
-        "qa_pixel":   ["QA_PIXEL", "qa_pixel"],   # C2 L2 cloud/shadow bitmap — replaces CLOSDI
+        "red":        ["red", "SR_B4", "sr_b4"],
+        "nir":        ["nir08", "nir", "SR_B5", "sr_b5"],   # nir08 = Landsat 8/9 OLI Band 5 in E84
+        "green":      ["green", "SR_B3", "sr_b3"],
+        "blue":       ["blue", "SR_B2", "sr_b2"],
+        "swir1":      ["swir16", "SR_B6", "sr_b6"],
+        "qa_pixel":   ["qa_pixel", "QA_PIXEL"],   # C2 L2 cloud/shadow bitmap — replaces CLOSDI
         "scale":      "ls",
     },
 ]
@@ -213,6 +213,11 @@ def _search_source(src: dict, dt_from: str, dt_to: str,
         items = items[:limit]
         log.info("ndvi_real [%s]: %d items (cloud<%.0f%%, %s→%s)",
                  src["name"], len(items), max_cloud, dt_from, dt_to)
+        for _it in items:
+            _it_cloud = _it.properties.get(src.get("cloud_prop", "eo:cloud_cover"), "?")
+            _it_dt    = _it.properties.get("datetime", "?")[:19]
+            log.info("ndvi_real [%s]:   └─ id=%s date=%s cloud=%s%%",
+                     src["name"], _it.id, _it_dt, _it_cloud)
         return items
     except Exception as exc:
         log.warning("ndvi_real [%s]: búsqueda falló: %s", src["name"], exc)
@@ -380,7 +385,7 @@ def _composite_scene(items: list, src: dict) -> "dict[str, dict] | None":
 
             priority = np.stack([_scl_priority(scl_up[t]) for t in range(nT)])  # (T,H,W)
         except Exception as exc:
-            log.debug("ndvi composite: SCL load: %s", exc)
+            log.warning("ndvi composite: SCL load falló: %s", exc)
             priority = None
     elif qa_asset:
         # ── QA_PIXEL → NDVI-weighted priority para Landsat C2 L2 BAP ──────────
@@ -505,8 +510,14 @@ def _composite_multisource(src_items: list) -> "dict[str, dict] | None":
             continue
         if src["scale"] == "s2" and s2_done:
             continue
-        result = _composite_scene(items, src)
+        try:
+            result = _composite_scene(items, src)
+        except Exception as _cse:
+            log.error("ndvi_real multisource: _composite_scene [%s] falló: %s", src["name"], _cse)
+            continue
         if not result:
+            log.warning("ndvi_real multisource: [%s] composite sin píxeles válidos (%d escenas)",
+                        src["name"], len(items))
             continue
         for entry in result.values():
             entry["sensor"] = src["name"]
@@ -1075,7 +1086,14 @@ def fetch_ndvi() -> Optional[dict]:
                 _mitems = _search_source(_msrc, _mbap_from, _mbap_to, max_cloud=80, limit=4)
                 if _mitems:
                     _mbap_src_items.append((_msrc, _mitems))
-            if _mbap_src_items:
+            if not _mbap_src_items:
+                _next_s2 = (today + timedelta(days=max(0, 5 - (today - date.fromisoformat(_mbap_from)).days % 5))).isoformat()
+                log.warning(
+                    "Mini-BAP 5d: 0 escenas en ventana %s/%s (cloud<80%%) — "
+                    "sin pasada S2/Landsat en 5 dias; proxima S2 estimada ~%s",
+                    _mbap_from, _mbap_to, _next_s2,
+                )
+            else:
                 _n_esc = sum(len(x[1]) for x in _mbap_src_items)
                 log.info("ndvi_real Mini-BAP 5d: %d escenas · %d fuentes", _n_esc, len(_mbap_src_items))
                 _mbap_result = _composite_multisource(_mbap_src_items)
@@ -1094,35 +1112,40 @@ def fetch_ndvi() -> Optional[dict]:
                         "prithvi_enriquecido": False,
                         "metodo":              "COMPOSITE_MINI_BAP_5D",
                     }
-            log.info("ndvi_real Mini-BAP 5d: sin datos — continuando a Ronda 2")
+                else:
+                    log.warning(
+                        "Mini-BAP 5d: encontradas %d escenas (%d fuentes) pero composite retorno vacio"
+                        " — revisar _composite_multisource()",
+                        _n_esc, len(_mbap_src_items),
+                    )
 
-    # ── Ronda BAP: composite multi-temporal pixel-a-pixel ────────────────
-    # Cuando ninguna escena individual tiene cobertura útil (invierno),
-    # combina hasta 8 escenas de 30 días → ndvi_2d sin huecos de nubes.
-    # Se intenta siempre, no solo en invierno, porque es el fallback correcto.
-    log.info("ndvi_real: Ronda BAP — composite 30d (todas las nubes, múltiples escenas)")
-    _bap_from = (today - timedelta(days=30)).isoformat()
-    _bap_to   = today.isoformat()
-    for _src in _STAC_SOURCES[:2]:   # solo S2 10m (PC + E84); Landsat 30m no aporta al composite
-        _bap_items = _search_source(_src, _bap_from, _bap_to, max_cloud=95, limit=8)
-        if len(_bap_items) < 2:
-            log.info("ndvi_real BAP [%s]: solo %d escenas — insuficiente", _src["name"], len(_bap_items))
-            continue
-        log.info("ndvi_real BAP [%s]: compositing %d escenas", _src["name"], len(_bap_items))
-        _bap_canchas = _composite_scene(_bap_items, _src)
-        if _bap_canchas:
-            _dom = next(iter(_bap_canchas.values())).get("composite_date", _bap_from)
-            log.info("ndvi_real BAP OK — %d canchas · fecha_dom=%s · %d escenas",
-                     len(_bap_canchas), _dom, len(_bap_items))
-            return {
-                "fuente":              f"BAP_composite · {_src['name']} · 30d · {len(_bap_items)}esc",
-                "fecha_imagen":        _dom,
-                "nubosidad_pct":       0.0,   # composite es libre de nubes por construcción
-                "canchas":             _bap_canchas,
-                "prithvi_enriquecido": False,
-                "metodo":              "COMPOSITE_BAP_30D",
-            }
-        log.warning("ndvi_real BAP [%s]: composite sin píxeles válidos", _src["name"])
+            # ── BAP 30d: composite antes de aceptar imágenes viejas de Round 2+ ──
+            # Solo S2 10m (PC + E84); Landsat 30m no aporta resolución al composite.
+            # _composite_scene retorna None si stackstac no está → fallback natural a Round 2.
+            log.info("ndvi_real BAP 30d: buscando composite pixel-a-pixel antes de Round 2")
+            _bap_from = (today - timedelta(days=30)).isoformat()
+            _bap_to   = today.isoformat()
+            for _bap_src in _STAC_SOURCES[:2]:
+                _bap_items = _search_source(_bap_src, _bap_from, _bap_to, max_cloud=95, limit=8)
+                if not _bap_items:
+                    log.info("ndvi_real BAP 30d [%s]: 0 escenas en 30d", _bap_src["name"])
+                    continue
+                log.info("ndvi_real BAP 30d [%s]: compositing %d escenas", _bap_src["name"], len(_bap_items))
+                _bap_canchas = _composite_scene(_bap_items, _bap_src)
+                if _bap_canchas:
+                    _dom = next(iter(_bap_canchas.values())).get("composite_date", _bap_from)
+                    log.info("ndvi_real BAP 30d OK — %d canchas · fecha_dom=%s · %d escenas",
+                             len(_bap_canchas), _dom, len(_bap_items))
+                    return {
+                        "fuente":              f"BAP_composite · {_bap_src['name']} · 30d · {len(_bap_items)}esc",
+                        "fecha_imagen":        _dom,
+                        "nubosidad_pct":       0.0,
+                        "canchas":             _bap_canchas,
+                        "prithvi_enriquecido": False,
+                        "metodo":              "COMPOSITE_BAP_30D",
+                    }
+                log.warning("ndvi_real BAP 30d [%s]: composite sin pixeles validos", _bap_src["name"])
+            log.info("ndvi_real BAP 30d: sin resultado — continuando a Round 2 (fallback imagen vieja)")
 
     # ── OpenEO CDSE — composite server-side cuando BAP local falla ────────
     # Ventaja: procesamiento en CDSE sin descargar tiles completos; SCL mask
@@ -1185,3 +1208,29 @@ def fetch_ndvi() -> Optional[dict]:
 
     log.warning("ndvi_real: ninguna fuente devolvio datos — NDVI anterior mantenido")
     return None
+
+
+if __name__ == "__main__":
+    import sys as _sys
+    _debug = "--debug" in _sys.argv
+    logging.basicConfig(
+        level=logging.DEBUG if _debug else logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        handlers=[logging.StreamHandler(_sys.stdout)],
+    )
+    if _debug:
+        log.info("ndvi_real __main__: modo DEBUG activo")
+    log.info("ndvi_real __main__: fetch + persist a Supabase via satellite_pipeline")
+    _data = fetch_ndvi()
+    if not _data:
+        log.warning("ndvi_real __main__: sin datos NDVI — Supabase no actualizado")
+        _sys.exit(1)
+    log.info("ndvi_real __main__: NDVI OK (%d canchas) fuente=%s fecha=%s",
+             len(_data.get("canchas", {})), _data.get("fuente", "?"), _data.get("fecha_imagen", "?"))
+    try:
+        import satellite_pipeline as _sp
+        _result = _sp.run_satellite_cycle(_data, force=True)
+        log.info("ndvi_real __main__: satellite_pipeline OK — %s", _result)
+    except Exception as _exc:
+        log.error("ndvi_real __main__: satellite_pipeline falló: %s", _exc)
+        _sys.exit(1)
