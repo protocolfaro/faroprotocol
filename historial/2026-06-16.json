@@ -41,7 +41,7 @@
     ],
     "semana": "2026-06-22"
   },
-  "updated_at": "2026-06-28T04:14:26Z",
+  "updated_at": "2026-06-28T05:15:45Z",
   "weather_live": {
     "timestamp": "2026-06-25T09:00:14",
     "fuentes": [
@@ -3702,14 +3702,14 @@
           "score_prev": 53,
           "sem": "rojo",
           "ndvi": 0.241,
-          "ndvi_prev": 0.377,
+          "ndvi_prev": 0.378,
           "detalle": "NDVI 0.24 · Cancha al límite — necesita descanso · 120 pers · 12.5h · Dormancia estacional",
           "prescripcion_operativa": "Cancha 1FA: DESCANSO — 1845 pers.h acumuladas esta semana, NDVI=0.241 — cerrar hasta recuperacion minima (48hs)",
           "ndvi_historial": [
             0.241,
             0.377,
             0.241,
-            0.377,
+            0.378,
             0.241
           ],
           "estado_detectado": "normal",
@@ -3781,17 +3781,17 @@
           "id": "2fa",
           "nombre": "2FA",
           "score": 71,
-          "score_prev": 87,
+          "score_prev": 86,
           "sem": "verde",
           "ndvi": 0.284,
-          "ndvi_prev": 0.428,
+          "ndvi_prev": 0.418,
           "detalle": "NDVI 0.28 · Sin actividad registrada · 0 pers · 0h · Dormancia estacional",
           "prescripcion_operativa": "Cancha 2FA: Dormancia invernal — NDVI=0.284 (normal Jun-Ago) — sin intervencion urgente hoy",
           "ndvi_historial": [
             0.284,
             0.428,
             0.284,
-            0.428,
+            0.418,
             0.284
           ],
           "estado_detectado": "normal",
@@ -3866,14 +3866,14 @@
           "score_prev": 92,
           "sem": "verde",
           "ndvi": 0.44,
-          "ndvi_prev": 0.611,
+          "ndvi_prev": 0.638,
           "detalle": "NDVI 0.44 · Cancha descansada · 30 pers · 3.0h · Dormancia estacional",
           "prescripcion_operativa": "Cancha 3FA: Dormancia invernal — NDVI=0.440 (normal Jun-Ago) — sin intervencion urgente hoy",
           "ndvi_historial": [
             0.44,
             0.611,
             0.44,
-            0.611,
+            0.638,
             0.44
           ],
           "estado_detectado": "normal",
@@ -3945,17 +3945,17 @@
           "id": "4fa",
           "nombre": "4FA",
           "score": 68,
-          "score_prev": 84,
+          "score_prev": 79,
           "sem": "amarillo",
           "ndvi": 0.256,
-          "ndvi_prev": 0.4,
+          "ndvi_prev": 0.356,
           "detalle": "NDVI 0.26 · Sin actividad registrada · 0 pers · 0h · Dormancia estacional",
           "prescripcion_operativa": "Cancha 4FA: Dormancia invernal — NDVI=0.256 (normal Jun-Ago) — sin intervencion urgente hoy",
           "ndvi_historial": [
             0.256,
             0.4,
             0.256,
-            0.4,
+            0.356,
             0.256
           ],
           "estado_detectado": "normal",
@@ -4030,14 +4030,14 @@
           "score_prev": 90,
           "sem": "verde",
           "ndvi": 0.428,
-          "ndvi_prev": 0.641,
+          "ndvi_prev": 0.63,
           "detalle": "NDVI 0.43 · Uso normal · 30 pers · 3.5h · Dormancia estacional",
           "prescripcion_operativa": "Cancha 5FA: Dormancia invernal — NDVI=0.428 (normal Jun-Ago) — sin intervencion urgente hoy",
           "ndvi_historial": [
             0.428,
             0.641,
             0.428,
-            0.641,
+            0.63,
             0.428
           ],
           "estado_detectado": "normal",
@@ -4109,17 +4109,17 @@
           "id": "6fa",
           "nombre": "6FA",
           "score": 77,
-          "score_prev": 99,
+          "score_prev": 100,
           "sem": "verde",
           "ndvi": 0.339,
-          "ndvi_prev": 0.538,
+          "ndvi_prev": 0.549,
           "detalle": "NDVI 0.34 · Sin actividad registrada · 0 pers · 0h · Dormancia estacional",
           "prescripcion_operativa": "Cancha 6FA: Dormancia invernal — NDVI=0.339 (normal Jun-Ago) — sin intervencion urgente hoy",
           "ndvi_historial": [
             0.339,
             0.538,
             0.339,
-            0.538,
+            0.549,
             0.339
           ],
           "estado_detectado": "normal",
@@ -4191,17 +4191,17 @@
           "id": "7fa",
           "nombre": "7FA",
           "score": 68,
-          "score_prev": 88,
+          "score_prev": 91,
           "sem": "amarillo",
           "ndvi": 0.255,
-          "ndvi_prev": 0.441,
+          "ndvi_prev": 0.466,
           "detalle": "NDVI 0.26 · Sin actividad registrada · 0 pers · 0h · Dormancia estacional",
           "prescripcion_operativa": "Cancha 7FA: Dormancia invernal — NDVI=0.255 (normal Jun-Ago) — sin intervencion urgente hoy",
           "ndvi_historial": [
             0.255,
             0.441,
             0.255,
-            0.441,
+            0.466,
             0.255
           ],
           "estado_detectado": "normal",
@@ -4273,17 +4273,17 @@
           "id": "8fa",
           "nombre": "8FA",
           "score": 57,
-          "score_prev": 76,
+          "score_prev": 73,
           "sem": "amarillo",
           "ndvi": 0.255,
-          "ndvi_prev": 0.431,
+          "ndvi_prev": 0.404,
           "detalle": "NDVI 0.26 · Uso normal · 45 pers · 6.5h · Dormancia estacional",
           "prescripcion_operativa": "Cancha 8FA: DESCANSO — 676 pers.h acumuladas esta semana, NDVI=0.255 — cerrar hasta recuperacion minima (48hs)",
           "ndvi_historial": [
             0.255,
             0.431,
             0.255,
-            0.431,
+            0.404,
             0.255
           ],
           "estado_detectado": "normal",
@@ -4358,14 +4358,14 @@
           "score_prev": 96,
           "sem": "verde",
           "ndvi": 0.318,
-          "ndvi_prev": 0.554,
+          "ndvi_prev": 0.548,
           "detalle": "NDVI 0.32 · Cancha descansada · 15 pers · 3.0h · Dormancia estacional",
           "prescripcion_operativa": "Cancha 9FA: DESCANSO — 676 pers.h acumuladas esta semana, NDVI=0.318 — cerrar hasta recuperacion minima (48hs)",
           "ndvi_historial": [
             0.318,
             0.554,
             0.318,
-            0.554,
+            0.548,
             0.318
           ],
           "estado_detectado": "normal",
@@ -4440,14 +4440,14 @@
           "score_prev": 100,
           "sem": "verde",
           "ndvi": 0.321,
-          "ndvi_prev": 0.557,
+          "ndvi_prev": 0.584,
           "detalle": "NDVI 0.32 · Sin actividad registrada · 0 pers · 0h · Dormancia estacional",
           "prescripcion_operativa": "Cancha 10FA: Dormancia invernal — NDVI=0.321 (normal Jun-Ago) — sin intervencion urgente hoy",
           "ndvi_historial": [
             0.321,
             0.557,
             0.321,
-            0.557,
+            0.584,
             0.321
           ],
           "estado_detectado": "normal",
@@ -4522,14 +4522,14 @@
           "score_prev": 78,
           "sem": "amarillo",
           "ndvi": 0.32,
-          "ndvi_prev": 0.42,
+          "ndvi_prev": 0.423,
           "detalle": "NDVI 0.32 · Cancha descansada · 30 pers · 3.0h · Dormancia estacional",
           "prescripcion_operativa": "Cancha 1FP: Dormancia invernal — NDVI=0.320 (normal Jun-Ago) — sin intervencion urgente hoy",
           "ndvi_historial": [
             0.32,
             0.42,
             0.32,
-            0.42,
+            0.423,
             0.32
           ],
           "estado_detectado": "normal",
@@ -4601,17 +4601,17 @@
           "id": "2fp",
           "nombre": "2FP",
           "score": 76,
-          "score_prev": 96,
+          "score_prev": 95,
           "sem": "verde",
           "ndvi": 0.332,
-          "ndvi_prev": 0.515,
+          "ndvi_prev": 0.505,
           "detalle": "NDVI 0.33 · Sin actividad registrada · 0 pers · 0h · Dormancia estacional",
           "prescripcion_operativa": "Cancha 2FP: Dormancia invernal — NDVI=0.332 (normal Jun-Ago) — sin intervencion urgente hoy",
           "ndvi_historial": [
             0.332,
             0.515,
             0.332,
-            0.515,
+            0.505,
             0.332
           ],
           "estado_detectado": "normal",
@@ -8457,7 +8457,7 @@
       "heatmaps_meta": {
         "fuente": "sentinel-2-l2a · Planetary Computer · 2026-06-16 · nub 0%",
         "semana": "2026-06-16",
-        "updated_at": "2026-06-28T04:14:26Z"
+        "updated_at": "2026-06-28T05:15:45Z"
       }
     },
     "juan": {
@@ -9013,7 +9013,7 @@
   },
   "historial_meta": {
     "semana": "2026-06-16",
-    "committed_at": "2026-06-28T04:14:40Z",
+    "committed_at": "2026-06-28T05:15:58Z",
     "fuente": "Faro Protocol · Railway auto-commit"
   }
 }
