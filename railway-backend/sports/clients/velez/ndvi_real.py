@@ -45,8 +45,9 @@ from utils import coords_to_bbox
 #   7FA/8FA/9FA/10FA: 95x63m
 
 def _bbox(lat: float, lon: float,
-          w_m: float = 105, h_m: float = 68, buf_m: float = 0) -> tuple:
-    """Cancha bbox exacto al campo — sin buffer para alineación pixel-perfecta con SVG."""
+          w_m: float = 105, h_m: float = 68, buf_m: float = 5) -> tuple:
+    """Cancha bbox con buffer mínimo (5m) para evitar artefactos de borde S2.
+    snap_bounds=True en stackstac alinea a límites exactos de píxel."""
     box = coords_to_bbox(lat, lon, h_m=h_m + 2 * buf_m, w_m=w_m + 2 * buf_m)
     return tuple(box)
 
