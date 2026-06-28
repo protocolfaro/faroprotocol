@@ -347,7 +347,7 @@ def run_satellite_cycle(ndvi_data: dict = None, force: bool = False) -> dict:
     log.info("=== satellite_pipeline START — imagen %s ===", img_date)
 
     # 4. Construir ndvi_map y ipos_results
-    ndvi_map = {cid: v["ndvi"] for cid, v in ndvi_data.get("canchas", {}).items()
+    ndvi_map = {cid: v for cid, v in ndvi_data.get("canchas", {}).items()
                 if v.get("ndvi") is not None}
     last_ipos   = _load_last_ipos()
     ipos_results = _build_ipos_results(last_ipos)
