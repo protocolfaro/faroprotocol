@@ -284,7 +284,7 @@ def generate_all(ipos_results: dict, semana_label: str, ndvi_map: dict = None) -
         scale_c = W_PX * 0.92 / cols
         ndvi_up = _zoom(ndvi_g.astype(np.float64), (scale_r, scale_c), order=3)
         ndvi_up = gaussian_filter(ndvi_up, sigma=0.8)
-        ax.imshow(ndvi_up, cmap=_CMAP, vmin=_NDVI_VMIN, vmax=_NDVI_VMAX, origin="upper",
+        ax.imshow(ndvi_up, cmap=ELEVAGRO_CMAP, vmin=_NDVI_VMIN, vmax=_NDVI_VMAX, origin="upper",
                   aspect="auto", extent=[0,W_m,H_m,0])
         ax.set_xlim(0,W_m); ax.set_ylim(H_m,0)
 
@@ -356,7 +356,7 @@ def generate_all(ipos_results: dict, semana_label: str, ndvi_map: dict = None) -
         cbar = fig.add_axes([0.926, 0.07, 0.028, 0.93])
         cbar.set_facecolor(BG)
         cb = np.linspace(1, 0, 200).reshape(200, 1)
-        cbar.imshow(cb, cmap=_CMAP, aspect="auto", vmin=_NDVI_VMIN, vmax=_NDVI_VMAX)
+        cbar.imshow(cb, cmap=ELEVAGRO_CMAP, aspect="auto", vmin=_NDVI_VMIN, vmax=_NDVI_VMAX)
         cbar.set_xticks([])
         # Ticks en posiciones normalizadas [0-1] correspondientes a NDVI 0.90/0.70/0.57/0.35
         cbar.set_yticks([0, 36, 145, 199])
