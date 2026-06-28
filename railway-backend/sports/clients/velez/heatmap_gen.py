@@ -227,13 +227,8 @@ def generate_all(ipos_results: dict, semana_label: str, ndvi_map: dict = None) -
         ax.imshow(use_up, cmap="Greys_r", vmin=0, vmax=1, alpha=0.40,
                   origin="upper", aspect="auto", extent=[0,W_m,H_m,0])
 
-        # Layer 3: field lines
-        if cid == "poli_hockey":
-            _lines_hockey(ax, W_m, H_m)
-        elif cid in ("poli_f8a", "poli_f8b"):
-            _lines_f8(ax, W_m, H_m)
-        else:
-            _lines(ax, W_m, H_m)
+        # Field lines are drawn by the SVG overlay in the panel (z-index:2).
+        # PNG is pure NDVI gradient — no baked lines to avoid doubling.
         ax.axis("off")
 
         # Badge top-right
