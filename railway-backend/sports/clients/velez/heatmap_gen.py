@@ -40,13 +40,27 @@ DIMS = {
     "poli_hockey":(91,  55),
 }
 
-# Calibrated for real grass NDVI range: 0.10 (dormant/critical) to 0.65 (optimal)
-_CMAP = LinearSegmentedColormap.from_list("ipos_ndvi", [
-    (0.00,"#b71c1c"),(0.20,"#e05252"),(0.40,"#e0b84c"),
-    (0.65,"#8bc34a"),(0.85,"#4cad72"),(1.00,"#1b5e20"),
+# Colormap calibrado para turfgrass profesional: 0.35 (crítico) → 0.90 (óptimo)
+# Normalizado [0,1] donde 0=NDVI 0.35, 1=NDVI 0.90
+# Breakpoints según FIFA Quality Programme + Burbrink & Straw 2023 + SkimTurf thresholds
+_CMAP = LinearSegmentedColormap.from_list("faro_grass", [
+    (0.000, "#7f0000"),  # NDVI 0.35 — suelo expuesto / crítico severo
+    (0.136, "#c62828"),  # NDVI 0.42 — crítico
+    (0.273, "#ef5350"),  # NDVI 0.50 — estrés grave
+    (0.400, "#f9a825"),  # NDVI 0.57 — estrés moderado
+    (0.545, "#fdd835"),  # NDVI 0.65 — estrés leve (umbral atención)
+    (0.636, "#9ccc65"),  # NDVI 0.70 — aceptable
+    (0.727, "#4caf50"),  # NDVI 0.75 — bueno
+    (0.864, "#2e7d32"),  # NDVI 0.82 — muy bueno
+    (1.000, "#1b5e20"),  # NDVI 0.90 — óptimo FIFA Quality Pro
 ])
-_NDVI_VMIN = 0.10   # dormant / bare soil threshold
-_NDVI_VMAX = 0.65   # optimal dense grass for temperate climate
+_NDVI_VMIN = 0.0   # 0.0 normalizado = NDVI 0.35 (suelo/crítico)
+_NDVI_VMAX = 1.0   # 1.0 normalizado = NDVI 0.90 (óptimo)
+
+# Zonas funcionales del campo (eje longitudinal, basado en Wolski et al. 2023)
+# GK degrada más rápido, luego ÁREA, CENTRO es más estable
+_ZONE_BREAKS = [0.000, 0.157, 0.381, 0.500, 0.619, 0.843, 1.000]  # fracción de W_m
+_ZONE_LABELS = ["GK", "ÁREA", "CEN", "CEN", "ÁREA", "GK"]
 
 def _ndvi_grid(rows, cols, base, seed=42):
     rng = np.random.default_rng(seed)
@@ -131,6 +145,52 @@ def _lines_hockey(ax, W, H):
     for x in [0, W]:
         ax.plot([x,x],[(H-goal_w)/2,(H+goal_w)/2],color=WHITE,lw=2.2,alpha=0.90)
 
+def _zone_stats(ndvi_2d_in, W_m: float) -> dict:
+    """Calcula NDVI medio por zona funcional del campo desde el array 2D.
+
+    ndvi_2d_in es la lista normalizada [0-1] (0=NDVI 0.35, 1=NDVI 0.90).
+    Retorna {0..5: ndvi_raw} donde ndvi_raw es el NDVI real (0.35-0.90).
+    """
+    if ndvi_2d_in is None:
+        return {}
+    try:
+        arr = np.array(ndvi_2d_in, dtype=np.float32)
+        ncols = arr.shape[1]
+        stats = {}
+        for z, (b0, b1) in enumerate(zip(_ZONE_BREAKS[:-1], _ZONE_BREAKS[1:])):
+            c0, c1 = int(b0 * ncols), max(int(b1 * ncols), int(b0 * ncols) + 1)
+            c1 = min(c1, ncols)
+            zone_norm = arr[:, c0:c1]
+            valid = (zone_norm > 0.01) & (zone_norm < 0.999)
+            if valid.sum() >= 1:
+                ndvi_raw = float(zone_norm[valid].mean()) * 0.55 + 0.35
+                stats[z] = round(ndvi_raw, 2)
+        return stats
+    except Exception:
+        return {}
+
+
+def _draw_zones(ax, W_m: float, H_m: float, zone_ndvi: dict):
+    """Overlay de zonas funcionales: líneas divisorias + NDVI por zona."""
+    breaks_m = [b * W_m for b in _ZONE_BREAKS]
+    for x in breaks_m[1:-1]:
+        ax.axvline(x, color=WHITE, alpha=0.18, lw=0.6, ls="--", zorder=3)
+    for z, label in enumerate(_ZONE_LABELS):
+        xmid = (breaks_m[z] + breaks_m[z + 1]) / 2
+        ndvi_val = zone_ndvi.get(z)
+        if ndvi_val is not None:
+            col = ("#2e7d32" if ndvi_val >= 0.70 else
+                   "#f9a825" if ndvi_val >= 0.57 else "#c62828")
+            ax.text(xmid, H_m * 0.06, f"{ndvi_val:.2f}",
+                    ha="center", va="top", fontsize=5.2, color=col,
+                    fontfamily="monospace", fontweight="bold", zorder=4,
+                    bbox=dict(boxstyle="round,pad=0.12",
+                              facecolor="#000000BB", edgecolor="none"))
+        ax.text(xmid, H_m * 0.97, label,
+                ha="center", va="bottom", fontsize=4.5, color="#ffffff44",
+                fontfamily="monospace", zorder=4)
+
+
 def _sha(cid, ndvi, ipos, semana, ts):
     return hashlib.sha256(f"{cid}|{ndvi:.4f}|{ipos:.2f}|{semana}|{ts}".encode()).hexdigest()
 
@@ -171,10 +231,17 @@ def generate_all(ipos_results: dict, semana_label: str, ndvi_map: dict = None) -
         cid_data  = (ndvi_map or {}).get(cid) or {}
         if isinstance(cid_data, dict):
             ndvi_base  = cid_data.get("ndvi") or max(0.18, 0.72 - (ipos / 350.0) * 0.54)
-            ndvi_2d_in = cid_data.get("ndvi_2d")  # lista de listas [0-1] real del satélite
+            ndvi_2d_in = cid_data.get("ndvi_2d")   # normalizado [0-1] (0=0.35, 1=0.90)
+            ndre_val   = cid_data.get("ndre")       # scalar NDRE
+            gndvi_val  = cid_data.get("gndvi")      # scalar GNDVI
+            evi2_val   = cid_data.get("evi2")       # scalar EVI2
         else:
             ndvi_base  = float(cid_data) if cid_data else max(0.18, 0.72 - (ipos / 350.0) * 0.54)
             ndvi_2d_in = None
+            ndre_val = gndvi_val = evi2_val = None
+
+        # Estadísticas por zona funcional del campo
+        zone_ndvi = _zone_stats(ndvi_2d_in, W_m)
         sha = _sha(cid, ndvi_base, ipos, semana_label, ts)
         verify_hashes[sha] = {
             "cancha": label, "semana": semana_label,
@@ -212,26 +279,30 @@ def generate_all(ipos_results: dict, semana_label: str, ndvi_map: dict = None) -
         ax = fig.add_axes([0.0, 0.07, 0.92, 0.93])
         ax.set_facecolor(BG)
 
-        # Layer 1: NDVI
+        # Layer 1: NDVI — bicúbico + gaussian mínimo (sigma=0.8, preserva estructura)
         scale_r = H_PX * 0.93 / rows
         scale_c = W_PX * 0.92 / cols
         ndvi_up = _zoom(ndvi_g.astype(np.float64), (scale_r, scale_c), order=3)
-        ndvi_up = gaussian_filter(ndvi_up, sigma=1.5)
+        ndvi_up = gaussian_filter(ndvi_up, sigma=0.8)
         ax.imshow(ndvi_up, cmap=_CMAP, vmin=_NDVI_VMIN, vmax=_NDVI_VMAX, origin="upper",
                   aspect="auto", extent=[0,W_m,H_m,0])
         ax.set_xlim(0,W_m); ax.set_ylim(H_m,0)
 
         # Layer 2: IPOS usage overlay
         use_up = _zoom(use_g.astype(np.float64), (scale_r, scale_c), order=1)
-        use_up = gaussian_filter(use_up, sigma=2.2)
-        ax.imshow(use_up, cmap="Greys_r", vmin=0, vmax=1, alpha=0.40,
+        use_up = gaussian_filter(use_up, sigma=1.8)
+        ax.imshow(use_up, cmap="Greys_r", vmin=0, vmax=1, alpha=0.32,
                   origin="upper", aspect="auto", extent=[0,W_m,H_m,0])
+
+        # Layer 3: Zonas funcionales + NDVI por zona
+        if zone_ndvi:
+            _draw_zones(ax, W_m, H_m, zone_ndvi)
 
         # Field lines are drawn by the SVG overlay in the panel (z-index:2).
         # PNG is pure NDVI gradient — no baked lines to avoid doubling.
         ax.axis("off")
 
-        # Badge top-right
+        # Badge top-right: nombre + alerta
         ax.text(0.984, 0.974, f"  {label}",
                 transform=ax.transAxes, fontsize=13, fontweight="bold",
                 color=col, ha="right", va="top",
@@ -242,6 +313,18 @@ def generate_all(ipos_results: dict, semana_label: str, ndvi_map: dict = None) -
                 color=col, ha="right", va="top",
                 bbox=dict(boxstyle="round,pad=0.22", facecolor="#000000CC",
                           edgecolor=col+"88", linewidth=0.9))
+
+        # Badge multi-índice: NDVI / NDRE / GNDVI
+        idx_parts = [f"NDVI {ndvi_base:.2f}"]
+        if ndre_val is not None:
+            idx_parts.append(f"NDRE {ndre_val:.2f}")
+        if gndvi_val is not None:
+            idx_parts.append(f"GNDVI {gndvi_val:.2f}")
+        ax.text(0.984, 0.828, "  ".join(idx_parts),
+                transform=ax.transAxes, fontsize=5.2, color="#ffffffBB",
+                ha="right", va="top", fontfamily="monospace",
+                bbox=dict(boxstyle="round,pad=0.15", facecolor="#000000AA",
+                          edgecolor="#ffffff22", linewidth=0.5))
 
         # QR bottom-right
         if qr is not None:
@@ -269,15 +352,16 @@ def generate_all(ipos_results: dict, semana_label: str, ndvi_map: dict = None) -
                   transform=ax_f.transAxes, fontsize=5.5, color="#c9a84c88",
                   va="top", ha="right", fontfamily="monospace")
 
-        # Colourbar
+        # Colourbar — rango calibrado 0.35 (crítico) → 0.90 (óptimo)
         cbar = fig.add_axes([0.926, 0.07, 0.028, 0.93])
         cbar.set_facecolor(BG)
-        cb = np.linspace(1,0,200).reshape(200,1)
+        cb = np.linspace(1, 0, 200).reshape(200, 1)
         cbar.imshow(cb, cmap=_CMAP, aspect="auto", vmin=_NDVI_VMIN, vmax=_NDVI_VMAX)
         cbar.set_xticks([])
-        cbar.set_yticks([0,66,133,199])
-        cbar.set_yticklabels(["Óptimo","Bueno","Estrés","Crítico"],
-                              fontsize=5.5, color="#ffffffcc")
+        # Ticks en posiciones normalizadas [0-1] correspondientes a NDVI 0.90/0.70/0.57/0.35
+        cbar.set_yticks([0, 36, 145, 199])
+        cbar.set_yticklabels(["0.90\nÓptimo", "0.70\nBueno", "0.57\nEstrés", "0.35\nCrítico"],
+                              fontsize=4.8, color="#ffffffcc")
         for sp in cbar.spines.values(): sp.set_visible(False)
         cbar.tick_params(length=0)
 

@@ -581,18 +581,23 @@ def _compute_indices(
         with np.errstate(invalid="ignore", divide="ignore"):
             gndvi = round(float(((nir_c - green_c) / (nir_c + green_c + 1e-9))[valid_g].mean()), 3)
         gndvi = max(-1.0, min(1.0, gndvi))
+        # gndvi_2d — spatial GNDVI map (mejor que NDVI en césped maduro denso)
+        gndvi_2d_r = (nir_c - green_c) / (nir_c + green_c + 1e-9)
+        gndvi_2d_r = np.clip(gndvi_2d_r, -1.0, 1.0)
+        gndvi_2d_r[~valid_g] = np.nan
+        entry["gndvi_2d"] = np.clip((gndvi_2d_r - 0.35) / (0.90 - 0.35), 0.0, 1.0).astype(np.float16).tolist()
     else:
         gndvi = round(ndvi * 0.93, 3)
 
     nst, nrec = _n_status(gndvi)
     # Array 2D normalizado [0-1] para heatmap_gen — pixel-level real del satélite
+    # Rango calibrado para turfgrass: 0.35 (crítico/suelo) → 0.90 (óptimo denso)
+    # Ref: Burbrink & Straw 2023, SkimTurf thresholds, FIFA Quality Programme
     ndvi_2d_raw = ((nir_c - red_c) / (nir_c + red_c + 1e-9))
     ndvi_2d_raw = np.clip(ndvi_2d_raw, -1.0, 1.0)
     if scl_mask is not None:
         ndvi_2d_raw[scl_mask] = np.nan
-    # Normalizar a [0,1] para colormap (vmin=0.10, vmax=0.65 igual que heatmap_gen)
-    ndvi_2d_norm = np.clip((ndvi_2d_raw - 0.10) / (0.65 - 0.10), 0.0, 1.0)
-    # Serializar como lista de listas compacta (float16 para no inflar el JSON)
+    ndvi_2d_norm = np.clip((ndvi_2d_raw - 0.35) / (0.90 - 0.35), 0.0, 1.0)
     ndvi_2d_list = ndvi_2d_norm.astype(np.float16).tolist()
     entry: dict = {"ndvi": ndvi, "gndvi": gndvi, "n_status": nst, "n_rec": nrec,
                    "ndvi_2d": ndvi_2d_list}
@@ -643,6 +648,12 @@ def _compute_indices(
             entry["ndre"] = ndre
             if entry.get("ndvi") and entry["ndvi"] > 0:
                 entry["ccci"] = round(ndre / entry["ndvi"], 4)
+            # ndre_2d — spatial NDRE map (detecta estrés 18 días antes que NDVI)
+            # Rango turfgrass: 0.10 (crítico) → 0.50 (óptimo) — Grass Research 2023
+            ndre_2d_r = (nir_c - red_edge_c) / (nir_c + red_edge_c + 1e-9)
+            ndre_2d_r = np.clip(ndre_2d_r, -1.0, 1.0)
+            ndre_2d_r[~v_re] = np.nan
+            entry["ndre_2d"] = np.clip((ndre_2d_r - 0.10) / (0.50 - 0.10), 0.0, 1.0).astype(np.float16).tolist()
 
     return entry
 
