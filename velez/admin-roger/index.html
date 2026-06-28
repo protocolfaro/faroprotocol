@@ -498,12 +498,13 @@ async function renderHeatmap(cancha) {
         const img = new Image();
         img.crossOrigin = 'anonymous';
         img.onload = () => {
-                // PNG landscape (800×520, campo 105m horiz). Container portrait (68:105).
-                // Rotar 90° CW para alinear arcos y líneas con el SVG overlay.
+                // PNG landscape (800×520). Rotar 90° CW → portrait.
+                // Recortar footer (36px abajo) y colorbar (64px derecha) del PNG.
+                // Área pura del campo: x=0..736, y=0..484
                 ctx.save();
                 ctx.translate(cssW, 0);
                 ctx.rotate(Math.PI / 2);
-                ctx.drawImage(img, 0, 0, cssH, cssW);
+                ctx.drawImage(img, 0, 0, 736, 484, 0, 0, cssH, cssW);
                 ctx.restore();
                 resolve();
             };
