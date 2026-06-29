@@ -214,32 +214,95 @@ def _cdse_token() -> Optional[str]:
         return None
 
 
-def _cdse_build_paths(product_name: str, acq_date: str, band: str) -> tuple[str, str]:
+def _cdse_file_stems(product_name: str, band: str) -> tuple[str, str, str]:
     """
-    Construye URLs HTTPS para el TIF de medición y el XML de calibración en CDSE eodata.
-    Estructura SAFE: measurement/s1x-iw-grd-{pol}-{tstart}-{tstop}-{orbit}-{mission}-001.tiff
-                     annotation/calibration/calibration-s1x-iw-grd-{pol}-...-001.xml
+    Retorna (safe_name, meas_file, cal_file) construidos desde el nombre del producto.
+    Estructura SAFE:
+      measurement/s1x-iw-grd-{pol}-{tstart}-{tstop}-{orbit}-{mission}-001.tiff
+      annotation/calibration/calibration-s1x-iw-grd-{pol}-...-001.xml
     """
-    dt   = date.fromisoformat(acq_date)
     safe = product_name if product_name.endswith(".SAFE") else product_name + ".SAFE"
     nm   = safe.replace(".SAFE", "")
     p    = nm.split("_")
-    platform = p[0].lower()                              # s1a / s1c / s1d
-    pol      = band.lower()                              # vv / vh
+    platform = p[0].lower()
+    pol      = band.lower()
     t_start  = p[4].lower() if len(p) > 4 else ""
     t_stop   = p[5].lower() if len(p) > 5 else ""
     orbit    = p[6].lower() if len(p) > 6 else ""
     mission  = p[7].lower() if len(p) > 7 else ""
     pol_idx  = "001" if pol == "vv" else "002"
-
     stem     = f"{platform}-iw-grd-{pol}-{t_start}-{t_stop}-{orbit}-{mission}-{pol_idx}"
-    base_url = (
-        f"{_CDSE_EODATA}/Sentinel-1/SAR/GRD/"
-        f"{dt.year}/{dt.month:02d}/{dt.day:02d}/{safe}"
-    )
-    meas_url = f"{base_url}/measurement/{stem}.tiff"
-    cal_url  = f"{base_url}/annotation/calibration/calibration-{stem}.xml"
-    return meas_url, cal_url
+    return safe, f"{stem}.tiff", f"calibration-{stem}.xml"
+
+
+def _cdse_s3_read(product_name: str, acq_date: str, band: str) -> Optional[float]:
+    """
+    Sigma0 vía CDSE S3 con credenciales dedicadas (windowed COG read).
+    Requiere CDSE_S3_KEY + CDSE_S3_SECRET en env vars.
+    Generarlas en: https://dataspace.copernicus.eu → User Settings → S3 Access
+    """
+    s3_key    = os.environ.get("CDSE_S3_KEY", "")
+    s3_secret = os.environ.get("CDSE_S3_SECRET", "")
+    if not s3_key or not s3_secret:
+        return None
+    try:
+        import rasterio
+        from rasterio.windows import Window
+        from rasterio.env import Env as RioEnv
+
+        dt = date.fromisoformat(acq_date)
+        safe, meas_file, cal_file = _cdse_file_stems(product_name, band)
+
+        base_s3 = (
+            f"/vsis3/{_CDSE_EODATA.replace('https://','')}/Sentinel-1/SAR/GRD/"
+            f"{dt.year}/{dt.month:02d}/{dt.day:02d}/{safe}"
+        )
+        meas_path = f"{base_s3}/measurement/{meas_file}"
+        cal_path  = f"{base_s3}/annotation/calibration/{cal_file}"
+
+        gdal_env = {
+            "AWS_ACCESS_KEY_ID":            s3_key,
+            "AWS_SECRET_ACCESS_KEY":        s3_secret,
+            "AWS_S3_ENDPOINT":              _CDSE_EODATA.replace("https://", ""),
+            "AWS_VIRTUAL_HOSTING":          "FALSE",
+            "AWS_HTTPS":                    "YES",
+            "AWS_DEFAULT_REGION":           "default",
+            "GDAL_DISABLE_READDIR_ON_OPEN": "EMPTY_DIR",
+        }
+
+        center_lon, center_lat = -58.525, -34.635
+        i_lon0, i_lat0 = center_lon - 1.5, center_lat - 1.0
+        i_lon1, i_lat1 = center_lon + 1.5, center_lat + 1.0
+        minx, miny, maxx, maxy = _BBOX
+
+        with RioEnv(**gdal_env):
+            with rasterio.open(meas_path) as src:
+                H, W = src.shape
+                col_off = max(0, int(((minx - i_lon0) / (i_lon1 - i_lon0)) * W))
+                col_end = min(W, max(col_off + 20, int(((maxx - i_lon0) / (i_lon1 - i_lon0)) * W)))
+                row_off = max(0, int(((i_lat1 - maxy) / (i_lat1 - i_lat0)) * H))
+                row_end = min(H, max(row_off + 20, int(((i_lat1 - miny) / (i_lat1 - i_lat0)) * H)))
+                win  = Window(col_off, row_off, col_end - col_off, row_end - row_off)
+                data = src.read(1, window=win).astype("float64")
+
+            # Calibración via GDAL VSI sobre S3
+            try:
+                import rasterio.vsi as vsi
+                with vsi.open(cal_path) as cf:
+                    xml_text = cf.read().decode("utf-8")
+                a_cal = _parse_a_cal_xml(xml_text, col_off, col_end)
+            except Exception:
+                a_cal = None
+
+        valid = (data > 0) & np.isfinite(data)
+        if valid.sum() < 4 or a_cal is None or a_cal <= 0:
+            return None
+
+        return round(10.0 * math.log10(max(1e-12, float(np.mean((data[valid] / a_cal) ** 2)))), 2)
+
+    except Exception as exc:
+        log.debug("CDSE S3 %s/%s: %s", product_name[:30], band, exc)
+        return None
 
 
 def _search_cdse(start: date, end: date) -> list[dict]:
@@ -283,72 +346,29 @@ def _search_cdse(start: date, end: date) -> list[dict]:
         return []
 
 
-def _read_sigma0_db_cdse(product_name: str, acq_date: str,
+def _read_sigma0_db_cdse(product_name: str, product_id: str, acq_date: str,
                           band: str, access_token: str) -> Optional[float]:
     """
-    Sigma0 calibrado vía CDSE HTTPS + GDAL Bearer token (HTTP range requests).
-    No requiere STS ni boto3 — usa GDAL_HTTP_AUTH directamente sobre eodata.dataspace.copernicus.eu.
+    Sigma0 calibrado vía CDSE.
+
+    Estrategia:
+    1. S3 con CDSE_S3_KEY/CDSE_S3_SECRET (windowed read, óptimo) — ver _cdse_s3_read()
+    2. Si no hay S3 keys: descarga calibración XML via Bearer (1MB) + sigma0 no disponible
+       hasta que el usuario configure CDSE S3 credentials
+
+    Para habilitar windowed reads CDSE (lag ~6h):
+      → https://dataspace.copernicus.eu → User Settings → S3 Access → Generate credentials
+      → Agregar CDSE_S3_KEY y CDSE_S3_SECRET en Railway env vars
     """
-    try:
-        import rasterio
-        from rasterio.windows import Window
-        from rasterio.env import Env as RioEnv
+    # Prioridad 1: S3 windowed read (requiere CDSE_S3_KEY + CDSE_S3_SECRET)
+    result = _cdse_s3_read(product_name, acq_date, band)
+    if result is not None:
+        return result
 
-        meas_url, cal_url = _cdse_build_paths(product_name, acq_date, band)
-        log.debug("CDSE meas: %s", meas_url)
-
-        gdal_env = {
-            "GDAL_HTTP_AUTH":                   "BEARER",
-            "GDAL_HTTP_BEARER":                 access_token,
-            "GDAL_DISABLE_READDIR_ON_OPEN":     "EMPTY_DIR",
-            "CPL_VSIL_CURL_ALLOWED_EXTENSIONS": ".tiff,.tif",
-            "GDAL_HTTP_MAX_RETRY":              "2",
-            "GDAL_HTTP_RETRY_DELAY":            "1",
-        }
-
-        # Bbox aproximado para swath IW sobre Buenos Aires (~250km × 170km)
-        center_lon, center_lat = -58.525, -34.635
-        i_lon0 = center_lon - 1.5
-        i_lat0 = center_lat - 1.0
-        i_lon1 = center_lon + 1.5
-        i_lat1 = center_lat + 1.0
-        minx, miny, maxx, maxy = _BBOX
-
-        with RioEnv(**gdal_env):
-            with rasterio.open(meas_url) as src:
-                H, W = src.shape
-                col_off = max(0, int(((minx - i_lon0) / (i_lon1 - i_lon0)) * W))
-                col_end = min(W, max(col_off + 20, int(((maxx - i_lon0) / (i_lon1 - i_lon0)) * W)))
-                row_off = max(0, int(((i_lat1 - maxy) / (i_lat1 - i_lat0)) * H))
-                row_end = min(H, max(row_off + 20, int(((i_lat1 - miny) / (i_lat1 - i_lat0)) * H)))
-                win  = Window(col_off, row_off, col_end - col_off, row_end - row_off)
-                data = src.read(1, window=win).astype("float64")
-
-        valid = (data > 0) & np.isfinite(data)
-        if valid.sum() < 4:
-            log.debug("CDSE %s: pocos pixels validos (%d)", band, int(valid.sum()))
-            return None
-
-        # Leer calibración via Bearer requests (XML pequeño, ~500KB)
-        hdrs   = {"Authorization": f"Bearer {access_token}"}
-        cal_r  = requests.get(cal_url, headers=hdrs, timeout=25)
-        if not cal_r.ok:
-            log.warning("CDSE cal XML %s HTTP %s: %s", band, cal_r.status_code, cal_url[-60:])
-            return None
-
-        a_cal = _parse_a_cal_xml(cal_r.text, col_off, col_end)
-        if a_cal is None or a_cal <= 0:
-            log.warning("CDSE %s: sin A_cal para %s", band, product_name[:40])
-            return None
-
-        sigma0_linear = np.mean((data[valid] / a_cal) ** 2)
-        db = round(10.0 * math.log10(max(1e-12, float(sigma0_linear))), 2)
-        log.debug("CDSE %s %s: VV=%.2f dB (A_cal=%.1f)", acq_date, band, db, a_cal)
-        return db
-
-    except Exception as exc:
-        log.debug("CDSE sigma0 HTTPS %s/%s: %s", product_name[:30], band, exc)
-        return None
+    # Prioridad 2: sin S3 keys → no hay forma de hacer windowed read eficiente
+    # (el endpoint OData no soporta range requests, TIF es ~800MB)
+    log.debug("CDSE %s/%s: sin S3 keys — configurar CDSE_S3_KEY+SECRET para habilitar", acq_date, band)
+    return None
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -450,8 +470,9 @@ def run_s1_backfill(days: int = 30, scene_limit: int = 20,
                 skipped += 1
                 continue
 
-            vv_db = _read_sigma0_db_cdse(product_nm, scene_dt, "vv", cdse_token)
-            vh_db = _read_sigma0_db_cdse(product_nm, scene_dt, "vh", cdse_token)
+            product_id = scene["id"]
+            vv_db = _read_sigma0_db_cdse(product_nm, product_id, scene_dt, "vv", cdse_token)
+            vh_db = _read_sigma0_db_cdse(product_nm, product_id, scene_dt, "vh", cdse_token)
 
             if vv_db is None and vh_db is None:
                 log.warning("CDSE %s: sin sigma0 — PC lo intentara cuando esté disponible", scene_dt)
