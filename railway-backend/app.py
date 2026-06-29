@@ -552,9 +552,10 @@ def velez_sar_backfill():
     if not _ok_pin(body.get("pin")):
         return jsonify({"status": "error", "error": "PIN invalido"}), 401
 
-    days        = max(1, min(int(body.get("days",  180)), 730))
-    limit       = max(1, min(int(body.get("limit",  60)), 120))
+    days        = max(1, min(int(body.get("days",  30)), 730))
+    limit       = max(1, min(int(body.get("limit",  20)), 120))
     clean_first = bool(body.get("clean", False))
+    from_latest = bool(body.get("from_latest", True))   # cascade desde última fecha en DB
 
     try:
         import sys as _sys
@@ -562,7 +563,8 @@ def velez_sar_backfill():
         if _velez_dir not in _sys.path:
             _sys.path.insert(0, _velez_dir)
         from faro_sar_s1_backfill import run_s1_backfill
-        result = run_s1_backfill(days=days, scene_limit=limit, clean_first=clean_first)
+        result = run_s1_backfill(days=days, scene_limit=limit,
+                                  clean_first=clean_first, from_latest=from_latest)
         return jsonify({"status": "ok", **result}), 200
     except Exception as exc:
         log.exception("sar-backfill error")
@@ -1402,6 +1404,26 @@ def _daily_enrichment():
     return results
 
 
+def _daily_sar_cascade():
+    """
+    Cron 09:30 UTC — Cascade SAR: busca desde la última fecha en DB hacia hoy.
+    Fuente primaria CDSE (lag ~6h), fallback PC (lag ~3-6d).
+    """
+    log.info("=== Cron: SAR cascade starting ===")
+    try:
+        import sys as _sys
+        _velez_dir = os.path.join(_HERE, "sports", "clients", "velez")
+        if _velez_dir not in _sys.path:
+            _sys.path.insert(0, _velez_dir)
+        from faro_sar_s1_backfill import run_s1_backfill
+        result = run_s1_backfill(days=30, scene_limit=20, from_latest=True)
+        nuevas = result.get("escenas_nuevas", 0)
+        log.info("=== Cron: SAR cascade OK — %d escenas nuevas · %s ===",
+                 nuevas, result.get("vv_range_db", ""))
+    except Exception as exc:
+        log.error("=== Cron: SAR cascade FAILED: %s ===", exc)
+
+
 def _weekly_insar_refresh():
     global _last_insar
     if not os.environ.get("NASA_EARTHDATA_USER") or not os.environ.get("NASA_EARTHDATA_PASS"):
@@ -1514,6 +1536,13 @@ def _start_scheduler():
         _daily_enrichment,
         CronTrigger(hour=9, minute=15, timezone="UTC"),
         id="daily_scientific_enrichment",
+        replace_existing=True,
+    )
+    # 06:30 ART = 09:30 UTC — cascade SAR Sentinel-1 (CDSE primario → PC fallback)
+    scheduler.add_job(
+        _daily_sar_cascade,
+        CronTrigger(hour=9, minute=30, timezone="UTC"),
+        id="daily_sar_cascade",
         replace_existing=True,
     )
     # Lunes 10:00 UTC = 07:00 ART
