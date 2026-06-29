@@ -38,9 +38,7 @@ _PC_SAS  = f"https://planetarycomputer.microsoft.com/api/sas/v1/token/{_S1_COLL}
 # ── CDSE (Copernicus Data Space Ecosystem) — lag ~6h vs ~3-6d PC ─────────────
 _CDSE_TOKEN_URL = "https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token"
 _CDSE_ODATA     = "https://catalogue.dataspace.copernicus.eu/odata/v1/Products"
-_CDSE_STS_URL   = "https://sts.dataspace.copernicus.eu/sts"
-_CDSE_S3_EP     = "eodata.dataspace.copernicus.eu"
-_CDSE_ZIPPER    = "https://download.dataspace.copernicus.eu/odata/v1/Products"
+_CDSE_EODATA    = "https://eodata.dataspace.copernicus.eu"
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -216,31 +214,32 @@ def _cdse_token() -> Optional[str]:
         return None
 
 
-def _cdse_s3_creds(access_token: str) -> Optional[dict]:
-    """Intercambia OAuth2 token por credenciales S3 temporales (STS)."""
-    try:
-        r = requests.post(_CDSE_STS_URL, data={
-            "Action":           "AssumeRoleWithWebIdentity",
-            "WebIdentityToken": access_token,
-            "DurationSeconds":  "3600",
-            "Version":          "2011-06-15",
-        }, headers={"Content-Type": "application/x-www-form-urlencoded"}, timeout=15)
-        if not r.ok:
-            log.warning("CDSE STS %s: %s", r.status_code, r.text[:120])
-            return None
-        root = ET.fromstring(r.text)
-        c = (root.find(".//{https://sts.amazonaws.com/doc/2011-06-15/}Credentials")
-             or root.find(".//Credentials"))
-        if c is None:
-            return None
-        def _t(tag: str) -> str:
-            ns = "https://sts.amazonaws.com/doc/2011-06-15/"
-            el = c.find(f"{{{ns}}}{tag}") or c.find(tag)
-            return (el.text or "") if el is not None else ""
-        return {"key": _t("AccessKeyId"), "secret": _t("SecretAccessKey"), "session": _t("SessionToken")}
-    except Exception as exc:
-        log.warning("CDSE STS: %s", exc)
-        return None
+def _cdse_build_paths(product_name: str, acq_date: str, band: str) -> tuple[str, str]:
+    """
+    Construye URLs HTTPS para el TIF de medición y el XML de calibración en CDSE eodata.
+    Estructura SAFE: measurement/s1x-iw-grd-{pol}-{tstart}-{tstop}-{orbit}-{mission}-001.tiff
+                     annotation/calibration/calibration-s1x-iw-grd-{pol}-...-001.xml
+    """
+    dt   = date.fromisoformat(acq_date)
+    safe = product_name if product_name.endswith(".SAFE") else product_name + ".SAFE"
+    nm   = safe.replace(".SAFE", "")
+    p    = nm.split("_")
+    platform = p[0].lower()                              # s1a / s1c / s1d
+    pol      = band.lower()                              # vv / vh
+    t_start  = p[4].lower() if len(p) > 4 else ""
+    t_stop   = p[5].lower() if len(p) > 5 else ""
+    orbit    = p[6].lower() if len(p) > 6 else ""
+    mission  = p[7].lower() if len(p) > 7 else ""
+    pol_idx  = "001" if pol == "vv" else "002"
+
+    stem     = f"{platform}-iw-grd-{pol}-{t_start}-{t_stop}-{orbit}-{mission}-{pol_idx}"
+    base_url = (
+        f"{_CDSE_EODATA}/Sentinel-1/SAR/GRD/"
+        f"{dt.year}/{dt.month:02d}/{dt.day:02d}/{safe}"
+    )
+    meas_url = f"{base_url}/measurement/{stem}.tiff"
+    cal_url  = f"{base_url}/annotation/calibration/calibration-{stem}.xml"
+    return meas_url, cal_url
 
 
 def _search_cdse(start: date, end: date) -> list[dict]:
@@ -284,70 +283,39 @@ def _search_cdse(start: date, end: date) -> list[dict]:
         return []
 
 
-def _read_sigma0_db_cdse(product_id: str, product_name: str, acq_date: str,
-                          band: str, s3_creds: dict) -> Optional[float]:
+def _read_sigma0_db_cdse(product_name: str, acq_date: str,
+                          band: str, access_token: str) -> Optional[float]:
     """
-    Sigma0 calibrado en dB vía CDSE S3 (windowed read).
-    Usa rasterio con GDAL configurado para eodata.dataspace.copernicus.eu.
+    Sigma0 calibrado vía CDSE HTTPS + GDAL Bearer token (HTTP range requests).
+    No requiere STS ni boto3 — usa GDAL_HTTP_AUTH directamente sobre eodata.dataspace.copernicus.eu.
     """
     try:
         import rasterio
         from rasterio.windows import Window
         from rasterio.env import Env as RioEnv
 
-        # Construir path S3 dentro del SAFE
-        dt = date.fromisoformat(acq_date)
-        safe = product_name if product_name.endswith(".SAFE") else product_name + ".SAFE"
-
-        # Prefijo del nombre del archivo de medición: plataforma + modo + tipo + polarización
-        # S1C_IW_GRDH_1SDV_20260629... → s1c-iw-grd-VV-...
-        parts = product_name.lower().split("_")
-        platform = parts[0] if parts else "s1"   # s1a / s1c / s1d
-        subswath = "iw"
-        pol = band.lower()                        # vv / vh
-        # Patrón: s1x-iw-grd-vv-<start>-<stop>-<orbit>-<mission>-<xxx>.tiff
-        # El archivo exacto varía — buscar con prefix match vía rasterio.path
-        base_s3 = (
-            f"/vsis3/{_CDSE_S3_EP}/Sentinel-1/SAR/GRD/"
-            f"{dt.year}/{dt.month:02d}/{dt.day:02d}/{safe}/measurement/"
-        )
+        meas_url, cal_url = _cdse_build_paths(product_name, acq_date, band)
+        log.debug("CDSE meas: %s", meas_url)
 
         gdal_env = {
-            "AWS_ACCESS_KEY_ID":            s3_creds["key"],
-            "AWS_SECRET_ACCESS_KEY":        s3_creds["secret"],
-            "AWS_SESSION_TOKEN":            s3_creds["session"],
-            "AWS_S3_ENDPOINT":              _CDSE_S3_EP,
-            "AWS_VIRTUAL_HOSTING":          "FALSE",
-            "AWS_HTTPS":                    "YES",
-            "AWS_DEFAULT_REGION":           "default",
-            "GDAL_DISABLE_READDIR_ON_OPEN": "EMPTY_DIR",
+            "GDAL_HTTP_AUTH":                   "BEARER",
+            "GDAL_HTTP_BEARER":                 access_token,
+            "GDAL_DISABLE_READDIR_ON_OPEN":     "EMPTY_DIR",
+            "CPL_VSIL_CURL_ALLOWED_EXTENSIONS": ".tiff,.tif",
+            "GDAL_HTTP_MAX_RETRY":              "2",
+            "GDAL_HTTP_RETRY_DELAY":            "1",
         }
 
-        # Construir nombre de archivo de medición desde nombre del producto
-        # S1C_IW_GRDH_1SDV_20260629T090612_20260629T090637_008318_010759_3409
-        name_parts = product_name.split("_")
-        # Quitar extensión .SAFE si existe
-        if name_parts[-1].endswith(".SAFE"):
-            name_parts[-1] = name_parts[-1][:-5]
-        # Reducir partes relevantes para construir nombre de medición
-        # Formato: s1c-iw-grd-vv-20260629t090612-20260629t090637-008318-010759-001.tiff
-        t_start = name_parts[4].lower() if len(name_parts) > 4 else ""
-        t_stop  = name_parts[5].lower() if len(name_parts) > 5 else ""
-        orbit   = name_parts[6].lower() if len(name_parts) > 6 else ""
-        mission = name_parts[7].lower() if len(name_parts) > 7 else ""
-        meas_file = f"{platform}-{subswath}-grd-{pol}-{t_start}-{t_stop}-{orbit}-{mission}-001.tiff"
-        s3_path = base_s3 + meas_file
-
-        # Bbox del item (necesitamos reconstruir desde product_name o usar bbox fijo para S1 IW)
-        # Para escenas IW: swath ~250km × 170km. Usamos aproximación basada en centro.
-        # bbox exacto no disponible sin leer el producto; aproximamos con ±2° desde centro
+        # Bbox aproximado para swath IW sobre Buenos Aires (~250km × 170km)
         center_lon, center_lat = -58.525, -34.635
-        i_lon0, i_lat0, i_lon1, i_lat1 = (center_lon - 1.5, center_lat - 1.0,
-                                            center_lon + 1.5, center_lat + 1.0)
+        i_lon0 = center_lon - 1.5
+        i_lat0 = center_lat - 1.0
+        i_lon1 = center_lon + 1.5
+        i_lat1 = center_lat + 1.0
         minx, miny, maxx, maxy = _BBOX
 
         with RioEnv(**gdal_env):
-            with rasterio.open(s3_path) as src:
+            with rasterio.open(meas_url) as src:
                 H, W = src.shape
                 col_off = max(0, int(((minx - i_lon0) / (i_lon1 - i_lon0)) * W))
                 col_end = min(W, max(col_off + 20, int(((maxx - i_lon0) / (i_lon1 - i_lon0)) * W)))
@@ -361,33 +329,25 @@ def _read_sigma0_db_cdse(product_id: str, product_name: str, acq_date: str,
             log.debug("CDSE %s: pocos pixels validos (%d)", band, int(valid.sum()))
             return None
 
-        # Leer A_cal desde XML de calibración en S3
-        cal_file = meas_file.replace(f"-{pol}-", f"-{pol}-", 1)
-        cal_file = meas_file.replace(".tiff", ".xml")
-        cal_file = f"{platform}-{subswath}-grd-{pol}-{t_start}-{t_stop}-{orbit}-{mission}-001-calibration.xml"
-        cal_path = (
-            f"/vsis3/{_CDSE_S3_EP}/Sentinel-1/SAR/GRD/"
-            f"{dt.year}/{dt.month:02d}/{dt.day:02d}/{safe}/annotation/calibration/{cal_file}"
-        )
-        a_cal = None
-        try:
-            with RioEnv(**gdal_env):
-                import rasterio.vsi as vsi
-                with vsi.open(cal_path) as f:
-                    xml_text = f.read().decode("utf-8")
-            a_cal = _parse_a_cal_xml(xml_text, col_off, col_end)
-        except Exception as exc:
-            log.debug("CDSE cal XML: %s", exc)
+        # Leer calibración via Bearer requests (XML pequeño, ~500KB)
+        hdrs   = {"Authorization": f"Bearer {access_token}"}
+        cal_r  = requests.get(cal_url, headers=hdrs, timeout=25)
+        if not cal_r.ok:
+            log.warning("CDSE cal XML %s HTTP %s: %s", band, cal_r.status_code, cal_url[-60:])
+            return None
 
+        a_cal = _parse_a_cal_xml(cal_r.text, col_off, col_end)
         if a_cal is None or a_cal <= 0:
             log.warning("CDSE %s: sin A_cal para %s", band, product_name[:40])
             return None
 
         sigma0_linear = np.mean((data[valid] / a_cal) ** 2)
-        return round(10.0 * math.log10(max(1e-12, float(sigma0_linear))), 2)
+        db = round(10.0 * math.log10(max(1e-12, float(sigma0_linear))), 2)
+        log.debug("CDSE %s %s: VV=%.2f dB (A_cal=%.1f)", acq_date, band, db, a_cal)
+        return db
 
     except Exception as exc:
-        log.debug("CDSE sigma0 %s/%s: %s", product_name[:30], band, exc)
+        log.debug("CDSE sigma0 HTTPS %s/%s: %s", product_name[:30], band, exc)
         return None
 
 
@@ -474,56 +434,48 @@ def run_s1_backfill(days: int = 30, scene_limit: int = 20,
     vv_values: list[float] = []
     inserted = errors = skipped = 0
 
-    # ══ FASE 1: CDSE (más reciente — lag ~6h) ════════════════════════════════
+    # ══ FASE 1: CDSE (más reciente — lag ~6h, HTTPS Bearer) ══════════════════
     cdse_token = _cdse_token()
     cdse_dates_inserted: set[str] = set()
 
     if cdse_token:
-        s3_creds = _cdse_s3_creds(cdse_token)
         cdse_scenes = _search_cdse(start_dt, end_dt)
         log.info("CDSE: %d escenas encontradas (%s→%s)", len(cdse_scenes), start_dt, end_dt)
 
-        if s3_creds:
-            for scene in cdse_scenes:
-                scene_dt   = scene["date"]
-                product_id = scene["id"]
-                product_nm = scene["name"]
+        for scene in cdse_scenes:
+            scene_dt   = scene["date"]
+            product_nm = scene["name"]
 
-                if not scene_dt or scene_dt in seen:
-                    skipped += 1
-                    continue
-                seen.add(scene_dt)
+            if not scene_dt or scene_dt in seen:
+                skipped += 1
+                continue
 
-                vv_db = _read_sigma0_db_cdse(product_id, product_nm, scene_dt, "vv", s3_creds)
-                vh_db = _read_sigma0_db_cdse(product_id, product_nm, scene_dt, "vh", s3_creds)
+            vv_db = _read_sigma0_db_cdse(product_nm, scene_dt, "vv", cdse_token)
+            vh_db = _read_sigma0_db_cdse(product_nm, scene_dt, "vh", cdse_token)
 
-                if vv_db is None and vh_db is None:
-                    log.warning("CDSE %s: sin sigma0", scene_dt)
-                    errors += 1
-                    continue
+            if vv_db is None and vh_db is None:
+                log.warning("CDSE %s: sin sigma0 — PC lo intentara cuando esté disponible", scene_dt)
+                # NO añadir a seen: dejar que PC intente (llegará en 3-6d)
+                errors += 1
+                continue
 
-                log.info("CDSE %s: VV=%s dB  VH=%s dB", scene_dt, vv_db, vh_db)
-                if vv_db is not None:
-                    vv_values.append(vv_db)
+            seen.add(scene_dt)   # marcar solo si sigma0 fue exitoso
+            log.info("CDSE %s: VV=%s dB  VH=%s dB", scene_dt, vv_db, vh_db)
+            if vv_db is not None:
+                vv_values.append(vv_db)
 
-                ok = vs.insert_soil_metrics(
-                    venue_id=_VENUE_ID, cancha_id=_CANCHA_ID,
-                    sar_vv_db=vv_db, sar_vh_db=vh_db,
-                    fuente=_FUENTE, fecha_imagen=scene_dt,
-                )
-                if ok:
-                    inserted += 1
-                    cdse_dates_inserted.add(scene_dt)
-                else:
-                    errors += 1
-        else:
-            log.warning("CDSE: auth OK pero STS fallo — usando solo PC")
-            # Auth funciona pero STS falló: apuntar las fechas como known
-            for scene in cdse_scenes:
-                if scene["date"]:
-                    seen.add(scene["date"])   # no las volvemos a buscar en PC (no están en PC todavía)
+            ok = vs.insert_soil_metrics(
+                venue_id=_VENUE_ID, cancha_id=_CANCHA_ID,
+                sar_vv_db=vv_db, sar_vh_db=vh_db,
+                fuente=_FUENTE, fecha_imagen=scene_dt,
+            )
+            if ok:
+                inserted += 1
+                cdse_dates_inserted.add(scene_dt)
+            else:
+                errors += 1
     else:
-        log.info("CDSE: sin credenciales validas — usando solo PC (registrar en dataspace.copernicus.eu)")
+        log.info("CDSE: sin credenciales validas — usando solo PC")
 
     # ══ FASE 2: Planetary Computer (fallback + histórico) ════════════════════
     pc_scenes = _search_s1_pc(start_dt, end_dt, limit=scene_limit)
