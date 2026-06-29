@@ -972,29 +972,40 @@ def _sar_grid_3x3(vd: dict) -> dict:
 
 def _sar_timeseries() -> dict:
     """
-    Time series of SAR VV + theta_soil from soil_metrics (last 30 days).
-    Deduplicates by fecha_imagen, returns oldest-first.
+    Time series of SAR VV + theta_soil from soil_metrics (last 180 days).
+    Deduplicates by fecha_imagen, sorts chronologically, filters non-physical values.
+    Physical range for C-band VV over grass/soil: -4 to -30 dB.
+    Excludes placeholder values (e.g. -0.57 from broken runs).
     """
     try:
         if _VELEZ_PATH not in sys.path:
             import sys as _sys; _sys.path.insert(0, _VELEZ_PATH)
         import velez_supabase as _vs
-        rows = _vs.get_soil_metrics_latest("amalfitani", dias=30)
-        seen, dates, vv_s, theta_s = set(), [], [], []
-        for row in reversed(rows):
-            fecha = (row.get("fecha_imagen") or row.get("created_at") or "")[:10]
-            if not fecha or fecha in seen or row.get("sar_vv_db") is None:
+        rows = _vs.get_soil_metrics_latest("amalfitani", dias=180)
+        seen: dict[str, tuple] = {}
+        for row in rows:
+            fecha = (row.get("fecha_imagen") or "")[:10]
+            if not fecha or row.get("sar_vv_db") is None:
                 continue
-            seen.add(fecha)
-            dates.append(fecha)
-            vv_s.append(round(float(row["sar_vv_db"]), 2))
-            theta_s.append(round(float(row["theta_soil"]) * 100, 1) if row.get("theta_soil") is not None else None)
+            vv = float(row["sar_vv_db"])
+            # Skip non-physical values: real C-band VV over grass is -4 to -30 dB
+            if vv > -4.0 or vv < -30.0:
+                continue
+            theta = row.get("theta_soil")
+            if fecha not in seen:
+                seen[fecha] = (vv, theta)
+        # Sort chronologically
+        sorted_items = sorted(seen.items())
+        dates  = [d for d, _ in sorted_items]
+        vv_s   = [round(v, 2) for _, (v, _) in sorted_items]
+        theta_s = [round(float(t) * 100, 1) if t is not None else None
+                   for _, (_, t) in sorted_items]
         return {
-            "timeseries":       True,
-            "campo":            "amalfitani",
-            "n_puntos":         len(dates),
-            "sar_dates":        dates,
-            "sar_vv_series":    vv_s,
+            "timeseries":        True,
+            "campo":             "amalfitani",
+            "n_puntos":          len(dates),
+            "sar_dates":         dates,
+            "sar_vv_series":     vv_s,
             "theta_soil_series": theta_s,
         }
     except Exception as exc:
