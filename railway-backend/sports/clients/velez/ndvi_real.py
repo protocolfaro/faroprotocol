@@ -577,6 +577,7 @@ def _compute_indices(
     valid_g = ((nir_c + green_c) > 0.02) if green_c is not None else np.zeros(nir_c.shape, bool)
     if scl_mask is not None:
         valid_g &= ~scl_mask
+    _gndvi_2d_list = None
     if valid_g.sum() >= 2:
         with np.errstate(invalid="ignore", divide="ignore"):
             gndvi = round(float(((nir_c - green_c) / (nir_c + green_c + 1e-9))[valid_g].mean()), 3)
@@ -585,7 +586,7 @@ def _compute_indices(
         gndvi_2d_r = (nir_c - green_c) / (nir_c + green_c + 1e-9)
         gndvi_2d_r = np.clip(gndvi_2d_r, -1.0, 1.0)
         gndvi_2d_r[~valid_g] = np.nan
-        entry["gndvi_2d"] = np.clip((gndvi_2d_r - 0.35) / (0.90 - 0.35), 0.0, 1.0).astype(np.float16).tolist()
+        _gndvi_2d_list = np.clip((gndvi_2d_r - 0.35) / (0.90 - 0.35), 0.0, 1.0).astype(np.float16).tolist()
     else:
         gndvi = round(ndvi * 0.93, 3)
 
@@ -601,6 +602,8 @@ def _compute_indices(
     ndvi_2d_list = ndvi_2d_norm.astype(np.float16).tolist()
     entry: dict = {"ndvi": ndvi, "gndvi": gndvi, "n_status": nst, "n_rec": nrec,
                    "ndvi_2d": ndvi_2d_list}
+    if _gndvi_2d_list is not None:
+        entry["gndvi_2d"] = _gndvi_2d_list
     if coverage is not None:
         entry["coverage_pct"] = coverage
 

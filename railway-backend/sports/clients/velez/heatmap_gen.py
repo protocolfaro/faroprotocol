@@ -276,12 +276,12 @@ def generate_all(ipos_results: dict, semana_label: str, ndvi_map: dict = None) -
         fig.patch.set_facecolor(BG)
         canvas = FigureCanvasAgg(fig)
 
-        ax = fig.add_axes([0.0, 0.07, 0.92, 0.93])
+        ax = fig.add_axes([0.0, 0.07, 1.0, 0.93])
         ax.set_facecolor(BG)
 
         # Layer 1: NDVI — bicúbico + gaussian mínimo (sigma=0.8, preserva estructura)
         scale_r = H_PX * 0.93 / rows
-        scale_c = W_PX * 0.92 / cols
+        scale_c = W_PX / cols
         ndvi_up = _zoom(ndvi_g.astype(np.float64), (scale_r, scale_c), order=3)
         ndvi_up = gaussian_filter(ndvi_up, sigma=0.8)
         ax.imshow(ndvi_up, cmap=ELEVAGRO_CMAP, vmin=_NDVI_VMIN, vmax=_NDVI_VMAX, origin="upper",
@@ -352,18 +352,19 @@ def generate_all(ipos_results: dict, semana_label: str, ndvi_map: dict = None) -
                   transform=ax_f.transAxes, fontsize=5.5, color="#c9a84c88",
                   va="top", ha="right", fontfamily="monospace")
 
-        # Colourbar — rango calibrado 0.35 (crítico) → 0.90 (óptimo)
-        cbar = fig.add_axes([0.926, 0.07, 0.028, 0.93])
-        cbar.set_facecolor(BG)
-        cb = np.linspace(1, 0, 200).reshape(200, 1)
-        cbar.imshow(cb, cmap=ELEVAGRO_CMAP, aspect="auto", vmin=_NDVI_VMIN, vmax=_NDVI_VMAX)
-        cbar.set_xticks([])
-        # Ticks en posiciones normalizadas [0-1] correspondientes a NDVI 0.90/0.70/0.57/0.35
-        cbar.set_yticks([0, 36, 145, 199])
-        cbar.set_yticklabels(["0.90\nÓptimo", "0.70\nBueno", "0.57\nEstrés", "0.35\nCrítico"],
-                              fontsize=4.8, color="#ffffffcc")
-        for sp in cbar.spines.values(): sp.set_visible(False)
-        cbar.tick_params(length=0)
+        # Leyenda inline — 4 niveles NDVI, bottom-left del campo
+        _NDVI_LEG = [
+            (0.000, "0.35 Crítico", "#c62828"),
+            (0.400, "0.57 Estrés",  "#f9a825"),
+            (0.636, "0.70 Bueno",   "#4caf50"),
+            (1.000, "0.90 Óptimo",  "#1b5e20"),
+        ]
+        for i, (_, lbl, col) in enumerate(_NDVI_LEG):
+            ax.text(0.005 + i * 0.175, 0.09, f"■ {lbl}",
+                    transform=ax.transAxes, fontsize=4.5, color=col,
+                    fontfamily="monospace", va="bottom", zorder=6,
+                    bbox=dict(boxstyle="round,pad=0.1", facecolor="#000000AA",
+                              edgecolor="none"))
 
         canvas.draw()
         buf = io.BytesIO()

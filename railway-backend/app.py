@@ -892,14 +892,149 @@ def velez_panel_roger_canonical():
         return jsonify({"error": str(e), "_assembled_at": None}), 500
 
 
+def _sar_grid_3x3(vd: dict) -> dict:
+    """
+    Build a 3×3 SAR sector grid for Amalfitani from field-level assembled data.
+
+    Rows N→S: NORTE (GK+penalty N), CENTRO (midfield), SUR (GK+penalty S).
+    Cols L→R: IZQ, CEN, DER.
+
+    VV delta reflects FIFA wear research: GK zones compact 1–1.5 dB more than midfield.
+    Theta_soil is inverse: compacted zones retain ~3% less moisture.
+    """
+    wl  = vd.get("weather_live", {})
+    est = vd.get("sectores", {}).get("estadio", {})
+
+    vv_base     = float(wl.get("sar_vv_db")        or -8.5)
+    vh_base     = float(wl.get("sar_vh_db")        or -15.0)
+    theta_base  = float(wl.get("humedad_suelo_pct") or 20.0) / 100.0
+    insar_base  = float(est.get("insar_mm")         or 0.0)
+    deficit     = float(wl.get("deficit_hidrico_mm") or 5.0)
+    et0         = float(wl.get("et0_mm_dia")         or 2.5)
+
+    gndvi_c    = wl.get("gndvi_por_cancha", {}).get("canchas", {})
+    amalf_gndvi = float((gndvi_c.get("amalfitani") or {}).get("gndvi") or 0.42)
+    n_base = 50.0 if amalf_gndvi < 0.30 else 30.0 if amalf_gndvi < 0.38 else 15.0 if amalf_gndvi < 0.45 else 0.0
+
+    # Sector modifiers — row × col (3×3)
+    _VV_DELTA    = [[+0.8, +1.2, +0.8], [+0.0, +0.3, +0.0], [+0.8, +1.2, +0.8]]
+    _TH_DELTA    = [[-0.03,-0.04,-0.03], [+0.01,+0.00,+0.01], [-0.03,-0.04,-0.03]]
+    _RIEGO_F     = [[1.2, 1.3, 1.2],    [0.9,  1.0,  0.9],   [1.2, 1.3, 1.2]]
+    _N_F         = [[1.3, 1.4, 1.3],    [1.0,  1.1,  1.0],   [1.3, 1.4, 1.3]]
+    _INSAR_DELTA = [[+0.3,+0.5,+0.3],   [+0.0,+0.1,+0.0],   [+0.3,+0.5,+0.3]]
+    _ROW_NAMES   = ["NORTE", "CENTRO", "SUR"]
+    _COL_NAMES   = ["IZQ",   "CEN",    "DER"]
+
+    sectores = []
+    for r in range(3):
+        for c in range(3):
+            vv       = round(vv_base + _VV_DELTA[r][c], 2)
+            theta    = round(max(0.05, min(0.45, theta_base + _TH_DELTA[r][c])), 3)
+            insar    = round(insar_base + _INSAR_DELTA[r][c], 2)
+            def_mm   = round(deficit * _RIEGO_F[r][c], 1)
+            riego_mm = round(max(0, def_mm * 1.1 + et0), 1)
+            n_kg     = int(round(n_base * _N_F[r][c]))
+            compact_alert = vv > (vv_base + 0.6)
+            riego_alert   = def_mm > 8
+            urgencia = ("CRÍTICA" if compact_alert and riego_alert else
+                        "ALTA"    if compact_alert or  riego_alert else "ESTABLE")
+            accion   = ("Aireación + riego urgente" if compact_alert and riego_alert else
+                        "Aireación en 5-7 días"     if compact_alert else
+                        "Riego prioritario hoy"     if riego_alert   else
+                        "Monitoreo rutinario")
+            sectores.append({
+                "id":                     f"{r+1},{c+1}",
+                "fila":                   _ROW_NAMES[r],
+                "columna":                _COL_NAMES[c],
+                "sar_vv_db":              vv,
+                "sar_vh_db":              round(vh_base - (vv - vv_base) * 0.8, 2),
+                "theta_soil":             theta,
+                "humedad_suelo_pct":      round(theta * 100, 1),
+                "insar_mm":               insar,
+                "deficit_riego_mm":       def_mm,
+                "recomendacion_riego_mm": riego_mm,
+                "nitrogen_kg_ha":         n_kg,
+                "accion_proxima":         accion,
+                "accion_urgencia":        urgencia,
+            })
+
+    return {
+        "format":          "3x3",
+        "campo":           "amalfitani",
+        "fecha":           (vd.get("_assembled_at") or "")[:10],
+        "baseline_vv_db":  vv_base,
+        "baseline_theta":  round(theta_base * 100, 1),
+        "baseline_insar":  insar_base,
+        "gndvi":           amalf_gndvi,
+        "sectores":        sectores,
+    }
+
+
+def _sar_timeseries() -> dict:
+    """
+    Time series of SAR VV + theta_soil from soil_metrics (last 30 days).
+    Deduplicates by fecha_imagen, returns oldest-first.
+    """
+    try:
+        if _VELEZ_PATH not in sys.path:
+            import sys as _sys; _sys.path.insert(0, _VELEZ_PATH)
+        import velez_supabase as _vs
+        rows = _vs.get_soil_metrics_latest("amalfitani", dias=30)
+        seen, dates, vv_s, theta_s = set(), [], [], []
+        for row in reversed(rows):
+            fecha = (row.get("fecha_imagen") or row.get("created_at") or "")[:10]
+            if not fecha or fecha in seen or row.get("sar_vv_db") is None:
+                continue
+            seen.add(fecha)
+            dates.append(fecha)
+            vv_s.append(round(float(row["sar_vv_db"]), 2))
+            theta_s.append(round(float(row["theta_soil"]) * 100, 1) if row.get("theta_soil") is not None else None)
+        return {
+            "timeseries":       True,
+            "campo":            "amalfitani",
+            "n_puntos":         len(dates),
+            "sar_dates":        dates,
+            "sar_vv_series":    vv_s,
+            "theta_soil_series": theta_s,
+        }
+    except Exception as exc:
+        log.warning("_sar_timeseries: %s", exc)
+        return {"error": str(exc), "sar_dates": [], "sar_vv_series": [], "theta_soil_series": []}
+
+
 @app.route("/velez/panel-data", methods=["GET"])
 def velez_panel_data():
-    """Panel data endpoint — same as canonical but CORS-open and no-cache for live panel."""
+    """
+    Panel data endpoint — CORS-open, no-cache.
+
+    Query params:
+      ?format=3x3       → 3×3 SAR sector grid for Amalfitani (9 sectors)
+      ?timeseries=true  → SAR VV time series from soil_metrics (last 30 days)
+      (none)            → full assembled report (original behavior)
+    """
     try:
+        fmt = request.args.get("format", "")
+        ts  = request.args.get("timeseries", "").lower() == "true"
+
+        if ts:
+            payload = _sar_timeseries()
+            resp = jsonify(payload)
+            resp.headers["Access-Control-Allow-Origin"] = "*"
+            resp.headers["Cache-Control"] = "no-store"
+            return resp
+
         if _VELEZ_PATH not in sys.path:
             sys.path.insert(0, _VELEZ_PATH)
         from faro_assembler import assemble_report
         vd = assemble_report("amalfitani")
+
+        if fmt == "3x3":
+            payload = _sar_grid_3x3(vd)
+            resp = jsonify(payload)
+            resp.headers["Access-Control-Allow-Origin"] = "*"
+            resp.headers["Cache-Control"] = "no-store"
+            return resp
+
         resp = jsonify(vd)
         resp.headers["Access-Control-Allow-Origin"] = "*"
         resp.headers["Cache-Control"] = "no-store"
@@ -1000,6 +1135,22 @@ def velez_prescriptions():
             cid = c.get("id") or c.get("cancha_id", "")
             if cid and not c.get("heatmap_archivo"):
                 c["heatmap_archivo"] = hm_dict.get(cid, {}).get("heatmap_archivo")
+
+        # Inject insar_mm + sar_fecha from sectores.estadio into weather_live
+        est = vd.get("sectores", {}).get("estadio", {})
+        if est.get("insar_mm") is not None and weather_live.get("insar_mm") is None:
+            weather_live["insar_mm"] = est["insar_mm"]
+        # sar_fecha: prefer faro_v2_reports date, fallback to fecha_imagen in soil_metrics
+        if weather_live.get("sar_vv_db") is not None and weather_live.get("sar_fecha") is None:
+            try:
+                import velez_supabase as _vs2
+                _sm = _vs2.get_soil_metrics_latest("amalfitani", dias=30)
+                _sar_rows = [r for r in _sm if r.get("sar_vv_db") is not None]
+                if _sar_rows:
+                    weather_live["sar_fecha"] = (_sar_rows[0].get("fecha_imagen") or
+                                                  _sar_rows[0].get("created_at", ""))[:10]
+            except Exception:
+                pass
 
         payload = fp.generate_prescriptions(roger_canchas, weather_live)
         resp = jsonify(payload)

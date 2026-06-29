@@ -272,6 +272,11 @@ def generate_prescriptions(roger_canchas: list[dict], weather_live: dict) -> dic
         "fungal_horas_48h":    riesgo.get("horas_favorables_48h"),
         "temp_suelo_0cm":      wl.get("temp_suelo_0cm"),
         "timestamp":           wl.get("timestamp"),
+        # SAR C-band — Sentinel-1 GRD backscatter + InSAR displacement
+        "sar_vv_db":           wl.get("sar_vv_db"),
+        "sar_vh_db":           wl.get("sar_vh_db"),
+        "insar_mm":            wl.get("insar_mm"),
+        "sar_fecha":           wl.get("sar_fecha"),
     }
 
     return {
