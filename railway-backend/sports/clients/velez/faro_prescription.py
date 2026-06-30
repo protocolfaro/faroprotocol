@@ -2,12 +2,120 @@
 faro_prescription.py — Surgical prescription engine for Vélez turf management.
 Per-zone (6 zones/cancha) agronomic prescriptions from real-time data:
 ET₀, soil moisture, weather, IPOS traffic load, fungal disease risk, GDD.
+
+v3.1: ET₀, T°, RH y SM por sector ERA5-Land 100m (en lugar de punto NASA POWER único).
 """
 from __future__ import annotations
 from datetime import datetime, timezone
 import logging
+import math
 
 log = logging.getLogger(__name__)
+
+
+# ── ERA5-Land sectorial lookup ────────────────────────────────────────────────
+
+def _get_era5_for_cancha(cancha_id: str) -> dict | None:
+    """
+    Lee datos ERA5-Land del sector al que pertenece la cancha.
+    Falla silenciosamente — si no hay datos ERA5, el sistema usa weather_live global.
+    """
+    try:
+        from sector_mapping import get_sector_id
+        from faro_era5_land_sectorial import get_sector_climate
+        sector_id = get_sector_id(cancha_id)
+        if not sector_id:
+            return None
+        return get_sector_climate(sector_id)
+    except Exception as exc:
+        log.debug("ERA5 lookup cancha=%s: %s", cancha_id, exc)
+        return None
+
+
+def _smith_kerns_from_t_rh(t_c: float, rh_pct: float) -> dict:
+    """
+    Calculo Smith-Kerns con T/RH ERA5-Land del sector.
+    Ventana favorable: T 10-22°C + RH > 80% durante >8h (simulado con promedios diarios).
+    """
+    # T optima Dollar Spot: 15-25°C; Brown Patch: 25-32°C
+    if 10.0 <= t_c <= 25.0 and rh_pct >= 85:
+        nivel = "alto"
+        riesgo_pct = 30.0
+        horas = 24
+        enfermedad = "Dollar Spot"
+    elif 8.0 <= t_c <= 27.0 and rh_pct >= 75:
+        nivel = "medio"
+        riesgo_pct = 12.0
+        horas = 12
+        enfermedad = "Dollar Spot / Brown Patch"
+    else:
+        nivel = "bajo"
+        riesgo_pct = 2.0
+        horas = 0
+        enfermedad = None
+
+    acciones = {
+        "alto":  "Aplicar fungicida preventivo HOY antes 06:00. Aumentar aireación.",
+        "medio": "Monitoreo cada 6h. Fungicida en standby.",
+        "bajo":  "Sin acción requerida.",
+    }
+    return {
+        "nivel":                nivel,
+        "riesgo_pct":           riesgo_pct,
+        "horas_favorables_48h": horas,
+        "enfermedad":           enfermedad,
+        "accion_recomendada":   acciones[nivel],
+        "fuente":               "ERA5-Land",
+        "t_input_c":            round(t_c, 1),
+        "rh_input_pct":         round(rh_pct, 1),
+    }
+
+
+def _enrich_with_sector(cancha_id: str, wl: dict) -> dict:
+    """
+    Devuelve una copia de weather_live enriquecida con datos ERA5-Land del sector.
+    Si ERA5 no está disponible, retorna wl sin modificaciones (degradacion graceful).
+    """
+    era5 = _get_era5_for_cancha(cancha_id)
+    if not era5:
+        return wl
+
+    wl2 = dict(wl)
+
+    # ET₀ sectorial (reemplaza punto NASA POWER único)
+    if era5.get("et0_mm_dia") is not None:
+        wl2["et0_mm_dia"]    = era5["et0_mm_dia"]
+        wl2["et0_fuente"]    = "ERA5-Land"
+        # Reestimar et0_semana_mm si no está disponible
+        if not wl2.get("et0_semana_mm") and not wl2.get("et0_acumulado_7d"):
+            wl2["et0_acumulado_7d"] = round(era5["et0_mm_dia"] * 7, 1)
+
+    # Smith-Kerns sectorial (T y RH reales del sector)
+    t_era5  = era5.get("temp_2m_c")
+    rh_era5 = era5.get("rh_pct")
+    if t_era5 is not None and rh_era5 is not None:
+        wl2["_era5_temp_2m_c"] = t_era5
+        wl2["_era5_rh_pct"]    = rh_era5
+        sk = _smith_kerns_from_t_rh(t_era5, rh_era5)
+        wl2["riesgo_fungosis"]  = sk
+        wl2["smith_kerns_pct"]  = sk["riesgo_pct"]
+
+    # Humedad suelo sectorial (SM 0-7cm)
+    sm_pct = era5.get("sm_0_7cm_pct")
+    if sm_pct is not None:
+        wl2["humedad_suelo_pct"] = sm_pct
+        if   sm_pct < 25: estado = "seco"
+        elif sm_pct < 32: estado = "bajo"
+        elif sm_pct < 45: estado = "normal"
+        else:             estado = "alto"
+        wl2["humedad_suelo_estado"] = estado
+        # Reestimar déficit con ET₀ sectorial y precipitación real
+        et0_sem  = float(wl2.get("et0_semana_mm") or wl2.get("et0_acumulado_7d") or 0)
+        precip   = float(wl2.get("precipitacion_semana_mm") or wl2.get("lluvia_48h_mm") or 0)
+        if et0_sem > 0:
+            wl2["deficit_hidrico_mm"] = max(0.0, round(et0_sem - precip, 1))
+
+    return wl2
 
 # FIFA wear research — GK areas take 2× peak load vs. center
 ZONE_FACTORS: dict[str, float] = {
@@ -240,7 +348,10 @@ def compute_zone(zone_id: str, ipos_score: float, wl: dict) -> dict:
 
 def compute_cancha(cancha_id: str, ipos_score: float, ipos_semaforo: str,
                    wl: dict, ndvi: float | None, heatmap_archivo: str | None) -> dict:
-    zones = {zid: compute_zone(zid, ipos_score, wl) for zid in ZONE_FACTORS}
+    # Enriquecer weather_live con datos ERA5-Land del sector (per-cancha, no venue-global)
+    # Si ERA5 no disponible, wl_c == wl (degradacion graceful sin excepción)
+    wl_c = _enrich_with_sector(cancha_id, wl)
+    zones = {zid: compute_zone(zid, ipos_score, wl_c) for zid in ZONE_FACTORS}
 
     worst_idx     = min(URGENCY_ORDER.get(z["urgency"], 4) for z in zones.values())
     worst_urgency = next(u for u, i in URGENCY_ORDER.items() if i == worst_idx)
@@ -321,6 +432,9 @@ def generate_prescriptions(roger_canchas: list[dict], weather_live: dict) -> dic
         "era5_sm_7_28cm":      wl.get("era5_sm_7_28cm"),
         "era5_sm_28_100cm":    wl.get("era5_sm_28_100cm"),
         "era5_sm_100_289cm":   wl.get("era5_sm_100_289cm"),
+        # Fuentes de datos (para UI de trazabilidad)
+        "et0_fuente":          wl.get("et0_fuente", "nasa_power"),
+        "smith_kerns_fuente":  (wl.get("riesgo_fungosis") or {}).get("fuente", "nasa_power"),
     }
 
     return {

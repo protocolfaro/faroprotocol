@@ -1,0 +1,94 @@
+{
+  "venue": "velez",
+  "timestamp_created": "2026-06-30T22:30:00Z",
+  "coordinate_system": "WGS84",
+  "note": "Sectores ERA5-Land 100m. Canchas dentro de 200m comparten microclima — agrupadas por bloque.",
+
+  "sectors": {
+    "amalfitani_central": {
+      "nombre": "Estadio J. Amalfitani",
+      "tipo": "campo_principal",
+      "canchas": ["amalfitani"],
+      "bbox": {
+        "latitud_min": -34.6395,
+        "latitud_max": -34.6360,
+        "longitud_min": -58.5230,
+        "longitud_max": -58.5185
+      },
+      "area_m2": 7140,
+      "observaciones": "Zona central del campo principal Amalfitani. Bermuda hibrida."
+    },
+
+    "vo_bloque_a": {
+      "nombre": "Villa Olimpica — Bloque A (1-3FA)",
+      "tipo": "cancha_grupo",
+      "canchas": ["1fa", "2fa", "3fa"],
+      "bbox": {
+        "latitud_min": -34.6425,
+        "latitud_max": -34.6390,
+        "longitud_min": -58.5295,
+        "longitud_max": -58.5245
+      },
+      "area_m2": 21420,
+      "observaciones": "Bloque este de VO. Canchas 1FA (hibrida), 2FA y 3FA (natural)."
+    },
+
+    "vo_bloque_b": {
+      "nombre": "Villa Olimpica — Bloque B (4-6FA)",
+      "tipo": "cancha_grupo",
+      "canchas": ["4fa", "5fa", "6fa"],
+      "bbox": {
+        "latitud_min": -34.6450,
+        "latitud_max": -34.6415,
+        "longitud_min": -58.5295,
+        "longitud_max": -58.5245
+      },
+      "area_m2": 21420,
+      "observaciones": "Bloque central de VO. Canchas 4-6FA natural."
+    },
+
+    "vo_bloque_c": {
+      "nombre": "Villa Olimpica — Bloque C (7-10FA)",
+      "tipo": "cancha_grupo",
+      "canchas": ["7fa", "8fa", "9fa", "10fa"],
+      "bbox": {
+        "latitud_min": -34.6475,
+        "latitud_max": -34.6440,
+        "longitud_min": -58.5295,
+        "longitud_max": -58.5245
+      },
+      "area_m2": 28560,
+      "observaciones": "Bloque oeste de VO. Canchas 7-10FA natural."
+    },
+
+    "vo_bloque_d": {
+      "nombre": "Villa Olimpica — Bloque D (Primer Equipo 1FP-2FP)",
+      "tipo": "cancha_grupo",
+      "canchas": ["1fp", "2fp"],
+      "bbox": {
+        "latitud_min": -34.6400,
+        "latitud_max": -34.6365,
+        "longitud_min": -58.5310,
+        "longitud_max": -58.5260
+      },
+      "area_m2": 14280,
+      "observaciones": "Bloque norte, primer equipo. Natural. Microclima levemente diferente por exposicion solar."
+    }
+  },
+
+  "cancha_to_sector_mapping": {
+    "amalfitani": "amalfitani_central",
+    "1fa":        "vo_bloque_a",
+    "2fa":        "vo_bloque_a",
+    "3fa":        "vo_bloque_a",
+    "4fa":        "vo_bloque_b",
+    "5fa":        "vo_bloque_b",
+    "6fa":        "vo_bloque_b",
+    "7fa":        "vo_bloque_c",
+    "8fa":        "vo_bloque_c",
+    "9fa":        "vo_bloque_c",
+    "10fa":       "vo_bloque_c",
+    "1fp":        "vo_bloque_d",
+    "2fp":        "vo_bloque_d"
+  }
+}
