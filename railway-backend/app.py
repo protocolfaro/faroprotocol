@@ -1154,26 +1154,19 @@ def velez_prescriptions():
         if est.get("insar_mm") is not None and weather_live.get("insar_mm") is None:
             weather_live["insar_mm"] = est["insar_mm"]
 
-        # Inject sar_vv_db + sar_fecha from soil_metrics when faro_v2_reports SAR vacío
+        # Inject sar_vv_db + sar_fecha desde soil_metrics cuando faro_v2_reports SAR vacío
         if weather_live.get("sar_vv_db") is None:
             try:
-                import velez_supabase as _vs2
-                _sm = _vs2.get_soil_metrics_latest("amalfitani", dias=30)
-                # filtro físico: -30 < VV < -4 dB (rango válido sobre césped C-band)
-                _sar_rows = sorted(
-                    [r for r in _sm
-                     if r.get("sar_vv_db") is not None
-                     and -30.0 < float(r["sar_vv_db"]) < -4.0],
-                    key=lambda r: (r.get("fecha_imagen") or ""),
-                    reverse=True,
-                )
-                if _sar_rows:
-                    weather_live["sar_vv_db"] = float(_sar_rows[0]["sar_vv_db"])
-                    weather_live["sar_vh_db"] = (float(_sar_rows[0]["sar_vh_db"])
-                                                  if _sar_rows[0].get("sar_vh_db") else None)
-                    weather_live["sar_fecha"] = (_sar_rows[0].get("fecha_imagen") or "")[:10]
-                    log.debug("prescriptions: sar_vv_db=%.2f fecha=%s (from soil_metrics)",
-                              weather_live["sar_vv_db"], weather_live["sar_fecha"])
+                _ts = _sar_timeseries()
+                _vv_list = _ts.get("sar_vv_series", [])
+                _dt_list = _ts.get("sar_dates", [])
+                _valid = [(dt, vv) for dt, vv in zip(_dt_list, _vv_list) if vv is not None]
+                if _valid:
+                    _last_dt, _last_vv = _valid[-1]
+                    weather_live["sar_vv_db"] = _last_vv
+                    weather_live["sar_fecha"]  = _last_dt
+                    log.info("prescriptions: sar_vv_db=%.2f fecha=%s (soil_metrics)",
+                             _last_vv, _last_dt)
             except Exception as _e:
                 log.debug("prescriptions sar inject: %s", _e)
 
