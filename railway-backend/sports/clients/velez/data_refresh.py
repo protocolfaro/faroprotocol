@@ -246,7 +246,7 @@ def _penman_monteith(tmax, tmin, rh, ws2m, allsky_kwh, doy):
     delta = 4098*0.6108*math.exp(17.27*T/(T+237.3))/(T+237.3)**2
     P     = 101.3*((293-0.0065*ELEV_M)/293)**5.26
     gamma = 0.000665*P
-    Rs    = allsky_kwh * 3.6
+    Rs    = allsky_kwh * 3.6   # kWh/m² → MJ/m² (NASA POWER ALLSKY_SFC_SW_DWN is kWh/m²)
     lat_r = math.radians(LAT)
     dr    = 1 + 0.033*math.cos(2*math.pi/365*doy)
     decl  = 0.409*math.sin(2*math.pi/365*doy - 1.39)

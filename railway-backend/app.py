@@ -774,54 +774,7 @@ def velez_pipeline_history():
         return jsonify({"ok": False, "error": str(exc)}), 500
 
 
-@app.route("/velez/log-intervencion", methods=["POST"])
-def log_intervencion():
-    """
-    Log a field operation (riego, corte, fertilizante, etc.) from Roger's panel.
-    Body: { pin, cancha_id, tipo, detalle?, horas_uso?, foto_url? }
-    Stores in Supabase velez_intervenciones. Hermes uses this for contextual validation.
-    """
-    body = request.get_json(silent=True) or {}
-    if not _ok_pin(body.get("pin")):
-        return jsonify({"status": "error", "error": "PIN inválido"}), 401
-
-    cancha_id = (body.get("cancha_id") or "").strip()
-    tipo      = (body.get("tipo") or "").strip().lower()
-    detalle   = (body.get("detalle") or "").strip()
-    horas_uso = body.get("horas_uso")
-    foto_url  = (body.get("foto_url") or "").strip() or None
-
-    _TIPOS_VALIDOS = {"riego", "corte", "fertilizante", "fungicida", "resiembra", "aireacion"}
-    if not cancha_id:
-        return jsonify({"status": "error", "error": "cancha_id requerido"}), 400
-    if tipo not in _TIPOS_VALIDOS:
-        return jsonify({
-            "status": "error",
-            "error": f"tipo inválido — debe ser uno de: {', '.join(sorted(_TIPOS_VALIDOS))}",
-        }), 400
-
-    if horas_uso is not None:
-        try:
-            horas_uso = float(horas_uso)
-        except (TypeError, ValueError):
-            return jsonify({"status": "error", "error": "horas_uso debe ser número"}), 400
-
-    try:
-        from velez_supabase import insert_intervencion
-        ok = insert_intervencion(
-            cancha_id=cancha_id,
-            tipo=tipo,
-            detalle=detalle,
-            horas_uso=horas_uso,
-            foto_url=foto_url,
-        )
-        if ok:
-            log.info("log-intervencion: %s en %s guardada", tipo, cancha_id)
-            return jsonify({"status": "ok", "cancha_id": cancha_id, "tipo": tipo}), 201
-        return jsonify({"status": "error", "error": "Supabase no disponible o no configurado"}), 503
-    except Exception as exc:
-        log.error(traceback.format_exc())
-        return jsonify({"status": "error", "error": str(exc)}), 500
+# /velez/log-intervencion eliminado en Panel Roger v3 — pipeline 100% automático
 
 
 @app.route("/velez/commit_historial", methods=["POST"])
@@ -974,10 +927,9 @@ def _sar_grid_3x3(vd: dict) -> dict:
 
 def _sar_timeseries() -> dict:
     """
-    Time series of SAR VV + theta_soil from soil_metrics (last 180 days).
-    Deduplicates by fecha_imagen, sorts chronologically, filters non-physical values.
+    Time series of SAR VV/VH + theta_soil from soil_metrics (last 180 days).
+    Also computes sar_vv_change_6d (last - prev pass) and vh_vv_ratio_last.
     Physical range for C-band VV over grass/soil: -4 to -30 dB.
-    Excludes placeholder values (e.g. -0.57 from broken runs).
     """
     try:
         if _VELEZ_PATH not in sys.path:
@@ -990,25 +942,44 @@ def _sar_timeseries() -> dict:
             if not fecha or row.get("sar_vv_db") is None:
                 continue
             vv = float(row["sar_vv_db"])
-            # Skip non-physical values: real C-band VV over grass is -4 to -30 dB
             if vv > -4.0 or vv < -30.0:
                 continue
             theta = row.get("theta_soil")
+            vh    = row.get("sar_vh_db")
             if fecha not in seen:
-                seen[fecha] = (vv, theta)
-        # Sort chronologically
+                seen[fecha] = (vv, theta, vh)
         sorted_items = sorted(seen.items())
-        dates  = [d for d, _ in sorted_items]
-        vv_s   = [round(v, 2) for _, (v, _) in sorted_items]
+        dates   = [d for d, _ in sorted_items]
+        vv_s    = [round(v, 2)  for _, (v, _, _) in sorted_items]
         theta_s = [round(float(t) * 100, 1) if t is not None else None
-                   for _, (_, t) in sorted_items]
+                   for _, (_, t, _) in sorted_items]
+        vh_s    = [round(float(h), 2) if h is not None else None
+                   for _, (_, _, h) in sorted_items]
+        # sar_vv_change_6d: difference between last two valid VV passes (≈6-day revisit)
+        sar_vv_change_6d = None
+        if len(vv_s) >= 2:
+            sar_vv_change_6d = round(vv_s[-1] - vv_s[-2], 2)
+        # vh_vv_ratio_last: VH − VV in dB (negative = typical; less negative = wetter/denser)
+        vh_vv_ratio_last = None
+        if vh_s and vh_s[-1] is not None and vv_s:
+            vh_vv_ratio_last = round(vh_s[-1] - vv_s[-1], 2)
+        # vh_vv_change_1d: change in VH/VV ratio between last two passes
+        vh_vv_change_1d = None
+        if len(vh_s) >= 2 and vh_s[-1] is not None and vh_s[-2] is not None:
+            prev_ratio = vh_s[-2] - vv_s[-2]
+            curr_ratio = vh_s[-1] - vv_s[-1]
+            vh_vv_change_1d = round(curr_ratio - prev_ratio, 2)
         return {
-            "timeseries":        True,
-            "campo":             "amalfitani",
-            "n_puntos":          len(dates),
-            "sar_dates":         dates,
-            "sar_vv_series":     vv_s,
-            "theta_soil_series": theta_s,
+            "timeseries":         True,
+            "campo":              "amalfitani",
+            "n_puntos":           len(dates),
+            "sar_dates":          dates,
+            "sar_vv_series":      vv_s,
+            "sar_vh_series":      vh_s,
+            "theta_soil_series":  theta_s,
+            "sar_vv_change_6d":   sar_vv_change_6d,
+            "vh_vv_ratio_last":   vh_vv_ratio_last,
+            "vh_vv_change_1d":    vh_vv_change_1d,
         }
     except Exception as exc:
         log.warning("_sar_timeseries: %s", exc)
@@ -1154,21 +1125,42 @@ def velez_prescriptions():
         if est.get("insar_mm") is not None and weather_live.get("insar_mm") is None:
             weather_live["insar_mm"] = est["insar_mm"]
 
-        # Inject sar_vv_db + sar_fecha desde soil_metrics cuando faro_v2_reports SAR vacío
-        if weather_live.get("sar_vv_db") is None:
-            try:
-                _ts = _sar_timeseries()
-                _vv_list = _ts.get("sar_vv_series", [])
-                _dt_list = _ts.get("sar_dates", [])
-                _valid = [(dt, vv) for dt, vv in zip(_dt_list, _vv_list) if vv is not None]
-                if _valid:
-                    _last_dt, _last_vv = _valid[-1]
+        # Inject SAR fields from soil_metrics timeseries
+        try:
+            _ts = _sar_timeseries()
+            _vv_list = _ts.get("sar_vv_series", [])
+            _dt_list = _ts.get("sar_dates", [])
+            _valid = [(dt, vv) for dt, vv in zip(_dt_list, _vv_list) if vv is not None]
+            if _valid:
+                _last_dt, _last_vv = _valid[-1]
+                if weather_live.get("sar_vv_db") is None:
                     weather_live["sar_vv_db"] = _last_vv
                     weather_live["sar_fecha"]  = _last_dt
-                    log.info("prescriptions: sar_vv_db=%.2f fecha=%s (soil_metrics)",
-                             _last_vv, _last_dt)
-            except Exception as _e:
-                log.debug("prescriptions sar inject: %s", _e)
+                    log.info("prescriptions: sar_vv_db=%.2f fecha=%s", _last_vv, _last_dt)
+            # New v3 fields — computed from timeseries
+            if _ts.get("sar_vv_change_6d") is not None:
+                weather_live.setdefault("sar_vv_change_6d", _ts["sar_vv_change_6d"])
+            if _ts.get("vh_vv_ratio_last") is not None:
+                weather_live.setdefault("vh_vv_ratio", _ts["vh_vv_ratio_last"])
+            if _ts.get("vh_vv_change_1d") is not None:
+                weather_live.setdefault("vh_vv_change_1d", _ts["vh_vv_change_1d"])
+            # Honest relative humidity state (SAR change + ERA5 reference)
+            _vv_now  = weather_live.get("sar_vv_db")
+            _chg     = _ts.get("sar_vv_change_6d")
+            _vv_prev = (round(_vv_now - _chg, 2)
+                        if _vv_now is not None and _chg is not None else None)
+            try:
+                from sports.clients.velez.faro_humedad_relativa import get_humidity_relative as _ghr
+            except ImportError:
+                from faro_humedad_relativa import get_humidity_relative as _ghr  # type: ignore
+            weather_live.setdefault("sar_humedad_relativa", _ghr(
+                sar_vv_today=_vv_now,
+                sar_vv_6d_ago=_vv_prev,
+                era5_sm_7_28cm=weather_live.get("era5_sm_7_28cm"),
+                era5_sm_0_7cm=weather_live.get("era5_sm_0_7cm"),
+            ))
+        except Exception as _e:
+            log.debug("prescriptions sar inject: %s", _e)
 
         payload = fp.generate_prescriptions(roger_canchas, weather_live)
         resp = jsonify(payload)
