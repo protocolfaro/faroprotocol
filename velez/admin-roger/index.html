@@ -1,773 +1,394 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Faro Protocol v2.0 · Vélez</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&family=Epilogue:wght@400;600;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --bg:      #07090c;
-            --gold:    #c9a84c;
-            --whi:     #f0ece4;
-            --dim:     #8a8580;
-            --red:     #d94f4f;
-            --yellow:  #d4a017;
-            --green:   #4a9e6a;
-            --card-bg: rgba(10,14,20,0.97);
-        }
-
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-
-        body {
-            background: var(--bg);
-            color: var(--whi);
-            font-family: 'Epilogue', sans-serif;
-            width: 100vw;
-            height: 100vh;
-            display: flex;
-            flex-direction: row;
-            overflow: hidden;
-            position: relative;
-        }
-
-        /* ── TABS ─────────────────────────────────────────────────────────── */
-        .nav-tabs {
-            position: absolute;
-            top: 15px;
-            left: 20px;
-            z-index: 100;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            overflow-x: auto;
-            max-width: calc(55% - 40px);
-            white-space: nowrap;
-        }
-        .nav-tabs::-webkit-scrollbar { display: none; }
-
-        .tab-btn {
-            flex-shrink: 0;
-            background: rgba(25,30,38,0.75);
-            border: 1px solid rgba(255,255,255,0.08);
-            color: var(--dim);
-            padding: 5px 10px;
-            border-radius: 12px;
-            font-size: 10px;
-            font-weight: 600;
-            cursor: pointer;
-            font-family: 'Epilogue', sans-serif;
-            transition: all 0.2s;
-        }
-        .tab-btn.active { background: var(--gold); color: var(--bg); border-color: var(--gold); }
-
-        .tab-sep {
-            flex-shrink: 0;
-            display: inline-block;
-            width: 1px;
-            height: 20px;
-            background: rgba(255,255,255,0.15);
-        }
-
-        /* ── CAMPO 55% ────────────────────────────────────────────────────── */
-        .wrapper-field {
-            width: 55%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            padding: 60px 24px 24px 48px;
-        }
-
-        .text-stadium {
-            position: absolute;
-            left: 14px;
-            top: 50%;
-            transform: translateY(-50%) rotate(-90deg);
-            transform-origin: center center;
-            font-size: 9px;
-            font-weight: 600;
-            letter-spacing: 1.5px;
-            text-transform: uppercase;
-            color: rgba(255,255,255,0.25);
-            white-space: nowrap;
-            pointer-events: none;
-        }
-
-        .field-container {
-            position: relative;
-            height: calc(100% - 16px);
-            width: auto;
-            aspect-ratio: 68 / 105;
-            max-width: 100%;
-            background: #112916;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 15px 40px rgba(0,0,0,0.6);
-            border: 1px solid rgba(255,255,255,0.03);
-        }
-
-        .heatmap-overlay {
-            position: absolute;
-            inset: 0;
-            z-index: 1;
-            pointer-events: none;
-            /* sin mix-blend-mode -- el canvas ya tiene alpha correcto por pixel */
-        }
-
-        .field-svg {
-            position: absolute;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 2;
-            pointer-events: none;
-        }
-
-        .nodes-overlay {
-            position: absolute;
-            inset: 0;
-            z-index: 3;
-            pointer-events: none;
-        }
-
-        .node-dot {
-            position: absolute;
-            width: 10px;
-            height: 10px;
-            background: #fff;
-            border: 2px solid rgba(0,0,0,0.5);
-            border-radius: 50%;
-            transform: translate(-50%, -50%);
-            box-shadow: 0 0 8px rgba(255,255,255,0.8);
-        }
-
-        /* ── PANEL 45% ────────────────────────────────────────────────────── */
-        .panel-control {
-            width: 45%;
-            height: 100%;
-            background: var(--card-bg);
-            border-left: 1px solid rgba(255,255,255,0.06);
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        .panel-header {
-            flex-shrink: 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            padding-bottom: 12px;
-            border-bottom: 1px solid rgba(255,255,255,0.06);
-            margin-bottom: 12px;
-        }
-
-        .panel-title {
-            font-size: 10px;
-            font-weight: 700;
-            color: var(--gold);
-            letter-spacing: 0.5px;
-        }
-
-        .panel-sync {
-            font-size: 9px;
-            color: var(--dim);
-            text-align: right;
-            line-height: 1.4;
-            font-weight: 600;
-        }
-
-        /* ── LISTA AGENTES ────────────────────────────────────────────────── */
-        .agents-list {
-            flex: 1;
-            min-height: 0;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 3px;
-            margin-bottom: 12px;
-        }
-        .agents-list::-webkit-scrollbar { width: 3px; }
-        .agents-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.07); border-radius: 2px; }
-
-        .agent-row {
-            display: grid;
-            grid-template-columns: 90px 1fr 1fr 1fr;
-            align-items: start;
-            gap: 8px;
-            padding: 5px 8px;
-            background: rgba(255,255,255,0.01);
-            border: 1px solid rgba(255,255,255,0.03);
-            border-radius: 3px;
-            transition: all 0.2s;
-        }
-        .agent-row.active {
-            background: rgba(201,168,76,0.07);
-            border-color: var(--gold);
-        }
-
-        .agent-name {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            font-size: 9px;
-            font-weight: 600;
-            color: var(--whi);
-        }
-        .agent-row.active .agent-name { color: var(--gold); }
-
-        .agent-dot {
-            width: 5px;
-            height: 5px;
-            border-radius: 50%;
-            flex-shrink: 0;
-        }
-
-        .agent-col {
-            font-size: 8px;
-            color: var(--dim);
-            line-height: 1.35;
-        }
-        .agent-col > span {
-            display: block;
-            font-size: 7px;
-            font-weight: 700;
-            text-transform: uppercase;
-            color: rgba(255,255,255,0.35);
-            letter-spacing: 0.3px;
-            margin-bottom: 1px;
-        }
-
-        /* ── CARD PRESCRIPCIÓN ────────────────────────────────────────────── */
-        .presc-box {
-            flex-shrink: 0;
-            background: rgba(20,10,10,0.95);
-            border: 1px solid var(--red);
-            border-radius: 6px;
-            padding: 12px 14px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .presc-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .presc-zona {
-            font-size: 9px;
-            font-weight: 600;
-            color: var(--dim);
-            letter-spacing: 0.5px;
-        }
-
-        .presc-badge {
-            font-size: 8px;
-            font-weight: 700;
-            padding: 2px 6px;
-            border-radius: 3px;
-            background: var(--red);
-            color: #fff;
-            letter-spacing: 0.5px;
-        }
-
-        .presc-text {
-            font-family: 'Cormorant Garamond', serif;
-            font-size: 15px;
-            font-weight: 700;
-            color: var(--gold);
-            line-height: 1.3;
-        }
-
-        .presc-metrics {
-            font-size: 8px;
-            font-weight: 600;
-            color: var(--dim);
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-            border-top: 1px solid rgba(255,255,255,0.05);
-            padding-top: 6px;
-        }
-
-        /* ── MOBILE ───────────────────────────────────────────────────────── */
-        @media (max-width: 768px) {
-            body { flex-direction: column; overflow-y: auto; height: auto; }
-            .nav-tabs { max-width: calc(100% - 40px); }
-            .wrapper-field { width: 100%; height: 52vh; padding: 50px 12px 12px 12px; }
-            .field-container { height: 100%; }
-            .panel-control { width: 100%; height: auto; border-left: none; border-top: 1px solid rgba(255,255,255,0.06); overflow: visible; }
-            .op-card { max-height: 380px; }
-            .text-stadium { display: none; }
-        }
-
-        /* ── HEATMAP STATUS BADGE ─────────────────────────────────────────── */
-        .hm-status-badge {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            z-index: 10;
-            font-size: 8px;
-            font-weight: 700;
-            letter-spacing: 0.8px;
-            padding: 3px 8px;
-            border-radius: 4px;
-            color: #fff;
-            pointer-events: none;
-            background: #44aa44;
-        }
-
-        /* ── OPERATIONAL CARD ────────────────────────────────────────────── */
-        .op-card {
-            flex: 1;
-            min-height: 0;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            margin-bottom: 0;
-        }
-        .op-card::-webkit-scrollbar { width: 3px; }
-        .op-card::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.07); border-radius: 2px; }
-
-        .op-title {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding-bottom: 10px;
-            border-bottom: 1px solid rgba(255,255,255,0.08);
-            flex-shrink: 0;
-        }
-        .op-cancha-name {
-            font-family: 'Cormorant Garamond', serif;
-            font-size: 17px;
-            font-weight: 700;
-            color: var(--gold);
-        }
-        .op-estado-badge {
-            font-size: 8px;
-            font-weight: 700;
-            padding: 3px 8px;
-            border-radius: 4px;
-            letter-spacing: 0.8px;
-            color: #fff;
-        }
-
-        .op-rows { display: flex; flex-direction: column; gap: 5px; flex-shrink: 0; }
-        .op-row {
-            display: flex;
-            align-items: flex-start;
-            gap: 8px;
-            padding: 7px 10px;
-            background: rgba(255,255,255,0.02);
-            border-radius: 4px;
-            border-left: 2px solid rgba(255,255,255,0.08);
-        }
-        .op-row.urgente { border-left-color: var(--red); background: rgba(217,79,79,0.06); }
-        .op-row.alerta  { border-left-color: var(--yellow); }
-        .op-row.ok      { border-left-color: var(--green); }
-        .op-row-label {
-            font-size: 8px;
-            font-weight: 700;
-            letter-spacing: 0.6px;
-            text-transform: uppercase;
-            color: var(--dim);
-            width: 88px;
-            flex-shrink: 0;
-            padding-top: 1px;
-        }
-        .op-row-value {
-            font-size: 10px;
-            font-weight: 600;
-            color: var(--whi);
-            line-height: 1.35;
-        }
-
-        .op-actions {
-            background: rgba(10,14,20,0.95);
-            border: 1px solid rgba(255,255,255,0.07);
-            border-radius: 6px;
-            padding: 10px 12px;
-            flex-shrink: 0;
-        }
-        .op-actions-title {
-            font-size: 8px;
-            font-weight: 700;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            color: var(--dim);
-            margin-bottom: 8px;
-        }
-        .op-action-item {
-            display: flex;
-            gap: 8px;
-            align-items: flex-start;
-            margin-bottom: 6px;
-            line-height: 1.35;
-        }
-        .op-action-item:last-child { margin-bottom: 0; }
-        .op-action-num {
-            font-size: 8px;
-            font-weight: 700;
-            color: var(--gold);
-            background: rgba(201,168,76,0.12);
-            padding: 1px 5px;
-            border-radius: 3px;
-            flex-shrink: 0;
-            margin-top: 1px;
-        }
-        .op-action-text {
-            font-size: 10px;
-            color: var(--whi);
-            font-weight: 500;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Faro Protocol - Prescripcion de Campo - Velez</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&family=Epilogue:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<style>
+:root {
+    --bg:#06080d;--bg2:#0b0f17;--gold:#c9a84c;--gold2:#e8c97a;
+    --whi:#eceae3;--dim:#7a7670;--dim2:#4a4845;
+    --red:#ef4444;--amber:#f59e0b;--blue:#3b82f6;--cyan:#22d3ee;
+    --green:#22c55e;--purple:#a855f7;--gray:#6b7280;
+    --c-HOY:#ef4444;--c-ESTA_SEMANA:#f59e0b;--c-PROXIMA_SEMANA:#3b82f6;
+    --c-MONITOREAR:#6b7280;--c-OK:#22c55e;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--whi);font-family:'Epilogue',sans-serif;width:100vw;height:100vh;display:flex;flex-direction:row;overflow:hidden;}
+.nav-tabs{position:absolute;top:14px;left:20px;z-index:200;display:flex;align-items:center;gap:5px;overflow-x:auto;max-width:calc(56% - 40px);white-space:nowrap;}
+.nav-tabs::-webkit-scrollbar{display:none;}
+.tab-btn{flex-shrink:0;background:rgba(20,26,38,0.8);border:1px solid rgba(255,255,255,0.07);color:var(--dim);padding:4px 9px;border-radius:10px;font-size:9px;font-weight:700;cursor:pointer;font-family:'Epilogue',sans-serif;transition:all 0.2s;letter-spacing:0.4px;}
+.tab-btn.active{background:var(--gold);color:#050709;border-color:var(--gold);}
+.tab-btn:hover:not(.active){border-color:rgba(255,255,255,0.2);color:var(--whi);}
+.tab-sep{flex-shrink:0;width:1px;height:18px;background:rgba(255,255,255,0.1);}
+.wrapper-field{width:56%;height:100%;display:flex;align-items:center;justify-content:center;position:relative;padding:58px 20px 18px 42px;}
+.text-stadium{position:absolute;left:12px;top:50%;transform:translateY(-50%) rotate(-90deg);transform-origin:center center;font-size:9px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.15);white-space:nowrap;pointer-events:none;}
+.field-container{position:relative;height:100%;width:auto;aspect-ratio:68/105;max-width:100%;background:#0e1e10;border-radius:7px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.7),0 0 0 1px rgba(255,255,255,0.03);}
+.presc-overlay{position:absolute;inset:0;z-index:1;pointer-events:all;}
+.presc-overlay svg{width:100%;height:100%;display:block;}
+.heatmap-canvas{position:absolute;inset:0;z-index:0;transition:opacity 0.4s;pointer-events:none;}
+.field-svg{position:absolute;inset:0;width:100%;height:100%;z-index:2;pointer-events:none;}
+.sat-badge{position:absolute;bottom:8px;left:8px;z-index:20;font-size:8px;font-weight:700;letter-spacing:0.5px;padding:3px 8px;border-radius:4px;color:#fff;display:flex;align-items:center;gap:4px;pointer-events:none;}
+.sat-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;}
+.hm-toggle{position:absolute;top:8px;right:8px;z-index:20;font-size:8px;font-weight:700;letter-spacing:0.6px;padding:3px 9px;border-radius:4px;background:rgba(20,26,38,0.85);border:1px solid rgba(255,255,255,0.1);color:var(--dim);cursor:pointer;transition:all 0.2s;}
+.hm-toggle.on{background:rgba(34,197,94,0.15);border-color:var(--green);color:var(--green);}
+.panel{width:44%;height:100%;background:var(--bg2);border-left:1px solid rgba(255,255,255,0.05);display:flex;flex-direction:column;overflow:hidden;}
+.panel-head{flex-shrink:0;padding:14px 16px 12px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;justify-content:space-between;align-items:flex-start;}
+.panel-brand{font-size:9px;font-weight:700;color:var(--gold);letter-spacing:0.5px;}
+.panel-sync{font-size:8px;color:var(--dim);text-align:right;line-height:1.5;}
+.panel-body{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;}
+.panel-body::-webkit-scrollbar{width:2px;}
+.panel-body::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.06);border-radius:2px;}
+.cancha-head{flex-shrink:0;padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.04);display:flex;justify-content:space-between;align-items:center;}
+.cancha-name{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:700;color:var(--gold);}
+.urgency-badge{font-size:9px;font-weight:700;padding:4px 10px;border-radius:4px;letter-spacing:0.8px;color:#fff;}
+.zone-grid{flex-shrink:0;padding:10px 16px;display:grid;grid-template-columns:repeat(3,1fr);gap:5px;border-bottom:1px solid rgba(255,255,255,0.04);}
+.zone-tile{border-radius:4px;padding:6px 8px;cursor:pointer;transition:all 0.18s;border:1px solid rgba(255,255,255,0.06);}
+.zone-tile.selected{outline:1px solid rgba(255,255,255,0.45);}
+.zone-tile:hover{filter:brightness(1.15);}
+.zone-tile-label{font-size:7px;font-weight:700;letter-spacing:0.6px;color:rgba(255,255,255,0.65);}
+.zone-tile-urgency{font-size:8px;font-weight:700;color:#fff;margin-top:2px;}
+.zone-tile-type{font-size:7px;color:rgba(255,255,255,0.55);margin-top:1px;}
+.zone-detail{flex-shrink:0;padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.04);}
+.zone-detail-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.zone-detail-name{font-size:11px;font-weight:700;color:var(--whi);letter-spacing:0.3px;}
+.zone-detail-urgency{font-size:8px;font-weight:700;letter-spacing:0.8px;padding:3px 8px;border-radius:3px;color:#fff;}
+.action-list{display:flex;flex-direction:column;gap:6px;}
+.action-item{border-radius:4px;padding:8px 10px;border-left:2px solid;}
+.action-item-top{display:flex;justify-content:space-between;align-items:flex-start;gap:6px;}
+.action-type{font-size:8px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;}
+.action-urgency{font-size:8px;font-weight:700;letter-spacing:0.5px;flex-shrink:0;}
+.action-detail{font-size:9px;color:var(--dim);margin-top:4px;line-height:1.4;}
+.action-metric{font-size:7px;color:var(--dim2);margin-top:2px;font-weight:600;letter-spacing:0.3px;}
+.metrics-section{flex-shrink:0;padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.04);}
+.metrics-title{font-size:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin-bottom:8px;}
+.metrics-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;}
+.metric-cell{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04);border-radius:4px;padding:6px 8px;}
+.metric-label{font-size:7px;font-weight:700;letter-spacing:0.5px;color:var(--dim);text-transform:uppercase;}
+.metric-value{font-size:12px;font-weight:700;color:var(--whi);margin-top:2px;}
+.metric-unit{font-size:7px;color:var(--dim);}
+.fungal-section{flex-shrink:0;padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.04);}
+.fungal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+.fungal-label{font-size:8px;font-weight:700;letter-spacing:0.8px;color:var(--dim);text-transform:uppercase;}
+.fungal-badge{font-size:8px;font-weight:700;padding:2px 7px;border-radius:3px;letter-spacing:0.5px;color:#fff;}
+.fungal-bar-bg{height:4px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;}
+.fungal-bar-fill{height:100%;border-radius:2px;transition:width 0.8s ease;}
+.fungal-desc{font-size:8px;color:var(--dim);margin-top:5px;line-height:1.4;}
+.era5-section{flex-shrink:0;padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.04);}
+.era5-title{font-size:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin-bottom:6px;}
+.era5-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;}
+.era5-cell{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04);border-radius:4px;padding:6px 8px;}
+.era5-label{font-size:6px;font-weight:700;letter-spacing:0.5px;color:var(--dim);text-transform:uppercase;}
+.era5-value{font-size:11px;font-weight:700;color:var(--whi);margin-top:2px;}
+.era5-unit{font-size:6px;color:var(--dim);}
+.action-razon{font-size:8px;color:var(--cyan);margin-top:3px;line-height:1.3;}
+.gdd-section{flex-shrink:0;padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.04);display:flex;gap:10px;align-items:center;}
+.gdd-item{flex:1;}
+.gdd-label{font-size:7px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.5px;}
+.gdd-value{font-size:14px;font-weight:700;color:var(--whi);margin-top:2px;}
+.gdd-unit{font-size:7px;color:var(--dim);}
+.gdd-sep{width:1px;height:30px;background:rgba(255,255,255,0.06);}
+.ipos-section{flex-shrink:0;padding:10px 16px;}
+.ipos-header{display:flex;justify-content:space-between;margin-bottom:5px;}
+.ipos-label{font-size:8px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:0.8px;}
+.ipos-value{font-size:8px;font-weight:700;color:var(--whi);}
+.ipos-bar-bg{height:5px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;}
+.ipos-bar-fill{height:100%;border-radius:3px;transition:width 0.8s ease;}
+.ipos-tiers{display:flex;justify-content:space-between;margin-top:3px;font-size:6px;color:var(--dim2);}
+.sar-section{flex-shrink:0;padding:8px 16px;border-bottom:1px solid rgba(255,255,255,0.04);}
+.sar-title{font-size:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;}
+.sar-date{font-size:7px;color:var(--dim2);font-weight:600;}
+.sar-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;}
+.sar-cell{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04);border-radius:4px;padding:6px 8px;}
+.sar-cell.alert{border-color:rgba(239,68,68,0.4);background:rgba(239,68,68,0.05);}
+.sar-cell.warn{border-color:rgba(245,158,11,0.4);}
+.sar-cell-label{font-size:7px;font-weight:700;letter-spacing:0.5px;color:var(--dim);text-transform:uppercase;}
+.sar-cell-val{font-size:13px;font-weight:700;color:var(--whi);margin-top:2px;}
+.sar-cell-unit{font-size:7px;color:var(--dim);}
+.sar-cell-status{font-size:7px;font-weight:700;margin-top:2px;letter-spacing:0.4px;}
+.sar-chart-wrap{flex-shrink:0;height:140px;border-top:1px solid rgba(255,255,255,0.04);padding:8px 16px 6px;}
+.sar-chart-title{font-size:8px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:var(--dim);margin-bottom:4px;}
+.grid3x3-section{flex-shrink:0;border-top:1px solid rgba(255,255,255,0.04);}
+.grid3x3-header{padding:8px 16px 0;display:flex;justify-content:space-between;align-items:center;cursor:pointer;}
+.grid3x3-label{font-size:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);}
+.grid3x3-toggle{font-size:8px;color:var(--dim2);font-weight:700;}
+.grid3x3-body{padding:6px 16px 10px;display:none;}
+.grid3x3-body.open{display:block;}
+.grid3x3-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;}
+.g3-cell{border-radius:4px;padding:6px 7px;border:1px solid rgba(255,255,255,0.06);}
+.g3-cell.CRÍTICA{border-color:rgba(239,68,68,0.5);background:rgba(239,68,68,0.07);}
+.g3-cell.ALTA{border-color:rgba(245,158,11,0.4);background:rgba(245,158,11,0.05);}
+.g3-cell.ESTABLE{border-color:rgba(34,197,94,0.3);background:rgba(34,197,94,0.04);}
+.g3-id{font-size:7px;font-weight:700;color:var(--dim);text-transform:uppercase;margin-bottom:3px;}
+.g3-vv{font-size:10px;font-weight:700;color:var(--whi);}
+.g3-hum{font-size:8px;color:var(--dim);margin-top:1px;}
+.g3-accion{font-size:7px;color:var(--amber);margin-top:3px;line-height:1.3;}
+.g3-cell.ESTABLE .g3-accion{color:var(--green);}
+@media(max-width:768px){
+    body{flex-direction:column;overflow-y:auto;height:auto;}
+    .wrapper-field{width:100%;height:55vh;padding:50px 12px 12px 12px;}
+    .panel{width:100%;height:auto;border-left:none;border-top:1px solid rgba(255,255,255,0.05);overflow:visible;}
+    .nav-tabs{max-width:calc(100% - 40px);}
+    .text-stadium{display:none;}
+    .sar-chart-wrap{height:120px;}
+}
+</style>
 </head>
 <body>
-
 <nav class="nav-tabs" id="tabsCanchas"></nav>
-
 <div class="wrapper-field">
-    <div class="text-stadium">Estadio José Amalfitani, Vélez Sarsfield</div>
-    <div class="field-container">
-        <canvas class="heatmap-overlay" id="heatmapOverlay" style="width:100%;height:100%;"></canvas>
-        <svg class="field-svg" viewBox="0 0 68 105" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-                <pattern id="lawn" width="8" height="105" patternUnits="userSpaceOnUse">
-                    <rect width="4"  height="105" fill="rgba(255,255,255,0.03)"/>
-                    <rect x="4" width="4" height="105" fill="rgba(0,0,0,0.01)"/>
-                </pattern>
-            </defs>
-            <rect width="68" height="105" fill="url(#lawn)"/>
-            <rect x="3"    y="3"    width="62"   height="99"   fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="0.5"/>
-            <line x1="3"   y1="52.5" x2="65"   y2="52.5"                  stroke="rgba(255,255,255,0.22)" stroke-width="0.5"/>
-            <circle cx="34" cy="52.5" r="9.15"                      fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="0.5"/>
-            <rect x="13.8" y="3"    width="40.4" height="16.5" fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="0.5"/>
-            <rect x="13.8" y="85.5" width="40.4" height="16.5" fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="0.5"/>
-            <rect x="22"   y="3"    width="24"   height="5.5"  fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="0.5"/>
-            <rect x="22"   y="96.5" width="24"   height="5.5"  fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="0.5"/>
-        </svg>
-        <div class="nodes-overlay" id="nodesOverlay"></div>
-        <div class="hm-status-badge" id="hmStatusBadge">—</div>
-    </div>
-</div>
-
-<div class="panel-control">
-    <div class="panel-header">
-        <div class="panel-title">FARO PROTOCOL v2.0 · CANCHA VÉLEZ</div>
-        <div class="panel-sync">
-            9:00 UTC<br>
-            <span style="font-size:7px;opacity:0.7">SYNC: SAT / RADAR / CLIMA</span>
+    <div class="text-stadium">Estadio Jose Amalfitani - Velez Sarsfield</div>
+    <div class="field-container" id="fieldContainer">
+        <canvas class="heatmap-canvas" id="heatmapCanvas" style="width:100%;height:100%;opacity:0;"></canvas>
+        <div class="presc-overlay" id="prescOverlay">
+            <svg id="prescSvg" viewBox="0 0 68 105" xmlns="http://www.w3.org/2000/svg" style="pointer-events:all;"></svg>
         </div>
+        <svg class="field-svg" viewBox="0 0 68 105" xmlns="http://www.w3.org/2000/svg">
+            <defs><pattern id="lawn" width="8" height="105" patternUnits="userSpaceOnUse">
+                <rect width="4" height="105" fill="rgba(255,255,255,0.025)"/>
+                <rect x="4" width="4" height="105" fill="rgba(0,0,0,0.01)"/>
+            </pattern></defs>
+            <rect width="68" height="105" fill="url(#lawn)"/>
+            <rect x="3" y="3" width="62" height="99" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="0.5"/>
+            <line x1="3" y1="52.5" x2="65" y2="52.5" stroke="rgba(255,255,255,0.28)" stroke-width="0.5"/>
+            <circle cx="34" cy="52.5" r="9.15" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="0.5"/>
+            <circle cx="34" cy="52.5" r="0.5" fill="rgba(255,255,255,0.4)"/>
+            <rect x="13.8" y="3" width="40.4" height="16.5" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="0.5"/>
+            <rect x="13.8" y="85.5" width="40.4" height="16.5" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="0.5"/>
+            <rect x="22" y="3" width="24" height="5.5" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="0.5"/>
+            <rect x="22" y="96.5" width="24" height="5.5" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="0.5"/>
+            <circle cx="34" cy="14" r="0.5" fill="rgba(255,255,255,0.4)"/>
+            <circle cx="34" cy="91" r="0.5" fill="rgba(255,255,255,0.4)"/>
+            <path d="M 22 19.5 A 9.15 9.15 0 0 1 46 19.5" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="0.5"/>
+            <path d="M 22 85.5 A 9.15 9.15 0 0 0 46 85.5" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="0.5"/>
+            <path d="M 3 5.5 A 2.5 2.5 0 0 0 5.5 3" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="0.4"/>
+            <path d="M 62.5 3 A 2.5 2.5 0 0 0 65 5.5" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="0.4"/>
+            <path d="M 3 99.5 A 2.5 2.5 0 0 1 5.5 102" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="0.4"/>
+            <path d="M 65 99.5 A 2.5 2.5 0 0 0 62.5 102" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="0.4"/>
+        </svg>
+        <button class="hm-toggle" id="hmToggle" onclick="toggleHeatmap()">NDVI OFF</button>
+        <div class="sat-badge" id="satBadge"><span class="sat-dot" id="satDot"></span><span id="satText">-</span></div>
     </div>
-
-    <div class="op-card" id="uiOpCard"></div>
 </div>
-
+<div class="panel">
+    <div class="panel-head">
+        <div class="panel-brand">FARO PROTOCOL - PRESCRIPCION DE CAMPO</div>
+        <div class="panel-sync" id="panelSync">-<br><span style="font-size:7px;opacity:0.6">cargando...</span></div>
+    </div>
+    <div class="panel-body" id="panelBody">
+        <div style="padding:30px 16px;color:var(--dim);font-size:10px;">Cargando datos de campo...</div>
+    </div>
+    <div class="sar-chart-wrap" id="sarChartWrap" style="display:none;">
+        <div class="sar-chart-title">SAR VV — COMPACTACIÓN HISTÓRICA (30 días)</div>
+        <canvas id="sarTrendChart"></canvas>
+    </div>
+    <div class="grid3x3-section" id="grid3x3Section" style="display:none;">
+        <div class="grid3x3-header" onclick="toggleGrid3x3()">
+            <span class="grid3x3-label">ANÁLISIS 3×3 — SECTORES AMALFITANI</span>
+            <span class="grid3x3-toggle" id="grid3x3Toggle">▼ VER</span>
+        </div>
+        <div class="grid3x3-body" id="grid3x3Body"></div>
+    </div>
+</div>
 <script>
-const ENDPOINT = 'https://faroprotocol-production-45fd.up.railway.app/velez/panel-data';
-let dataGlobal = [], wlGlobal = {}, hermesMapGlobal = {};
-const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutos
-let lastUpdatedAt = null;
-
-/* ── HEATMAP ENGINE v2.0 — PNG real por cancha desde GitHub ──────────────── */
-let _canchaActual = null;
-
-async function renderHeatmap(cancha) {
-    const canvas = document.getElementById('heatmapOverlay');
-    if (!canvas || !canvas.getContext) return;
-    const dpr  = window.devicePixelRatio || 1;
-    const cssW = canvas.offsetWidth  || canvas.parentElement.offsetWidth  || 500;
-    const cssH = canvas.offsetHeight || canvas.parentElement.offsetHeight || 700;
-    canvas.width  = cssW * dpr;
-    canvas.height = cssH * dpr;
-    canvas.style.width  = cssW + 'px';
-    canvas.style.height = cssH + 'px';
-    const ctx = canvas.getContext('2d');
-    ctx.scale(dpr, dpr);
-    ctx.clearRect(0, 0, cssW, cssH);
-    if (!cancha || !cancha.heatmap_archivo) return;
-    const url = `https://raw.githubusercontent.com/protocolfaro/faroprotocol/main/velez/heatmaps/${cancha.heatmap_archivo}`;
-    return new Promise((resolve) => {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.onload = () => {
-                // PNG landscape (800×520). Rotar 90° CW → portrait.
-                // Recortar footer (36px abajo) y colorbar (64px derecha) del PNG.
-                // Área pura del campo: x=0..736, y=0..484
-                ctx.save();
-                ctx.translate(cssW, 0);
-                ctx.rotate(Math.PI / 2);
-                ctx.drawImage(img, 0, 0, 736, 484, 0, 0, cssH, cssW);
-                ctx.restore();
-                resolve();
-            };
-        img.onerror = () => { console.error('heatmap error:', url); resolve(); };
-        img.src = url;
+'use strict';
+const ENDPOINT='https://faroprotocol-production-45fd.up.railway.app/velez/prescriptions';
+const POLL_MS=5*60*1000;
+let _data=null,_activeCanchaId=null,_activeZoneId='GK_N',_hmVisible=false;
+const UL={HOY:'HOY',ESTA_SEMANA:'ESTA SEMANA',PROXIMA_SEMANA:'PROX. SEMANA',MONITOREAR:'MONITOREAR',OK:'OK'};
+const ACTION_COL={AEREAR:'#f59e0b',REGAR:'#22d3ee',FUNGICIDA:'#a855f7',FERTILIZAR:'#22c55e',DRENAR:'#3b82f6',OK:'#22c55e'};
+const URG_BG={HOY:'rgba(239,68,68,0.14)',ESTA_SEMANA:'rgba(245,158,11,0.10)',PROXIMA_SEMANA:'rgba(59,130,246,0.10)',MONITOREAR:'rgba(107,114,128,0.07)',OK:'rgba(34,197,94,0.06)'};
+const ZONE_SHORT={GK_N:'GK N',AREA_N:'AREA N',MID_N:'MEDIO N',MID_S:'MEDIO S',AREA_S:'AREA S',GK_S:'GK S'};
+const ZONE_FULL={GK_N:'Porteria Norte',AREA_N:'Area Penal Norte',MID_N:'Mediocampo Norte',MID_S:'Mediocampo Sur',AREA_S:'Area Penal Sur',GK_S:'Porteria Sur'};
+const ZONE_COORDS={GK_N:{x:3,y:3,w:62,h:16.5},AREA_N:{x:3,y:19.5,w:62,h:13.5},MID_N:{x:3,y:33,w:62,h:19.5},MID_S:{x:3,y:52.5,w:62,h:19.5},AREA_S:{x:3,y:72,w:62,h:13.5},GK_S:{x:3,y:85.5,w:62,h:16.5}};
+function hex(u){return({HOY:'#ef4444',ESTA_SEMANA:'#f59e0b',PROXIMA_SEMANA:'#3b82f6',MONITOREAR:'#6b7280',OK:'#22c55e'})[u]||'#22c55e';}
+function fmt1(v){return v!=null?parseFloat(v).toFixed(1):'-';}
+function fmt0(v){return v!=null?Math.round(parseFloat(v)):'-';}
+function canName(id){return id==='amalfitani'?'AMALFITANI':(id||'').toUpperCase().replace(/_/g,' ');}
+function hexRgb(h){const r=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(h);return r?`${parseInt(r[1],16)},${parseInt(r[2],16)},${parseInt(r[3],16)}`:'255,255,255';}
+function updateSatBadge(cancha){
+    const badge=document.getElementById('satBadge'),dot=document.getElementById('satDot'),txt=document.getElementById('satText');
+    if(!badge)return;
+    const hm=cancha?.heatmap_arquivo||cancha?.heatmap_archivo||'';
+    if(!hm){badge.style.background='rgba(80,60,0,0.85)';dot.style.background='#d4a017';txt.textContent='NDVI ESTIMADO - Kalman';}
+    else{badge.style.background='rgba(0,40,20,0.85)';dot.style.background='#4caf50';txt.textContent='NDVI SAT - '+hm.replace('heatmap_','').replace('.png','').toUpperCase();}
+}
+let _hmFile=null;
+async function renderHeatmap(file){
+    const canvas=document.getElementById('heatmapCanvas');
+    if(!canvas||!canvas.getContext)return;
+    if(!file){canvas.style.opacity='0';return;}
+    _hmFile=file;
+    const dpr=window.devicePixelRatio||1,cssW=canvas.offsetWidth||400,cssH=canvas.offsetHeight||600;
+    canvas.width=cssW*dpr;canvas.height=cssH*dpr;canvas.style.width=cssW+'px';canvas.style.height=cssH+'px';
+    const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);ctx.clearRect(0,0,cssW,cssH);
+    const url=`https://raw.githubusercontent.com/protocolfaro/faroprotocol/main/velez/heatmaps/${file}`;
+    return new Promise(res=>{
+        const img=new Image();img.crossOrigin='anonymous';
+        img.onload=()=>{ctx.save();ctx.translate(cssW,0);ctx.rotate(Math.PI/2);ctx.drawImage(img,0,0,736,484,0,0,cssH,cssW);ctx.restore();canvas.style.opacity=_hmVisible?'0.55':'0';res();};
+        img.onerror=()=>{canvas.style.opacity='0';res();};img.src=url;
     });
 }
-
-window.addEventListener('resize', () => {
-    if (_canchaActual) renderHeatmap(_canchaActual);
-});
-
-/* ── NODOS POR CANCHA ─────────────────────────────────────────────────────── */
-function nodosDesdeCancha(cancha) {
-    if (cancha.zonas_estres?.nodos) return cancha.zonas_estres.nodos;
-    const ndvi   = cancha.ndvi || 0.08;
-    const estado = cancha.estado_detectado || 'normal';
-    const s = estado === 'resiembra_activa' ? 0.90 :
-              estado === 'stress_hidrico'   ? 0.70 :
-              estado === 'compactacion'     ? 0.75 :
-              estado === 'fungosis'         ? 0.65 :
-              Math.max(0.08, Math.min(0.95, 1 - (ndvi / 0.65)));
-    const v = ((cancha.id?.charCodeAt(0) || 50) % 10) / 40;
-    return [
-        { x: 0.25, y: 0.15, stress: Math.min(1, s * 0.75 + v)       },
-        { x: 0.75, y: 0.15, stress: Math.min(1, s * 0.70 + v * 0.8) },
-        { x: 0.25, y: 0.50, stress: Math.min(1, s       + v * 0.5)  },
-        { x: 0.75, y: 0.50, stress: Math.min(1, s * 0.95 + v * 0.6) },
-        { x: 0.25, y: 0.85, stress: Math.min(1, s * 0.80 + v * 0.7) },
-        { x: 0.75, y: 0.85, stress: Math.min(1, s * 0.75 + v * 0.9) },
-    ];
+function toggleHeatmap(){
+    _hmVisible=!_hmVisible;
+    const canvas=document.getElementById('heatmapCanvas'),btn=document.getElementById('hmToggle');
+    if(canvas)canvas.style.opacity=_hmVisible?'0.55':'0';
+    if(btn){btn.textContent=_hmVisible?'NDVI ON':'NDVI OFF';btn.className='hm-toggle'+(_hmVisible?' on':'');}
 }
-
-/* ── SYNC ─────────────────────────────────────────────────────────────────── */
-function syncPanelData(cancha, wl, hermesMap = {}) {
-    const hm           = hermesMap[cancha.id] || {};
-    const hermesStatus = hm.hermes_status || null;
-
-    // --- HEATMAP ---
-    _canchaActual = cancha;
-    renderHeatmap(cancha);
-
-    const nodesEl = document.getElementById('nodesOverlay');
-    nodesEl.innerHTML = '';
-    const nodos = nodosDesdeCancha(cancha);
-    nodos.forEach(n => {
-        const dot = document.createElement('div');
-        dot.className = 'node-dot';
-        dot.style.left = `${n.x * 100}%`;
-        dot.style.top  = `${n.y * 100}%`;
-        nodesEl.appendChild(dot);
+window.addEventListener('resize',()=>{if(_hmFile&&_hmVisible)renderHeatmap(_hmFile);});
+function renderZones(cancha){
+    const svg=document.getElementById('prescSvg');if(!svg||!cancha?.zones)return;
+    svg.innerHTML='';const NS='http://www.w3.org/2000/svg';
+    Object.entries(cancha.zones).forEach(([zid,zone])=>{
+        const rc=ZONE_COORDS[zid]||{},u=zone.urgency||'OK',color=hex(u);
+        const isHoy=u==='HOY',isOK=u==='OK',opBase=isOK?0.09:isHoy?0.42:0.28,isActive=_activeZoneId===zid;
+        const g=document.createElementNS(NS,'g');g.style.cursor='pointer';
+        const rect=document.createElementNS(NS,'rect');
+        rect.setAttribute('x',rc.x);rect.setAttribute('y',rc.y);rect.setAttribute('width',rc.w);rect.setAttribute('height',rc.h);
+        rect.setAttribute('fill',color);rect.setAttribute('fill-opacity',isActive?Math.min(0.9,opBase*1.6):opBase);
+        if(isHoy){const anim=document.createElementNS(NS,'animate');anim.setAttribute('attributeName','fill-opacity');anim.setAttribute('values',`${opBase};${opBase*1.9};${opBase}`);anim.setAttribute('dur','1.6s');anim.setAttribute('repeatCount','indefinite');rect.appendChild(anim);}
+        g.appendChild(rect);
+        if(isActive){const br=document.createElementNS(NS,'rect');br.setAttribute('x',rc.x+0.3);br.setAttribute('y',rc.y+0.3);br.setAttribute('width',rc.w-0.6);br.setAttribute('height',rc.h-0.6);br.setAttribute('fill','none');br.setAttribute('stroke','rgba(255,255,255,0.85)');br.setAttribute('stroke-width','0.4');g.appendChild(br);}
+        if(!isOK){
+            const cx=rc.x+rc.w/2,cy=rc.y+rc.h/2;
+            const lbl=document.createElementNS(NS,'text');lbl.setAttribute('x',cx);lbl.setAttribute('y',cy-1.6);lbl.setAttribute('text-anchor','middle');lbl.setAttribute('font-family','Epilogue,sans-serif');lbl.setAttribute('font-size','3.0');lbl.setAttribute('font-weight','700');lbl.setAttribute('fill','#fff');lbl.setAttribute('fill-opacity','0.85');lbl.textContent=ZONE_SHORT[zid]||zid;g.appendChild(lbl);
+            const pt=zone.primary||{};
+            if(pt.type&&pt.type!=='OK'){const sub=document.createElementNS(NS,'text');sub.setAttribute('x',cx);sub.setAttribute('y',cy+2.4);sub.setAttribute('text-anchor','middle');sub.setAttribute('font-family','Epilogue,sans-serif');sub.setAttribute('font-size','2.4');sub.setAttribute('font-weight','700');sub.setAttribute('fill','#fff');sub.setAttribute('fill-opacity','0.65');sub.textContent=pt.type;g.appendChild(sub);}
+        }
+        g.addEventListener('click',()=>selectZone(zid));svg.appendChild(g);
     });
-
-    // --- ESTADO ---
-    const estado    = cancha.estado_detectado || 'normal';
-    const ndvi      = cancha.ndvi != null ? parseFloat(cancha.ndvi) : null;
-    const isCritico = hermesStatus === 'ALERTA_ANOMALIA'
-                   || estado === 'stress_hidrico'
-                   || (ndvi !== null && ndvi < 0.20);
-    const isAlerta  = !isCritico && (estado === 'compactacion' || estado === 'fungosis');
-    const estadoColor = isCritico ? '#ff4444' : isAlerta ? '#ffaa00' : '#44aa44';
-    const estadoLabel = isCritico ? 'CRÍTICO'  : isAlerta ? 'ALERTA'  : 'NORMAL';
-
-    // --- BADGE HEATMAP ---
-    const hmBadge = document.getElementById('hmStatusBadge');
-    if (hmBadge) {
-        hmBadge.textContent       = estadoLabel;
-        hmBadge.style.background  = estadoColor;
-    }
-
-    // --- DATOS OPERATIVOS ---
-    const et0  = wl.et0_mm_dia             != null ? parseFloat(wl.et0_mm_dia)              : null;
-    const ds   = wl.riesgo_dollar_spot_pct != null ? parseFloat(wl.riesgo_dollar_spot_pct)  : null;
-    const temp = wl.temp_superficie_lst_c  != null ? parseFloat(wl.temp_superficie_lst_c)
-               : wl.temp_suelo_0cm         != null ? parseFloat(wl.temp_suelo_0cm)          : null;
-    const hora = wl.hora_riego_optima || null;
-    const ze   = cancha.zonas_estres;
-    const zonaCritica  = ze?.zona_critica || null;
-    const prescripcion = cancha.prescripcion_operativa || cancha.n_rec || null;
-    const canchaName   = cancha.id === 'amalfitani' ? 'AMALFITANI'
-                       : (cancha.id || '').toUpperCase().replace(/_/g, ' ');
-
-    // --- FILAS MÉTRICAS ---
-    const rows = [];
-
-    if (et0 !== null) {
-        let rVal, rCls;
-        if (et0 > 4)      { rVal = `URGENTE — ${et0.toFixed(1)} mm/m²${hora ? ` · óptimo ${hora}` : ''}`; rCls = 'urgente'; }
-        else if (et0 > 2) { rVal = `${et0.toFixed(1)} mm/m² · ${hora ? `óptimo ${hora}` : 'rutinario'}`; rCls = 'alerta'; }
-        else              { rVal = `${et0.toFixed(1)} mm/m² · sin urgencia`; rCls = 'ok'; }
-        rows.push({ label: 'RIEGO', value: rVal, cls: rCls });
-    }
-
-    if (ds !== null) {
-        let hVal, hCls;
-        if (ds > 60)      { hVal = `RIESGO ${ds.toFixed(0)}% — aplicar fungicida urgente`; hCls = 'urgente'; }
-        else if (ds > 30) { hVal = `RIESGO ${ds.toFixed(0)}% — monitorear de cerca`;       hCls = 'alerta'; }
-        else              { hVal = `${ds.toFixed(0)}% — dentro de rango normal`;           hCls = 'ok'; }
-        rows.push({ label: 'HONGOS', value: hVal, cls: hCls });
-    }
-
-    {
-        let cVal, cCls;
-        if (estado === 'compactacion') {
-            cVal = `DETECTADA${zonaCritica ? ' — ' + zonaCritica : ''} — subsolado en 48h`; cCls = 'urgente';
-        } else if (zonaCritica && !/normal/i.test(zonaCritica)) {
-            cVal = zonaCritica; cCls = 'alerta';
-        } else {
-            cVal = 'Sin anomalías detectadas'; cCls = 'ok';
+}
+function selectZone(zid){
+    _activeZoneId=zid;
+    const cancha=_data?.canchas?.[_activeCanchaId];
+    if(cancha)renderZones(cancha);
+    renderZoneDetail(cancha,zid);
+    document.querySelectorAll('.zone-tile').forEach(t=>t.classList.toggle('selected',t.dataset.zone===zid));
+}
+function renderZoneDetail(cancha,zid){
+    const el=document.getElementById('zoneDetailSection');if(!el||!cancha||!zid)return;
+    const zone=cancha.zones?.[zid];if(!zone)return;
+    const u=zone.urgency||'OK',actions=zone.actions||[];
+    const actHtml=actions.length?actions.map(a=>{const ac=ACTION_COL[a.type]||'#6b7280',bg=URG_BG[a.urgency]||'rgba(255,255,255,0.03)';return `<div class="action-item" style="background:${bg};border-left-color:${ac};"><div class="action-item-top"><span class="action-type" style="color:${ac}">${a.type}</span><span class="action-urgency" style="color:${hex(a.urgency)}">${UL[a.urgency]||a.urgency}</span></div><div class="action-detail">${a.detail||''}</div>${a.metric?`<div class="action-metric">${a.metric}</div>`:''}${a.razon?`<div class="action-razon">Por qué: ${a.razon}</div>`:''}</div>`;}).join(''):`<div class="action-item" style="background:rgba(34,197,94,0.06);border-left-color:#22c55e;"><div class="action-item-top"><span class="action-type" style="color:#22c55e">SIN INTERVENCION</span></div><div class="action-detail">Zona en buen estado.</div></div>`;
+    el.innerHTML=`<div class="zone-detail-header"><div class="zone-detail-name">${ZONE_FULL[zid]||zid}</div><div class="zone-detail-urgency" style="background:${hex(u)}">${UL[u]||u}</div></div><div class="action-list">${actHtml}</div>`;
+}
+function _sarCellColor(cls){return cls==='alert'?'#ef4444':cls==='warn'?'#f59e0b':'#22c55e';}
+function renderPanel(cid){
+    if(!_data||!cid)return;_activeCanchaId=cid;
+    const cancha=_data.canchas?.[cid]||{},wl=_data.weather_summary||{},body=document.getElementById('panelBody');if(!body)return;
+    const worstU=cancha.worst_urgency||'OK',ipos=cancha.ipos_score||0,iposPct=Math.min(100,Math.round(ipos/400*100)),iposColor=ipos>250?'#ef4444':ipos>150?'#f59e0b':'#22c55e';
+    const fNivel=wl.fungal_nivel||'bajo',fPct=fNivel==='alto'?80:fNivel==='medio'?45:12,fColor=fNivel==='alto'?'#ef4444':fNivel==='medio'?'#a855f7':'#22c55e';
+    const zoneOrder=['GK_N','AREA_N','MID_N','MID_S','AREA_S','GK_S'];
+    const zGrid=zoneOrder.map(zid=>{const z=cancha.zones?.[zid]||{},u=z.urgency||'OK',pt=z.primary||{},bg=`rgba(${hexRgb(hex(u))},${u==='OK'?0.07:0.18})`,sel=_activeZoneId===zid;return `<div class="zone-tile${sel?' selected':''}" data-zone="${zid}" onclick="selectZone('${zid}')" style="background:${bg};border-color:${u!=='OK'?hex(u):'rgba(255,255,255,0.06)'}"><div class="zone-tile-label">${ZONE_SHORT[zid]||zid}</div><div class="zone-tile-urgency" style="color:${hex(u)}">${UL[u]||u}</div><div class="zone-tile-type" style="color:${ACTION_COL[pt.type]||'#6b7280'}">${pt.type&&pt.type!=='OK'?pt.type:'OK'}</div></div>`;}).join('');
+    const et0=fmt1(wl.et0_mm_dia),et0Sem=fmt1(wl.et0_acumulado_7d||wl.et0_semana_mm),defi=fmt1(wl.deficit_hidrico_mm||wl.deficit_mm),defHigh=parseFloat(defi)>5,hum=fmt0(wl.humedad_suelo_pct),lluvia=fmt1(wl.lluvia_48h_mm),hora=wl.hora_riego_optima||'-',corte=wl.dias_proximo_corte||'-',gdd7=fmt1(wl.gdd_acumulado_7d),gddR=fmt1(wl.gdd_rate_diario);
+    // ── SAR section ──────────────────────────────────────────────────────────
+    const sarVV=wl.sar_vv_db,sarInsar=wl.insar_mm,sarFecha=wl.sar_fecha||'',sarChange=wl.sar_vv_change_6d,vhVv=wl.vh_vv_ratio;
+    const vvCls=sarVV!=null?(sarVV>-7.5?'alert':sarVV>-9.5?'':'warn'):'';
+    const vvLbl=sarVV!=null?(sarVV>-7.5?'COMPACTACIÓN ALTA':sarVV>-9.5?'NORMAL':'SUELO SUELTO'):'—';
+    const chgCls=sarChange!=null?(sarChange<-1.5?'alert':sarChange>1.0?'warn':''):'';
+    const chgLbl=sarChange!=null?(sarChange<-1.5?'MAS SECO':sarChange<-0.5?'SECANDO':sarChange<0.5?'ESTABLE':'HUMEDO'):'—';
+    const insarAbs=sarInsar!=null?Math.abs(sarInsar):0,insarCls=sarInsar!=null?(insarAbs>5?'alert':insarAbs>2?'warn':''):'';
+    const insarLbl=sarInsar!=null?(insarAbs>5?'MOVIM. ALTO':insarAbs>2?'LEVE':'ESTABLE'):'—';
+    const era5_0_7=wl.era5_sm_0_7cm,era5_7_28=wl.era5_sm_7_28cm,era5_28_100=wl.era5_sm_28_100cm,era5_100_289=wl.era5_sm_100_289cm;
+    const era5Html=`<div class="era5-section"><div class="era5-title">ERA5-LAND — HUMEDAD POR CAPA (referencia)</div><div class="era5-grid"><div class="era5-cell"><div class="era5-label">0–7 cm</div><div class="era5-value">${era5_0_7!=null?Math.round(era5_0_7*100):'—'}<span class="era5-unit"> %</span></div></div><div class="era5-cell"><div class="era5-label">7–28 cm</div><div class="era5-value">${era5_7_28!=null?Math.round(era5_7_28*100):'—'}<span class="era5-unit"> %</span></div></div><div class="era5-cell"><div class="era5-label">28–100 cm</div><div class="era5-value">${era5_28_100!=null?Math.round(era5_28_100*100):'—'}<span class="era5-unit"> %</span></div></div><div class="era5-cell"><div class="era5-label">100–289 cm</div><div class="era5-value">${era5_100_289!=null?Math.round(era5_100_289*100):'—'}<span class="era5-unit"> %</span></div></div></div></div>`;
+    const sarHtml=(sarVV!=null||sarInsar!=null)?`<div class="sar-section"><div class="sar-title">RADAR SAR — SENTINEL-1 C-BAND <span class="sar-date">${sarFecha?'img '+sarFecha:''}</span></div><div class="sar-grid"><div class="sar-cell ${vvCls}"><div class="sar-cell-label">COMPACT. VV</div><div class="sar-cell-val">${sarVV!=null?sarVV.toFixed(1):'—'}<span class="sar-cell-unit"> dB</span></div><div class="sar-cell-status" style="color:${_sarCellColor(vvCls)}">${vvLbl}</div></div><div class="sar-cell ${chgCls}"><div class="sar-cell-label">CAMBIO 6d</div><div class="sar-cell-val">${sarChange!=null?(sarChange>=0?'+':'')+sarChange.toFixed(1):'—'}<span class="sar-cell-unit"> dB</span></div><div class="sar-cell-status" style="color:${_sarCellColor(chgCls)}">${chgLbl}</div></div><div class="sar-cell ${insarCls}"><div class="sar-cell-label">INSAR DESPL.</div><div class="sar-cell-val">${sarInsar!=null?(sarInsar>=0?'+':'')+sarInsar.toFixed(1):'—'}<span class="sar-cell-unit"> mm</span></div><div class="sar-cell-status" style="color:${_sarCellColor(insarCls)}">${insarLbl}</div></div></div></div>`:'';
+    // ── Render ───────────────────────────────────────────────────────────────
+    body.innerHTML=`<div class="cancha-head"><div class="cancha-name">${canName(cid)}</div><div class="urgency-badge" style="background:${hex(worstU)}">${UL[worstU]||worstU}</div></div><div class="zone-grid">${zGrid}</div><div class="zone-detail" id="zoneDetailSection"><div style="color:var(--dim);font-size:9px;line-height:1.5;">Selecciona una zona del mapa para ver las acciones recomendadas.</div></div><div class="metrics-section"><div class="metrics-title">ESTADO DEL CAMPO</div><div class="metrics-grid"><div class="metric-cell"><div class="metric-label">ET₀ HOY</div><div class="metric-value">${et0}<span class="metric-unit"> mm/d</span></div></div><div class="metric-cell"><div class="metric-label">ET₀ ACUM 7d</div><div class="metric-value" style="color:${parseFloat(et0Sem)>40?'#f59e0b':'var(--whi)'}">${et0Sem}<span class="metric-unit"> mm</span></div></div><div class="metric-cell"><div class="metric-label">DÉFICIT</div><div class="metric-value" style="color:${defHigh?'#f59e0b':'var(--whi)'}">${defi}<span class="metric-unit"> mm</span></div></div><div class="metric-cell"><div class="metric-label">LLUVIA 48H</div><div class="metric-value">${lluvia}<span class="metric-unit"> mm</span></div></div><div class="metric-cell"><div class="metric-label">RIEGO ÓPTIMO</div><div class="metric-value" style="font-size:10px">${hora}</div></div><div class="metric-cell"><div class="metric-label">CORTE</div><div class="metric-value" style="font-size:10px">${corte}<span class="metric-unit"> dias</span></div></div></div></div>${sarHtml}${era5Html}<div class="gdd-section"><div class="gdd-item"><div class="gdd-label">GDD Acum. 7 dias</div><div class="gdd-value">${gdd7}<span class="gdd-unit"> C</span></div></div><div class="gdd-sep"></div><div class="gdd-item"><div class="gdd-label">GDD por dia</div><div class="gdd-value">${gddR}<span class="gdd-unit"> C</span></div></div></div><div class="fungal-section"><div class="fungal-header"><span class="fungal-label">RIESGO HONGOS (Smith-Kerns)</span><span class="fungal-badge" style="background:${fColor}">${fNivel.toUpperCase()}</span></div><div class="fungal-bar-bg"><div class="fungal-bar-fill" style="width:${fPct}%;background:${fColor}"></div></div><div class="fungal-desc">${wl.fungal_desc||wl.fungal_accion||'Sin datos de riesgo fungico.'}</div></div><div class="ipos-section"><div class="ipos-header"><span class="ipos-label">CARGA IPOS</span><span class="ipos-value">${Math.round(ipos)} pts</span></div><div class="ipos-bar-bg"><div class="ipos-bar-fill" style="width:${iposPct}%;background:${iposColor}"></div></div><div class="ipos-tiers"><span>0</span><span>100</span><span>200</span><span>300</span><span>400+</span></div></div>`;
+    renderZoneDetail(cancha,_activeZoneId);
+}
+let _sarChart=null;
+async function loadSarChart(){
+    const wrap=document.getElementById('sarChartWrap');
+    if(!wrap)return;
+    try{
+        const r=await fetch('https://faroprotocol-production-45fd.up.railway.app/velez/panel-data?timeseries=true',{cache:'no-cache'});
+        if(!r.ok)return;
+        const d=await r.json();
+        const vvSeries=(d.sar_vv_series||[]).filter(v=>v!=null);
+        const hasValidData=vvSeries.length>=2&&new Set(vvSeries).size>1;
+        if(!hasValidData){
+            wrap.innerHTML=`<div style="padding:10px 16px;background:rgba(245,158,11,0.07);border-left:2px solid #f59e0b;"><div style="font-size:8px;font-weight:700;letter-spacing:0.8px;color:#f59e0b;text-transform:uppercase;margin-bottom:3px;">SAR SENTINEL-1 — SIN DATOS REALES AUN</div><div style="font-size:8px;color:var(--dim);line-height:1.5;">Esperando pipeline automatico · NASA_EARTHDATA pendiente en Railway.<br>El gráfico aparecerá automáticamente cuando haya datos reales.</div></div>`;
+            wrap.dataset.loaded='1';wrap.style.display=_activeCanchaId==='amalfitani'?'block':'none';
+            return;
         }
-        rows.push({ label: 'COMPACTACIÓN', value: cVal, cls: cCls });
-    }
-
-    if (temp !== null) {
-        let tVal, tCls;
-        if (temp > 35)      { tVal = `${temp.toFixed(1)}°C — estrés térmico severo`; tCls = 'urgente'; }
-        else if (temp > 28) { tVal = `${temp.toFixed(1)}°C — estrés leve`;           tCls = 'alerta'; }
-        else                { tVal = `${temp.toFixed(1)}°C — rango normal`;          tCls = 'ok'; }
-        rows.push({ label: 'TEMPERATURA', value: tVal, cls: tCls });
-    }
-
-    if (ndvi !== null) {
-        rows.push({
-            label: 'NDVI',
-            value: `${ndvi.toFixed(3)} · ${estado.replace(/_/g, ' ')}`,
-            cls: isCritico ? 'urgente' : isAlerta ? 'alerta' : 'ok'
+        wrap.innerHTML=`<div class="sar-chart-title">SAR VV — COMPACTACIÓN HISTÓRICA (180 días)</div><canvas id="sarTrendChart"></canvas>`;
+        wrap.dataset.loaded='1';wrap.style.display=_activeCanchaId==='amalfitani'?'block':'none';
+        const ctx=document.getElementById('sarTrendChart')?.getContext('2d');
+        if(!ctx)return;
+        if(_sarChart){_sarChart.destroy();_sarChart=null;}
+        _sarChart=new Chart(ctx,{
+            type:'line',
+            data:{labels:d.sar_dates,datasets:[{label:'SAR VV (dB)',data:d.sar_vv_series,borderColor:'#c9a84c',backgroundColor:'rgba(201,168,76,0.08)',borderWidth:1.5,tension:0.3,fill:true,pointRadius:2,pointBackgroundColor:'#c9a84c'}]},
+            options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},title:{display:true,text:'Tendencia SAR VV — últimos 180 días',color:'#c9a84c',font:{family:'Cormorant Garamond',size:11}}},scales:{y:{ticks:{color:'#7a7670',font:{size:8}},grid:{color:'rgba(201,168,76,0.08)'}},x:{ticks:{color:'#7a7670',font:{size:8},maxTicksLimit:7},grid:{display:false}}}}
         });
-    }
-
-    // --- ACCIONES ---
-    const acciones = [];
-    if (et0 !== null && et0 > 4) {
-        acciones.push(`Riego profundo ${et0.toFixed(0)} mm${hora ? ` · ${hora}` : ''}`);
-    } else if (et0 !== null && et0 > 2) {
-        acciones.push(`Riego de mantenimiento ${et0.toFixed(1)} mm`);
-    }
-    if (ds !== null && ds > 30) {
-        acciones.push(`Fungicida preventivo · ${ds.toFixed(0)}% riesgo Dollar Spot`);
-    }
-    if (estado === 'compactacion') {
-        acciones.push('Aireación / subsolado en 48h');
-    }
-    if (isCritico && ndvi !== null && ndvi < 0.20) {
-        acciones.push(`NDVI ${ndvi.toFixed(3)} crítico — reducir carga y fertilizar`);
-    }
-    if (prescripcion) {
-        const partes = prescripcion.split('—').slice(1).join('—').trim();
-        if (partes && partes.length > 5) acciones.push(partes);
-    }
-    if (acciones.length === 0) {
-        acciones.push('Monitoreo rutinario · sin intervención requerida');
-    }
-
-    // --- RENDER CARD OPERATIVA ---
-    const opCard = document.getElementById('uiOpCard');
-    if (!opCard) return;
-
-    opCard.innerHTML =
-        '<div class="op-title">'
-      +   '<div class="op-cancha-name">' + canchaName + '</div>'
-      +   '<div class="op-estado-badge" style="background:' + estadoColor + '">' + estadoLabel + '</div>'
-      + '</div>'
-      + '<div class="op-rows">'
-      + rows.map(function(r) {
-            return '<div class="op-row ' + r.cls + '">'
-                 + '<div class="op-row-label">' + r.label + '</div>'
-                 + '<div class="op-row-value">' + r.value + '</div>'
-                 + '</div>';
-        }).join('')
-      + '</div>'
-      + '<div class="op-actions">'
-      +   '<div class="op-actions-title">ACCIONES</div>'
-      + acciones.map(function(a, i) {
-            return '<div class="op-action-item">'
-                 + '<span class="op-action-num">' + (i + 1) + '</span>'
-                 + '<span class="op-action-text">' + a + '</span>'
-                 + '</div>';
-        }).join('')
-      + '</div>';
-}
-
-/* ── INIT ─────────────────────────────────────────────────────────────────── */
-async function masterInit(data = null) {
-    try {
-        if (!data) {
-            const res = await fetch(ENDPOINT, { cache: 'no-cache' });
-            data = await res.json();
-        }
-        wlGlobal       = data.weather_live || {};
-        hermesMapGlobal = data.usuarios?.roger?.heatmaps || {};
-
-        const estadio = data.sectores?.estadio
-            ? [{
-                ...data.sectores.estadio,
-                ...(data.usuarios?.roger?.heatmaps?.amalfitani || {}),
-                id: 'amalfitani',
-                nombre: 'Amalfitani'
-              }]
-            : [];
-        const vo = data.sectores?.canchero?.canchas || [];
-        dataGlobal = [...estadio, ...vo];
-        if (dataGlobal.length === 0) throw new Error('Sin canchas');
-
-        const tabsEl = document.getElementById('tabsCanchas');
-        tabsEl.innerHTML = '';
-        dataGlobal.forEach((c, i) => {
-            if (i === 1 && estadio.length > 0) {
-                const sep = document.createElement('span');
-                sep.className = 'tab-sep';
-                tabsEl.appendChild(sep);
-            }
-            const btn = document.createElement('button');
-            btn.className = 'tab-btn' + (i === 0 ? ' active' : '');
-            btn.textContent = c.id === 'amalfitani' ? 'AMALFITANI' : (c.id || '').toUpperCase();
-            btn.onclick = () => {
-                tabsEl.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                syncPanelData(c, wlGlobal, hermesMapGlobal);
-            };
-            tabsEl.appendChild(btn);
-        });
-
-        syncPanelData(dataGlobal[0], wlGlobal, hermesMapGlobal);
-
-    } catch (err) {
-        console.error('Panel error:', err);
-        const oc = document.getElementById('uiOpCard');
-        if (oc) oc.innerHTML = '<div style="padding:20px;color:#d94f4f;font-size:11px">Error cargando telemetría — reintentando en 5 min</div>';
+    }catch(e){
+        wrap.innerHTML=`<div style="padding:10px 16px;background:rgba(239,68,68,0.06);border-left:2px solid var(--red);"><div style="font-size:8px;font-weight:700;color:var(--red);">Error cargando SAR histórico</div></div>`;
+        wrap.style.display='block';
+        console.warn('SAR chart:',e);
     }
 }
-
-async function pollLoop() {
-    try {
-        const res  = await fetch(ENDPOINT, { cache: 'no-cache' });
-        const data = await res.json();
-        const serverTs = data.updated_at;
-
-        if (serverTs !== lastUpdatedAt) {
-            lastUpdatedAt = serverTs;
-            await masterInit(data);
-            updateSyncBadge(serverTs, true);
-        } else {
-            updateSyncBadge(serverTs, false);
-        }
-    } catch (err) {
-        console.error('Poll error:', err);
-    }
-    setTimeout(pollLoop, POLL_INTERVAL_MS);
+async function loadSarGrid(){
+    try{
+        const r=await fetch('https://faroprotocol-production-45fd.up.railway.app/velez/panel-data?format=3x3',{cache:'no-cache'});
+        if(!r.ok)return;
+        const d=await r.json();
+        if(!d.sectores||!d.sectores.length)return;
+        const sec=document.getElementById('grid3x3Section'),body=document.getElementById('grid3x3Body');
+        if(!sec||!body)return;
+        sec.style.display='block';
+        body.innerHTML=`<div class="grid3x3-grid">${d.sectores.map(s=>`<div class="g3-cell ${s.accion_urgencia}"><div class="g3-id">${s.fila} ${s.columna}</div><div class="g3-vv">${s.sar_vv_db.toFixed(1)} dB</div><div class="g3-hum">${s.humedad_suelo_pct.toFixed(0)}% · ${s.recomendacion_riego_mm.toFixed(0)}mm riego</div><div class="g3-accion">${s.accion_proxima}</div></div>`).join('')}</div>`;
+    }catch(e){console.warn('SAR grid:',e);}
 }
-
-function updateSyncBadge(ts, isNew) {
-    const el = document.querySelector('.panel-sync');
-    if (!el) return;
-    const fecha = ts ? new Date(ts) : new Date();
-    const hace  = Math.round((Date.now() - fecha.getTime()) / 60000);
-    el.innerHTML = `
-        ${fecha.toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'})} UTC<br>
-        <span style="font-size:7px;opacity:0.7">
-            ${isNew ? '🟢 ACTUALIZADO' : `hace ${hace} min`} · SAT/RADAR/CLIMA
-        </span>`;
+function toggleGrid3x3(){
+    const b=document.getElementById('grid3x3Body'),t=document.getElementById('grid3x3Toggle');
+    if(!b)return;
+    b.classList.toggle('open');
+    if(t)t.textContent=b.classList.contains('open')?'▲ CERRAR':'▼ VER';
 }
-
-window.onload = pollLoop;
+function activateCancha(cid){
+    _activeCanchaId=cid;const cancha=_data?.canchas?.[cid];
+    renderPanel(cid);renderZones(cancha);updateSatBadge(cancha);
+    if(cancha?.heatmap_archivo)renderHeatmap(cancha.heatmap_archivo);
+    renderZoneDetail(cancha,_activeZoneId);
+    // SAR chart + Grid 3×3 solo visibles para Amalfitani
+    const isAmal=cid==='amalfitani';
+    const cw=document.getElementById('sarChartWrap'),g3=document.getElementById('grid3x3Section');
+    if(cw&&cw.dataset.loaded)cw.style.display=isAmal?'block':'none';
+    if(g3)g3.style.display=isAmal?'block':'none';
+}
+function buildTabs(){
+    const tabsEl=document.getElementById('tabsCanchas');if(!tabsEl||!_data?.canchas)return;
+    tabsEl.innerHTML='';const ids=Object.keys(_data.canchas);
+    ids.forEach((cid,i)=>{
+        if(i===1&&ids[0]==='amalfitani'){const sep=document.createElement('span');sep.className='tab-sep';tabsEl.appendChild(sep);}
+        const btn=document.createElement('button');btn.className='tab-btn'+(i===0?' active':'');btn.textContent=canName(cid);
+        btn.onclick=()=>{tabsEl.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');_activeZoneId='GK_N';activateCancha(cid);};
+        tabsEl.appendChild(btn);
+    });
+}
+function updateHeader(){
+    const el=document.getElementById('panelSync');if(!el)return;
+    const wl=_data?.weather_summary||{},ts=wl.timestamp?new Date(wl.timestamp).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}):'-',gen=_data?.generated_at?new Date(_data.generated_at).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}):'-';
+    el.innerHTML=`CLIMA ${ts}<br><span style="font-size:7px;opacity:0.6">prescripcion ${gen}</span>`;
+}
+async function init(raw){
+    try{
+        if(!raw){const res=await fetch(ENDPOINT,{cache:'no-cache'});if(!res.ok)throw new Error(`HTTP ${res.status}`);raw=await res.json();}
+        _data=raw;updateHeader();buildTabs();
+        const firstId=Object.keys(_data.canchas||{})[0];if(firstId){_activeZoneId='GK_N';activateCancha(firstId);}
+        loadSarChart();loadSarGrid();
+    }catch(e){console.error('Prescription panel error:',e);const body=document.getElementById('panelBody');if(body)body.innerHTML=`<div style="padding:20px 16px;color:#ef4444;font-size:10px;">Error cargando prescripciones - reintentando en 5 min<br><span style="opacity:0.5;font-size:9px">${e}</span></div>`;}
+}
+async function pollLoop(){
+    try{const res=await fetch(ENDPOINT,{cache:'no-cache'});if(res.ok){_data=await res.json();updateHeader();if(_activeCanchaId)activateCancha(_activeCanchaId);loadSarChart();loadSarGrid();}}
+    catch(e){console.warn('Poll:',e);}
+    setTimeout(pollLoop,POLL_MS);
+}
+window.onload=async()=>{await init();setTimeout(pollLoop,POLL_MS);};
 </script>
 </body>
 </html>
