@@ -1149,21 +1149,33 @@ def velez_prescriptions():
             if cid and not c.get("heatmap_archivo"):
                 c["heatmap_archivo"] = hm_dict.get(cid, {}).get("heatmap_archivo")
 
-        # Inject insar_mm + sar_fecha from sectores.estadio into weather_live
+        # Inject insar_mm from sectores.estadio into weather_live
         est = vd.get("sectores", {}).get("estadio", {})
         if est.get("insar_mm") is not None and weather_live.get("insar_mm") is None:
             weather_live["insar_mm"] = est["insar_mm"]
-        # sar_fecha: prefer faro_v2_reports date, fallback to fecha_imagen in soil_metrics
-        if weather_live.get("sar_vv_db") is not None and weather_live.get("sar_fecha") is None:
+
+        # Inject sar_vv_db + sar_fecha from soil_metrics when faro_v2_reports SAR vacío
+        if weather_live.get("sar_vv_db") is None:
             try:
                 import velez_supabase as _vs2
                 _sm = _vs2.get_soil_metrics_latest("amalfitani", dias=30)
-                _sar_rows = [r for r in _sm if r.get("sar_vv_db") is not None]
+                # filtro físico: -30 < VV < -4 dB (rango válido sobre césped C-band)
+                _sar_rows = sorted(
+                    [r for r in _sm
+                     if r.get("sar_vv_db") is not None
+                     and -30.0 < float(r["sar_vv_db"]) < -4.0],
+                    key=lambda r: (r.get("fecha_imagen") or ""),
+                    reverse=True,
+                )
                 if _sar_rows:
-                    weather_live["sar_fecha"] = (_sar_rows[0].get("fecha_imagen") or
-                                                  _sar_rows[0].get("created_at", ""))[:10]
-            except Exception:
-                pass
+                    weather_live["sar_vv_db"] = float(_sar_rows[0]["sar_vv_db"])
+                    weather_live["sar_vh_db"] = (float(_sar_rows[0]["sar_vh_db"])
+                                                  if _sar_rows[0].get("sar_vh_db") else None)
+                    weather_live["sar_fecha"] = (_sar_rows[0].get("fecha_imagen") or "")[:10]
+                    log.debug("prescriptions: sar_vv_db=%.2f fecha=%s (from soil_metrics)",
+                              weather_live["sar_vv_db"], weather_live["sar_fecha"])
+            except Exception as _e:
+                log.debug("prescriptions sar inject: %s", _e)
 
         payload = fp.generate_prescriptions(roger_canchas, weather_live)
         resp = jsonify(payload)
