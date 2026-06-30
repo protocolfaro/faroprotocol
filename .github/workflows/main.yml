@@ -1,0 +1,39 @@
+name: ERA5-Land Sectorial Daily
+
+on:
+  schedule:
+    - cron: '0 12 * * *'
+  workflow_dispatch:
+
+jobs:
+  process_era5:
+    runs-on: ubuntu-latest
+    
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+      CDS_API_KEY: ${{ secrets.CDS_API_KEY }}
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          cd railway-backend
+          pip install -r requirements.txt
+      
+      - name: Run ERA5-Land processor
+        run: |
+          cd railway-backend
+          python sports/clients/velez/faro_era5_land_sectorial.py
+      
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "ERA5-Land job failed"
+          exit 1
