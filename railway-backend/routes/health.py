@@ -85,18 +85,18 @@ def _system_metrics() -> dict:
 
 
 def _era5_status() -> dict:
+    # climate_metrics_sectorial uses sector_id (no venue_id) — query without filter
     rows = _sb("climate_metrics_sectorial", {
-        "venue_id": f"eq.{_VENUE_ID}",
-        "order":    "created_at.desc",
-        "limit":    "1",
-        "select":   "created_at,et0_mm_dia",
+        "order":  "created_at.desc",
+        "limit":  "1",
+        "select": "created_at,et0_mm_dia",
     })
     if not rows:
+        # climate_metrics uses venue_id="amalfitani"/"villa_olimpica" (not "velez")
         rows = _sb("climate_metrics", {
-            "venue_id": f"eq.{_VENUE_ID}",
-            "order":    "created_at.desc",
-            "limit":    "1",
-            "select":   "created_at,et0_mm_dia",
+            "order":  "created_at.desc",
+            "limit":  "1",
+            "select": "created_at,et0_mm_dia",
         })
     lag = _age_hours(rows[0].get("created_at") if rows else None)
     return {
@@ -123,12 +123,12 @@ def _dprvi_status() -> dict:
 
 
 def _kalman_status() -> dict:
+    # vegetation_metrics uses venue_id="amalfitani" — query without venue filter
     rows = _sb("vegetation_metrics", {
-        "venue_id":          f"eq.{_VENUE_ID}",
-        "ndvi_sintetico":    "not.is.null",
-        "order":             "created_at.desc",
-        "limit":             "1",
-        "select":            "created_at,ndvi_sintetico,margen_error_kalman",
+        "ndvi_sintetico": "not.is.null",
+        "order":          "created_at.desc",
+        "limit":          "1",
+        "select":         "created_at,ndvi_sintetico,margen_error_kalman",
     })
     lag = _age_hours(rows[0].get("created_at") if rows else None)
     return {
@@ -141,11 +141,11 @@ def _kalman_status() -> dict:
 
 
 def _sar_status() -> dict:
+    # soil_metrics uses venue_id="amalfitani" — query without venue filter
     rows = _sb("soil_metrics", {
-        "venue_id": f"eq.{_VENUE_ID}",
-        "order":    "created_at.desc",
-        "limit":    "1",
-        "select":   "created_at,sar_vv_db,theta_soil",
+        "order":  "created_at.desc",
+        "limit":  "1",
+        "select": "created_at,sar_vv_db,theta_soil",
     })
     lag = _age_hours(rows[0].get("created_at") if rows else None)
     return {

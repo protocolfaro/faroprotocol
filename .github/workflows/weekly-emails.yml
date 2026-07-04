@@ -82,10 +82,13 @@ jobs:
       - name: Fase C — Emails semanales (solo lunes)
         if: steps.fase_a.outputs.send_email == 'true'
         env:
-          GMAIL_USER:     protocolfaro@gmail.com
-          GMAIL_APP_PASS: ${{ secrets.GMAIL_APP_PASS }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          RESEND_FROM:    ${{ secrets.RESEND_FROM }}
           RAILWAY_URL:    ${{ secrets.RAILWAY_URL }}
-          BREVO_API_KEY:  ${{ secrets.BREVO_API_KEY }}
+          SUPABASE_URL:   ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:   ${{ secrets.SUPABASE_KEY }}
+          NASA_EARTHDATA_USER: ${{ secrets.NASA_EARTHDATA_USER }}
+          NASA_EARTHDATA_PASS: ${{ secrets.NASA_EARTHDATA_PASS }}
         run: python railway-backend/sports/clients/velez/velez_scheduler.py
 
       - name: Resumen
