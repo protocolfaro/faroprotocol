@@ -60,7 +60,8 @@ except ImportError:
 _SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
 _SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
 _CDS_KEY      = os.environ.get("CDS_API_KEY", "")   # formato: "UID:APIkey"
-_CDS_URL      = "https://cds.climate.copernicus.eu/api/v2"
+# Nueva plataforma CDS (2024+): /api — la vieja /api/v2 devuelve 404 con keys nuevas
+_CDS_URL      = "https://cds.climate.copernicus.eu/api"
 
 # ── Cargar definiciones de sectores ───────────────────────────────────────────
 

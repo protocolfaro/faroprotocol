@@ -41,3 +41,4 @@ earthengine-api>=0.1.390
 tenacity>=8.2.0
 cdsapi>=0.6.1
 netCDF4>=1.6.5
+cryptography>=41.0.0
