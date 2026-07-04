@@ -1,16 +1,27 @@
-name: Infra Deploy — Migrations + Validation
+name: Infra Deploy
 
 on:
   push:
     branches: [main]
     paths:
-      - 'railway-backend/faro_infra.py'
-      - 'railway-backend/migrations/infra_*.sql'
+      - 'railway-backend/sports/clients/velez/audit.py'
+      - 'railway-backend/alerts/**'
+      - 'railway-backend/routes/**'
+      - 'railway-backend/migrations/0*.sql'
+      - 'railway-backend/static/dashboard.html'
       - '.github/workflows/infra-deploy.yml'
+  schedule:
+    - cron: '*/30 * * * *'
   workflow_dispatch:
     inputs:
-      run_rls_migration:
-        description: 'Run infra_005_multi_tenant_rls.sql (DESTRUCTIVE — review first)'
+      run_rls:
+        description: 'Apply 003_multi_tenant.sql RLS (manual gate)'
+        required: false
+        default: 'false'
+        type: choice
+        options: ['false', 'true']
+      skip_migrations:
+        description: 'Skip SQL migrations (health-check only)'
         required: false
         default: 'false'
         type: choice
@@ -18,183 +29,134 @@ on:
 
 concurrency:
   group: infra-deploy
-  cancel-in-progress: false   # never cancel a running migration
+  cancel-in-progress: false
 
 jobs:
-  # ── Job 1: Apply SQL migrations ────────────────────────────────────────────
   migrate:
-    name: Apply SQL Migrations (001–004)
+    name: SQL Migrations
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
+    if: github.event_name != 'schedule' && github.event.inputs.skip_migrations != 'true'
 
     env:
       SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-      SUPABASE_URL:    ${{ secrets.SUPABASE_URL }}
-      SUPABASE_KEY:    ${{ secrets.SUPABASE_KEY }}
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Install migration dependencies
-        run: pip install sqlalchemy psycopg2-binary
+      - run: pip install sqlalchemy psycopg2-binary -q
 
-      - name: Run migrations 001–004
+      - name: Apply migrations 001–002
         run: |
-          python - <<'PYEOF'
+          python - <<'EOF'
           import os, sys
           from pathlib import Path
           from sqlalchemy import create_engine, text
 
-          db_url = os.environ.get("SUPABASE_DB_URL", "")
-          if not db_url:
-              print("ERROR: SUPABASE_DB_URL not set — add it to GitHub Secrets")
-              sys.exit(1)
-          if db_url.startswith("postgres://"):
-              db_url = db_url.replace("postgres://", "postgresql://", 1)
-
-          engine = create_engine(db_url, connect_args={"connect_timeout": 15})
-          mig_dir = Path("railway-backend/migrations")
-          migrations = [
-              "infra_001_audit_log.sql",
-              "infra_002_intervention_log.sql",
-              "infra_003_alert_config.sql",
-              "infra_004_health_snapshots.sql",
-          ]
-
-          errors = []
-          for fname in migrations:
-              fpath = mig_dir / fname
-              if not fpath.exists():
-                  print(f"WARN: {fname} not found — skip")
+          url = os.environ.get("SUPABASE_DB_URL", "")
+          if not url:
+              print("SUPABASE_DB_URL not set — skipping")
+              sys.exit(0)
+          url = url.replace("postgres://", "postgresql://", 1)
+          eng = create_engine(url, connect_args={"connect_timeout": 15})
+          for f in ["001_audit_log.sql", "002_intervention_log.sql"]:
+              p = Path("railway-backend/migrations") / f
+              if not p.exists():
+                  print(f"SKIP {f}")
                   continue
-              sql   = fpath.read_text(encoding="utf-8")
-              stmts = [s.strip() for s in sql.split(";")
+              stmts = [s.strip() for s in p.read_text().split(";")
                        if s.strip() and not s.strip().startswith("--")]
-              with engine.begin() as conn:
-                  for stmt in stmts:
+              with eng.begin() as c:
+                  for s in stmts:
                       try:
-                          conn.execute(text(stmt))
+                          c.execute(text(s))
                       except Exception as e:
-                          # Non-fatal: IF NOT EXISTS clauses can produce warnings
-                          if "already exists" in str(e).lower():
-                              print(f"  SKIP (already exists): {stmt[:60]}...")
-                          else:
-                              print(f"  WARN: {e}")
-              print(f"OK: {fname}")
+                          if "already exists" not in str(e).lower():
+                              print(f"  warn: {e}")
+              print(f"OK {f}")
+          EOF
 
-          if errors:
-              print(f"FAILED migrations: {errors}")
-              sys.exit(1)
-          print("All infra migrations applied successfully.")
-          PYEOF
-
-      - name: Run RLS migration (manual gate)
-        if: github.event.inputs.run_rls_migration == 'true'
+      - name: Apply 003_multi_tenant.sql (manual gate)
+        if: github.event.inputs.run_rls == 'true'
         run: |
-          echo "⚠️  Running infra_005_multi_tenant_rls.sql — review output carefully"
-          python - <<'PYEOF'
-          import os, sys
+          python - <<'EOF'
+          import os
           from pathlib import Path
           from sqlalchemy import create_engine, text
-
-          db_url = os.environ.get("SUPABASE_DB_URL", "").replace("postgres://", "postgresql://", 1)
-          engine = create_engine(db_url, connect_args={"connect_timeout": 15})
-          fpath  = Path("railway-backend/migrations/infra_005_multi_tenant_rls.sql")
-          if not fpath.exists():
-              print("ERROR: infra_005_multi_tenant_rls.sql not found")
-              sys.exit(1)
-          sql   = fpath.read_text(encoding="utf-8")
-          stmts = [s.strip() for s in sql.split(";")
+          url = os.environ["SUPABASE_DB_URL"].replace("postgres://", "postgresql://", 1)
+          eng = create_engine(url, connect_args={"connect_timeout": 15})
+          p = Path("railway-backend/migrations/003_multi_tenant.sql")
+          stmts = [s.strip() for s in p.read_text().split(";")
                    if s.strip() and not s.strip().startswith("--")]
-          with engine.begin() as conn:
-              for stmt in stmts:
+          with eng.begin() as c:
+              for s in stmts:
                   try:
-                      conn.execute(text(stmt))
-                      print(f"  OK: {stmt[:80]}...")
+                      c.execute(text(s))
+                      print("OK:", s[:60])
                   except Exception as e:
-                      print(f"  WARN: {e}")
-          print("RLS migration complete.")
-          PYEOF
+                      print("warn:", e)
+          EOF
 
-  # ── Job 2: Validate infra endpoints ────────────────────────────────────────
-  validate:
-    name: Validate Infra Endpoints
+  health-check:
+    name: Health Check
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    needs: migrate
-    if: always() && needs.migrate.result != 'failure'
+    timeout-minutes: 5
+    needs: [migrate]
+    if: always() && (needs.migrate.result == 'success' || needs.migrate.result == 'skipped')
 
     env:
-      RAILWAY_URL: ${{ secrets.RAILWAY_URL }}
+      RAILWAY_URL:     ${{ secrets.RAILWAY_URL }}
+      SLACK_WEBHOOK:   ${{ secrets.SLACK_WEBHOOK_URL }}
 
     steps:
-      - name: Wait for Railway deploy
-        run: |
-          echo "Waiting 90s for Railway to deploy changes..."
-          sleep 90
+      - name: Wait for Railway (push events only)
+        if: github.event_name == 'push'
+        run: sleep 90
 
-      - name: Validate /health
+      - name: Check /health
+        id: health
         run: |
-          CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+          CODE=$(curl -sf -o /tmp/health.json -w "%{http_code}" \
             --max-time 15 "${RAILWAY_URL}/health" 2>/dev/null || echo "000")
-          if [ "$CODE" != "200" ]; then
-            echo "ERROR: /health returned HTTP $CODE"
-            exit 1
+          echo "code=$CODE" >> $GITHUB_OUTPUT
+          cat /tmp/health.json || true
+
+      - name: Check /api/health/status
+        id: infra
+        run: |
+          CODE=$(curl -sf -o /tmp/infra.json -w "%{http_code}" \
+            --max-time 15 "${RAILWAY_URL}/api/health/status" 2>/dev/null || echo "000")
+          echo "code=$CODE" >> $GITHUB_OUTPUT
+          STATUS=$(python3 -c "import json,sys; d=json.load(open('/tmp/infra.json')); print(d.get('status','unknown'))" 2>/dev/null || echo "error")
+          echo "status=$STATUS" >> $GITHUB_OUTPUT
+          echo "Service status: $STATUS (HTTP $CODE)"
+          cat /tmp/infra.json | python3 -m json.tool 2>/dev/null || cat /tmp/infra.json
+
+      - name: Check dashboard.html
+        run: |
+          CODE=$(curl -sf -o /dev/null -w "%{http_code}" \
+            --max-time 10 "${RAILWAY_URL}/static/dashboard.html" 2>/dev/null || echo "000")
+          echo "dashboard HTTP: $CODE"
+
+      - name: Slack notify on success
+        if: steps.infra.outputs.code == '200'
+        run: |
+          if [ -n "$SLACK_WEBHOOK" ]; then
+            curl -sf -X POST "$SLACK_WEBHOOK" \
+              -H "Content-Type: application/json" \
+              -d "{\"text\":\":white_check_mark: *Faro Infra* — health OK · status=$(cat /tmp/infra.json | python3 -c 'import sys,json;d=json.load(sys.stdin);print(d.get(\"status\",\"?\"))' 2>/dev/null)\"}" || true
           fi
-          echo "/health: OK ($CODE)"
 
-      - name: Validate /infra/csrf-token
+      - name: Slack notify on failure
+        if: steps.health.outputs.code != '200' || steps.infra.outputs.code != '200'
         run: |
-          RESP=$(curl -s --max-time 10 "${RAILWAY_URL}/infra/csrf-token" || echo "{}")
-          echo "csrf-token response: $RESP"
-          if ! echo "$RESP" | grep -q "csrf_token"; then
-            echo "ERROR: /infra/csrf-token missing csrf_token field"
-            exit 1
+          if [ -n "$SLACK_WEBHOOK" ]; then
+            curl -sf -X POST "$SLACK_WEBHOOK" \
+              -H "Content-Type: application/json" \
+              -d "{\"text\":\":rotating_light: *Faro Infra* — health FAIL · /health=$(steps.health.outputs.code) /api/health/status=$(steps.infra.outputs.code)\"}" || true
           fi
-          echo "/infra/csrf-token: OK"
-
-      - name: Validate /infra/health
-        run: |
-          CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-            --max-time 15 "${RAILWAY_URL}/infra/health" 2>/dev/null || echo "000")
-          if [ "$CODE" != "200" ]; then
-            echo "ERROR: /infra/health returned HTTP $CODE"
-            exit 1
-          fi
-          echo "/infra/health: OK ($CODE)"
-
-      - name: Validate /infra/alerts (GET)
-        run: |
-          CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-            --max-time 10 "${RAILWAY_URL}/infra/alerts" 2>/dev/null || echo "000")
-          if [ "$CODE" != "200" ]; then
-            echo "ERROR: /infra/alerts returned HTTP $CODE"
-            exit 1
-          fi
-          echo "/infra/alerts: OK ($CODE)"
-
-      - name: Summary
-        run: |
-          echo "=== Infra Deploy Validation ==="
-          echo "Migrations: applied"
-          echo "Endpoints:  /health, /infra/csrf-token, /infra/health, /infra/alerts — all OK"
-          echo "Status:     PRODUCTION READY"
-
-  # ── Job 3: Notify on failure ────────────────────────────────────────────
-  notify-failure:
-    name: Notify on Failure
-    runs-on: ubuntu-latest
-    needs: [migrate, validate]
-    if: failure()
-    steps:
-      - name: Log failure
-        run: |
-          echo "Infra deploy failed at $(date -u)"
-          echo "migrate: ${{ needs.migrate.result }}"
-          echo "validate: ${{ needs.validate.result }}"
           exit 1

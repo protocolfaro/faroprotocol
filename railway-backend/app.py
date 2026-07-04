@@ -38,6 +38,14 @@ except ImportError as _infra_err:
     import logging as _ilog
     _ilog.getLogger(__name__).warning("faro_infra skip: %s", _infra_err)
 try:
+    import sys as _sys_r, os as _os_r
+    _sys_r.path.insert(0, _os_r.path.join(_HERE, "routes"))
+    from routes.health import health_bp as _health_bp
+    app.register_blueprint(_health_bp)
+except Exception as _health_err:
+    import logging as _hlog
+    _hlog.getLogger(__name__).warning("routes.health skip: %s", _health_err)
+try:
     import tiles_blueprint as _tiles_mod
     app.register_blueprint(_tiles_mod.tiles_bp)
 except ImportError as _tile_err:
@@ -1683,6 +1691,13 @@ try:
     _init_infra(app, _scheduler)
 except Exception as _infra_init_err:
     log.warning("faro_infra init (non-fatal): %s", _infra_init_err)
+
+# ── Alert system: ERA5 lag, DpRVIc lag, Kalman, SAR — every 30 min ────────────
+try:
+    from alerts.system import register_alert_scheduler as _reg_alerts
+    _reg_alerts(_scheduler)
+except Exception as _alert_err:
+    log.warning("alerts.system scheduler (non-fatal): %s", _alert_err)
 
 def _route_velez_test_report():
     """POST /velez/test_report — genera PNGs _TEST con datos live y manda mail."""

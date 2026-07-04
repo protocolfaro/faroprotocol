@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Faro Protocol · Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Epilogue:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0e27;--s0:#0f1535;--s1:#151c42;--s2:#1c2550;
+  --border:#252d5a;--border-faint:#1a2148;
+  --gold:#c9a84c;--gold-dim:#7a6330;--gold-glow:rgba(201,168,76,.10);
+  --text:#d8ddf5;--muted:#6b7db3;--dim:#3a4470;
+  --ok:#3dd68c;--warn:#f5c842;--err:#f55f42;--info:#5ab0d8;--unknown:#6b7db3;
+  --font-h:'Cormorant Garamond',Georgia,serif;
+  --font-b:'Epilogue',system-ui,sans-serif;
+  --r:8px;
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--font-b);font-size:14px;line-height:1.5;min-height:100vh}
+a{color:inherit;text-decoration:none}
+
+.wrap{max-width:1280px;margin:0 auto;padding:0 16px}
+
+/* ── Header ── */
+header{background:var(--s0);border-bottom:1px solid var(--border);padding:0}
+.hdr-inner{display:flex;align-items:center;justify-content:space-between;gap:16px;height:56px;flex-wrap:wrap}
+.hdr-logo{display:flex;align-items:center;gap:12px}
+.hdr-logo h1{font-family:var(--font-h);font-size:20px;font-weight:700;letter-spacing:.08em;color:var(--gold)}
+.hdr-logo span{font-size:11px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase}
+.hdr-meta{display:flex;align-items:center;gap:14px;font-size:12px;color:var(--muted)}
+.dot-live{width:6px;height:6px;border-radius:50%;background:var(--ok);flex-shrink:0;animation:blink 2s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+.countdown{font-variant-numeric:tabular-nums;min-width:28px;text-align:right}
+
+/* ── Main ── */
+main{padding:28px 0 60px}
+.section-head{display:flex;align-items:baseline;gap:10px;margin-bottom:16px}
+.section-head h2{font-family:var(--font-h);font-size:18px;font-weight:700;color:var(--gold);letter-spacing:.06em}
+.section-head span{font-size:11px;color:var(--muted)}
+
+/* ── Services grid ── */
+.services-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-bottom:32px}
+.svc-card{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:20px;position:relative;overflow:hidden;transition:border-color .25s}
+.svc-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--dim);border-radius:var(--r) var(--r) 0 0;transition:background .3s}
+.svc-card.ok::before{background:var(--ok)}
+.svc-card.warn::before{background:var(--warn)}
+.svc-card.error::before{background:var(--err)}
+.svc-card.unknown::before{background:var(--unknown)}
+.svc-label{font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.svc-label-dot{width:5px;height:5px;border-radius:50%;background:currentColor}
+.svc-name{font-family:var(--font-h);font-size:22px;font-weight:700;color:var(--text);margin-bottom:6px;line-height:1}
+.svc-status{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px}
+.svc-status.ok{color:var(--ok)}
+.svc-status.warn{color:var(--warn)}
+.svc-status.error{color:var(--err)}
+.svc-status.unknown{color:var(--unknown)}
+.svc-row{display:flex;justify-content:space-between;align-items:center;margin-top:4px}
+.svc-key{font-size:11px;color:var(--muted)}
+.svc-val{font-size:12px;font-weight:500;color:var(--text);font-variant-numeric:tabular-nums}
+.svc-val.ok{color:var(--ok)}
+.svc-val.warn{color:var(--warn)}
+.svc-val.err{color:var(--err)}
+.svc-bar{height:4px;background:var(--border);border-radius:2px;margin-top:12px;overflow:hidden}
+.svc-bar-fill{height:100%;border-radius:2px;transition:width .4s ease,background .3s}
+.svc-divider{border:none;border-top:1px solid var(--border-faint);margin:10px 0}
+
+/* ── Activity table ── */
+.card{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:20px}
+.card-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border-faint)}
+.card-head h3{font-family:var(--font-h);font-size:15px;font-weight:700;letter-spacing:.04em}
+.card-ctrl{display:flex;gap:8px;align-items:center}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;border:1px solid transparent;transition:all .2s}
+.chip-active{background:var(--gold-glow);border-color:var(--gold-dim);color:var(--gold)}
+.chip-idle{color:var(--muted);border-color:var(--border)}
+.chip-idle:hover{border-color:var(--gold-dim);color:var(--gold)}
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);padding:10px 16px;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap}
+td{padding:9px 16px;border-bottom:1px solid var(--border-faint);font-size:12px;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.02)}
+.mono{font-family:'Courier New',monospace;font-size:11px}
+.pill{display:inline-block;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:600}
+.pill-ok{background:rgba(61,214,140,.12);color:var(--ok)}
+.pill-warn{background:rgba(245,200,66,.12);color:var(--warn)}
+.pill-err{background:rgba(245,95,66,.12);color:var(--err)}
+.pill-info{background:rgba(90,176,216,.12);color:var(--info)}
+.txt-muted{color:var(--muted)}
+.txt-err{color:var(--err)}
+.ellipsis{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ── Empty / Loading ── */
+.empty-row td{text-align:center;padding:28px;color:var(--muted)}
+
+/* ── Footer ── */
+footer{border-top:1px solid var(--border);padding:16px 0;text-align:center;font-size:11px;color:var(--dim)}
+
+/* ── Mobile ── */
+@media(max-width:640px){
+  .hdr-meta .countdown,.hdr-meta .dot-live+span{display:none}
+  th:nth-child(n+5),td:nth-child(n+5){display:none}
+}
+</style>
+</head>
+<body>
+
+<header>
+<div class="wrap">
+  <div class="hdr-inner">
+    <div class="hdr-logo">
+      <h1>FARO PROTOCOL</h1>
+      <span>System Dashboard</span>
+    </div>
+    <div class="hdr-meta">
+      <div class="dot-live"></div>
+      <span id="overall-status">Conectando...</span>
+      <span>· Health en <span class="countdown" id="cd-health">30</span>s</span>
+      <span>· Logs en <span class="countdown" id="cd-logs">60</span>s</span>
+    </div>
+  </div>
+</div>
+</header>
+
+<main>
+<div class="wrap">
+
+  <div class="section-head">
+    <h2>Estado de Servicios</h2>
+    <span id="svc-ts"></span>
+  </div>
+
+  <div class="services-grid" id="svc-grid">
+    <div class="svc-card unknown"><div class="svc-label">Cargando...</div></div>
+    <div class="svc-card unknown"><div class="svc-label">Cargando...</div></div>
+    <div class="svc-card unknown"><div class="svc-label">Cargando...</div></div>
+    <div class="svc-card unknown"><div class="svc-label">Cargando...</div></div>
+    <div class="svc-card unknown"><div class="svc-label">Cargando...</div></div>
+  </div>
+
+  <div class="section-head">
+    <h2>Actividad Reciente</h2>
+    <span id="log-ts"></span>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3>Audit Log</h3>
+      <div class="card-ctrl">
+        <button class="chip chip-idle" id="chip-all"    onclick="setFilter('all')">Todos</button>
+        <button class="chip chip-active" id="chip-err"  onclick="setFilter('err')">Errores</button>
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Timestamp</th>
+            <th>Action</th>
+            <th>Source</th>
+            <th>Path</th>
+            <th>Status</th>
+            <th>ms</th>
+            <th>Conf%</th>
+            <th>Error</th>
+          </tr>
+        </thead>
+        <tbody id="audit-body">
+          <tr class="empty-row"><td colspan="8">Cargando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+</main>
+
+<footer><div class="wrap">Faro Protocol · Vélez Sarsfield · <span id="ft-ts"></span></div></footer>
+
+<script>
+(function(){
+'use strict';
+
+var BASE = '';
+var _filter = 'err';
+
+function api(path, cb) {
+  fetch(BASE + path, {cache:'no-store'})
+    .then(function(r){ if(!r.ok) throw r.status; return r.json(); })
+    .then(cb)
+    .catch(function(e){ console.warn(path, e); });
+}
+
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function fmtTs(s){
+  if(!s) return '—';
+  var d=new Date(s);
+  return d.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'})
+    +' '+d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+
+function statusColor(s){
+  return s==='ok'?'var(--ok)':s==='warn'?'var(--warn)':s==='error'?'var(--err)':'var(--unknown)';
+}
+
+function barColor(pct){
+  return pct<50?'var(--ok)':pct<80?'var(--warn)':'var(--err)';
+}
+
+function svcCard(key, svc) {
+  var st    = svc.status || 'unknown';
+  var label = svc.label  || key.toUpperCase();
+  var rows  = [];
+
+  if(svc.lag_hours!=null)
+    rows.push(['Lag', svc.lag_hours+'h', svc.lag_hours>=24?'err':svc.lag_hours>=12?'warn':'ok']);
+  if(svc.last_value!=null)
+    rows.push(['Último valor', typeof svc.last_value==='number'?svc.last_value.toFixed(3):svc.last_value, '']);
+  if(svc.last_ndvi_syn!=null)
+    rows.push(['NDVI sintético', Number(svc.last_ndvi_syn).toFixed(3), '']);
+  if(svc.margen_error!=null)
+    rows.push(['Margen Kalman', Number(svc.margen_error).toFixed(3), svc.margen_error>0.15?'warn':'ok']);
+  if(svc.sar_vv_db!=null)
+    rows.push(['VV dB', Number(svc.sar_vv_db).toFixed(1)+' dB', '']);
+
+  var sysBars = '';
+  if(key==='system' && svc.cpu_pct!=null){
+    var metrics = [['CPU',svc.cpu_pct],['RAM',svc.mem_pct],['Disk',svc.disk_pct]];
+    sysBars = metrics.map(function(m){
+      var pct=m[1]||0;
+      return '<div class="svc-row"><span class="svc-key">'+m[0]+'</span>'
+        +'<span class="svc-val">'+pct+'%</span></div>'
+        +'<div class="svc-bar"><div class="svc-bar-fill" style="width:'+pct+'%;background:'+barColor(pct)+'"></div></div>';
+    }).join('');
+    if(svc.uptime_h!=null) sysBars += '<div class="svc-row"><span class="svc-key">Uptime</span><span class="svc-val">'+svc.uptime_h+'h</span></div>';
+  }
+
+  var rowsHtml = rows.map(function(r){
+    return '<div class="svc-row"><span class="svc-key">'+esc(r[0])+'</span>'
+      +'<span class="svc-val '+(r[2]||'')+'">'+esc(String(r[1]))+'</span></div>';
+  }).join('');
+
+  return '<div class="svc-card '+st+'">'
+    +'<div class="svc-label"><span class="svc-label-dot" style="background:'+statusColor(st)+'"></span>'+esc(label)+'</div>'
+    +'<div class="svc-name">'+esc(label)+'</div>'
+    +'<div class="svc-status '+st+'">'+st.toUpperCase()+'</div>'
+    +(rowsHtml||sysBars||'')
+    +'</div>';
+}
+
+function loadHealth() {
+  api('/api/health/status', function(d) {
+    var svcs = d.services || {};
+    var grid = document.getElementById('svc-grid');
+    var order = ['era5','dprvi','kalman','sar','system'];
+    grid.innerHTML = order.map(function(k){
+      return svcs[k] ? svcCard(k, svcs[k]) : '';
+    }).join('');
+
+    var st = d.status || 'unknown';
+    var el = document.getElementById('overall-status');
+    if(el){
+      el.textContent = 'Sistema: ' + st.toUpperCase();
+      el.style.color = statusColor(st);
+    }
+    var ts = document.getElementById('svc-ts');
+    if(ts) ts.textContent = fmtTs(d.timestamp);
+  });
+}
+
+function loadAudit() {
+  var errOnly = _filter === 'err';
+  api('/api/health/audit-log?limit=20&errors_only='+errOnly, function(d) {
+    var rows = d.data || [];
+    var body = document.getElementById('audit-body');
+    if(!rows.length){
+      body.innerHTML = '<tr class="empty-row"><td colspan="8">'
+        +(errOnly?'✓ Sin errores recientes':'Sin registros')+'</td></tr>';
+      return;
+    }
+    body.innerHTML = rows.map(function(r){
+      var st   = r.status_code || 0;
+      var pill = st>=500?'pill-err':st>=400?'pill-warn':st>=200?'pill-ok':'pill-info';
+      return '<tr>'
+        +'<td class="mono txt-muted" style="white-space:nowrap">'+esc(fmtTs(r.created_at))+'</td>'
+        +'<td><span style="font-size:11px;color:var(--info)">'+esc(r.action_type||'—')+'</span></td>'
+        +'<td class="txt-muted">'+esc(r.source||'—')+'</td>'
+        +'<td class="mono ellipsis" title="'+esc(r.path||'')+'">'+esc((r.path||'').slice(0,35))+'</td>'
+        +'<td><span class="pill '+pill+'">'+esc(String(st||'—'))+'</span></td>'
+        +'<td class="txt-muted">'+(r.duration_ms!=null?r.duration_ms+'ms':'—')+'</td>'
+        +'<td class="txt-muted">'+(r.confidence_pct!=null?r.confidence_pct+'%':'—')+'</td>'
+        +'<td class="txt-err mono ellipsis" title="'+esc(r.error_msg||'')+'">'+esc((r.error_msg||'').slice(0,50))+'</td>'
+        +'</tr>';
+    }).join('');
+    var ts = document.getElementById('log-ts');
+    if(ts) ts.textContent = fmtTs(new Date().toISOString());
+  });
+}
+
+window.setFilter = function(f){
+  _filter = f;
+  document.getElementById('chip-all').className = 'chip '+(f==='all'?'chip-active':'chip-idle');
+  document.getElementById('chip-err').className = 'chip '+(f==='err'?'chip-active':'chip-idle');
+  loadAudit();
+};
+
+var _cdH = 30, _cdL = 60;
+function tick(){
+  _cdH--; _cdL--;
+  var h = document.getElementById('cd-health');
+  var l = document.getElementById('cd-logs');
+  if(h) h.textContent = _cdH;
+  if(l) l.textContent = _cdL;
+  if(_cdH <= 0){ loadHealth(); _cdH = 30; }
+  if(_cdL <= 0){ loadAudit();  _cdL = 60; }
+  var ft = document.getElementById('ft-ts');
+  if(ft) ft.textContent = new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+
+loadHealth();
+loadAudit();
+setInterval(tick, 1000);
+
+})();
+</script>
+</body>
+</html>
