@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'self' https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src https:">
+<title>Faro Protocol · System Health</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Epilogue:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d0d0d;--surface:#141414;--border:#242424;--border-faint:#1c1c1c;
+  --gold:#c9a84c;--gold-dim:#7a6330;--gold-glow:rgba(201,168,76,.12);
+  --text:#e2e2e2;--muted:#777;--dim:#444;
+  --ok:#4caf7d;--warn:#e8b84c;--err:#e84c4c;--info:#5ab0d8;
+  --radius:8px;--font-head:'Cormorant Garamond',Georgia,serif;
+  --font-body:'Epilogue',system-ui,sans-serif;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:14px;line-height:1.6;min-height:100vh}
+
+/* ── Layout ── */
+.shell{max-width:1280px;margin:0 auto;padding:0 16px}
+header{border-bottom:1px solid var(--border);padding:20px 0}
+.header-inner{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.logo-area h1{font-family:var(--font-head);font-size:22px;font-weight:700;letter-spacing:.04em;color:var(--gold)}
+.logo-area p{font-size:11px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;margin-top:2px}
+.header-nav{display:flex;gap:8px}
+.nav-link{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border:1px solid var(--border);border-radius:var(--radius);color:var(--muted);font-size:12px;text-decoration:none;transition:border-color .2s,color .2s}
+.nav-link:hover{border-color:var(--gold-dim);color:var(--gold)}
+.nav-link.active{border-color:var(--gold);color:var(--gold);background:var(--gold-glow)}
+.badge-pulse{width:6px;height:6px;border-radius:50%;background:var(--ok);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+main{padding:28px 0 60px}
+
+/* ── Cards ── */
+.section-title{font-family:var(--font-head);font-size:17px;font-weight:600;color:var(--gold);letter-spacing:.04em;margin-bottom:14px}
+.cards-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:28px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--gold-dim)}
+.card.ok::before{background:var(--ok)}
+.card.warn::before{background:var(--warn)}
+.card.err::before{background:var(--err)}
+.card-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px}
+.card-value{font-family:var(--font-head);font-size:30px;font-weight:700;line-height:1;color:var(--text)}
+.card-value.ok{color:var(--ok)}
+.card-value.warn{color:var(--warn)}
+.card-value.err{color:var(--err)}
+.card-sub{font-size:11px;color:var(--muted);margin-top:6px}
+.card-icon{position:absolute;right:16px;top:14px;font-size:22px;opacity:.25}
+
+/* ── Charts ── */
+.charts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px;margin-bottom:28px}
+.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px}
+.chart-card h3{font-family:var(--font-head);font-size:15px;font-weight:600;color:var(--text);margin-bottom:16px;letter-spacing:.03em}
+.chart-wrap{position:relative;height:200px}
+
+/* ── Tables ── */
+.table-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:24px}
+.table-card-header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border-faint)}
+.table-card-header h3{font-family:var(--font-head);font-size:15px;font-weight:600;color:var(--text);letter-spacing:.03em}
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);padding:10px 16px;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap}
+.tbl td{padding:9px 16px;border-bottom:1px solid var(--border-faint);font-size:12px;vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:rgba(255,255,255,.02)}
+.pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;letter-spacing:.06em}
+.pill-ok{background:rgba(76,175,125,.15);color:var(--ok)}
+.pill-warn{background:rgba(232,184,76,.15);color:var(--warn)}
+.pill-err{background:rgba(232,76,76,.15);color:var(--err)}
+.pill-info{background:rgba(90,176,216,.15);color:var(--info)}
+.code{font-family:'Courier New',monospace;font-size:11px;color:var(--muted);background:rgba(255,255,255,.04);padding:1px 5px;border-radius:3px}
+
+/* ── Alerts panel ── */
+.alerts-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-bottom:28px}
+.alert-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+.alert-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px}
+.alert-name{font-weight:600;font-size:13px;color:var(--text)}
+.alert-meta{font-size:11px;color:var(--muted)}
+.toggle{width:36px;height:20px;background:var(--border);border-radius:10px;position:relative;cursor:pointer;transition:background .2s;border:none;flex-shrink:0;margin-top:2px}
+.toggle.on{background:var(--gold)}
+.toggle::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .2s}
+.toggle.on::after{transform:translateX(16px)}
+
+/* ── Footer ── */
+footer{border-top:1px solid var(--border);padding:18px 0;text-align:center;font-size:11px;color:var(--dim)}
+footer a{color:var(--dim);text-decoration:none}
+footer a:hover{color:var(--muted)}
+
+/* ── Controls ── */
+.ctrl-row{display:flex;align-items:center;gap:8px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--radius);border:1px solid var(--border);background:transparent;color:var(--muted);font-family:var(--font-body);font-size:12px;cursor:pointer;transition:all .2s}
+.btn:hover{border-color:var(--gold-dim);color:var(--gold)}
+.btn-primary{border-color:var(--gold);color:var(--gold);background:var(--gold-glow)}
+.btn-primary:hover{background:rgba(201,168,76,.2)}
+.refresh-icon{animation:spin .8s linear infinite;display:none}
+.refreshing .refresh-icon{display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.status-bar{display:flex;align-items:center;gap:12px;font-size:11px;color:var(--muted)}
+.status-dot{width:6px;height:6px;border-radius:50%;background:var(--ok)}
+.status-dot.err{background:var(--err)}
+.status-dot.warn{background:var(--warn)}
+
+/* ── Mobile ── */
+@media(max-width:640px){
+  .header-inner{flex-direction:column;align-items:flex-start;gap:10px}
+  .charts-grid{grid-template-columns:1fr}
+  .cards-row{grid-template-columns:1fr 1fr}
+  .tbl th:nth-child(n+4),.tbl td:nth-child(n+4){display:none}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="shell">
+    <div class="header-inner">
+      <div class="logo-area">
+        <h1>FARO PROTOCOL</h1>
+        <p>System Health Dashboard · Vélez Sarsfield</p>
+      </div>
+      <nav class="header-nav">
+        <a href="../" class="nav-link">Panel</a>
+        <a href="." class="nav-link active"><span class="badge-pulse"></span>&nbsp;Health</a>
+        <a href="../alerts-config/" class="nav-link">Alertas</a>
+      </nav>
+    </div>
+  </div>
+</header>
+
+<main>
+<div class="shell">
+
+  <!-- Status Row -->
+  <p class="section-title">Estado del Sistema</p>
+  <div class="cards-row" id="cards-row">
+    <div class="card" id="card-pipeline">
+      <div class="card-label">Pipeline</div>
+      <div class="card-value" id="val-pipeline">—</div>
+      <div class="card-sub" id="sub-pipeline">Consultando...</div>
+      <span class="card-icon">⚡</span>
+    </div>
+    <div class="card" id="card-ndvi">
+      <div class="card-label">NDVI Mediana</div>
+      <div class="card-value" id="val-ndvi">—</div>
+      <div class="card-sub" id="sub-ndvi">Actualización</div>
+      <span class="card-icon">🌿</span>
+    </div>
+    <div class="card" id="card-et0">
+      <div class="card-label">ET₀ mm/día</div>
+      <div class="card-value" id="val-et0">—</div>
+      <div class="card-sub" id="sub-et0">Clima</div>
+      <span class="card-icon">💧</span>
+    </div>
+    <div class="card" id="card-score">
+      <div class="card-label">Score Global</div>
+      <div class="card-value" id="val-score">—</div>
+      <div class="card-sub" id="sub-score">Canchas</div>
+      <span class="card-icon">📊</span>
+    </div>
+    <div class="card" id="card-sar">
+      <div class="card-label">SAR Antigüedad</div>
+      <div class="card-value" id="val-sar">—</div>
+      <div class="card-sub">horas desde último dato</div>
+      <span class="card-icon">📡</span>
+    </div>
+    <div class="card" id="card-errors">
+      <div class="card-label">Errores (1h)</div>
+      <div class="card-value" id="val-errors">—</div>
+      <div class="card-sub">Respuestas HTTP ≥500</div>
+      <span class="card-icon">🔴</span>
+    </div>
+  </div>
+
+  <!-- Chart Controls -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+    <p class="section-title" style="margin-bottom:0">Tendencias — 30 días</p>
+    <div class="ctrl-row">
+      <div class="status-bar">
+        <span class="status-dot" id="conn-dot"></span>
+        <span id="last-update">Actualizando...</span>
+      </div>
+      <button class="btn btn-primary" id="btn-refresh" onclick="refresh()">
+        <span class="refresh-icon" id="spin">↻</span> Actualizar
+      </button>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="charts-grid">
+    <div class="chart-card">
+      <h3>NDVI Mediana</h3>
+      <div class="chart-wrap"><canvas id="chart-ndvi"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>ET₀ mm/día</h3>
+      <div class="chart-wrap"><canvas id="chart-et0"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Humedad de Suelo θ (m³/m³)</h3>
+      <div class="chart-wrap"><canvas id="chart-sm"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Score Global (0–100)</h3>
+      <div class="chart-wrap"><canvas id="chart-score"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Audit Log -->
+  <div class="table-card">
+    <div class="table-card-header">
+      <h3>Audit Log — Errores recientes</h3>
+      <button class="btn" onclick="loadAudit()">↻ Recargar</button>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="tbl" id="audit-table">
+        <thead>
+          <tr>
+            <th>Timestamp</th>
+            <th>Método</th>
+            <th>Path</th>
+            <th>Status</th>
+            <th>Duración</th>
+            <th>IP</th>
+            <th>Error</th>
+          </tr>
+        </thead>
+        <tbody id="audit-body">
+          <tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px">Cargando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Active Alerts -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+    <p class="section-title" style="margin-bottom:0">Alertas Activas</p>
+    <a href="../alerts-config/" class="btn btn-primary">+ Configurar</a>
+  </div>
+  <div class="alerts-grid" id="alerts-grid">
+    <p style="color:var(--muted);font-size:13px">Cargando alertas...</p>
+  </div>
+
+</div>
+</main>
+
+<footer>
+  <div class="shell">
+    Faro Protocol · Sistema de Monitoreo Satelital ·
+    <a href="../">Panel Principal</a> · <a href="../alerts-config/">Alertas</a>
+  </div>
+</footer>
+
+<script>
+(function(){
+'use strict';
+
+var RAILWAY = 'https://faroprotocol-production-45fd.up.railway.app';
+var charts  = {};
+
+// ── Chart defaults ─────────────────────────────────────────────────────────
+Chart.defaults.color         = '#777';
+Chart.defaults.borderColor   = '#242424';
+Chart.defaults.font.family   = "'Epilogue', system-ui, sans-serif";
+Chart.defaults.font.size     = 11;
+
+var CHART_CFG = {
+  type: 'line',
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: { duration: 400 },
+    plugins: { legend: { display: false }, tooltip: {
+      backgroundColor: '#1e1e1e', borderColor: '#333', borderWidth: 1,
+      titleColor: '#e2e2e2', bodyColor: '#aaa', padding: 10,
+    }},
+    scales: {
+      x: { grid: { color: '#1c1c1c' }, ticks: { maxTicksLimit: 8, maxRotation: 0 }},
+      y: { grid: { color: '#1c1c1c' }},
+    },
+  }
+};
+
+function mkChart(id, label, color, yLabel) {
+  var ctx = document.getElementById(id);
+  if (!ctx) return null;
+  var cfg = JSON.parse(JSON.stringify(CHART_CFG));
+  cfg.data = { labels: [], datasets: [{ label: label, data: [], borderColor: color,
+    backgroundColor: hexAlpha(color, 0.08), borderWidth: 2, pointRadius: 0,
+    pointHoverRadius: 4, tension: 0.3, fill: true }] };
+  cfg.options.scales.y.title = { display: !!yLabel, text: yLabel || '', color: '#555' };
+  return new Chart(ctx, cfg);
+}
+
+function hexAlpha(hex, a) {
+  var r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  return 'rgba('+r+','+g+','+b+','+a+')';
+}
+
+// ── Init charts ────────────────────────────────────────────────────────────
+charts.ndvi  = mkChart('chart-ndvi',  'NDVI',       '#4caf7d', '');
+charts.et0   = mkChart('chart-et0',   'ET₀',        '#c9a84c', 'mm/día');
+charts.sm    = mkChart('chart-sm',    'θ',          '#5ab0d8', 'm³/m³');
+charts.score = mkChart('chart-score', 'Score',      '#9b7ecf', '');
+
+// ── Data fetch ─────────────────────────────────────────────────────────────
+function apiFetch(path, cb) {
+  fetch(RAILWAY + path, { headers: { 'Accept': 'application/json' } })
+    .then(function(r){ if(!r.ok) throw new Error(r.status); return r.json(); })
+    .then(cb)
+    .catch(function(e){ console.warn('fetch', path, e); });
+}
+
+function fmt(d) {
+  if (!d) return '—';
+  var dt = new Date(d);
+  return (dt.getMonth()+1)+'/'+dt.getDate()+' '+dt.getHours()+':'+String(dt.getMinutes()).padStart(2,'0');
+}
+
+function statusClass(h) {
+  if (h == null) return '';
+  return h < 24 ? 'ok' : h < 72 ? 'warn' : 'err';
+}
+
+function updateCard(id, value, sub, status) {
+  var c  = document.getElementById('card-'+id);
+  var vEl = document.getElementById('val-'+id);
+  var sEl = document.getElementById('sub-'+id);
+  if (vEl) vEl.textContent = value;
+  if (sEl && sub) sEl.textContent = sub;
+  if (c && status) {
+    c.className = 'card ' + status;
+    if (vEl) { vEl.className = 'card-value ' + status; }
+  }
+}
+
+function loadSnapshot() {
+  apiFetch('/infra/health', function(d) {
+    var s = d.snapshot || {};
+    var connDot = document.getElementById('conn-dot');
+    if (connDot) connDot.className = 'status-dot ok';
+
+    // Pipeline
+    var pok  = s.pipeline_ok;
+    updateCard('pipeline', pok ? 'OK' : 'FALLO',
+      'Último ciclo diario', pok ? 'ok' : 'err');
+
+    // NDVI
+    var ndvi = s.ndvi_median;
+    var nAge = s.ndvi_age_hours;
+    var nSt  = ndvi >= 0.55 ? 'ok' : ndvi >= 0.40 ? 'warn' : 'err';
+    updateCard('ndvi', ndvi != null ? ndvi.toFixed(3) : '—',
+      nAge != null ? 'hace '+nAge+'h' : '—', nSt);
+
+    // ET0
+    var et0 = s.et0_latest;
+    updateCard('et0', et0 != null ? et0.toFixed(1) : '—',
+      'Última lectura', et0 > 5 ? 'warn' : 'ok');
+
+    // Score
+    var sc = s.score_global;
+    updateCard('score',
+      sc != null ? sc : '—',
+      (s.canchas_ok || '—') + '/' + (s.canchas_total || '—') + ' canchas OK',
+      sc >= 70 ? 'ok' : sc >= 50 ? 'warn' : sc != null ? 'err' : '');
+
+    // SAR age
+    var sar = s.sar_age_hours;
+    updateCard('sar', sar != null ? sar+'h' : '—', '',
+      statusClass(sar));
+
+    // Errors
+    var errs = s.audit_errors_1h;
+    updateCard('errors', errs != null ? errs : '—', '',
+      errs === 0 ? 'ok' : errs < 5 ? 'warn' : 'err');
+
+    // Timestamp
+    var upd = document.getElementById('last-update');
+    if (upd) upd.textContent = 'Actualizado ' + fmt(s.capturado_at);
+  });
+}
+
+function loadMetrics() {
+  apiFetch('/infra/metrics?days=30', function(d) {
+    var rows = d.data || [];
+    var labels = rows.map(function(r){ return fmt(r.capturado_at); });
+
+    function fill(ch, key) {
+      if (!ch) return;
+      ch.data.labels = labels;
+      ch.data.datasets[0].data = rows.map(function(r){ return r[key]; });
+      ch.update('none');
+    }
+    fill(charts.ndvi,  'ndvi_median');
+    fill(charts.et0,   'et0_latest');
+    fill(charts.sm,    'sm_theta_median');
+    fill(charts.score, 'score_global');
+  });
+}
+
+function loadAudit() {
+  apiFetch('/infra/audit-log?limit=30&errors_only=true', function(d) {
+    var rows = d.data || [];
+    var body = document.getElementById('audit-body');
+    if (!body) return;
+    if (!rows.length) {
+      body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--ok);padding:20px">✓ Sin errores recientes</td></tr>';
+      return;
+    }
+    body.innerHTML = rows.map(function(r) {
+      var st = r.status_code;
+      var pill = st >= 500 ? 'err' : st >= 400 ? 'warn' : 'ok';
+      return '<tr>'
+        + '<td style="white-space:nowrap;color:var(--muted)">'+escH(fmt(r.created_at))+'</td>'
+        + '<td><span class="code">'+escH(r.method||'')+'</span></td>'
+        + '<td><span class="code" title="'+escH(r.path||'')+'">'+escH((r.path||'').slice(0,40))+'</span></td>'
+        + '<td><span class="pill pill-'+pill+'">'+escH(String(st||''))+'</span></td>'
+        + '<td>'+(r.duration_ms != null ? r.duration_ms+'ms' : '—')+'</td>'
+        + '<td style="color:var(--muted)">'+escH((r.ip_addr||'').slice(0,20))+'</td>'
+        + '<td style="color:var(--err);font-size:11px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+escH(r.error_msg||'')+'">'+escH((r.error_msg||'').slice(0,80))+'</td>'
+        + '</tr>';
+    }).join('');
+  });
+}
+
+function loadAlerts() {
+  apiFetch('/infra/alerts', function(d) {
+    var alerts = d.data || [];
+    var grid   = document.getElementById('alerts-grid');
+    if (!grid) return;
+    if (!alerts.length) {
+      grid.innerHTML = '<p style="color:var(--muted);font-size:13px">Sin alertas configuradas. <a href="../alerts-config/" style="color:var(--gold)">Configurar →</a></p>';
+      return;
+    }
+    grid.innerHTML = alerts.map(function(a) {
+      var on = a.activo;
+      var fired = a.ultimo_disparo ? fmt(a.ultimo_disparo) : 'Nunca';
+      return '<div class="alert-card">'
+        + '<div class="alert-card-top">'
+        + '<div><div class="alert-name">'+escH(a.nombre)+'</div>'
+        + '<div class="alert-meta">'+escH(a.metrica)+' '+escH(a.operador||'<')+' '+escH(String(a.umbral||''))+'</div></div>'
+        + '<button class="toggle'+(on?' on':'')+'" onclick="toggleAlert('+a.id+','+(!on)+')" title="'+(on?'Desactivar':'Activar')+'"></button>'
+        + '</div>'
+        + '<div style="font-size:11px;color:var(--dim)">Canal: '+escH(a.canal)+' · Último disparo: '+escH(fired)+'</div>'
+        + '<div style="margin-top:8px;display:flex;gap:6px">'
+        + '<button class="btn" style="font-size:11px;padding:4px 10px" onclick="testAlert('+a.id+')">Test</button>'
+        + '</div>'
+        + '</div>';
+    }).join('');
+  });
+}
+
+// ── CSRF token (fetch once, store in memory) ───────────────────────────────
+var _csrf = null;
+function getCSRF(cb) {
+  if (_csrf) { cb(_csrf); return; }
+  fetch(RAILWAY + '/infra/csrf-token')
+    .then(function(r){ return r.json(); })
+    .then(function(d){ _csrf = d.csrf_token; cb(_csrf); })
+    .catch(function(){ cb(''); });
+}
+
+function toggleAlert(id, newState) {
+  getCSRF(function(tok) {
+    fetch(RAILWAY + '/infra/alerts/' + id + '/toggle', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': tok },
+      body: JSON.stringify({ activo: newState }),
+    }).then(function(){ loadAlerts(); }).catch(console.warn);
+  });
+}
+
+function testAlert(id) {
+  getCSRF(function(tok) {
+    fetch(RAILWAY + '/infra/alerts/' + id + '/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': tok },
+      body: JSON.stringify({}),
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(d){ alert('Test dispatch: ' + (d.ok ? '✓ OK' : '✗ Falló') + '\nCanales: ' + (d.channels_fired||[]).join(', ')); })
+    .catch(console.warn);
+  });
+}
+
+function escH(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Refresh flow ───────────────────────────────────────────────────────────
+function setRefreshing(v) {
+  var btn  = document.getElementById('btn-refresh');
+  var spin = document.getElementById('spin');
+  if (btn)  btn.classList[v?'add':'remove']('refreshing');
+  if (spin) spin.style.display = v ? 'inline-block' : 'none';
+}
+
+function refresh() {
+  setRefreshing(true);
+  var done = 0;
+  var total = 3;
+  function tick() { if (++done >= total) setRefreshing(false); }
+  Promise.all([
+    new Promise(function(res){ loadSnapshot(); setTimeout(res, 600); }),
+    new Promise(function(res){ loadMetrics();  setTimeout(res, 800); }),
+    new Promise(function(res){ loadAudit();    setTimeout(res, 600); }),
+  ]).then(function(){ setRefreshing(false); });
+  loadAlerts();
+}
+
+// ── Boot ───────────────────────────────────────────────────────────────────
+refresh();
+setInterval(refresh, 3 * 60 * 1000); // auto-refresh every 3 min
+
+})();
+</script>
+</body>
+</html>

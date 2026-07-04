@@ -32,6 +32,12 @@ app = Flask(__name__)
 CORS(app)
 app.register_blueprint(dale_play_routes.dale_play_bp)
 try:
+    from faro_infra import infra_bp as _infra_bp
+    app.register_blueprint(_infra_bp)
+except ImportError as _infra_err:
+    import logging as _ilog
+    _ilog.getLogger(__name__).warning("faro_infra skip: %s", _infra_err)
+try:
     import tiles_blueprint as _tiles_mod
     app.register_blueprint(_tiles_mod.tiles_bp)
 except ImportError as _tile_err:
@@ -1670,6 +1676,13 @@ try:
 except Exception as _sched_err:
     _scheduler = None
     log.error("Scheduler failed to start (non-fatal): %s", _sched_err)
+
+# ── Infra: middleware + scheduled health snapshots + alert evaluation ──────────
+try:
+    from faro_infra import init_infra as _init_infra
+    _init_infra(app, _scheduler)
+except Exception as _infra_init_err:
+    log.warning("faro_infra init (non-fatal): %s", _infra_init_err)
 
 def _route_velez_test_report():
     """POST /velez/test_report — genera PNGs _TEST con datos live y manda mail."""

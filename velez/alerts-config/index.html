@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'self' https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; connect-src https:">
+<title>Faro Protocol · Alertas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Epilogue:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d0d0d;--surface:#141414;--border:#242424;--border-faint:#1c1c1c;
+  --gold:#c9a84c;--gold-dim:#7a6330;--gold-glow:rgba(201,168,76,.12);
+  --text:#e2e2e2;--muted:#777;--dim:#444;
+  --ok:#4caf7d;--warn:#e8b84c;--err:#e84c4c;--info:#5ab0d8;
+  --radius:8px;--font-head:'Cormorant Garamond',Georgia,serif;
+  --font-body:'Epilogue',system-ui,sans-serif;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:14px;line-height:1.6;min-height:100vh}
+.shell{max-width:1100px;margin:0 auto;padding:0 16px}
+
+/* Header */
+header{border-bottom:1px solid var(--border);padding:20px 0;margin-bottom:32px}
+.header-inner{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.logo-area h1{font-family:var(--font-head);font-size:22px;font-weight:700;letter-spacing:.04em;color:var(--gold)}
+.logo-area p{font-size:11px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;margin-top:2px}
+.header-nav{display:flex;gap:8px}
+.nav-link{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border:1px solid var(--border);border-radius:var(--radius);color:var(--muted);font-size:12px;text-decoration:none;transition:border-color .2s,color .2s}
+.nav-link:hover{border-color:var(--gold-dim);color:var(--gold)}
+.nav-link.active{border-color:var(--gold);color:var(--gold);background:var(--gold-glow)}
+
+/* Layout */
+.two-col{display:grid;grid-template-columns:1fr 360px;gap:24px;align-items:start}
+@media(max-width:840px){.two-col{grid-template-columns:1fr}}
+.section-title{font-family:var(--font-head);font-size:18px;font-weight:600;color:var(--gold);letter-spacing:.04em;margin-bottom:16px}
+
+/* Alert list */
+.alert-list{display:flex;flex-direction:column;gap:10px;margin-bottom:28px}
+.alert-row{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;display:flex;align-items:flex-start;gap:14px;transition:border-color .2s}
+.alert-row:hover{border-color:var(--border)}
+.alert-row.inactive{opacity:.5}
+.alert-info{flex:1;min-width:0}
+.alert-name{font-weight:600;font-size:14px;color:var(--text);margin-bottom:3px}
+.alert-rule{font-size:12px;color:var(--muted)}
+.alert-meta{font-size:11px;color:var(--dim);margin-top:4px}
+.alert-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap}
+
+/* Toggle */
+.toggle{width:40px;height:22px;background:var(--border);border-radius:11px;position:relative;cursor:pointer;transition:background .2s;border:none;flex-shrink:0;outline:none}
+.toggle.on{background:var(--gold)}
+.toggle::after{content:'';position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .2s}
+.toggle.on::after{transform:translateX(18px)}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:var(--radius);border:1px solid var(--border);background:transparent;color:var(--muted);font-family:var(--font-body);font-size:12px;cursor:pointer;transition:all .2s;white-space:nowrap}
+.btn:hover{border-color:var(--gold-dim);color:var(--gold)}
+.btn-danger{border-color:rgba(232,76,76,.3);color:var(--err)}
+.btn-danger:hover{border-color:var(--err);background:rgba(232,76,76,.08)}
+.btn-primary{border-color:var(--gold);color:var(--gold);background:var(--gold-glow)}
+.btn-primary:hover{background:rgba(201,168,76,.2)}
+.btn-sm{padding:5px 10px;font-size:11px}
+
+/* Pills */
+.pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;letter-spacing:.06em;vertical-align:middle}
+.pill-ok{background:rgba(76,175,125,.15);color:var(--ok)}
+.pill-warn{background:rgba(232,184,76,.15);color:var(--warn)}
+.pill-slack{background:rgba(90,176,216,.15);color:var(--info)}
+.pill-email{background:rgba(201,168,76,.12);color:var(--gold)}
+.pill-both{background:rgba(155,126,207,.15);color:#9b7ecf}
+
+/* Card (form) */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;position:sticky;top:20px}
+.card h3{font-family:var(--font-head);font-size:17px;font-weight:600;color:var(--text);margin-bottom:20px;letter-spacing:.03em}
+
+/* Form */
+.form-group{margin-bottom:16px}
+label{display:block;font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px}
+input,select,textarea{width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--font-body);font-size:13px;padding:9px 12px;transition:border-color .2s;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--gold-dim)}
+select{cursor:pointer}
+select option{background:var(--surface)}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.field-hint{font-size:11px;color:var(--dim);margin-top:4px}
+.form-divider{border:none;border-top:1px solid var(--border-faint);margin:18px 0}
+.form-actions{display:flex;gap:8px;margin-top:18px}
+
+/* Toast */
+.toast{position:fixed;bottom:24px;right:24px;background:#1e1e1e;border:1px solid var(--border);border-radius:var(--radius);padding:12px 18px;font-size:13px;color:var(--text);z-index:999;opacity:0;transform:translateY(8px);transition:opacity .3s,transform .3s;pointer-events:none;max-width:320px}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.ok{border-color:var(--ok);color:var(--ok)}
+.toast.err{border-color:var(--err);color:var(--err)}
+
+/* Empty state */
+.empty{text-align:center;padding:40px 20px;color:var(--muted)}
+.empty-icon{font-size:36px;margin-bottom:12px;opacity:.3}
+
+/* Footer */
+footer{border-top:1px solid var(--border);padding:18px 0;text-align:center;font-size:11px;color:var(--dim);margin-top:60px}
+footer a{color:var(--dim);text-decoration:none}
+footer a:hover{color:var(--muted)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="shell">
+    <div class="header-inner">
+      <div class="logo-area">
+        <h1>FARO PROTOCOL</h1>
+        <p>Configuración de Alertas · Vélez Sarsfield</p>
+      </div>
+      <nav class="header-nav">
+        <a href="../" class="nav-link">Panel</a>
+        <a href="../health-dashboard/" class="nav-link">Health</a>
+        <a href="." class="nav-link active">Alertas</a>
+      </nav>
+    </div>
+  </div>
+</header>
+
+<div class="shell">
+<div class="two-col">
+
+  <!-- Left: Alert list -->
+  <div>
+    <p class="section-title">Reglas de Alerta</p>
+    <div id="alert-list" class="alert-list">
+      <div style="color:var(--muted);padding:16px">Cargando...</div>
+    </div>
+  </div>
+
+  <!-- Right: Create form -->
+  <div>
+    <div class="card">
+      <h3>Nueva Alerta</h3>
+      <form id="alert-form" onsubmit="submitAlert(event)">
+
+        <div class="form-group">
+          <label>Nombre</label>
+          <input type="text" id="f-nombre" placeholder="ej: NDVI bajo crítico" required maxlength="80">
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Métrica</label>
+            <select id="f-metrica" required onchange="onMetricaChange()">
+              <option value="">— seleccionar —</option>
+              <optgroup label="Vegetación">
+                <option value="ndvi_below">NDVI bajo umbral</option>
+                <option value="ndvi_above">NDVI sobre umbral</option>
+                <option value="ndvi_stale_hours">NDVI desactualizado (h)</option>
+              </optgroup>
+              <optgroup label="Clima">
+                <option value="et0_above">ET₀ sobre umbral (mm/día)</option>
+                <option value="smith_kerns_above">Riesgo fúngico Smith-Kerns (%)</option>
+              </optgroup>
+              <optgroup label="Suelo">
+                <option value="sm_below">Humedad suelo θ bajo umbral</option>
+                <option value="sm_above">Humedad suelo θ sobre umbral</option>
+              </optgroup>
+              <optgroup label="Sistema">
+                <option value="sar_stale_hours">SAR desactualizado (h)</option>
+              </optgroup>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Umbral</label>
+            <input type="number" id="f-umbral" step="any" placeholder="0.45" required>
+            <div class="field-hint" id="umbral-hint"></div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Operador</label>
+            <select id="f-operador">
+              <option value="<">menor que (&lt;)</option>
+              <option value=">">mayor que (&gt;)</option>
+              <option value="<=">menor o igual (≤)</option>
+              <option value=">=">mayor o igual (≥)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Cooldown (minutos)</label>
+            <input type="number" id="f-cooldown" value="60" min="5" max="1440">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Canal</label>
+          <select id="f-canal" onchange="onCanalChange()">
+            <option value="email">Email</option>
+            <option value="slack">Slack</option>
+            <option value="both">Ambos</option>
+          </select>
+        </div>
+
+        <div id="email-group" class="form-group">
+          <label>Destinatarios email</label>
+          <input type="text" id="f-emails" placeholder="correo1@email.com, correo2@email.com">
+          <div class="field-hint">Separar con comas. Usa protocolfaro@gmail.com para alertas de sistema.</div>
+        </div>
+
+        <div id="slack-group" class="form-group" style="display:none">
+          <label>Variable de entorno (Slack webhook)</label>
+          <input type="text" id="f-slack-env" value="SLACK_WEBHOOK_URL" placeholder="SLACK_WEBHOOK_URL">
+          <div class="field-hint">Nombre de la variable Railway que contiene la URL del webhook.</div>
+        </div>
+
+        <hr class="form-divider">
+
+        <div class="form-group">
+          <label>Cancha (opcional — vacío = todas)</label>
+          <select id="f-cancha">
+            <option value="">Todas las canchas</option>
+            <option value="amalfitani">Amalfitani (Estadio)</option>
+            <option value="1fa">1FA — Villa Olímpica</option>
+            <option value="2fa">2FA</option>
+            <option value="3fa">3FA</option>
+            <option value="4fa">4FA</option>
+            <option value="5fa">5FA</option>
+            <option value="6fa">6FA</option>
+            <option value="7fa">7FA</option>
+            <option value="8fa">8FA</option>
+            <option value="9fa">9FA</option>
+            <option value="10fa">10FA</option>
+            <option value="1fp">1FP — Primer Equipo</option>
+            <option value="2fp">2FP</option>
+          </select>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary" id="btn-submit">+ Crear alerta</button>
+          <button type="button" class="btn" onclick="resetForm()">Limpiar</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Info box -->
+    <div style="background:var(--surface);border:1px solid var(--border-faint);border-radius:var(--radius);padding:16px 18px;margin-top:16px;font-size:12px;color:var(--muted)">
+      <div style="font-weight:600;color:var(--text);margin-bottom:8px">Configuración Railway</div>
+      <div style="margin-bottom:4px">Para activar Slack, configure en Railway Variables:</div>
+      <div style="font-family:monospace;font-size:11px;background:rgba(255,255,255,.04);padding:6px 10px;border-radius:4px;color:var(--info)">SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...</div>
+      <div style="margin-top:8px;margin-bottom:4px">Para email (ya configurado):</div>
+      <div style="font-family:monospace;font-size:11px;background:rgba(255,255,255,.04);padding:6px 10px;border-radius:4px;color:var(--gold)">GMAIL_APP_PASS=xxxx xxxx xxxx xxxx</div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<footer>
+  <div class="shell">
+    Faro Protocol · <a href="../health-dashboard/">Health Dashboard</a> · <a href="../">Panel Principal</a>
+  </div>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+'use strict';
+
+var RAILWAY = 'https://faroprotocol-production-45fd.up.railway.app';
+var _csrf   = null;
+
+// Metric metadata for hints and operator defaults
+var METRIC_META = {
+  ndvi_below:        { hint:'NDVI < 0.45 = crítico, < 0.55 = bajo', op:'<' },
+  ndvi_above:        { hint:'NDVI > 0.80 = excelente',               op:'>' },
+  ndvi_stale_hours:  { hint:'Horas sin actualizar NDVI (típico: 48h)', op:'>' },
+  et0_above:         { hint:'ET₀ > 6 mm/día = estrés hídrico alto',  op:'>' },
+  smith_kerns_above: { hint:'Riesgo fúngico en % (> 80 = alerta)',    op:'>' },
+  sm_below:          { hint:'θ < 0.15 m³/m³ = muy seco',             op:'<' },
+  sm_above:          { hint:'θ > 0.45 m³/m³ = saturación',           op:'>' },
+  sar_stale_hours:   { hint:'Horas sin datos SAR (típico: 72h)',      op:'>' },
+};
+
+// ── CSRF ───────────────────────────────────────────────────────────────────
+function getCSRF(cb) {
+  if (_csrf) { cb(_csrf); return; }
+  fetch(RAILWAY + '/infra/csrf-token')
+    .then(function(r){ return r.json(); })
+    .then(function(d){ _csrf = d.csrf_token; cb(_csrf); })
+    .catch(function(){ cb(''); });
+}
+
+// ── API helpers ────────────────────────────────────────────────────────────
+function apiFetch(path, cb) {
+  fetch(RAILWAY + path, { headers: { 'Accept': 'application/json' } })
+    .then(function(r){ if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(cb).catch(function(e){ console.warn(path, e); });
+}
+
+function apiPost(path, body, cb) {
+  getCSRF(function(tok) {
+    fetch(RAILWAY + path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': tok },
+      body: JSON.stringify(body),
+    }).then(function(r){ return r.json(); }).then(cb)
+      .catch(function(e){ cb({ error: String(e) }); });
+  });
+}
+
+function apiDelete(path, cb) {
+  getCSRF(function(tok) {
+    fetch(RAILWAY + path, {
+      method: 'DELETE',
+      headers: { 'X-CSRF-Token': tok },
+    }).then(function(r){ cb(r.ok); }).catch(function(){ cb(false); });
+  });
+}
+
+// ── Toast ──────────────────────────────────────────────────────────────────
+function toast(msg, type) {
+  var el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className   = 'toast show ' + (type || '');
+  clearTimeout(el._t);
+  el._t = setTimeout(function(){ el.className = 'toast'; }, 3500);
+}
+
+// ── Utils ──────────────────────────────────────────────────────────────────
+function escH(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function fmt(d) {
+  if (!d) return '—';
+  var dt = new Date(d);
+  return dt.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'}) + ' '
+       + dt.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+}
+function canalPill(c) {
+  var map = { email:'pill-email', slack:'pill-slack', both:'pill-both' };
+  return '<span class="pill '+(map[c]||'')+'">'+escH(c)+'</span>';
+}
+
+// ── Load alerts ────────────────────────────────────────────────────────────
+function loadAlerts() {
+  apiFetch('/infra/alerts', function(d) {
+    var list = document.getElementById('alert-list');
+    var rows = d.data || [];
+    if (!rows.length) {
+      list.innerHTML = '<div class="empty"><div class="empty-icon">🔕</div>'
+        + '<p>No hay alertas configuradas.</p>'
+        + '<p style="font-size:12px;margin-top:6px">Crea tu primera alerta con el formulario →</p></div>';
+      return;
+    }
+    list.innerHTML = rows.map(function(a) {
+      var on   = a.activo;
+      var fired = a.ultimo_disparo ? fmt(a.ultimo_disparo) : 'Nunca';
+      var total = a.disparos_total || 0;
+      return '<div class="alert-row'+(on?'':' inactive')+'" id="row-'+a.id+'">'
+        + '<div class="alert-info">'
+        + '<div class="alert-name">'+escH(a.nombre)+'</div>'
+        + '<div class="alert-rule">'+escH(a.metrica)+' '
+          +escH(a.operador||'<')+' <strong>'+escH(String(a.umbral||''))+' </strong>'
+          +canalPill(a.canal)+'</div>'
+        + '<div class="alert-meta">Último disparo: '+escH(fired)+' · Total: '+total
+          +(a.cancha_id?' · Cancha: '+escH(a.cancha_id):' · Todas las canchas')
+          +' · Cooldown: '+escH(String(a.cooldown_minutes||60))+'min</div>'
+        + '</div>'
+        + '<div class="alert-actions">'
+        + '<button class="btn btn-sm" onclick="testAlert('+a.id+')" title="Test dispatch">Test</button>'
+        + '<button class="toggle'+(on?' on':'')+'" onclick="toggleAlert('+a.id+','+(!on)+')" title="'+(on?'Desactivar':'Activar')+'"></button>'
+        + '<button class="btn btn-sm btn-danger" onclick="deleteAlert('+a.id+',\''+escH(a.nombre)+'\')" title="Eliminar">✕</button>'
+        + '</div>'
+        + '</div>';
+    }).join('');
+  });
+}
+
+// ── Actions ────────────────────────────────────────────────────────────────
+function toggleAlert(id, newState) {
+  apiPost('/infra/alerts/' + id + '/toggle', { activo: newState }, function(d) {
+    if (d.status === 'ok') {
+      toast(newState ? 'Alerta activada' : 'Alerta pausada', 'ok');
+      loadAlerts();
+    } else {
+      toast('Error al cambiar estado', 'err');
+    }
+  });
+}
+
+window.testAlert = function(id) {
+  apiPost('/infra/alerts/' + id + '/test', {}, function(d) {
+    if (d.ok) {
+      toast('✓ Test enviado — canales: ' + (d.channels_fired||[]).join(', '), 'ok');
+    } else {
+      toast('✗ Test fallido — verificar configuración de canal', 'err');
+    }
+  });
+};
+
+window.deleteAlert = function(id, nombre) {
+  if (!confirm('¿Eliminar alerta "' + nombre + '"?')) return;
+  apiDelete('/infra/alerts/' + id, function(ok) {
+    if (ok) { toast('Alerta eliminada', 'ok'); loadAlerts(); }
+    else toast('Error al eliminar', 'err');
+  });
+};
+
+// ── Form helpers ───────────────────────────────────────────────────────────
+window.onMetricaChange = function() {
+  var v    = document.getElementById('f-metrica').value;
+  var meta = METRIC_META[v] || {};
+  document.getElementById('umbral-hint').textContent = meta.hint || '';
+  if (meta.op) {
+    var sel = document.getElementById('f-operador');
+    for (var i = 0; i < sel.options.length; i++) {
+      if (sel.options[i].value === meta.op) { sel.selectedIndex = i; break; }
+    }
+  }
+};
+
+window.onCanalChange = function() {
+  var c = document.getElementById('f-canal').value;
+  document.getElementById('email-group').style.display = (c === 'slack') ? 'none' : '';
+  document.getElementById('slack-group').style.display = (c === 'email') ? 'none' : '';
+};
+
+window.resetForm = function() {
+  document.getElementById('alert-form').reset();
+  document.getElementById('umbral-hint').textContent = '';
+  document.getElementById('email-group').style.display = '';
+  document.getElementById('slack-group').style.display = 'none';
+};
+
+window.submitAlert = function(e) {
+  e.preventDefault();
+  var nombre   = document.getElementById('f-nombre').value.trim();
+  var metrica  = document.getElementById('f-metrica').value;
+  var umbral   = parseFloat(document.getElementById('f-umbral').value);
+  var operador = document.getElementById('f-operador').value;
+  var cooldown = parseInt(document.getElementById('f-cooldown').value) || 60;
+  var canal    = document.getElementById('f-canal').value;
+  var emailRaw = document.getElementById('f-emails').value.trim();
+  var slackEnv = document.getElementById('f-slack-env').value.trim() || 'SLACK_WEBHOOK_URL';
+  var cancha   = document.getElementById('f-cancha').value;
+
+  if (!nombre || !metrica || isNaN(umbral)) {
+    toast('Completar nombre, métrica y umbral', 'err');
+    return;
+  }
+
+  var emails = emailRaw ? emailRaw.split(',').map(function(s){ return s.trim(); }).filter(Boolean) : [];
+
+  var btn = document.getElementById('btn-submit');
+  btn.disabled = true;
+  btn.textContent = 'Guardando...';
+
+  apiPost('/infra/alerts', {
+    nombre:            nombre,
+    metrica:           metrica,
+    umbral:            umbral,
+    operador:          operador,
+    cooldown_minutes:  cooldown,
+    canal:             canal,
+    email_to:          emails,
+    slack_webhook_env: slackEnv,
+    cancha_id:         cancha || null,
+    activo:            true,
+  }, function(d) {
+    btn.disabled = false;
+    btn.textContent = '+ Crear alerta';
+    if (d.status === 'ok') {
+      toast('✓ Alerta creada', 'ok');
+      resetForm();
+      loadAlerts();
+    } else {
+      toast('✗ Error: ' + (d.error || 'desconocido'), 'err');
+    }
+  });
+};
+
+// Expose for onclick attributes
+window.toggleAlert  = toggleAlert;
+
+// ── Boot ───────────────────────────────────────────────────────────────────
+loadAlerts();
+getCSRF(function(){}); // pre-fetch CSRF token
+
+})();
+</script>
+</body>
+</html>
