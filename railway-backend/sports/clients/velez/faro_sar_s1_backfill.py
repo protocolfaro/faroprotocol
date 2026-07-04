@@ -512,7 +512,6 @@ def run_s1_backfill(days: int = 30, scene_limit: int = 20,
             if not scene_dt or scene_dt in seen:
                 skipped += 1
                 continue
-            seen.add(scene_dt)
 
             vv_db = _read_sigma0_db_pc(item, "vv", token)
             vh_db = _read_sigma0_db_pc(item, "vh", token)
@@ -532,6 +531,7 @@ def run_s1_backfill(days: int = 30, scene_limit: int = 20,
                 fuente=_FUENTE, fecha_imagen=scene_dt,
             )
             if ok:
+                seen.add(scene_dt)
                 inserted += 1
             else:
                 errors += 1

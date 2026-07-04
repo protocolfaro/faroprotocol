@@ -42,7 +42,7 @@ jobs:
           SUPABASE_KEY:       ${{ secrets.SUPABASE_KEY }}
         run: |
           cd railway-backend/sports/clients/velez
-          python data_refresh.py || echo "[WARN] data_refresh falló"
+          python data_refresh.py || exit 1
           cd ../../..
           
           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}"             --max-time 10 "${RAILWAY_URL}/health" 2>/dev/null || echo "000")

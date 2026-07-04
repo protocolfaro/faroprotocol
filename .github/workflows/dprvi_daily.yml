@@ -1,0 +1,38 @@
+name: DpRVIc Daily Download
+
+on:
+  schedule:
+    - cron: '0 13 * * *'   # 13:00 UTC — 1h después de ERA5 (12:00 UTC)
+  workflow_dispatch:
+
+jobs:
+  download_dprvi:
+    runs-on: ubuntu-latest
+
+    env:
+      GCS_BUCKET:                ${{ secrets.GCS_BUCKET }}
+      GCS_SERVICE_ACCOUNT_JSON:  ${{ secrets.GCS_SERVICE_ACCOUNT_JSON }}
+      SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
+      SUPABASE_KEY:              ${{ secrets.SUPABASE_KEY }}
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install requests google-auth google-auth-httplib2 cryptography
+
+      - name: Download DpRVIc from GCS and upsert Supabase
+        run: |
+          python railway-backend/sports/clients/velez/faro_dprvi_downloader.py
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "DpRVIc download failed at $(date -u)"
+          exit 1

@@ -496,7 +496,7 @@ def insert_soil_metrics(
     }
     url = f"{_base()}/rest/v1/soil_metrics"
     try:
-        r = _req.post(url, headers=_hdrs(),
+        r = _req.post(url, headers=_hdrs({"Prefer": "resolution=merge-duplicates,return=minimal"}),
                       data=json.dumps(row, default=str), timeout=8)
         if r.status_code in (200, 201, 204):
             log.info("soil_metrics: insert OK venue=%s cancha=%s vv=%.1f θ=%.3f",

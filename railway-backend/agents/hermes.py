@@ -418,7 +418,7 @@ def hermes_consolidate(venue_id: str, cancha_id: str | None = None) -> dict:
             out["vegetation"] = veg_out
             out["fuentes_activas"].append("Kalman/LSTM" if _uses_kalman else "Óptico/S2")
             conf += 0.30 * veg_out["optical_weight"]
-        elif any(row.get("margen_error_kalman", 0) or 0 > 0.15 for row in veg_rows):
+        elif any(float(row.get("margen_error_kalman") or 0) > 0.15 for row in veg_rows):
             # Todas las filas con margen > 0.15 → activar física de suelos como señal
             out["alertas"].append("kalman_incertidumbre_alta: margen>0.15 — usando física de suelos")
 
