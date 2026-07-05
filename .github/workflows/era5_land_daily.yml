@@ -17,7 +17,7 @@ on:
 jobs:
   process_era5:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 90
 
     env:
       SUPABASE_URL:    ${{ secrets.SUPABASE_URL }}
