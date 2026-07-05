@@ -34,6 +34,7 @@ jobs:
       - name: Fase A — Ingesta satelital diaria
         id: fase_a
         env:
+          GITHUB_TOKEN:       ${{ secrets.GITHUB_TOKEN }}
           RAILWAY_URL:        ${{ secrets.RAILWAY_URL }}
           RAILWAY_TOKEN:      ${{ secrets.RAILWAY_TOKEN }}
           NASA_EARTHDATA_USER: ${{ secrets.NASA_EARTHDATA_USER }}
