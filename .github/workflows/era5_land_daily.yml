@@ -1,40 +1,265 @@
-﻿name: ERA5-Land Sectorial Daily
+name: ERA5-Land Sectorial Daily
 
 on:
   schedule:
-    - cron: '0 12 * * *'
+    - cron: '0 12 * * *'   # 12:00 UTC = 09:00 ART — ERA5 lag ~5d, procesa fecha-7d
   workflow_dispatch:
+    inputs:
+      target_date:
+        description: 'Fecha ISO YYYY-MM-DD (default: hoy-7d)'
+        required: false
+        default: ''
+      sector:
+        description: 'Sector específico (default: todos)'
+        required: false
+        default: ''
 
 jobs:
   process_era5:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    
+
     env:
-      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-      SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-      CDS_API_KEY: ${{ secrets.CDS_API_KEY }}
-    
+      SUPABASE_URL:    ${{ secrets.SUPABASE_URL }}
+      SUPABASE_KEY:    ${{ secrets.SUPABASE_KEY }}
+      CDS_API_KEY:     ${{ secrets.CDS_API_KEY }}
+      GMAIL_USER:      protocolfaro@gmail.com
+      GMAIL_APP_PASS:  ${{ secrets.GMAIL_APP_PASS }}
+      TARGET_DATE:     ${{ inputs.target_date }}
+      TARGET_SECTOR:   ${{ inputs.sector }}
+
     steps:
-      - uses: actions/checkout@v3
-      
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      
-      - name: Install dependencies
+          cache: 'pip'
+          cache-dependency-path: railway-backend/requirements.txt
+
+      # ── System deps (netCDF4 wheel bundled pero HDF5 lib acelera compilación) ──
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libhdf5-serial-dev libnetcdf-dev libgeos-dev 2>&1 | tail -5
+
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip wheel
+          pip install cdsapi>=0.6.1 netCDF4>=1.6.5 xarray>=2024.1.0 \
+                      tenacity>=8.2.0 requests numpy scipy
+        # Instala solo las deps de ERA5 — no el requirements.txt completo (más rápido)
+
+      # ── Pre-flight: fallar rápido antes de descargar datos ───────────────────
+      - name: Pre-flight checks
+        run: |
+          echo "=== Pre-flight validation ==="
+
+          # CDS_API_KEY — requerida para descargar ERA5
+          if [ -z "$CDS_API_KEY" ]; then
+            echo "❌ ERROR: CDS_API_KEY secret no configurado en GitHub Secrets"
+            echo "   → github.com/protocolfaro/faroprotocol/settings/secrets/actions"
+            echo "   → Add secret: CDS_API_KEY = UID:APIkey (desde cds.climate.copernicus.eu)"
+            exit 1
+          fi
+          echo "✅ CDS_API_KEY presente (len=${#CDS_API_KEY})"
+
+          # SUPABASE_URL + KEY — requeridas para escribir en DB
+          if [ -z "$SUPABASE_URL" ]; then
+            echo "❌ ERROR: SUPABASE_URL secret no configurado"
+            exit 1
+          fi
+          echo "✅ SUPABASE_URL: ${SUPABASE_URL:0:40}..."
+
+          if [ -z "$SUPABASE_KEY" ]; then
+            echo "❌ ERROR: SUPABASE_KEY secret no configurado"
+            exit 1
+          fi
+          echo "✅ SUPABASE_KEY presente (len=${#SUPABASE_KEY})"
+
+          # Validar formato CDS_API_KEY (debe ser UID:APIkey)
+          if [[ "$CDS_API_KEY" != *":"* ]]; then
+            echo "❌ ERROR: CDS_API_KEY formato incorrecto — debe ser 'UID:APIkey'"
+            echo "   Formato esperado: 12345:abcdef0123456789..."
+            exit 1
+          fi
+          echo "✅ CDS_API_KEY formato OK (contiene ':')"
+
+          # Python imports
+          python3 - <<'PYEOF'
+          import sys
+          failures = []
+
+          try:
+              import netCDF4
+              print(f"✅ netCDF4 {netCDF4.__version__}")
+          except ImportError as e:
+              failures.append(f"netCDF4: {e}")
+
+          try:
+              import xarray as xr
+              print(f"✅ xarray {xr.__version__}")
+          except ImportError as e:
+              failures.append(f"xarray: {e}")
+
+          try:
+              import cdsapi
+              print(f"✅ cdsapi {cdsapi.__version__}")
+          except ImportError as e:
+              failures.append(f"cdsapi: {e}")
+
+          try:
+              import tenacity
+              print(f"✅ tenacity {tenacity.__version__}")
+          except ImportError as e:
+              failures.append(f"tenacity: {e}")
+
+          try:
+              import numpy as np
+              print(f"✅ numpy {np.__version__}")
+          except ImportError as e:
+              failures.append(f"numpy: {e}")
+
+          if failures:
+              print("❌ Import failures:")
+              for f in failures:
+                  print(f"   {f}")
+              sys.exit(1)
+
+          print("✅ Todos los imports OK")
+          PYEOF
+
+          # Verificar sector_definitions.json existe
+          if [ ! -f "railway-backend/sports/clients/velez/sector_definitions.json" ]; then
+            echo "❌ ERROR: sector_definitions.json no encontrado"
+            exit 1
+          fi
+          SECTOR_COUNT=$(python3 -c "import json; d=json.load(open('railway-backend/sports/clients/velez/sector_definitions.json')); print(len(d.get('sectors',{})))")
+          echo "✅ sector_definitions.json: $SECTOR_COUNT sectores"
+
+          echo "=== Pre-flight OK ==="
+
+      # ── Ejecución principal con retry ────────────────────────────────────────
+      - name: Run ERA5-Land processor (attempt 1/3)
+        id: era5_run_1
+        continue-on-error: true
         run: |
           cd railway-backend
-          pip install -r requirements.txt
-      
-      - name: Run ERA5-Land processor
+          ARGS=""
+          [ -n "$TARGET_DATE" ]   && ARGS="$ARGS --date $TARGET_DATE"
+          [ -n "$TARGET_SECTOR" ] && ARGS="$ARGS --sector $TARGET_SECTOR"
+          echo "Ejecutando: python sports/clients/velez/faro_era5_land_sectorial.py $ARGS"
+          python sports/clients/velez/faro_era5_land_sectorial.py $ARGS
+          echo "era5_exit=$?" >> $GITHUB_OUTPUT
+
+      - name: Sleep 90s before retry (rate-limit backoff)
+        if: steps.era5_run_1.outcome == 'failure'
+        run: |
+          echo "⚠️ Attempt 1 failed — waiting 90s before retry (rate-limit backoff)"
+          sleep 90
+
+      - name: Run ERA5-Land processor (attempt 2/3)
+        id: era5_run_2
+        if: steps.era5_run_1.outcome == 'failure'
+        continue-on-error: true
         run: |
           cd railway-backend
-          python sports/clients/velez/faro_era5_land_sectorial.py
-      
-      - name: Notify on failure
+          ARGS=""
+          [ -n "$TARGET_DATE" ]   && ARGS="$ARGS --date $TARGET_DATE"
+          [ -n "$TARGET_SECTOR" ] && ARGS="$ARGS --sector $TARGET_SECTOR"
+          python sports/clients/velez/faro_era5_land_sectorial.py $ARGS
+
+      - name: Sleep 180s before final retry
+        if: steps.era5_run_1.outcome == 'failure' && steps.era5_run_2.outcome == 'failure'
+        run: |
+          echo "⚠️ Attempt 2 failed — waiting 180s before final retry"
+          sleep 180
+
+      - name: Run ERA5-Land processor (attempt 3/3 — final)
+        id: era5_run_3
+        if: steps.era5_run_1.outcome == 'failure' && steps.era5_run_2.outcome == 'failure'
+        run: |
+          cd railway-backend
+          ARGS=""
+          [ -n "$TARGET_DATE" ]   && ARGS="$ARGS --date $TARGET_DATE"
+          [ -n "$TARGET_SECTOR" ] && ARGS="$ARGS --sector $TARGET_SECTOR"
+          python sports/clients/velez/faro_era5_land_sectorial.py $ARGS
+        # Sin continue-on-error — si falla aquí el job falla y notifica
+
+      # ── Verificación post-run: Supabase recibió datos ────────────────────────
+      - name: Verify Supabase write
+        if: always() && (steps.era5_run_1.outcome == 'success' || steps.era5_run_2.outcome == 'success' || steps.era5_run_3.outcome == 'success')
+        run: |
+          python3 - <<'PYEOF'
+          import os, sys, requests
+          from datetime import datetime, timedelta, timezone
+
+          url = os.environ.get("SUPABASE_URL", "").rstrip("/")
+          key = os.environ.get("SUPABASE_KEY", "")
+          if not url or not key:
+              print("SKIP: Supabase vars not set")
+              sys.exit(0)
+
+          hdrs = {"apikey": key, "Authorization": f"Bearer {key}"}
+          since = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
+
+          try:
+              r = requests.get(
+                  f"{url}/rest/v1/climate_metrics_sectorial",
+                  headers=hdrs,
+                  params={"fecha": f"gte.{since}", "order": "created_at.desc", "limit": "10"},
+                  timeout=10,
+              )
+              rows = r.json() if r.ok else []
+              sectors = set(x.get("sector_id") for x in rows)
+              print(f"✅ Supabase: {len(rows)} filas recientes — sectores: {sorted(sectors)}")
+              if not rows:
+                  print("⚠️ WARN: 0 filas recientes en climate_metrics_sectorial — puede ser skip (ya existía)")
+          except Exception as e:
+              print(f"⚠️ Supabase verify error: {e}")
+          PYEOF
+
+      # ── Notificación de fallo ─────────────────────────────────────────────────
+      - name: Notify failure via email
         if: failure()
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          echo "ERA5-Land job failed"
-          exit 1
+          python3 - <<'PYEOF'
+          import os, smtplib
+          from email.message import EmailMessage
+          from datetime import datetime, timezone
+
+          user      = os.environ.get("GMAIL_USER", "protocolfaro@gmail.com")
+          app_pass  = os.environ.get("GMAIL_APP_PASS", "")
+          run_url   = os.environ.get("RUN_URL", "")
+          timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+
+          if not app_pass:
+              print(f"ERA5-Land FAILED — alertar manualmente. Run: {run_url}")
+              import sys; sys.exit(0)
+
+          msg = EmailMessage()
+          msg["Subject"] = f"❌ ERA5-Land CI fallo — {timestamp}"
+          msg["From"]    = user
+          msg["To"]      = user
+          msg.set_content(
+              f"El job ERA5-Land Sectorial Daily falló tras 3 intentos.\n\n"
+              f"Timestamp: {timestamp}\n"
+              f"Run: {run_url}\n\n"
+              f"Posibles causas:\n"
+              f"  - CDS API rate limit / outage\n"
+              f"  - Supabase connection error\n"
+              f"  - ERA5-Land data no disponible para la fecha solicitada\n\n"
+              f"Acción: revisar logs en el link de arriba."
+          )
+          try:
+              with smtplib.SMTP_SSL("smtp.gmail.com", 465) as s:
+                  s.login(user, app_pass)
+                  s.send_message(msg)
+              print(f"Email de alerta enviado a {user}")
+          except Exception as e:
+              print(f"Email error: {e} — run: {run_url}")
+          PYEOF
