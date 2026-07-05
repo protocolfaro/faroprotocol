@@ -12,10 +12,12 @@ Notas técnicas:
   - RH no es variable directa: se calcula de T2m y Td2m via formula de Magnus
   - SM capa 1 (0-7cm): variable ERA5 'swvl1', unidad m3/m3
   - Credenciales CDS: una sola API key del perfil en cds.climate.copernicus.eu
-    (NO es username+password — es el UID:APIkey que aparece en tu perfil)
+    Formatos de key aceptados:
+      - Viejo (pre-2024): "UID:APIkey" (ej: "12345:abc123...")
+      - Nuevo ECMWF 2024+: UUID de 36 chars (ej: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")
 
 Variables de entorno requeridas:
-  CDS_API_KEY  — formato "UID:APIkey" segun CDS profile (ej: "12345:abc123...")
+  CDS_API_KEY  — formato "UID:APIkey" (viejo) o UUID ECMWF 2024+ (nuevo)
   SUPABASE_URL — https://xljxpzudgwhbzcnrvylo.supabase.co
   SUPABASE_KEY — service role key o anon key con permisos INSERT
 """
@@ -75,9 +77,13 @@ except ImportError:
 
 _SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
 _SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
-_CDS_KEY      = os.environ.get("CDS_API_KEY", "")   # formato: "UID:APIkey"
+_CDS_KEY      = os.environ.get("CDS_API_KEY", "")
 # Nueva plataforma CDS (2024+): /api — la vieja /api/v2 devuelve 404 con keys nuevas
 _CDS_URL      = "https://cds.climate.copernicus.eu/api"
+
+def _cds_key_valid(key: str) -> bool:
+    """Acepta formato viejo (UID:APIkey) o nuevo UUID ECMWF 2024+ (≥32 chars sin ':')."""
+    return ":" in key or len(key) >= 32
 
 # Thresholds de datos de salida para detectar valores anómalos
 _ET0_MAX_MM   = 15.0    # ET0 > 15 mm/día es sospechoso para Buenos Aires
@@ -190,8 +196,8 @@ def _download_era5_land_raw(
         raise RuntimeError("cdsapi o xarray no disponible")
     if not _CDS_KEY:
         raise ValueError("CDS_API_KEY no configurada en variables de entorno")
-    if ":" not in _CDS_KEY:
-        raise ValueError(f"CDS_API_KEY formato incorrecto — debe ser 'UID:APIkey', recibido: {_CDS_KEY[:8]}...")
+    if not _cds_key_valid(_CDS_KEY):
+        raise ValueError(f"CDS_API_KEY formato incorrecto (len={len(_CDS_KEY)}, sin ':' y <32 chars)")
 
     lat_min = bbox["latitud_min"]
     lat_max = bbox["latitud_max"]
@@ -418,8 +424,8 @@ def preflight_check() -> list[str]:
 
     if not _CDS_KEY:
         errors.append("CDS_API_KEY no configurada en variables de entorno")
-    elif ":" not in _CDS_KEY:
-        errors.append(f"CDS_API_KEY formato incorrecto — debe ser 'UID:APIkey'")
+    elif not _cds_key_valid(_CDS_KEY):
+        errors.append(f"CDS_API_KEY formato incorrecto (len={len(_CDS_KEY)}) — debe ser 'UID:APIkey' o UUID ECMWF 2024+")
 
     if not _SUPABASE_URL:
         errors.append("SUPABASE_URL no configurada")

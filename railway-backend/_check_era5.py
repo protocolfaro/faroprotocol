@@ -16,11 +16,17 @@ results = {}
 errs = era5.preflight_check()
 results['T1_missing_key'] = any('CDS_API_KEY' in e for e in errs)
 
-# T2: bad format (no colon)
+# T2: bad format (short key, no colon)
 os.environ['CDS_API_KEY'] = 'nodots'
 importlib.reload(era5)
 errs2 = era5.preflight_check()
 results['T2_bad_format'] = any('formato' in e.lower() or 'UID' in e for e in errs2)
+
+# T2b: new UUID format (ECMWF 2024+) must pass validation
+os.environ['CDS_API_KEY'] = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
+importlib.reload(era5)
+errs2b = era5.preflight_check()
+results['T2b_uuid_format_ok'] = not any('formato' in e.lower() for e in errs2b)
 
 # T3: sectors loaded (real sector_definitions.json has 5)
 os.environ['CDS_API_KEY'] = '99999:abc'

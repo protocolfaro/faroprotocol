@@ -79,13 +79,22 @@ jobs:
           fi
           echo "✅ SUPABASE_KEY presente (len=${#SUPABASE_KEY})"
 
-          # Validar formato CDS_API_KEY (debe ser UID:APIkey)
-          if [[ "$CDS_API_KEY" != *":"* ]]; then
-            echo "❌ ERROR: CDS_API_KEY formato incorrecto — debe ser 'UID:APIkey'"
-            echo "   Formato esperado: 12345:abcdef0123456789..."
+          # Validar formato CDS_API_KEY:
+          #   Formato viejo (pre-2024): UID:APIkey  → tiene ':'
+          #   Formato nuevo (ECMWF API 2024+): UUID de 36 chars → sin ':'
+          KEY_LEN=${#CDS_API_KEY}
+          if [[ "$CDS_API_KEY" != *":"* ]] && [[ $KEY_LEN -lt 32 ]]; then
+            echo "❌ ERROR: CDS_API_KEY formato incorrecto"
+            echo "   Formato viejo: 12345:abcdef0123456789..."
+            echo "   Formato nuevo (ECMWF 2024+): UUID de 36 chars"
+            echo "   Key recibida tiene $KEY_LEN chars y sin ':'"
             exit 1
           fi
-          echo "✅ CDS_API_KEY formato OK (contiene ':')"
+          if [[ "$CDS_API_KEY" == *":"* ]]; then
+            echo "✅ CDS_API_KEY formato OK (UID:APIkey clásico, len=$KEY_LEN)"
+          else
+            echo "✅ CDS_API_KEY formato OK (UUID ECMWF 2024+, len=$KEY_LEN)"
+          fi
 
           # Python imports
           python3 - <<'PYEOF'
