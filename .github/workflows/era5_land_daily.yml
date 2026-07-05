@@ -103,13 +103,15 @@ jobs:
 
           try:
               import netCDF4
-              print(f"✅ netCDF4 {netCDF4.__version__}")
+              ver = getattr(netCDF4, '__version__', None) or 'OK'
+              print(f"✅ netCDF4 {ver}")
           except ImportError as e:
               failures.append(f"netCDF4: {e}")
 
           try:
               import xarray as xr
-              print(f"✅ xarray {xr.__version__}")
+              ver = getattr(xr, '__version__', None) or 'OK'
+              print(f"✅ xarray {ver}")
           except ImportError as e:
               failures.append(f"xarray: {e}")
 
@@ -122,13 +124,15 @@ jobs:
 
           try:
               import tenacity
-              print(f"✅ tenacity {tenacity.__version__}")
+              ver = getattr(tenacity, '__version__', None) or 'OK'
+              print(f"✅ tenacity {ver}")
           except ImportError as e:
               failures.append(f"tenacity: {e}")
 
           try:
               import numpy as np
-              print(f"✅ numpy {np.__version__}")
+              ver = getattr(np, '__version__', None) or 'OK'
+              print(f"✅ numpy {ver}")
           except ImportError as e:
               failures.append(f"numpy: {e}")
 
