@@ -115,7 +115,8 @@ jobs:
 
           try:
               import cdsapi
-              print(f"✅ cdsapi {cdsapi.__version__}")
+              ver = getattr(cdsapi, '__version__', None) or 'OK'
+              print(f"✅ cdsapi {ver}")
           except ImportError as e:
               failures.append(f"cdsapi: {e}")
 
