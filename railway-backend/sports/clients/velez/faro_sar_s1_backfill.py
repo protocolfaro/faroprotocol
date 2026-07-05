@@ -30,6 +30,65 @@ _BBOX       = (-58.535, -34.645, -58.515, -34.625)
 _FUENTE_OLD = "Sentinel-1 GRD · Planetary Computer · 20m · VV+VH"
 _FUENTE     = "Sentinel-1 GRD · PC · sigma0-cal · VV+VH"
 
+# ── Sentinel-1 mission continuity (S1A retired 2026-06-29) ───────────────────
+# S1A→S1C radiometric offsets (Schmidt et al 2023 + Copernicus 2026-02 update)
+# Applied at INSERT time so all DB values are in a consistent S1A-equivalent frame.
+_S1C_VV_OFFSET_DB = +0.12   # dB to ADD to raw S1C VV to match S1A baseline
+_S1C_VH_OFFSET_DB = +0.21
+_S1D_VV_OFFSET_DB = +0.07   # S1C→S1D: minor, < 0.1 dB per ESA commissioning
+_S1D_VH_OFFSET_DB = +0.07
+_S1A_RETIREMENT   = "2026-06-29"  # last S1A acquisition date
+
+
+def _infer_satellite(product_name: str) -> str:
+    """
+    Extracts satellite ID from CDSE/ESA product name.
+    Product names start with: S1A_, S1B_, S1C_, S1D_
+    """
+    prefix = (product_name or "")[:3].upper()
+    mapping = {"S1A": "S1A", "S1B": "S1B", "S1C": "S1C", "S1D": "S1D"}
+    return mapping.get(prefix, "unknown")
+
+
+def _satellite_from_platform(platform: str) -> str:
+    """Maps Planetary Computer 'platform' property to satellite ID."""
+    p = (platform or "").lower()
+    if "sentinel-1a" in p or p == "s1a":
+        return "S1A"
+    if "sentinel-1b" in p or p == "s1b":
+        return "S1B"
+    if "sentinel-1c" in p or p == "s1c":
+        return "S1C"
+    if "sentinel-1d" in p or p == "s1d":
+        return "S1D"
+    return "unknown"
+
+
+def _apply_radiometric_correction(
+    vv_db: Optional[float], vh_db: Optional[float], satellite: str
+) -> tuple[Optional[float], Optional[float]]:
+    """
+    Applies inter-satellite radiometric correction so all values are in
+    S1A-equivalent baseline. S1A data passes through unchanged.
+
+    Corrections are additive offsets in dB (Schmidt 2023, Copernicus 2026-02).
+    """
+    if satellite == "S1A":
+        return vv_db, vh_db
+    if satellite in ("S1C", "S1B"):
+        vv_out = round(vv_db + _S1C_VV_OFFSET_DB, 2) if vv_db is not None else None
+        vh_out = round(vh_db + _S1C_VH_OFFSET_DB, 2) if vh_db is not None else None
+        log.debug("Radiometric correction %s: VV %s→%s  VH %s→%s",
+                  satellite, vv_db, vv_out, vh_db, vh_out)
+        return vv_out, vh_out
+    if satellite == "S1D":
+        vv_out = round(vv_db + _S1D_VV_OFFSET_DB, 2) if vv_db is not None else None
+        vh_out = round(vh_db + _S1D_VH_OFFSET_DB, 2) if vh_db is not None else None
+        log.debug("Radiometric correction %s: VV %s→%s  VH %s→%s",
+                  satellite, vv_db, vv_out, vh_db, vh_out)
+        return vv_out, vh_out
+    return vv_db, vh_db  # unknown: pass through unmodified
+
 # ── Planetary Computer ────────────────────────────────────────────────────────
 _PC_STAC = "https://planetarycomputer.microsoft.com/api/stac/v1"
 _S1_COLL = "sentinel-1-grd"
@@ -481,14 +540,18 @@ def run_s1_backfill(days: int = 30, scene_limit: int = 20,
                 continue
 
             seen.add(scene_dt)   # marcar solo si sigma0 fue exitoso
-            log.info("CDSE %s: VV=%s dB  VH=%s dB", scene_dt, vv_db, vh_db)
-            if vv_db is not None:
-                vv_values.append(vv_db)
+            satellite = _infer_satellite(product_nm)
+            vv_corr, vh_corr = _apply_radiometric_correction(vv_db, vh_db, satellite)
+            log.info("CDSE %s [%s]: VV=%s→%s dB  VH=%s→%s dB",
+                     scene_dt, satellite, vv_db, vv_corr, vh_db, vh_corr)
+            if vv_corr is not None:
+                vv_values.append(vv_corr)
 
             ok = vs.insert_soil_metrics(
                 venue_id=_VENUE_ID, cancha_id=_CANCHA_ID,
-                sar_vv_db=vv_db, sar_vh_db=vh_db,
+                sar_vv_db=vv_corr, sar_vh_db=vh_corr,
                 fuente=_FUENTE, fecha_imagen=scene_dt,
+                satellite_inferred=satellite,
             )
             if ok:
                 inserted += 1
@@ -521,14 +584,18 @@ def run_s1_backfill(days: int = 30, scene_limit: int = 20,
                 errors += 1
                 continue
 
-            log.info("PC %s: VV=%s dB  VH=%s dB", scene_dt, vv_db, vh_db)
-            if vv_db is not None:
-                vv_values.append(vv_db)
+            satellite = _satellite_from_platform(props.get("platform", ""))
+            vv_corr, vh_corr = _apply_radiometric_correction(vv_db, vh_db, satellite)
+            log.info("PC %s [%s]: VV=%s→%s dB  VH=%s→%s dB",
+                     scene_dt, satellite, vv_db, vv_corr, vh_db, vh_corr)
+            if vv_corr is not None:
+                vv_values.append(vv_corr)
 
             ok = vs.insert_soil_metrics(
                 venue_id=_VENUE_ID, cancha_id=_CANCHA_ID,
-                sar_vv_db=vv_db, sar_vh_db=vh_db,
+                sar_vv_db=vv_corr, sar_vh_db=vh_corr,
                 fuente=_FUENTE, fecha_imagen=scene_dt,
+                satellite_inferred=satellite,
             )
             if ok:
                 seen.add(scene_dt)

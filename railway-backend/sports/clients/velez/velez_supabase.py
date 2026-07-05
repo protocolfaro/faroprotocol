@@ -465,15 +465,16 @@ def get_intervenciones_recientes(cancha_id: str | None = None, dias: int = 14) -
 
 def insert_soil_metrics(
     *,
-    venue_id:     str,
-    cancha_id:    str | None = None,
-    is_hibrido:   bool = False,
-    sar_vv_db:    float | None = None,
-    sar_vh_db:    float | None = None,
-    theta_soil:   float | None = None,
-    h_suction_cm: float | None = None,
-    fuente:       str = "",
-    fecha_imagen: str | None = None,
+    venue_id:            str,
+    cancha_id:           str | None = None,
+    is_hibrido:          bool = False,
+    sar_vv_db:           float | None = None,
+    sar_vh_db:           float | None = None,
+    theta_soil:          float | None = None,
+    h_suction_cm:        float | None = None,
+    fuente:              str = "",
+    fecha_imagen:        str | None = None,
+    satellite_inferred:  str | None = None,
 ) -> bool:
     """
     Insert one SAR soil row into soil_metrics. Silent fallback on failure.
@@ -484,15 +485,16 @@ def insert_soil_metrics(
     if cancha_id and is_hibrido is False:
         is_hibrido = _tipo_for(cancha_id) == "hibrido"
     row = {
-        "venue_id":     venue_id,
-        "cancha_id":    cancha_id,
-        "is_hibrido":   is_hibrido,
-        "sar_vv_db":    sar_vv_db,
-        "sar_vh_db":    sar_vh_db,
-        "theta_soil":   theta_soil,
-        "h_suction_cm": h_suction_cm,
-        "fuente":       fuente,
-        "fecha_imagen": fecha_imagen,
+        "venue_id":           venue_id,
+        "cancha_id":          cancha_id,
+        "is_hibrido":         is_hibrido,
+        "sar_vv_db":          sar_vv_db,
+        "sar_vh_db":          sar_vh_db,
+        "theta_soil":         theta_soil,
+        "h_suction_cm":       h_suction_cm,
+        "fuente":             fuente,
+        "fecha_imagen":       fecha_imagen,
+        "satellite_inferred": satellite_inferred,
     }
     url = f"{_base()}/rest/v1/soil_metrics"
     try:
