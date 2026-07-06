@@ -61,7 +61,7 @@ jobs:
             echo "send_email=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Fase B — Regenerar PNGs (render_reports + datos reales)
+      - name: Fase B — Ensamblar datos reales + PNGs + actualizar JSON panel
         if: steps.fase_a.outputs.railway_ok == 'true'
         env:
           MPLBACKEND: Agg
@@ -73,22 +73,41 @@ jobs:
           NASA_EARTHDATA_PASS: ${{ secrets.NASA_EARTHDATA_PASS }}
         run: |
           python - <<'EOF'
-          import sys, json, logging
+          import sys, json, logging, shutil
           from pathlib import Path
           logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
           sys.path.insert(0, "railway-backend/sports/clients/velez")
           from faro_assembler import assemble_report
           from render_reports import render_all
+
+          # Ensamblar datos reales: Supabase + Railway + NASA
           vd = assemble_report(venue_id="amalfitani")
+
+          # Persistir JSON ensamblado a velez/velez_data.json
+          # (el panel y faro-paneles leen de este archivo)
+          vd_out = Path("velez/velez_data.json")
+          vd_out.write_text(json.dumps(vd, ensure_ascii=False, default=str, indent=2), encoding="utf-8")
+          print(f"velez_data.json actualizado: {vd_out} ({vd_out.stat().st_size//1024} KB)")
+
+          # Generar 8 PNGs con datos reales
           out_dir = Path("reportes_velez")
           files = render_all(vd, out_dir)
-          # Mirror to velez/reportes/ so sync-paneles keeps the panel live
+
+          # Mirror PNGs a velez/reportes/ → sync-paneles los propaga al panel
           panel_dir = Path("velez/reportes")
           panel_dir.mkdir(parents=True, exist_ok=True)
           for f in files:
-              import shutil
               shutil.copy2(f, panel_dir / f.name)
+
           print(f"Fase B: {len(files)}/8 PNGs → reportes_velez/ + velez/reportes/")
+
+          # Resumen de datos reales
+          wl = vd.get("weather_live", {})
+          canchas = vd.get("sectores", {}).get("canchero", {}).get("canchas", [])
+          print(f"  ET0={wl.get('et0_mm_dia','N/D')} mm | Humedad={wl.get('humedad_suelo_pct','N/D')}%")
+          print(f"  Canchas con NDVI: {sum(1 for c in canchas if c.get('ndvi') is not None)}/{len(canchas)}")
+          print(f"  Canchas con SAR:  {sum(1 for c in canchas if c.get('sar_vv_db') is not None)}/{len(canchas)}")
+          print(f"  Roger acciones:   {len(vd.get('roger_canchas', []))} canchas")
           EOF
 
       - name: Commit cambios diarios
