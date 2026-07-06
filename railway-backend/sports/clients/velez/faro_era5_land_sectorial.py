@@ -612,7 +612,7 @@ def process_all_sectors(
 
             # Idempotencia: si ya existe fila con ET0 no-null, skip
             existing = _fetch_latest_sector(sector_id, fecha_str)
-            if existing and existing.get("et0_mm_dia") is not None:
+            if existing and existing.get("et0_mm_dia") is not None and existing.get("et0_mm_dia", 0) > 0:
                 log.info("Skip %s %s — ya existe en DB (ET0=%.2f mm)",
                          sector_id, fecha_str, existing["et0_mm_dia"])
                 ok_count += 1
