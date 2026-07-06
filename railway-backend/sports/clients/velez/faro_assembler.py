@@ -531,6 +531,84 @@ def _parse_detalle_fields(vd: dict) -> None:
              est.get("ndvi"), est.get("insar_mm"), sol.get("eficiencia_pct"))
 
 
+def _apply_solar_pvlib(vd: dict) -> None:
+    """Physics-based solar efficiency via NOCT model + NASA POWER GHI.
+
+    Reads GHI from sectores.solar.ghi_kwh_m2 (set by _apply_faro_v2_overlay).
+    Computes PR (Performance Ratio) and effective panel efficiency without
+    relying on Supabase values that may be synthetic.
+
+    Stores:
+      sectores.solar.eficiencia_pct_pvlib  — physics-based efficiency %
+      sectores.solar.pr_pvlib              — Performance Ratio (0-1)
+      sectores.solar.t_cell_estimada       — estimated cell temperature °C
+    """
+    try:
+        solar = vd.setdefault("sectores", {}).setdefault("solar", {})
+        ghi_kwh = solar.get("ghi_kwh_m2")
+        if ghi_kwh is None:
+            # Fallback: try faro_v2_reports path directly
+            wl = vd.get("weather_live", {})
+            ghi_kwh = wl.get("ghi_kwh_m2")
+        if ghi_kwh is None:
+            log.info("assembler: pvlib solar — GHI no disponible, saltando")
+            return
+
+        ghi_kwh_f = float(ghi_kwh)
+        # Peak irradiance proxy: 6 peak-sun-hours for Buenos Aires (-34°)
+        irr_w_m2 = (ghi_kwh_f * 1000) / 6.0
+
+        # Ambient temperature from hermes/weather data
+        wl = vd.get("weather_live", {})
+        t_amb = float(wl.get("temperatura") or wl.get("temp_media") or 15.0)
+
+        # NOCT cell temperature model (IEC 61215)
+        # T_cell = T_amb + (NOCT - 20°C) / 800 W/m² × G
+        NOCT = 47.0   # typical monocrystalline panel
+        t_cell = t_amb + (NOCT - 20.0) / 800.0 * irr_w_m2
+
+        # Panel + system loss factors (industry standard values for Argentina)
+        EFF_STC   = 0.200   # rated module efficiency @ STC (20% monocrystalline)
+        TEMP_COEF = -0.0040  # power temperature coefficient (%/°C)
+        ETA_INV   = 0.960   # inverter efficiency
+        F_SOIL    = 0.970   # soiling (dust, pampas)
+        F_SHADE   = 0.985   # partial shading from stadium structure
+        F_MISMATCH= 0.980   # module mismatch
+        F_WIRING  = 0.980   # DC wiring losses
+
+        # Temperature-corrected module efficiency
+        temp_factor = 1.0 + TEMP_COEF * (t_cell - 25.0)
+        eff_module = EFF_STC * max(0.70, temp_factor)
+
+        # Overall system Performance Ratio
+        pr = ETA_INV * F_SOIL * F_SHADE * F_MISMATCH * F_WIRING
+
+        # Effective DC-to-AC system efficiency
+        eff_system_pct = round(eff_module * pr * 100.0, 1)
+        pr_total = round(eff_module / EFF_STC * pr, 3)
+
+        solar["eficiencia_pct_pvlib"] = eff_system_pct
+        solar["pr_pvlib"]             = pr_total
+        solar["t_cell_estimada"]      = round(t_cell, 1)
+        solar["ghi_kwh_m2_real"]      = round(ghi_kwh_f, 3)
+
+        # Override eficiencia_pct only if it's synthetic (82.4) or missing
+        SYNTHETIC_EFF = {82.4, 71.0}
+        current_eff = solar.get("eficiencia_pct")
+        if current_eff is None or float(current_eff) in SYNTHETIC_EFF:
+            solar["eficiencia_pct"] = eff_system_pct
+            log.info("assembler: pvlib solar — eficiencia_pct sobreescrita (%s→%.1f%%)",
+                     current_eff, eff_system_pct)
+
+        log.info(
+            "assembler: pvlib solar OK — GHI=%.2f kWh/m² G_peak=%.0fW/m² "
+            "T_cell=%.1f°C PR=%.3f eff=%.1f%%",
+            ghi_kwh_f, irr_w_m2, t_cell, pr_total, eff_system_pct,
+        )
+    except Exception as e:
+        log.warning("assembler: pvlib solar (non-fatal): %s", e)
+
+
 def assemble_report(venue_id: str = "amalfitani") -> dict:
     """
     Ensambla el VelezReport canónico.
@@ -547,6 +625,7 @@ def assemble_report(venue_id: str = "amalfitani") -> dict:
     _apply_solar_overlay(vd)
     _apply_piletas_overlay(vd)
     _apply_faro_v2_overlay(vd, venue_id)   # SAR vv/vh, GHI solar, HAND hydro desde faro_v2_reports
+    _apply_solar_pvlib(vd)                 # physics-based efficiency: NOCT model + NASA POWER GHI
     _parse_detalle_fields(vd)              # extrae floats de detalle strings (fallback si v2 no tiene datos)
     # Vista unificada Roger: Amalfitani + 12 canchas VO con todos los campos científicos
     vd["roger_canchas"] = _build_roger_canchas(vd)

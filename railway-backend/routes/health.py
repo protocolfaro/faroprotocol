@@ -141,17 +141,31 @@ def _kalman_status() -> dict:
 
 
 def _sar_status() -> dict:
-    # soil_metrics uses venue_id="amalfitani" — query without venue filter
+    # Query by fecha_imagen (acquisition date) not created_at — avoids picking up
+    # diag test rows (sar_vv_db=null) or rows inserted without real SAR data.
     rows = _sb("soil_metrics", {
-        "order":  "created_at.desc",
-        "limit":  "1",
-        "select": "created_at,sar_vv_db,theta_soil",
+        "sar_vv_db":    "not.is.null",
+        "fecha_imagen": "not.is.null",
+        "order":        "fecha_imagen.desc",
+        "limit":        "1",
+        "select":       "created_at,fecha_imagen,sar_vv_db,theta_soil",
     })
-    lag = _age_hours(rows[0].get("created_at") if rows else None)
+    # lag based on acquisition date, not insert time
+    lag = None
+    if rows:
+        fi = rows[0].get("fecha_imagen")
+        if fi:
+            try:
+                from datetime import date as _date
+                acq = _date.fromisoformat(fi[:10])
+                lag = (datetime.now(timezone.utc).date() - acq).days * 24
+            except Exception:
+                lag = _age_hours(rows[0].get("created_at"))
     return {
         "status":    _svc_status(lag, _THRESHOLDS["sar_lag_warn_h"], _THRESHOLDS["sar_lag_err_h"]),
         "lag_hours": lag,
         "sar_vv_db": rows[0].get("sar_vv_db") if rows else None,
+        "last_fecha": rows[0].get("fecha_imagen") if rows else None,
         "label":     "SAR/S1",
     }
 

@@ -179,14 +179,27 @@ def validate(vd: dict) -> tuple[list, list]:
 
     # ── 6. Solar ─────────────────────────────────────────────────────────────
     sol = sectores.get("solar", {})
-    eff = sol.get("eff_pct") or sol.get("score")
+    eff = sol.get("eficiencia_pct") or sol.get("eff_pct") or sol.get("score")
     if eff is not None:
         try:
             eff_f = float(eff)
             if eff_f in _SYNTHETIC_SOLAR:
-                _warn(f"Solar: eff_pct={eff} es valor sintético conocido (hardcodeado: 82.4)")
+                _warn(f"Solar: eficiencia_pct={eff} es valor sintético conocido (82.4% hardcodeado)")
             elif not (0 <= eff_f <= 100):
-                _err(f"Solar eff_pct={eff} fuera de rango")
+                _err(f"Solar eficiencia_pct={eff} fuera de rango")
+        except (TypeError, ValueError):
+            pass
+    # pvlib physics-based efficiency check
+    eff_pvlib = sol.get("eficiencia_pct_pvlib")
+    if eff_pvlib is None:
+        _warn("Solar: eficiencia_pct_pvlib AUSENTE — pvlib no corrió o GHI no disponible")
+    else:
+        try:
+            pvlib_f = float(eff_pvlib)
+            if not (5.0 <= pvlib_f <= 25.0):
+                _warn(f"Solar: eficiencia_pct_pvlib={pvlib_f} fuera del rango físico (5-25%)")
+            else:
+                _ok(f"Solar pvlib OK: eff={pvlib_f}% PR={sol.get('pr_pvlib','N/D')} T_cell={sol.get('t_cell_estimada','N/D')}°C")
         except (TypeError, ValueError):
             pass
 

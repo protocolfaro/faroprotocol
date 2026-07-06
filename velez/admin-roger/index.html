@@ -99,6 +99,16 @@ body{background:var(--bg);color:var(--whi);font-family:'Epilogue',sans-serif;wid
 .ipos-bar-bg{height:5px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;}
 .ipos-bar-fill{height:100%;border-radius:3px;transition:width 0.8s ease;}
 .ipos-tiers{display:flex;justify-content:space-between;margin-top:3px;font-size:6px;color:var(--dim2);}
+.solar-section{flex-shrink:0;padding:8px 16px;border-bottom:1px solid rgba(255,255,255,0.04);}
+.solar-title{font-size:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;}
+.solar-source{font-size:6px;color:var(--dim2);font-weight:600;letter-spacing:0.3px;}
+.solar-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;}
+.solar-cell{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04);border-radius:4px;padding:6px 8px;}
+.solar-cell-label{font-size:6.5px;font-weight:700;letter-spacing:0.4px;color:var(--dim);text-transform:uppercase;}
+.solar-cell-val{font-size:12px;font-weight:700;color:var(--whi);margin-top:2px;}
+.solar-cell-unit{font-size:6.5px;color:var(--dim);}
+.solar-eff-bar{height:3px;margin-top:4px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;}
+.solar-eff-fill{height:100%;border-radius:2px;background:var(--gold);transition:width 1s ease;}
 .sar-section{flex-shrink:0;padding:8px 16px;border-bottom:1px solid rgba(255,255,255,0.04);}
 .sar-title{font-size:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;}
 .sar-date{font-size:7px;color:var(--dim2);font-weight:600;}
@@ -186,6 +196,7 @@ body{background:var(--bg);color:var(--whi);font-family:'Epilogue',sans-serif;wid
         <div class="sar-chart-title">SAR VV — COMPACTACIÓN HISTÓRICA (30 días)</div>
         <canvas id="sarTrendChart"></canvas>
     </div>
+    <div class="solar-section" id="solarIntelSection" style="display:none;"></div>
     <div class="grid3x3-section" id="grid3x3Section" style="display:none;">
         <div class="grid3x3-header" onclick="toggleGrid3x3()">
             <span class="grid3x3-label">ANÁLISIS 3×3 — SECTORES AMALFITANI</span>
@@ -197,8 +208,9 @@ body{background:var(--bg);color:var(--whi);font-family:'Epilogue',sans-serif;wid
 <script>
 'use strict';
 const ENDPOINT='https://faroprotocol-production-45fd.up.railway.app/velez/prescriptions';
+const VD_RAW='https://raw.githubusercontent.com/protocolfaro/faroprotocol/main/velez/velez_data.json';
 const POLL_MS=5*60*1000;
-let _data=null,_activeCanchaId=null,_activeZoneId='GK_N',_hmVisible=false;
+let _data=null,_activeCanchaId=null,_activeZoneId='GK_N',_hmVisible=false,_vd=null;
 const UL={HOY:'HOY',ESTA_SEMANA:'ESTA SEMANA',PROXIMA_SEMANA:'PROX. SEMANA',MONITOREAR:'MONITOREAR',OK:'OK'};
 const ACTION_COL={AEREAR:'#f59e0b',REGAR:'#22d3ee',FUNGICIDA:'#a855f7',FERTILIZAR:'#22c55e',DRENAR:'#3b82f6',OK:'#22c55e'};
 const URG_BG={HOY:'rgba(239,68,68,0.14)',ESTA_SEMANA:'rgba(245,158,11,0.10)',PROXIMA_SEMANA:'rgba(59,130,246,0.10)',MONITOREAR:'rgba(107,114,128,0.07)',OK:'rgba(34,197,94,0.06)'};
@@ -301,6 +313,28 @@ function renderPanel(cid){
     renderZoneDetail(cancha,_activeZoneId);
 }
 let _sarChart=null;
+async function loadVelezData(){
+    try{
+        const r=await fetch(VD_RAW+'?t='+Date.now(),{cache:'no-cache'});
+        if(!r.ok)return;
+        _vd=await r.json();
+        renderSolarSection();
+    }catch(e){console.warn('velez_data.json fetch:',e);}
+}
+function renderSolarSection(){
+    const el=document.getElementById('solarIntelSection');
+    if(!el||!_vd)return;
+    const sol=_vd?.sectores?.solar||{};
+    const effPvlib=sol.eficiencia_pct_pvlib;
+    const effSupa=sol.eficiencia_pct;
+    const SYNTH=[82.4,71.0];
+    const eff=effPvlib!=null?effPvlib:(effSupa!=null&&!SYNTH.includes(parseFloat(effSupa))?effSupa:null);
+    const pr=sol.pr_pvlib,tCell=sol.t_cell_estimada,ghi=sol.ghi_kwh_m2_real||sol.ghi_kwh_m2;
+    const assAt=_vd?._assembled_at?new Date(_vd._assembled_at).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}):'-';
+    const effColor=eff==null?'var(--dim)':eff>=17?'var(--green)':eff>=14?'var(--amber)':'var(--red)';
+    const effPct=eff!=null?Math.min(100,Math.round(eff/22*100)):0;
+    el.innerHTML=`<div class="solar-title">SOLAR — EFICIENCIA REAL (pvlib · NASA POWER) <span class="solar-source">ensamblado ${assAt}</span></div><div class="solar-grid"><div class="solar-cell"><div class="solar-cell-label">Efic. sistema</div><div class="solar-cell-val" style="color:${effColor}">${eff!=null?eff.toFixed(1):'—'}<span class="solar-cell-unit">%</span></div><div class="solar-eff-bar"><div class="solar-eff-fill" style="width:${effPct}%"></div></div></div><div class="solar-cell"><div class="solar-cell-label">GHI real</div><div class="solar-cell-val">${ghi!=null?parseFloat(ghi).toFixed(2):'—'}<span class="solar-cell-unit"> kWh/m²</span></div></div><div class="solar-cell"><div class="solar-cell-label">PR pvlib</div><div class="solar-cell-val">${pr!=null?parseFloat(pr).toFixed(3):'—'}</div></div><div class="solar-cell"><div class="solar-cell-label">T° celda</div><div class="solar-cell-val">${tCell!=null?parseFloat(tCell).toFixed(1):'—'}<span class="solar-cell-unit"> °C</span></div></div></div>`;
+}
 async function loadSarChart(){
     const wrap=document.getElementById('sarChartWrap');
     if(!wrap)return;
@@ -381,11 +415,16 @@ async function init(raw){
         _data=raw;updateHeader();buildTabs();
         const firstId=Object.keys(_data.canchas||{})[0];if(firstId){_activeZoneId='GK_N';activateCancha(firstId);}
         loadSarChart();loadSarGrid();
+        // Solar intelligence panel from velez_data.json (secondary source)
+        const solEl=document.getElementById('solarIntelSection');
+        if(solEl)solEl.style.display='block';
+        loadVelezData();
     }catch(e){console.error('Prescription panel error:',e);const body=document.getElementById('panelBody');if(body)body.innerHTML=`<div style="padding:20px 16px;color:#ef4444;font-size:10px;">Error cargando prescripciones - reintentando en 5 min<br><span style="opacity:0.5;font-size:9px">${e}</span></div>`;}
 }
 async function pollLoop(){
     try{const res=await fetch(ENDPOINT,{cache:'no-cache'});if(res.ok){_data=await res.json();updateHeader();if(_activeCanchaId)activateCancha(_activeCanchaId);loadSarChart();loadSarGrid();}}
     catch(e){console.warn('Poll:',e);}
+    loadVelezData();
     setTimeout(pollLoop,POLL_MS);
 }
 window.onload=async()=>{await init();setTimeout(pollLoop,POLL_MS);};

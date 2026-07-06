@@ -53,10 +53,13 @@ ALLOWED_ACTIONS = frozenset([
     "check_pngs",
     "check_supabase",
     "check_panel",
-    "trigger_refresh",    # POST /velez/run-refresh — datos y PNGs, NUNCA emails
-    "send_alert_email",   # SOLO a CEREBRO_ALERT_EMAIL
-    "open_github_pr",     # NUNCA push a main
-    "ping_deadman",       # healthchecks.io
+    "check_pipeline_freshness",
+    "check_dprvi_fusion",      # fusión DpRVIc + ERA5 por sector
+    "get_dprvi_confidence",    # confianza humedad por cancha
+    "trigger_refresh",         # POST /velez/run-refresh — datos y PNGs, NUNCA emails
+    "send_alert_email",        # SOLO a CEREBRO_ALERT_EMAIL
+    "open_github_pr",          # NUNCA push a main
+    "ping_deadman",            # healthchecks.io
     "log_to_supabase",
 ])
 
@@ -70,8 +73,9 @@ _DGM_ALLOWED_FILES = frozenset([
 
 # ── INHIBITION RULES — si A falla, no escalar B (Alertmanager pattern) ────────
 INHIBITION_RULES: dict[str, list[str]] = {
-    "check_health":   ["check_json_freshness", "check_pngs", "check_supabase", "check_panel"],
-    "check_supabase": ["check_json_freshness"],
+    "check_health":   ["check_json_freshness", "check_pngs", "check_supabase", "check_panel",
+                       "check_pipeline_freshness"],
+    "check_supabase": ["check_json_freshness", "check_pipeline_freshness"],
 }
 
 # ── FLAPPING DETECTION — escalar solo tras N fallos consecutivos ──────────────
@@ -267,17 +271,267 @@ def _fn_pngs() -> tuple[bool, str]:
     return True, "endpoint no disponible — skip"
 
 
+def get_dprvi_confidence(cancha_id: str, fecha) -> dict:
+    """
+    Fusión DpRVIc + ERA5-Land para estimar confianza de humedad de suelo.
+
+    Umbrales calibrados para césped deportivo en Buenos Aires:
+      - dprvi < 0.25 AND era5_sm < 25%  → "dry_fusion"   (confianza 85%)
+      - dprvi > 0.35 AND era5_sm > 35%  → "humid_fusion" (confianza 90%)
+      - cualquier otra combinación con ambas fuentes → "conflicto" (confianza 45%)
+      - Solo ERA5 disponible             → "era5_solo"   (confianza 60%)
+      - Solo DpRVIc disponible           → "dprvi_solo"  (confianza 70%)
+      - Sin datos                        → "sin_datos"   (confianza 0%)
+
+    Nota DpRVIc: (VV-VH)/(VV+VH) — valores bajos = húmedo/vegetación densa,
+    valores altos = seco/suelo desnudo. Umbral 0.25-0.35 es zona de transición.
+
+    Escribe resultado en hermes_diagnostico.
+    Retorna dict con keys: fuente, confianza_pct, humedad_m3m3, riego_detectado, nota
+    """
+    fecha_str = str(fecha)[:10]
+
+    # ── Consultar DpRVIc ─────────────────────────────────────────────────────
+    dprvi_rows = _sb_query(
+        "dprvi_metrics",
+        f"cancha_id=eq.{cancha_id}&fecha=eq.{fecha_str}"
+        "&select=dprvi_value,dprvi_confidence_pct&limit=1",
+    )
+    dprvi_value = None
+    if dprvi_rows:
+        dprvi_value = dprvi_rows[0].get("dprvi_value")
+
+    # ── Consultar ERA5-Land SM ────────────────────────────────────────────────
+    era5_rows = _sb_query(
+        "climate_metrics_sectorial",
+        f"sector_id=eq.{cancha_id}&fecha=eq.{fecha_str}"
+        "&select=sm_0_7cm_pct,et0_mm_dia&limit=1",
+    )
+    era5_sm  = None
+    era5_et0 = None
+    if era5_rows:
+        era5_sm  = era5_rows[0].get("sm_0_7cm_pct")
+        era5_et0 = era5_rows[0].get("et0_mm_dia")
+
+    # ── Lógica de fusión ─────────────────────────────────────────────────────
+    tiene_dprvi = dprvi_value is not None
+    tiene_era5  = era5_sm is not None
+
+    dprvi_f     = float(dprvi_value) if tiene_dprvi else None
+    era5_sm_f   = float(era5_sm)     if tiene_era5  else None
+
+    dprvi_humedo = tiene_dprvi and dprvi_f < 0.25
+    dprvi_seco   = tiene_dprvi and dprvi_f > 0.35
+    era5_humedo  = tiene_era5  and era5_sm_f > 35.0
+    era5_seco    = tiene_era5  and era5_sm_f < 25.0
+
+    # Riego detectado: SM alta + ET0 alta (evaporación demanda = posible riego compensatorio)
+    riego_detectado = bool(era5_humedo and era5_et0 and float(era5_et0) > 4.0)
+
+    if tiene_dprvi and tiene_era5:
+        if dprvi_humedo and era5_humedo:
+            fuente    = "humid_fusion"
+            confianza = 90
+            nota      = (f"DpRVIc={dprvi_f:.3f}<0.25 y ERA5-SM={era5_sm_f:.1f}%>35%"
+                         " — suelo húmedo confirmado por ambas fuentes")
+            hum_m3m3  = era5_sm_f / 100.0
+        elif dprvi_seco and era5_seco:
+            fuente    = "dry_fusion"
+            confianza = 85
+            nota      = (f"DpRVIc={dprvi_f:.3f}>0.35 y ERA5-SM={era5_sm_f:.1f}%<25%"
+                         " — suelo seco confirmado por ambas fuentes")
+            hum_m3m3  = era5_sm_f / 100.0
+        else:
+            fuente    = "conflicto"
+            confianza = 45
+            if dprvi_humedo and not era5_humedo:
+                nota = (f"CONFLICTO: DpRVIc={dprvi_f:.3f} (húmedo) "
+                        f"vs ERA5-SM={era5_sm_f:.1f}% (seco/intermedio) — posible riego reciente")
+            elif dprvi_seco and era5_humedo:
+                nota = (f"CONFLICTO: ERA5-SM={era5_sm_f:.1f}% (húmedo) "
+                        f"vs DpRVIc={dprvi_f:.3f} (seco) — posible absorción sub-superficial")
+            else:
+                nota = (f"Zona transición: DpRVIc={dprvi_f:.3f} ERA5-SM={era5_sm_f:.1f}%"
+                        " — señal ambigua, monitorear próximas 24h")
+            hum_m3m3  = era5_sm_f / 100.0
+    elif tiene_era5:
+        fuente    = "era5_solo"
+        confianza = 60
+        nota      = f"Sin DpRVIc — solo ERA5-SM={era5_sm_f:.1f}%"
+        hum_m3m3  = era5_sm_f / 100.0
+    elif tiene_dprvi:
+        fuente    = "dprvi_solo"
+        confianza = 70
+        nota      = f"Sin ERA5 — solo DpRVIc={dprvi_f:.3f}"
+        hum_m3m3  = None
+    else:
+        fuente    = "sin_datos"
+        confianza = 0
+        nota      = f"Sin DpRVIc ni ERA5 para {cancha_id} {fecha_str}"
+        hum_m3m3  = None
+
+    result = {
+        "fuente":          fuente,
+        "confianza_pct":   confianza,
+        "humedad_m3m3":    hum_m3m3,
+        "riego_detectado": riego_detectado,
+        "nota":            nota,
+    }
+
+    # ── Escribir en hermes_diagnostico ────────────────────────────────────────
+    _sb_insert("hermes_diagnostico", {
+        "cancha_id":             cancha_id,
+        "fecha":                 fecha_str,
+        "humedad_estimada_m3m3": hum_m3m3,
+        "humedad_confianza_pct": confianza,
+        "humedad_fuente":        fuente,
+        "riego_detectado":       riego_detectado,
+        "nota_calidad_texto":    nota,
+    })
+
+    log.info(
+        "get_dprvi_confidence(%s, %s) → fuente=%s conf=%d%% riego=%s",
+        cancha_id, fecha_str, fuente, confianza, riego_detectado,
+    )
+    return result
+
+
+def _fetch_precip_open_meteo(lat: float, lon: float, fecha_str: str) -> Optional[float]:
+    """
+    Consulta Open-Meteo para precipitación diaria (mm) en (lat, lon) y fecha dada.
+    Retorna None si falla (no bloquea el flujo principal).
+    """
+    try:
+        url = "https://api.open-meteo.com/v1/forecast"
+        params = {
+            "latitude":      lat,
+            "longitude":     lon,
+            "daily":         "precipitation_sum",
+            "timezone":      "America/Argentina/Buenos_Aires",
+            "start_date":    fecha_str,
+            "end_date":      fecha_str,
+            "forecast_days": 1,
+        }
+        r = requests.get(url, params=params, timeout=8)
+        if r.ok:
+            daily = r.json().get("daily", {})
+            vals  = daily.get("precipitation_sum", [])
+            return float(vals[0]) if vals and vals[0] is not None else None
+    except Exception as e:
+        log.debug("Open-Meteo error: %s", e)
+    return None
+
+
+def _fn_dprvi_fusion() -> tuple[bool, str]:
+    """
+    Check: fusión DpRVIc + ERA5 + precipitación Open-Meteo sobre todos los sectores.
+
+    Triangulación:
+      - DpRVIc (Sentinel-1): señal SAR de volumen de dispersión superficial
+      - ERA5-Land SM: humedad suelo 0-7cm modelada
+      - Open-Meteo precip: lluvia en últimas 24h como tercer árbitro de conflictos
+    """
+    from datetime import date as _date
+    hoy = _date.today().isoformat()
+
+    # Coordenada central para Open-Meteo (centro de Villa Olímpica)
+    OM_LAT, OM_LON = -34.6420, -58.5195
+    precip_mm = _fetch_precip_open_meteo(OM_LAT, OM_LON, hoy)
+    precip_str = f"{precip_mm:.1f}mm" if precip_mm is not None else "N/A"
+
+    SECTORES = [
+        "amalfitani_central", "vo_bloque_a", "vo_bloque_b", "vo_bloque_c", "vo_bloque_d",
+    ]
+    conflictos   = []
+    sin_datos    = []
+    resueltos_om = []   # conflictos resueltos con Open-Meteo como árbitro
+
+    for sector in SECTORES:
+        r = get_dprvi_confidence(sector, hoy)
+        fuente = r["fuente"]
+
+        if fuente == "conflicto" and precip_mm is not None:
+            # Si llovió >5mm → el conflicto se resuelve: ERA5 puede no haber capturado aún
+            if precip_mm > 5.0:
+                nota_om = (f"{sector}: conflicto resuelto por precipitación "
+                           f"Open-Meteo={precip_str} — suelo húmedo probable")
+                log.info("Cerebro DpRVI: %s", nota_om)
+                _sb_insert("hermes_diagnostico", {
+                    "cancha_id":             sector,
+                    "fecha":                 hoy,
+                    "humedad_confianza_pct": 75,
+                    "humedad_fuente":        "conflicto_resuelto_om",
+                    "nota_calidad_texto":    nota_om,
+                })
+                resueltos_om.append(sector)
+            else:
+                conflictos.append(f"{sector}(conf={r['confianza_pct']}%,precip={precip_str})")
+        elif fuente == "conflicto":
+            conflictos.append(f"{sector}(conf={r['confianza_pct']}%)")
+        elif fuente == "sin_datos":
+            sin_datos.append(sector)
+
+    partes = []
+    if precip_mm is not None:
+        partes.append(f"precip_OM={precip_str}")
+    if resueltos_om:
+        partes.append(f"resueltos_lluvia={resueltos_om}")
+    if conflictos:
+        partes.append(f"conflictos={conflictos}")
+    resumen = " | ".join(partes) if partes else "OK"
+
+    if sin_datos:
+        return False, f"Sin datos: {sin_datos}"
+    if conflictos:
+        return True, f"Conflictos sin resolver: {resumen}"
+    return True, f"Fusión DpRVIc+ERA5+OM OK — {len(SECTORES)} sectores | {resumen}"
+
+
+def _fn_pipeline_freshness() -> tuple[bool, str]:
+    """
+    Consulta vegetation_metrics.created_at para saber cuándo escribió el pipeline
+    por última vez. 48h = umbral para datos satellite semanales con margen.
+    Distinción clave vs _fn_json_freshness: éste lee el origen (Supabase),
+    no el JSON cacheado en GitHub (que podría estar desactualizado por fallo de push).
+    """
+    rows = _sb_query(
+        "vegetation_metrics",
+        "select=created_at,fecha_imagen,cancha_id&order=created_at.desc&limit=1",
+    )
+    if rows is None:
+        return False, "Supabase no responde"
+    if not rows:
+        return False, "vegetation_metrics: sin datos — pipeline nunca corrió"
+    r = rows[0]
+    ts_raw = r.get("created_at", "")
+    if not ts_raw:
+        return False, "vegetation_metrics: campo created_at ausente"
+    try:
+        t = datetime.fromisoformat(ts_raw.replace("Z", "+00:00"))
+        if t.tzinfo is None:
+            t = t.replace(tzinfo=timezone.utc)
+    except ValueError:
+        return False, f"vegetation_metrics: timestamp malformado — {ts_raw!r}"
+    horas = (datetime.now(timezone.utc) - t).total_seconds() / 3600
+    cancha = r.get("cancha_id", "?")
+    fecha  = r.get("fecha_imagen", "?")
+    ok = horas < 48
+    return ok, f"{'OK' if ok else 'STALE'} — {horas:.0f}h — cancha={cancha} fecha_imagen={fecha}"
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # CHECK RUNNER — paralelo con retry y timeout
 # Dos pasadas: 1) ejecutar todos, 2) aplicar inhibition + flapping
 # ═══════════════════════════════════════════════════════════════════════════════
 
 _CHECKS: dict[str, callable] = {
-    "check_health":         _fn_health,
-    "check_supabase":       _fn_supabase,
-    "check_json_freshness": _fn_json_freshness,
-    "check_panel":          _fn_panel,
-    "check_pngs":           _fn_pngs,
+    "check_health":              _fn_health,
+    "check_supabase":            _fn_supabase,
+    "check_json_freshness":      _fn_json_freshness,
+    "check_pipeline_freshness":  _fn_pipeline_freshness,
+    "check_panel":               _fn_panel,
+    "check_pngs":                _fn_pngs,
+    "check_dprvi_fusion":        _fn_dprvi_fusion,
 }
 
 
@@ -307,7 +561,7 @@ def _run_check_with_retry(name: str, fn, retries: int = 2, delay: int = 30) -> t
 def _run_all_checks() -> dict[str, tuple[bool, str]]:
     """Pasada 1: correr todos los checks en paralelo."""
     results: dict[str, tuple[bool, str]] = {}
-    with ThreadPoolExecutor(max_workers=5, thread_name_prefix="cerebro") as pool:
+    with ThreadPoolExecutor(max_workers=6, thread_name_prefix="cerebro") as pool:
         futures = {
             pool.submit(_run_check_with_retry, name, fn): name
             for name, fn in _CHECKS.items()
@@ -402,7 +656,7 @@ SEVERITY_RULES: dict = {
     },
     # MEDIA — falla 2+ veces seguidas, email cada 12h máximo
     "media": {
-        "checks": ["check_json_freshness", "check_pngs", "check_panel"],
+        "checks": ["check_json_freshness", "check_pngs", "check_panel", "check_pipeline_freshness"],
         "cooldown_horas": 12,
         "min_fallos_consecutivos": 2,
     },
@@ -578,7 +832,7 @@ def run_cerebro_cycle():
         log.warning("Faro Cerebro: %d alerta(s) — %s", len(failures), list(failures.keys()))
 
         # ── Autocorrección: refresh si hay problemas de datos o PNGs ─────────
-        needs_refresh = bool({"check_pngs", "check_json_freshness"} & set(failures))
+        needs_refresh = bool({"check_pngs", "check_json_freshness", "check_pipeline_freshness"} & set(failures))
         if needs_refresh and not _cooldown_active("trigger_refresh", hours=2):
             ok_ref, msg_ref = _trigger_refresh()
             _cooldown_set("trigger_refresh")

@@ -33,6 +33,7 @@ actual_kwp    = None
 loss_kwp      = None
 solar_detalle = None
 ghi_kwh_m2    = None   # GHI diario desde faro_v2_reports (Open-Meteo/ERA5)
+panel_data    = {}     # zona→{eficiencia_pct, temperatura_c, estado} desde velez_solar
 
 _vd_path = os.environ.get("FARO_VD_PATH")
 if _vd_path:
@@ -40,8 +41,14 @@ if _vd_path:
         with open(_vd_path, encoding="utf-8") as _f:
             _vd = json.load(_f)
         _s = _vd.get("sectores", {}).get("solar", {})
-        # eficiencia_pct parsed by assembler from detalle; fallback to score
+        panel_data = _s.get("panel_data") or {}
+        # eficiencia_pct del assembler (calculada desde velez_solar); fallback score
         _eff_src = _s.get("eficiencia_pct") or _s.get("score")
+        if not isinstance(_eff_src, (int, float)) and panel_data:
+            _effs_init = [p["eficiencia_pct"] for p in panel_data.values()
+                          if isinstance(p.get("eficiencia_pct"), (int, float))]
+            if _effs_init:
+                _eff_src = round(sum(_effs_init) / len(_effs_init), 1)
         if isinstance(_eff_src, (int, float)):
             avg_eff    = float(_eff_src)
             actual_kwp = INSTALLED_KWP * avg_eff / 100
@@ -240,10 +247,44 @@ else:
 ax1.axhline(0.0,color=GOLD+'44',linewidth=0.5)
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 2  SIN DATO — MAPA TÉRMICO
+# 2  MAPA TÉRMICO — por zona si hay datos, SIN DATO si no
 # ═══════════════════════════════════════════════════════════════════════════════
 ax2 = fig.add_subplot(gs[2])
-sin_dato_panel(ax2, 'PANEL 1 · MAPA TÉRMICO — LANDSAT 8/9')
+_temps_z = [(pid, float(p["temperatura_c"])) for pid, p in panel_data.items()
+            if isinstance(p.get("temperatura_c"), (int, float))]
+if _temps_z:
+    ax2.set_facecolor(BG2); ax2.axis('off'); ax2.set_xlim(0, 1); ax2.set_ylim(0, 1)
+    ax2.add_patch(mpatches.Rectangle((0, 0.93), 1, 0.07,
+        transform=ax2.transAxes, facecolor=BG3, edgecolor='none'))
+    ax2.axhline(0.93, color=GOLD + '55', linewidth=1.5)
+    ax2.text(0.5, 0.963, 'PANEL 1 · TEMPERATURA POR ZONA — MODELO NOCT BIFACIAL',
+        transform=ax2.transAxes, color=GOLD + '99', fontsize=11, fontweight='bold',
+        ha='center', va='center', fontfamily='monospace')
+    _tz_n = len(_temps_z)
+    _tz_bh = min(0.14, 0.55 / max(_tz_n, 1))
+    _tz_gap = _tz_bh * 0.5
+    _tz_start = 0.78
+    _tz_max_t = max(t for _, t in _temps_z) or 1.0
+    for _ti, (pid, temp) in enumerate(_temps_z):
+        _ty = _tz_start - _ti * (_tz_bh + _tz_gap)
+        _tc = REDL if temp > 65 else (YELL if temp > 45 else GRNL)
+        _tw = max(0.04, 0.70 * temp / max(_tz_max_t, 1.0))
+        ax2.add_patch(mpatches.Rectangle((0.25, _ty - _tz_bh), _tw, _tz_bh,
+            transform=ax2.transAxes, facecolor=_tc, alpha=0.78, zorder=2))
+        ax2.text(0.24, _ty - _tz_bh / 2, pid.replace('_', ' ').upper(),
+            transform=ax2.transAxes, color=WHITE, fontsize=9,
+            ha='right', va='center', fontfamily='monospace')
+        ax2.text(0.25 + _tw + 0.015, _ty - _tz_bh / 2, f'{temp:.1f} °C',
+            transform=ax2.transAxes, color=_tc, fontsize=10, fontweight='bold',
+            ha='left', va='center', fontfamily='monospace')
+    ax2.text(0.5, 0.08, 'T_panel = T_amb + (NOCT−20)/800 × GHI_pico  ·  NOCT bifacial = 43°C',
+        transform=ax2.transAxes, color=WDIM + '88', fontsize=7.5,
+        ha='center', va='bottom', fontfamily='monospace')
+    ax2.text(0.5, 0.03, 'Fuente: NASA POWER ALLSKY_SFC_SW_DWN + T2M_MAX  ·  Cálculo por zona techo sur',
+        transform=ax2.transAxes, color=WDIM + '55', fontsize=7,
+        ha='center', va='bottom', fontfamily='monospace')
+else:
+    sin_dato_panel(ax2, 'PANEL 1 · MAPA TÉRMICO — LANDSAT 8/9')
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # 3  NOTA
@@ -258,10 +299,45 @@ ax3.text(0.5, 0.50,
     ha='center', va='center', fontfamily='monospace')
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 4  SIN DATO — MAPA EFICIENCIA
+# 4  MAPA DE EFICIENCIA — por zona si hay datos, SIN DATO si no
 # ═══════════════════════════════════════════════════════════════════════════════
 ax4 = fig.add_subplot(gs[4])
-sin_dato_panel(ax4, 'PANEL 2 · MAPA DE EFICIENCIA — SENTINEL-2')
+_effs_z = [(pid, float(p["eficiencia_pct"])) for pid, p in panel_data.items()
+           if isinstance(p.get("eficiencia_pct"), (int, float))]
+if _effs_z:
+    ax4.set_facecolor(BG2); ax4.axis('off'); ax4.set_xlim(0, 1); ax4.set_ylim(0, 1)
+    ax4.add_patch(mpatches.Rectangle((0, 0.93), 1, 0.07,
+        transform=ax4.transAxes, facecolor=BG3, edgecolor='none'))
+    ax4.axhline(0.93, color=GOLD + '55', linewidth=1.5)
+    ax4.text(0.5, 0.963, 'PANEL 2 · EFICIENCIA POR ZONA — GHI REAL NASA POWER',
+        transform=ax4.transAxes, color=GOLD + '99', fontsize=11, fontweight='bold',
+        ha='center', va='center', fontfamily='monospace')
+    _ez_n = len(_effs_z)
+    _ez_bh = min(0.14, 0.55 / max(_ez_n, 1))
+    _ez_gap = _ez_bh * 0.5
+    _ez_start = 0.78
+    for _ei, (pid, eff) in enumerate(_effs_z):
+        _ey = _ez_start - _ei * (_ez_bh + _ez_gap)
+        _ec = GRNL if eff >= 80 else (YELL if eff >= 60 else REDL)
+        _ew = eff / 100.0 * 0.70
+        ax4.add_patch(mpatches.Rectangle((0.25, _ey - _ez_bh), _ew, _ez_bh,
+            transform=ax4.transAxes, facecolor=_ec, alpha=0.78, zorder=2))
+        ax4.add_patch(mpatches.Rectangle((0.25, _ey - _ez_bh), 0.70, _ez_bh,
+            transform=ax4.transAxes, facecolor='none', edgecolor=WDIM + '33', linewidth=0.7))
+        ax4.text(0.24, _ey - _ez_bh / 2, pid.replace('_', ' ').upper(),
+            transform=ax4.transAxes, color=WHITE, fontsize=9,
+            ha='right', va='center', fontfamily='monospace')
+        ax4.text(0.25 + _ew + 0.015, _ey - _ez_bh / 2, f'{eff:.1f}%',
+            transform=ax4.transAxes, color=_ec, fontsize=10, fontweight='bold',
+            ha='left', va='center', fontfamily='monospace')
+    ax4.text(0.5, 0.08, 'Eficiencia = GHI_medida / GHI_cielo_despejado_estacional · Modelo sinusoidal -34.6°',
+        transform=ax4.transAxes, color=WDIM + '88', fontsize=7.5,
+        ha='center', va='bottom', fontfamily='monospace')
+    ax4.text(0.5, 0.03, 'Fuente: NASA POWER ALLSKY_SFC_SW_DWN  ·  Promedio últimos 7 días',
+        transform=ax4.transAxes, color=WDIM + '55', fontsize=7,
+        ha='center', va='bottom', fontfamily='monospace')
+else:
+    sin_dato_panel(ax4, 'PANEL 2 · MAPA DE EFICIENCIA — SENTINEL-2')
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # 5  NOTA
@@ -288,16 +364,56 @@ ax6.text(0.5, 0.963, 'TABLA DE RENDIMIENTO · ACTUAL vs. MÁXIMO TEÓRICO 120 kW
     transform=ax6.transAxes, color=GOLD, fontsize=11, fontweight='bold',
     ha='center', va='center', fontfamily='monospace')
 
-ax6.add_patch(FancyBboxPatch((0.10, 0.10), 0.80, 0.74,
-    boxstyle='round,pad=0.02', transform=ax6.transAxes,
-    facecolor=BG3, edgecolor=WDIM+'33', linewidth=1.0))
-ax6.text(0.5, 0.55, 'SIN DATO',
-    transform=ax6.transAxes, color=WDIM, fontsize=22, fontweight='bold',
-    ha='center', va='center', fontfamily='monospace')
-ax6.text(0.5, 0.32,
-    'Rendimiento por zona disponible cuando la tabla velez_solar\ntenga datos de eficiencia_pct y estado por panel_id.',
-    transform=ax6.transAxes, color=WDIM+'88', fontsize=9,
-    ha='center', va='center', fontfamily='monospace')
+if panel_data:
+    _cols = ['ZONA', 'EFICIENCIA', 'TEMP. PANEL', 'PRODUCCIÓN kWp', 'ESTADO']
+    _col_xs = [0.05, 0.25, 0.43, 0.62, 0.82]
+    _hdr_y = 0.82
+    for _cx, _ch in zip(_col_xs, _cols):
+        ax6.text(_cx, _hdr_y, _ch,
+            transform=ax6.transAxes, color=GOLD, fontsize=7.5, fontweight='bold',
+            va='top', fontfamily='monospace')
+    ax6.plot([0.02, 0.98], [_hdr_y - 0.06, _hdr_y - 0.06],
+        color=GOLD + '44', linewidth=0.7, transform=ax6.transAxes)
+    _row_h = min(0.13, 0.68 / max(len(panel_data), 1))
+    _row_y0 = _hdr_y - 0.10
+    for _ri, (pid, pd) in enumerate(panel_data.items()):
+        _ry = _row_y0 - _ri * _row_h
+        _eff_v  = pd.get("eficiencia_pct")
+        _temp_v = pd.get("temperatura_c")
+        _est_v  = (pd.get("estado") or "—").upper()
+        _ec = (GRNL if _est_v == "OK" else (YELL if _est_v == "DEGRADADO" else REDL))
+        _bg = BG3 if _ri % 2 == 0 else BG2
+        ax6.add_patch(mpatches.Rectangle((0.02, _ry - _row_h * 0.5), 0.96, _row_h * 0.92,
+            transform=ax6.transAxes, facecolor=_bg, edgecolor='none'))
+        _kwp_v = (INSTALLED_KWP / max(len(panel_data), 1)) * (_eff_v / 100) if isinstance(_eff_v, (int, float)) else None
+        _vals = [
+            pid.replace('_', ' ').upper(),
+            f'{_eff_v:.1f}%'  if isinstance(_eff_v, (int, float)) else '—',
+            f'{_temp_v:.1f}°C' if isinstance(_temp_v, (int, float)) else '—',
+            f'{_kwp_v:.1f}'   if isinstance(_kwp_v, (int, float)) else '—',
+            _est_v,
+        ]
+        for _ci, (_cx, _val) in enumerate(zip(_col_xs, _vals)):
+            _vc = _ec if _ci == 4 else WHITE
+            ax6.text(_cx, _ry - _row_h * 0.05, _val,
+                transform=ax6.transAxes, color=_vc, fontsize=7.5,
+                va='center', fontfamily='monospace')
+    ax6.text(0.5, 0.04,
+        f'Total estimado: {actual_kwp:.1f} kWp de {INSTALLED_KWP:.0f} kWp máx '
+        f'({avg_eff:.0f}% eficiencia global)' if avg_eff else 'Fuente: NASA POWER + modelo NOCT bifacial',
+        transform=ax6.transAxes, color=WDIM + '88', fontsize=7.5,
+        ha='center', va='bottom', fontfamily='monospace')
+else:
+    ax6.add_patch(FancyBboxPatch((0.10, 0.10), 0.80, 0.74,
+        boxstyle='round,pad=0.02', transform=ax6.transAxes,
+        facecolor=BG3, edgecolor=WDIM+'33', linewidth=1.0))
+    ax6.text(0.5, 0.55, 'SIN DATO',
+        transform=ax6.transAxes, color=WDIM, fontsize=22, fontweight='bold',
+        ha='center', va='center', fontfamily='monospace')
+    ax6.text(0.5, 0.32,
+        'Rendimiento por zona disponible cuando la tabla velez_solar\ntenga datos de eficiencia_pct y estado por panel_id.',
+        transform=ax6.transAxes, color=WDIM+'88', fontsize=9,
+        ha='center', va='center', fontfamily='monospace')
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # 7  CURVA DE PRODUCCIÓN (basada en score real)
@@ -355,16 +471,42 @@ ax8.text(0.5,0.94,'ALERTAS ACTIVAS · ACCIONES RECOMENDADAS',
     transform=ax8.transAxes,color=GOLD,fontsize=10.5,fontweight='bold',
     ha='center',va='center',fontfamily='monospace')
 
-ax8.add_patch(FancyBboxPatch((0.05, 0.08), 0.90, 0.72,
-    boxstyle='round,pad=0.01', transform=ax8.transAxes,
-    facecolor=BG3, edgecolor=WDIM+'33', linewidth=0.8))
-ax8.text(0.5, 0.52, 'SIN DATO',
-    transform=ax8.transAxes, color=WDIM, fontsize=18, fontweight='bold',
-    ha='center', va='center', fontfamily='monospace')
-ax8.text(0.5, 0.28,
-    'Alertas individuales disponibles cuando velez_solar tenga lecturas por panel_id.',
-    transform=ax8.transAxes, color=WDIM+'88', fontsize=9,
-    ha='center', va='center', fontfamily='monospace')
+if panel_data:
+    _alertas = [(pid, p) for pid, p in panel_data.items()
+                if (p.get("estado") or "").lower() in ("falla", "degradado")]
+    if not _alertas:
+        ax8.add_patch(FancyBboxPatch((0.15, 0.12), 0.70, 0.68,
+            boxstyle='round,pad=0.02', transform=ax8.transAxes,
+            facecolor=GRNL + '18', edgecolor=GRNL + '55', linewidth=1.0))
+        ax8.text(0.5, 0.52, 'SISTEMA NOMINAL',
+            transform=ax8.transAxes, color=GRNL, fontsize=18, fontweight='bold',
+            ha='center', va='center', fontfamily='monospace')
+        ax8.text(0.5, 0.26, 'Todas las zonas dentro de rango operativo',
+            transform=ax8.transAxes, color=WDIM, fontsize=9,
+            ha='center', va='center', fontfamily='monospace')
+    else:
+        _ay0 = 0.72
+        for _ali, (pid, ap) in enumerate(_alertas[:4]):
+            _ac = REDL if ap.get("estado", "").lower() == "falla" else YELL
+            _aly = _ay0 - _ali * 0.16
+            ax8.add_patch(mpatches.Rectangle((0.04, _aly - 0.12), 0.92, 0.11,
+                transform=ax8.transAxes, facecolor=_ac + '22', edgecolor=_ac + '55', linewidth=0.7))
+            ax8.text(0.06, _aly - 0.065,
+                f'[{ap.get("estado","").upper()}] {pid.replace("_"," ").upper()} — '
+                f'Eff: {ap.get("eficiencia_pct","—")}% · T: {ap.get("temperatura_c","—")}°C',
+                transform=ax8.transAxes, color=_ac, fontsize=8, fontweight='bold',
+                va='center', fontfamily='monospace')
+else:
+    ax8.add_patch(FancyBboxPatch((0.05, 0.08), 0.90, 0.72,
+        boxstyle='round,pad=0.01', transform=ax8.transAxes,
+        facecolor=BG3, edgecolor=WDIM+'33', linewidth=0.8))
+    ax8.text(0.5, 0.52, 'SIN DATO',
+        transform=ax8.transAxes, color=WDIM, fontsize=18, fontweight='bold',
+        ha='center', va='center', fontfamily='monospace')
+    ax8.text(0.5, 0.28,
+        'Alertas individuales disponibles cuando velez_solar tenga lecturas por panel_id.',
+        transform=ax8.transAxes, color=WDIM+'88', fontsize=9,
+        ha='center', va='center', fontfamily='monospace')
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # 9  FOOTER

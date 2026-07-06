@@ -36,9 +36,11 @@ CERT = hashlib.sha256(f"FARO-VELEZ-SEDE-{now.isoformat()}".encode()).hexdigest()
 WEEK = now.strftime('Semana del %d de %B de %Y')
 
 # ─── DATOS REALES ─────────────────────────────────────────────────────────────
-score_sede   = None
-sem_sede     = 'verde'
-detalle_sede = None
+score_sede        = None
+sem_sede          = 'verde'
+detalle_sede      = None
+insar_sede        = None
+thermal_sede      = None
 
 _vd_path = os.environ.get("FARO_VD_PATH")
 if _vd_path:
@@ -50,7 +52,9 @@ if _vd_path:
             score_sede = int(_s["score"])
         if _s.get("sem"):
             sem_sede = _s["sem"]
-        detalle_sede = _s.get("detalle")
+        detalle_sede      = _s.get("detalle")
+        insar_sede        = _s.get("insar_deformacion") or _s.get("insar_mm")
+        thermal_sede      = _s.get("thermal") or _s.get("thermal_temp")
     except Exception as _e:
         print(f"FARO_VD_PATH sede: {_e}")
 
@@ -110,13 +114,14 @@ ax_kpi = fig.add_subplot(gs[1])
 ax_kpi.set_facecolor(BG3); ax_kpi.axis('off')
 ax_kpi.set_xlim(0,1); ax_kpi.set_ylim(0,1)
 
+_insar_col = REDL if (insar_sede or 0) > 2.0 else (YELL if (insar_sede or 0) > 0.8 else GRNL)
 kpi_defs = [
-    ('SCORE SEDE',      score_sede,  score_col),
-    ('TEMP. MÁX TECHO', None,        WDIM),
-    ('InSAR MÁX',       None,        WDIM),
-    ('NDVI PROM.',       None,        WDIM),
-    ('ALERTAS',         None,        WDIM),
-    ('SECTORES OK',     None,        WDIM),
+    ('SCORE SEDE',       f'{score_sede}/100'        if score_sede   is not None else None, score_col),
+    ('TEMP. MÁX TECHO',  f'{thermal_sede:.1f} °C'  if thermal_sede is not None else None, YELL),
+    ('InSAR MÁX',        f'{insar_sede:.2f} mm'    if insar_sede   is not None else None, _insar_col),
+    ('NDVI PROM.',        None,                                                             WDIM),
+    ('ALERTAS',           None,                                                             WDIM),
+    ('SECTORES OK',       None,                                                             WDIM),
 ]
 for i, (lbl, val, col) in enumerate(kpi_defs):
     xi = (i + 0.5) / len(kpi_defs)
@@ -129,7 +134,7 @@ for i, (lbl, val, col) in enumerate(kpi_defs):
     ax_kpi.text(xi, 0.78, lbl, color=WDIM, fontsize=7, ha='center',
                 transform=ax_kpi.transAxes, fontfamily='monospace')
     if val is not None:
-        ax_kpi.text(xi, 0.42, f'{val}/100', color=col, fontsize=16, fontweight='bold',
+        ax_kpi.text(xi, 0.42, str(val), color=col, fontsize=16, fontweight='bold',
                     ha='center', va='center', transform=ax_kpi.transAxes)
     else:
         ax_kpi.text(xi, 0.42, '—', color=WDIM+'44', fontsize=16, fontweight='bold',

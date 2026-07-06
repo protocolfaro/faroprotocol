@@ -154,3 +154,120 @@ Tramo D   CloudBreaker  SAR→S2 fusion via HF Inference API
 | `HF_API_TOKEN` | D (CloudBreaker HF) | opcional — free tier sin token |
 | `CB_VENUES` | D (CloudBreaker venues) | opcional — default amalfitani,villa_olimpica |
 | `HF_CLOUDBREAKER_SPACE` | D (CloudBreaker Space) | opcional — alternativa al modelo |
+
+---
+
+## SAR Mission Continuity — Sentinel-1A EOL (2026-06-29)
+
+### Contexto de la transición
+
+Sentinel-1A fue retirado el **29 de junio de 2026**. Su última adquisición sobre
+Amalfitani está registrada en `soil_metrics` con `fecha_imagen = 2026-06-29` y
+`satellite_inferred = 'S1A'`. A partir del 30 de junio, las escenas provienen de
+**S1C** y **S1D** (ambos operativos sobre Argentina desde el 1 de julio de 2026).
+
+### Timeline de la transición
+
+| Fecha | Evento |
+|-------|--------|
+| 2026-06-29 | Última adquisición S1A sobre Amalfitani |
+| 2026-06-30 | S1A offline — comienza gap SAR |
+| 2026-07-01 | S1C+S1D operativos, primeras órbitas sobre Argentina |
+| 2026-07-04/07 | PC STAC index incluye escenas S1C (lag 3-6 días) |
+| 2026-07-05 | Migración `002_radiometric_correction_factors.sql` aplicada |
+| 2026-07-06 09:00 UTC | Primer ciclo diario con S1C data desde PC/CDSE esperado |
+
+### Correcciones radiométricas inter-satélite
+
+Todos los valores `sar_vv_db` y `sar_vh_db` en `soil_metrics` están en el marco
+de referencia **S1A-equivalente**. La corrección se aplica en `faro_sar_s1_backfill.py`
+al momento del insert:
+
+| Satélite | Offset VV | Offset VH | Fuente |
+|----------|-----------|-----------|--------|
+| S1A | 0.00 dB (ref) | 0.00 dB | — |
+| S1C | +0.12 dB | +0.21 dB | Schmidt 2023 + Copernicus 2026-02 |
+| S1D | +0.07 dB | +0.07 dB | ESA commissioning report |
+
+La vista `sar_radiometric_corrections` (creada por la migración) es la fuente
+canónica de estos valores. El módulo de corrección es:
+
+```
+faro_sar_s1_backfill._apply_radiometric_correction(vv_db, vh_db, satellite)
+```
+
+### Módulo de auditoría — `sar_continuity.py`
+
+Archivo: `sports/clients/velez/sar_continuity.py`
+
+| Función | Descripción |
+|---------|-------------|
+| `audit_soil_metrics(url, key, cancha_id, since)` | Consulta Supabase, deduplica, infiere satélite, outliers Z-score (MAD), gaps temporales |
+| `run_change_point_detection(records)` | Rolling-window 5d: detecta saltos > 2.0 dB en VV |
+| `compliance_summary(audit_result)` | pass/warn/fail por outlier rate, gap días, duplicados, recency |
+| `generate_sar_timeline_png(audit_result, path)` | Serie VV/VH + outliers + gap S1A en PNG dark-mode |
+
+**Thresholds de compliance:**
+
+| Métrica | pass | warn | fail |
+|---------|------|------|------|
+| Outlier rate | ≤ 5% | 6-15% | > 15% |
+| Gap actual | ≤ 14 días | 15-21 días | > 21 días |
+| Duplicate rate | ≤ 20% | 21-40% | > 40% |
+| Recency last acq. | ≤ 30 días | — | > 30 días |
+
+**Flags críticos de producción:**
+
+- `outlier_rate > 5%` → halt prescriptions Roger + manual review
+- `change_point > ±5%` theta_soil → Slack alert + email protocolfaro@gmail.com
+- `gap_days_current > 7` → Dale Play breach risk flag
+
+### Backfill satellite-aware — `faro_sar_s1_backfill.py` v2
+
+El backfill sigue el cascade: **CDSE primero** (lag ~6h, requiere
+`COPERNICUS_USER`/`COPERNICUS_PASS`) → **Planetary Computer fallback** (lag 3-6d,
+público). Ambas fuentes infieren el satélite del nombre del producto y aplican
+la corrección antes del INSERT.
+
+```
+S1C_VV_OFFSET_DB = +0.12   # aplicado en _apply_radiometric_correction()
+S1C_VH_OFFSET_DB = +0.21
+S1D_VV_OFFSET_DB = +0.07
+S1D_VH_OFFSET_DB = +0.07
+```
+
+### Schema — columnas agregadas a `soil_metrics`
+
+Migración: `migrations/002_radiometric_correction_factors.sql`
+
+| Columna | Tipo | Descripción |
+|---------|------|-------------|
+| `satellite_inferred` | TEXT | S1A / S1C / S1D / S1C/D / unknown |
+
+Constraint agregado: `UNIQUE (cancha_id, fecha_imagen)` — elimina duplicados de
+backfill repetido. Tabla de auditoría: `sar_correction_log`.
+
+### Dale Play y eventos de concierto
+
+El gap S1A → S1C activo entre el 30 de junio y la primera ingesta S1C tiene un
+máximo de tolerancia de **7 días** para los audits de Dale Play. Estrategia de
+contingencia documentada en `gap_fill_strategy.md`:
+
+- **Opción A** (recomendada): CDSE con `COPERNICUS_USER`/`COPERNICUS_PASS` — datos
+  S1C disponibles desde el 1 de julio con lag ~6h.
+- **Opción B** (fallback): kriging + ERA5 soil moisture trend, precisión ±3%, etiquetado
+  como `fuente='interpolated'` en la fila.
+
+### Test suite — `test_sar_continuity.py`
+
+7 tests automatizados, sin llamadas reales a Supabase (mock requests):
+
+| Test | Verifica |
+|------|----------|
+| `test_audit_deduplication` | 3 filas mismo día → unique_dates=1, duplicates=2 |
+| `test_satellite_inference` | fecha < 2026-06-30 → S1A; ≥ 2026-06-30 → S1C/D |
+| `test_outlier_detection` | -25.5 dB detectado vía MAD z-score > 2.5 |
+| `test_gap_detection` | gap 13 días detectado (umbral 8d) |
+| `test_compliance_pass` | sin outliers + 5d gap → status='pass' |
+| `test_compliance_warn_gap` | gap 16d → warn; gap 22d → fail |
+| `test_change_point_detection` | salto -12 → -20 dB detectado en zona de transición |

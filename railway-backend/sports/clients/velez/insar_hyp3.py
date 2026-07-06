@@ -576,3 +576,30 @@ def fetch_insar() -> Optional[dict]:
         log.warning("insar_hyp3: submit falló: %s", exc)
 
     return None  # resultados disponibles en el próximo ciclo
+
+
+if __name__ == "__main__":
+    import sys as _sys
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        handlers=[logging.StreamHandler(_sys.stdout)],
+    )
+    log.info("insar_hyp3 __main__: fetch + persist a Supabase via data_refresh")
+    _data = fetch_insar()
+    if not _data:
+        log.info("insar_hyp3 __main__: sin resultados (job submiteado o sin granules) — nada que persistir")
+        _sys.exit(0)
+    log.info("insar_hyp3 __main__: InSAR OK (%d sectores) fuente=%s",
+             len(_data.get("sectores", {})), _data.get("fuente", "?"))
+    try:
+        import sys as _sys2, os as _os2
+        _here = _os2.path.dirname(_os2.path.abspath(__file__))
+        if _here not in _sys2.path:
+            _sys2.path.insert(0, _here)
+        from data_refresh import push_insar_update as _pu
+        _commit = _pu(_data)
+        log.info("insar_hyp3 __main__: push_insar_update OK — %s", _commit)
+    except Exception as _exc:
+        log.error("insar_hyp3 __main__: push_insar_update falló: %s", _exc)
+        _sys.exit(1)

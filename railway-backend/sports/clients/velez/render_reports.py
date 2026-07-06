@@ -321,19 +321,29 @@ def _render_agro(vd: dict, out: Path):
     ndvi_raw = [canchas[c].get("ndvi") for c in ids]                   # None si sin satélite
     ndvi     = [v if v is not None else 0.0 for v in ndvi_raw]         # altura de barra
     gnvi     = [canchas[c].get("gndvi", 0) or 0 for c in ids]
+    ndre     = [canchas[c].get("ndre", 0) or 0 for c in ids]          # Red-Edge chlorophyll
     cols     = [WDIM if v is None else (GRNL if v >= 0.45 else (REDL if v < 0.30 else YELL))
                 for v in ndvi_raw]
 
-    fig = _setup_fig(12, 10)
-    _header(fig, "ANÁLISIS AGRONÓMICO — Villa Olímpica", f"Sentinel-2 · {fecha}")
+    has_ndre = any(v > 0 for v in ndre)
 
-    # NDVI bars
+    fig = _setup_fig(12, 10)
+    _header(fig, "ANÁLISIS AGRONÓMICO — Villa Olímpica",
+            f"Sentinel-2 · NDVI · GNDVI · NDRE · {fecha}")
+
+    # NDVI / GNDVI / NDRE bars
     ax1 = fig.add_axes([0.06, 0.52, 0.55, 0.38])
     ax1.set_facecolor(BG2)
     for sp in ax1.spines.values(): sp.set_color(BORDER)
     x_pos = np.arange(len(ids))
-    ax1.bar(x_pos - 0.2, ndvi, 0.35, color=cols, alpha=0.8, label="NDVI")
-    ax1.bar(x_pos + 0.2, gnvi, 0.35, color=[BLUE]*len(ids), alpha=0.6, label="GNDVI")
+    if has_ndre:
+        ax1.bar(x_pos - 0.25, ndvi, 0.23, color=cols, alpha=0.85, label="NDVI")
+        ax1.bar(x_pos,         gnvi, 0.23, color=[BLUE]*len(ids), alpha=0.65, label="GNDVI")
+        PURPLE = "#a855f7"
+        ax1.bar(x_pos + 0.25, ndre, 0.23, color=[PURPLE]*len(ids), alpha=0.65, label="NDRE")
+    else:
+        ax1.bar(x_pos - 0.2, ndvi, 0.35, color=cols, alpha=0.8, label="NDVI")
+        ax1.bar(x_pos + 0.2, gnvi, 0.35, color=[BLUE]*len(ids), alpha=0.6, label="GNDVI")
     ax1.axhline(0.45, color=GRNL, lw=0.6, ls="--", alpha=0.6, label="Umbral sano")
     ax1.axhline(0.30, color=REDL, lw=0.6, ls="--", alpha=0.6, label="Umbral crítico")
     ax1.set_xticks(x_pos)
@@ -341,7 +351,8 @@ def _render_agro(vd: dict, out: Path):
     ax1.tick_params(axis="y", colors=WDIM, labelsize=7)
     ax1.set_facecolor(BG2)
     ax1.legend(fontsize=6, facecolor=BG3, labelcolor=WDIM, framealpha=0.8)
-    ax1.set_title("NDVI / GNDVI por Cancha", color=GOLD, fontsize=8,
+    title_ndre = "NDVI / GNDVI / NDRE por Cancha" if has_ndre else "NDVI / GNDVI por Cancha"
+    ax1.set_title(title_ndre, color=GOLD, fontsize=8,
                   fontfamily="monospace", loc="left", pad=4)
     ax1.set_ylim(0, 1)
 
@@ -417,52 +428,88 @@ def _render_solar(vd: dict, out: Path):
     solar_s = vd.get("sectores", {}).get("solar", {})
     wl      = vd.get("weather_live", {})
     fecha   = datetime.now().strftime("%d/%m/%Y")
-    eff     = solar_s.get("score", 71)
-    col     = SEM_COL.get(solar_s.get("sem","amarillo"), YELL)
+
+    # Use pvlib physics-based efficiency first, then Supabase, avoid synthetic fallbacks
+    eff_pvlib = solar_s.get("eficiencia_pct_pvlib")
+    eff_supa  = solar_s.get("eficiencia_pct")
+    _SYNTHETIC = {71.0, 82.4}
+    if eff_pvlib is not None:
+        eff = round(float(eff_pvlib), 1)
+        eff_src = "pvlib · NOCT model · NASA POWER"
+    elif eff_supa is not None and float(eff_supa) not in _SYNTHETIC:
+        eff = round(float(eff_supa), 1)
+        eff_src = "Supabase medido"
+    else:
+        eff = None  # genuinely unknown — don't show fake number
+        eff_src = "sin datos reales"
+
+    pr        = solar_s.get("pr_pvlib")
+    t_cell    = solar_s.get("t_cell_estimada")
+    ghi       = solar_s.get("ghi_kwh_m2_real") or solar_s.get("ghi_kwh_m2")
+    score     = solar_s.get("score", 0)
+    sem       = solar_s.get("sem", "amarillo")
+    col       = SEM_COL.get(sem, YELL)
 
     fig = _setup_fig(12, 8)
-    _header(fig, "SISTEMA SOLAR AMALFITANI", f"Exposición solar · {fecha}")
+    _header(fig, "SISTEMA SOLAR AMALFITANI", f"NASA POWER · pvlib NOCT · {fecha}")
 
     ax = fig.add_axes([0.02, 0.08, 0.96, 0.84])
     ax.set_facecolor(BG); ax.axis("off")
     ax.set_xlim(0, 1); ax.set_ylim(0, 1)
 
-    # Efficiency gauge (donut)
-    ax_d = fig.add_axes([0.08, 0.25, 0.32, 0.55])
+    # Efficiency gauge (donut) — only render if we have a real value
+    ax_d = fig.add_axes([0.05, 0.22, 0.35, 0.60])
     ax_d.set_facecolor(BG); ax_d.axis("off")
     ax_d.set_aspect("equal")
-    theta1 = 90; theta2 = 90 - eff*3.6
-    ax_d.add_patch(mpatches.Wedge((0.5,0.5), 0.42, theta2, theta1, width=0.12,
-                                   facecolor=col, alpha=0.85))
-    ax_d.add_patch(mpatches.Wedge((0.5,0.5), 0.42, theta1, theta2+360, width=0.12,
-                                   facecolor=BG3, alpha=0.5))
-    ax_d.text(0.5, 0.55, f"{eff}%", color=col, fontsize=24, fontweight="bold",
-              ha="center", va="center")
-    ax_d.text(0.5, 0.38, "EFICIENCIA", color=WDIM, fontsize=8,
-              ha="center", fontfamily="monospace")
+    if eff is not None:
+        theta1 = 90; theta2 = 90 - eff * 3.6
+        ax_d.add_patch(mpatches.Wedge((0.5,0.5), 0.42, theta2, theta1, width=0.12,
+                                       facecolor=col, alpha=0.85))
+        ax_d.add_patch(mpatches.Wedge((0.5,0.5), 0.42, theta1, theta2+360, width=0.12,
+                                       facecolor=BG3, alpha=0.5))
+        ax_d.text(0.5, 0.58, f"{eff:.1f}%", color=col, fontsize=22, fontweight="bold",
+                  ha="center", va="center")
+        ax_d.text(0.5, 0.40, "EFICIENCIA", color=WDIM, fontsize=8,
+                  ha="center", fontfamily="monospace")
+        ax_d.text(0.5, 0.27, "sistema DC→AC", color=WDIM, fontsize=6,
+                  ha="center", fontfamily="monospace")
+    else:
+        ax_d.text(0.5, 0.55, "N/D", color=WDIM, fontsize=28, fontweight="bold",
+                  ha="center", va="center")
+        ax_d.text(0.5, 0.38, "EFICIENCIA", color=WDIM, fontsize=8,
+                  ha="center", fontfamily="monospace")
+        ax_d.text(0.5, 0.27, "sin GHI real aún", color=WDIM, fontsize=6,
+                  ha="center", fontfamily="monospace")
     ax_d.set_xlim(0,1); ax_d.set_ylim(0,1)
 
-    # Metrics
-    ax.text(0.44, 0.82, "INDICADORES DE RENDIMIENTO", color=GOLD, fontsize=9,
+    # Physics metrics — top right block
+    ax.text(0.44, 0.88, "FÍSICA DEL SISTEMA FOTOVOLTAICO", color=GOLD, fontsize=9,
             fontweight="bold", fontfamily="monospace")
-    items = [
-        ("ET₀ semana", f'{wl.get("et0_semana_mm","—")} mm'),
-        ("Riego óptimo", wl.get("hora_riego_optima","—")),
-        ("Corte óptimo", wl.get("hora_corte_optima","—")),
-        ("Suelo tipo", wl.get("suelo_tipo","—")),
-        ("WHC suelo", f'{wl.get("suelo_whc_mm","—")} mm'),
-        ("Estado solar", solar_s.get("detalle","—")[:40]),
+    ax.text(0.44, 0.82, eff_src, color=WDIM, fontsize=6, fontfamily="monospace")
+
+    physics_items = [
+        ("GHI real",       f'{ghi:.3f} kWh/m²' if ghi is not None else "—"),
+        ("PR sistema",     f'{pr:.3f}' if pr is not None else "—"),
+        ("T° celda est.", f'{t_cell:.1f} °C' if t_cell is not None else "—"),
+        ("Score operativo", f'{score}/100'),
+        ("Estado",         solar_s.get("detalle","—")[:38]),
     ]
-    for j, (lbl, val) in enumerate(items):
-        row_y = 0.72 - j*0.11
-        ax.add_patch(FancyBboxPatch((0.44, row_y-0.04), 0.52, 0.09,
+    climate_items = [
+        ("ET₀ semana",  f'{wl.get("et0_semana_mm","—")} mm'),
+        ("Riego óptimo", wl.get("hora_riego_optima","—")),
+        ("WHC suelo",   f'{wl.get("suelo_whc_mm","—")} mm'),
+    ]
+    all_items = physics_items + climate_items
+    for j, (lbl, val) in enumerate(all_items):
+        row_y = 0.76 - j * 0.095
+        ax.add_patch(FancyBboxPatch((0.44, row_y-0.035), 0.53, 0.080,
                                     boxstyle="round,pad=0.01",
                                     facecolor=BG3, edgecolor=BORDER, lw=0.4))
-        ax.text(0.46, row_y+0.015, lbl, color=GOLD, fontsize=7.5, fontfamily="monospace")
-        ax.text(0.83, row_y+0.015, val, color=WHITE, fontsize=8,
+        ax.text(0.455, row_y+0.012, lbl, color=GOLD, fontsize=7, fontfamily="monospace")
+        ax.text(0.960, row_y+0.012, str(val), color=WHITE, fontsize=8,
                 fontweight="bold", ha="right")
 
-    _footer(fig, f"NASA POWER / pvlib · Faro Protocol · {fecha}")
+    _footer(fig, f"NASA POWER GHI · pvlib NOCT model · Faro Protocol · {fecha}")
     fig.savefig(out, dpi=DPI, bbox_inches="tight", facecolor=BG)
     plt.close(fig)
     log.info("render: %s", out.name)
