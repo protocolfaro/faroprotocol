@@ -1,0 +1,138 @@
+name: Velez Email Test — Full Pipeline
+
+on: workflow_dispatch
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      RAILWAY_URL: ${{ secrets.RAILWAY_URL }}
+      NASA_EARTHDATA_USER: ${{ secrets.NASA_EARTHDATA_USER }}
+      NASA_EARTHDATA_PASS: ${{ secrets.NASA_EARTHDATA_PASS }}
+      MPLBACKEND: Agg
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install deps
+        run: pip install requests matplotlib pillow numpy scipy pystac-client planetary-computer rasterio earthaccess
+
+      - name: Validate Supabase data
+        run: |
+          python - <<'EOF'
+          import requests, os, sys
+
+          url = os.environ["SUPABASE_URL"]
+          key = os.environ["SUPABASE_KEY"]
+          headers = {
+              "apikey": key,
+              "Authorization": f"Bearer {key}",
+          }
+          resp = requests.get(
+              f"{url}/rest/v1/climate_metrics_sectorial",
+              headers=headers,
+              params={
+                  "fecha": "gte.2026-07-05",
+                  "select": "sector_id,fecha,et0_mm_dia,temp_2m_c,rh_pct,sm_0_7cm_pct",
+                  "order": "created_at.desc",
+              }
+          )
+          print(f"HTTP: {resp.status_code}")
+          if resp.status_code != 200:
+              print(f"Error: {resp.text}")
+              sys.exit(1)
+          data = resp.json()
+          if not data:
+              print("❌ Sin datos para fecha >= 2026-07-05")
+              sys.exit(1)
+          print(f"✅ {len(data)} filas encontradas")
+          for row in data:
+              print(f"  {row['sector_id']} | fecha={row['fecha']} ET0={row['et0_mm_dia']} T={row['temp_2m_c']} RH={row['rh_pct']} SM={row['sm_0_7cm_pct']}")
+          EOF
+
+      - name: Generate 8 PNGs
+        run: |
+          cd railway-backend/sports/clients/velez
+          python gen_velez_main.py
+          python gen_velez_canchero.py
+          python gen_velez_final.py
+          python gen_velez_solar_v2.py
+          python gen_velez_poli.py
+          python gen_velez_sede.py
+          python gen_velez_piletas.py
+          python gen_velez_instituto.py
+          echo "=== PNGs generados ==="
+          ls -lh ../../../../reportes_velez/faro_reporte_*.png
+
+      - name: Send Nelson test email
+        run: |
+          python - <<'EOF'
+          import requests, os, base64, sys
+
+          api_key = os.environ["RESEND_API_KEY"]
+
+          png_files = [
+              "reportes_velez/faro_reporte_velez.png",
+              "reportes_velez/faro_reporte_velez_agro_FINAL.png",
+              "reportes_velez/faro_reporte_velez_solar_v2.png",
+              "reportes_velez/faro_reporte_velez_poli.png",
+              "reportes_velez/faro_reporte_velez_sede.png",
+              "reportes_velez/faro_reporte_velez_piletas.png",
+              "reportes_velez/faro_reporte_velez_instituto.png",
+          ]
+
+          attachments = []
+          for f in png_files:
+              if os.path.exists(f):
+                  with open(f, "rb") as fh:
+                      content = base64.b64encode(fh.read()).decode()
+                  attachments.append({"filename": os.path.basename(f), "content": content})
+                  size_kb = os.path.getsize(f) // 1024
+                  print(f"  ✅ {os.path.basename(f)} ({size_kb} KB)")
+              else:
+                  print(f"  ⚠️  no encontrado: {f}")
+
+          # manual_velez_nelson.pdf — si existe en repo root
+          pdf_path = "manual_velez_nelson.pdf"
+          if os.path.exists(pdf_path):
+              with open(pdf_path, "rb") as fh:
+                  content = base64.b64encode(fh.read()).decode()
+              attachments.append({"filename": "manual_velez_nelson.pdf", "content": content})
+              print(f"  ✅ manual_velez_nelson.pdf adjuntado")
+
+          resp = requests.post(
+              "https://api.resend.com/emails",
+              headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+              json={
+                  "from": "Faro Protocol <onboarding@resend.dev>",
+                  "to": "protocolfaro@gmail.com",
+                  "subject": "[TEST] Faro Panel Roger — Nelson Pugliese 2026-07-06",
+                  "html": f"""
+          <h2>Nelson Pugliese — Test Report</h2>
+          <p>Pipeline end-to-end OK · {len(attachments)} adjuntos</p>
+          <ul>{"".join(f"<li>{a['filename']}</li>" for a in attachments)}</ul>
+          """,
+                  "attachments": attachments,
+              }
+          )
+          print(f"\nStatus: {resp.status_code}")
+          print(f"Response: {resp.json()}")
+          if resp.status_code not in (200, 201):
+              sys.exit(1)
+          print("✅ Email enviado")
+          EOF
+
+      - name: Final report
+        if: always()
+        run: |
+          echo "=== FINAL REPORT ==="
+          echo "Date: $(date -u)"
+          echo "PNGs en reportes_velez/:"
+          ls -lh reportes_velez/faro_reporte_*.png 2>/dev/null || echo "  (ninguno)"
