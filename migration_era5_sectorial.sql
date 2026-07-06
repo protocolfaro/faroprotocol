@@ -57,6 +57,18 @@ CREATE TRIGGER trg_cms_updated_at
     BEFORE UPDATE ON climate_metrics_sectorial
     FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 
+-- ── Permisos ──────────────────────────────────────────────────────────────────
+-- service_role: escribe datos desde GitHub Actions ERA5 pipeline
+GRANT SELECT, INSERT, UPDATE ON public.climate_metrics_sectorial TO service_role;
+GRANT USAGE, SELECT ON SEQUENCE public.climate_metrics_sectorial_id_seq TO service_role;
+
+-- anon: lectura para el health-dashboard (panel público de control)
+GRANT SELECT ON public.climate_metrics_sectorial TO anon;
+
+-- RLS: desactivar o crear política permisiva para lectura pública
+-- Opción A (simple, tabla no sensible): deshabilitar RLS
+ALTER TABLE public.climate_metrics_sectorial DISABLE ROW LEVEL SECURITY;
+
 -- Verificación post-migración
 SELECT
     table_name,
@@ -66,5 +78,5 @@ FROM information_schema.columns
 WHERE table_name = 'climate_metrics_sectorial'
 ORDER BY ordinal_position;
 
--- Debe retornar 10 columnas: id, sector_id, fecha, et0_mm_dia, temp_2m_c,
+-- Debe retornar 11 columnas: id, sector_id, fecha, et0_mm_dia, temp_2m_c,
 -- rh_pct, sm_0_7cm_pct, sm_0_7cm_m3m3, fuente, created_at, updated_at

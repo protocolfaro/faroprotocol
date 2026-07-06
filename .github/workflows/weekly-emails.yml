@@ -10,11 +10,15 @@ on:
         description: 'Forzar envío de email'
         required: false
         default: 'false'
+      force_insar:
+        description: 'Forzar InSAR refresh (default: solo lunes)'
+        required: false
+        default: 'false'
 
 jobs:
   pipeline:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 55
     permissions:
       contents: write
 
@@ -29,51 +33,88 @@ jobs:
 
       - name: Instalar dependencias
         run: |
-          pip install requests matplotlib pillow numpy scipy pystac-client planetary-computer rasterio earthaccess
+          pip install requests matplotlib pillow numpy scipy \
+                      pystac-client planetary-computer rasterio earthaccess \
+                      tenacity pvlib pandas hyp3_sdk
 
+      # ── Fase A — Ingesta satelital diaria ─────────────────────────────────
+      # Corre siempre: weather, NDVI, SAR proxy, soil_metrics, solar, acciones
       - name: Fase A — Ingesta satelital diaria
         id: fase_a
         env:
-          GITHUB_TOKEN:       ${{ secrets.GITHUB_TOKEN }}
-          RAILWAY_URL:        ${{ secrets.RAILWAY_URL }}
-          RAILWAY_TOKEN:      ${{ secrets.RAILWAY_TOKEN }}
-          NASA_EARTHDATA_USER: ${{ secrets.NASA_EARTHDATA_USER }}
-          NASA_EARTHDATA_PASS: ${{ secrets.NASA_EARTHDATA_PASS }}
-          SUPABASE_URL:       ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY:       ${{ secrets.SUPABASE_KEY }}
+          GITHUB_TOKEN:              ${{ secrets.GITHUB_TOKEN }}
+          RAILWAY_URL:               ${{ secrets.RAILWAY_URL }}
+          RAILWAY_TOKEN:             ${{ secrets.RAILWAY_TOKEN }}
+          NASA_EARTHDATA_USER:       ${{ secrets.NASA_EARTHDATA_USER }}
+          NASA_EARTHDATA_PASS:       ${{ secrets.NASA_EARTHDATA_PASS }}
+          SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_KEY:              ${{ secrets.SUPABASE_KEY }}
         run: |
           cd railway-backend/sports/clients/velez
           python data_refresh.py || exit 1
-          cd ../../..
-          
-          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}"             --max-time 10 "${RAILWAY_URL}/health" 2>/dev/null || echo "000")
-          if [ "$HTTP_CODE" = "200" ]; then
-            echo "railway_ok=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "railway_ok=false" >> "$GITHUB_OUTPUT"
-          fi
-          
-          # Detectar si es lunes para emails
+
+          # Detectar si es lunes para emails + InSAR
           DOW=$(date +%u)
           if [ "$DOW" = "1" ] || [ "${{ github.event.inputs.force_email }}" = "true" ]; then
             echo "send_email=true" >> "$GITHUB_OUTPUT"
           else
             echo "send_email=false" >> "$GITHUB_OUTPUT"
           fi
+          if [ "$DOW" = "1" ] || [ "${{ github.event.inputs.force_insar }}" = "true" ]; then
+            echo "run_insar=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_insar=false" >> "$GITHUB_OUTPUT"
+          fi
 
-      - name: Fase B — Ensamblar datos reales + PNGs + actualizar JSON panel
-        if: steps.fase_a.outputs.railway_ok == 'true'
+      # ── Fase A.2 — InSAR semanal (lunes) ──────────────────────────────────
+      # Sentinel-1 HyP3 displacement → velez_sectores (poli, sede, estadio, piletas)
+      - name: Fase A.2 — InSAR refresh semanal
+        id: fase_insar
+        if: steps.fase_a.outputs.run_insar == 'true'
+        continue-on-error: true
         env:
-          MPLBACKEND: Agg
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-          RAILWAY_URL:  ${{ secrets.RAILWAY_URL }}
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-          NASA_EARTHDATA_USER: ${{ secrets.NASA_EARTHDATA_USER }}
-          NASA_EARTHDATA_PASS: ${{ secrets.NASA_EARTHDATA_PASS }}
+          NASA_EARTHDATA_USER:       ${{ secrets.NASA_EARTHDATA_USER }}
+          NASA_EARTHDATA_PASS:       ${{ secrets.NASA_EARTHDATA_PASS }}
+          SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_KEY:              ${{ secrets.SUPABASE_KEY }}
+          GITHUB_TOKEN:              ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "=== InSAR refresh (Sentinel-1 HyP3) ==="
+          cd railway-backend/sports/clients/velez
+          python - <<'PYEOF'
+          import logging, sys
+          logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+          import data_refresh
+          result = data_refresh.run_insar_refresh()
+          if result.get("ok"):
+              sectores = result.get("sectores", {})
+              print(f"InSAR OK — {len(sectores)} sectores: {list(sectores.keys())}")
+              for sid, mm in sectores.items():
+                  print(f"  {sid}: {mm:+.2f} mm")
+          else:
+              print(f"InSAR SKIP/WARN: {result.get('error', 'sin datos disponibles')}")
+              # No es error fatal — HyP3 puede no tener par S1 listo aún
+          PYEOF
+          echo "insar_done=true" >> $GITHUB_OUTPUT
+
+      # ── Fase B — Ensamblar + PNGs ──────────────────────────────────────────
+      # Corre SIEMPRE (sin gate de Railway). faro_assembler lee Supabase directo.
+      - name: Fase B — Ensamblar datos reales + PNGs + actualizar JSON panel
+        id: fase_b
+        env:
+          MPLBACKEND:                Agg
+          SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_KEY:              ${{ secrets.SUPABASE_KEY }}
+          RAILWAY_URL:               ${{ secrets.RAILWAY_URL }}
+          RAILWAY_TOKEN:             ${{ secrets.RAILWAY_TOKEN }}
+          NASA_EARTHDATA_USER:       ${{ secrets.NASA_EARTHDATA_USER }}
+          NASA_EARTHDATA_PASS:       ${{ secrets.NASA_EARTHDATA_PASS }}
         run: |
           python - <<'EOF'
-          import sys, json, logging, shutil
+          import sys, json, logging, shutil, os
           from pathlib import Path
           logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
           sys.path.insert(0, "railway-backend/sports/clients/velez")
@@ -84,7 +125,6 @@ jobs:
           vd = assemble_report(venue_id="amalfitani")
 
           # Persistir JSON ensamblado a velez/velez_data.json
-          # (el panel y faro-paneles leen de este archivo)
           vd_out = Path("velez/velez_data.json")
           vd_out.write_text(json.dumps(vd, ensure_ascii=False, default=str, indent=2), encoding="utf-8")
           print(f"velez_data.json actualizado: {vd_out} ({vd_out.stat().st_size//1024} KB)")
@@ -108,10 +148,20 @@ jobs:
           print(f"  Canchas con NDVI: {sum(1 for c in canchas if c.get('ndvi') is not None)}/{len(canchas)}")
           print(f"  Canchas con SAR:  {sum(1 for c in canchas if c.get('sar_vv_db') is not None)}/{len(canchas)}")
           print(f"  Roger acciones:   {len(vd.get('roger_canchas', []))} canchas")
+
+          # Sectores con datos reales vs sintéticos
+          sectores = vd.get("sectores", {})
+          for sk in ("estadio","canchero","solar","poli","sede","piletas"):
+              s = sectores.get(sk, {})
+              score = s.get("score", 0) or 0
+              insar = s.get("insar_mm")
+              tag = "REAL" if (score > 0 and insar is not None) else ("PARCIAL" if score > 0 else "PENDIENTE")
+              print(f"  sector {sk}: score={score} insar={insar} [{tag}]")
           EOF
 
+      # ── Validar JSON ensamblado ────────────────────────────────────────────
       - name: Validar JSON ensamblado (auditoría automática)
-        if: steps.fase_a.outputs.railway_ok == 'true'
+        id: validar_json
         run: |
           python - <<'EOF'
           import sys, json, logging
@@ -128,31 +178,40 @@ jobs:
           print(f"Validación OK — {len(warnings)} advertencias (no críticas)")
           EOF
 
+      # ── Commit cambios diarios ─────────────────────────────────────────────
+      # Corre siempre (sin gate de Railway). Si no hay cambios, git diff --cached --quiet
+      # devuelve 0 y no hay commit vacío.
       - name: Commit cambios diarios
-        if: steps.fase_a.outputs.railway_ok == 'true'
         run: |
           git config user.name  "Faro Protocol Bot"
           git config user.email "protocolfaro@gmail.com"
           git add velez/velez_data.json velez/heatmaps/*.png velez/reportes/*.png historico/ 2>/dev/null || true
           git diff --cached --quiet || git commit -m "chore(auto): datos diarios $(date +%Y-%m-%d)"
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/protocolfaro/faroprotocol.git
-          git push origin main || echo "[WARN] push falló"
+          git push origin main || echo "[WARN] push falló — posible conflicto con ERA5"
 
+      # ── Fase C — Emails semanales (solo lunes) ─────────────────────────────
       - name: Fase C — Emails semanales (solo lunes)
         if: steps.fase_a.outputs.send_email == 'true'
         env:
-          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-          RESEND_FROM:    ${{ secrets.RESEND_FROM }}
-          RAILWAY_URL:    ${{ secrets.RAILWAY_URL }}
-          SUPABASE_URL:   ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY:   ${{ secrets.SUPABASE_KEY }}
-          NASA_EARTHDATA_USER: ${{ secrets.NASA_EARTHDATA_USER }}
-          NASA_EARTHDATA_PASS: ${{ secrets.NASA_EARTHDATA_PASS }}
+          RESEND_API_KEY:            ${{ secrets.RESEND_API_KEY }}
+          RESEND_FROM:               ${{ secrets.RESEND_FROM }}
+          RAILWAY_URL:               ${{ secrets.RAILWAY_URL }}
+          SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_KEY:              ${{ secrets.SUPABASE_KEY }}
+          NASA_EARTHDATA_USER:       ${{ secrets.NASA_EARTHDATA_USER }}
+          NASA_EARTHDATA_PASS:       ${{ secrets.NASA_EARTHDATA_PASS }}
         run: python railway-backend/sports/clients/velez/velez_scheduler.py
 
-      - name: Resumen
+      # ── Resumen final ──────────────────────────────────────────────────────
+      - name: Resumen pipeline
         if: always()
         run: |
           echo "=== Pipeline Faro Protocol $(date +%Y-%m-%d) ==="
-          echo "Railway: ${{ steps.fase_a.outputs.railway_ok }}"
-          echo "Email:   ${{ steps.fase_a.outputs.send_email }}"
+          echo "Fase A (weather/NDVI/SAR): ${{ steps.fase_a.outcome }}"
+          echo "Fase A.2 (InSAR):          ${{ steps.fase_insar.outcome }} (run=${{ steps.fase_a.outputs.run_insar }})"
+          echo "Fase B (assembler/PNGs):   ${{ steps.fase_b.outcome }}"
+          echo "Validación JSON:           ${{ steps.validar_json.outcome }}"
+          echo "Email:                     ${{ steps.fase_a.outputs.send_email }}"
+          echo "======================================================"

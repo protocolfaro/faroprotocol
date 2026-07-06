@@ -154,7 +154,9 @@ def _base() -> str:
 
 
 def _key() -> str:
-    return os.environ.get("SUPABASE_KEY", "")
+    # service_role bypasses RLS — preferred for server-side pipeline writes
+    return (os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+            or os.environ.get("SUPABASE_KEY", ""))
 
 
 def _hdrs(extra: dict | None = None) -> dict:

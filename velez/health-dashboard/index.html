@@ -4,519 +4,536 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Content-Security-Policy"
-      content="default-src 'self' https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src https:">
-<title>Faro Protocol · System Health</title>
+      content="default-src 'self' https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; connect-src https:">
+<title>Faro Protocol · Control Operativo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Epilogue:wght@300;400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#0d0d0d;--surface:#141414;--border:#242424;--border-faint:#1c1c1c;
-  --gold:#c9a84c;--gold-dim:#7a6330;--gold-glow:rgba(201,168,76,.12);
-  --text:#e2e2e2;--muted:#777;--dim:#444;
-  --ok:#4caf7d;--warn:#e8b84c;--err:#e84c4c;--info:#5ab0d8;
-  --radius:8px;--font-head:'Cormorant Garamond',Georgia,serif;
+  --bg:#0a0a0a;--surface:#111;--surface2:#161616;--border:#222;
+  --gold:#c9a84c;--gold-dim:#7a6330;--gold-glow:rgba(201,168,76,.1);
+  --text:#e0e0e0;--muted:#666;--dim:#333;
+  --ok:#3fb87a;--warn:#e8b84c;--err:#e84c4c;--info:#5ab0d8;--pending:#888;
+  --radius:8px;
+  --font-head:'Cormorant Garamond',Georgia,serif;
   --font-body:'Epilogue',system-ui,sans-serif;
 }
-body{background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:14px;line-height:1.6;min-height:100vh}
+body{background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:13px;line-height:1.6;min-height:100vh}
+.shell{max-width:1180px;margin:0 auto;padding:0 18px}
+a{color:var(--gold);text-decoration:none}a:hover{text-decoration:underline}
 
-/* ── Layout ── */
-.shell{max-width:1280px;margin:0 auto;padding:0 16px}
-header{border-bottom:1px solid var(--border);padding:20px 0}
-.header-inner{display:flex;align-items:center;justify-content:space-between;gap:16px}
-.logo-area h1{font-family:var(--font-head);font-size:22px;font-weight:700;letter-spacing:.04em;color:var(--gold)}
-.logo-area p{font-size:11px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;margin-top:2px}
-.header-nav{display:flex;gap:8px}
-.nav-link{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border:1px solid var(--border);border-radius:var(--radius);color:var(--muted);font-size:12px;text-decoration:none;transition:border-color .2s,color .2s}
-.nav-link:hover{border-color:var(--gold-dim);color:var(--gold)}
-.nav-link.active{border-color:var(--gold);color:var(--gold);background:var(--gold-glow)}
-.badge-pulse{width:6px;height:6px;border-radius:50%;background:var(--ok);animation:pulse 2s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+/* header */
+header{border-bottom:1px solid var(--border);padding:18px 0 14px}
+.hdr{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.hdr-title h1{font-family:var(--font-head);font-size:20px;font-weight:700;letter-spacing:.04em;color:var(--gold)}
+.hdr-title p{font-size:10px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;margin-top:2px}
+.hdr-meta{font-size:11px;color:var(--muted);text-align:right}
+.hdr-meta b{color:var(--text)}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--pending);margin-right:4px;vertical-align:middle}
+.dot.ok{background:var(--ok);animation:pulse 2.5s infinite}
+.dot.warn{background:var(--warn)}
+.dot.err{background:var(--err)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
 
-main{padding:28px 0 60px}
+main{padding:24px 0 60px}
 
-/* ── Cards ── */
-.section-title{font-family:var(--font-head);font-size:17px;font-weight:600;color:var(--gold);letter-spacing:.04em;margin-bottom:14px}
-.cards-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:28px}
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;position:relative;overflow:hidden}
-.card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--gold-dim)}
-.card.ok::before{background:var(--ok)}
-.card.warn::before{background:var(--warn)}
-.card.err::before{background:var(--err)}
-.card-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px}
-.card-value{font-family:var(--font-head);font-size:30px;font-weight:700;line-height:1;color:var(--text)}
-.card-value.ok{color:var(--ok)}
-.card-value.warn{color:var(--warn)}
-.card-value.err{color:var(--err)}
-.card-sub{font-size:11px;color:var(--muted);margin-top:6px}
-.card-icon{position:absolute;right:16px;top:14px;font-size:22px;opacity:.25}
+/* section */
+.section{margin-bottom:32px}
+.section-title{font-family:var(--font-head);font-size:16px;font-weight:600;color:var(--gold);letter-spacing:.04em;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--border)}
 
-/* ── Charts ── */
-.charts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px;margin-bottom:28px}
-.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px}
-.chart-card h3{font-family:var(--font-head);font-size:15px;font-weight:600;color:var(--text);margin-bottom:16px;letter-spacing:.03em}
-.chart-wrap{position:relative;height:200px}
+/* table */
+.ctrl-table{width:100%;border-collapse:collapse;font-size:12px}
+.ctrl-table th{text-align:left;padding:7px 10px;font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-weight:500;border-bottom:1px solid var(--border);white-space:nowrap}
+.ctrl-table td{padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+.ctrl-table tr:last-child td{border-bottom:none}
+.ctrl-table tr:hover td{background:var(--surface2)}
 
-/* ── Tables ── */
-.table-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:24px}
-.table-card-header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border-faint)}
-.table-card-header h3{font-family:var(--font-head);font-size:15px;font-weight:600;color:var(--text);letter-spacing:.03em}
-.tbl{width:100%;border-collapse:collapse}
-.tbl th{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);padding:10px 16px;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap}
-.tbl td{padding:9px 16px;border-bottom:1px solid var(--border-faint);font-size:12px;vertical-align:middle}
-.tbl tr:last-child td{border-bottom:none}
-.tbl tr:hover td{background:rgba(255,255,255,.02)}
-.pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;letter-spacing:.06em}
-.pill-ok{background:rgba(76,175,125,.15);color:var(--ok)}
-.pill-warn{background:rgba(232,184,76,.15);color:var(--warn)}
-.pill-err{background:rgba(232,76,76,.15);color:var(--err)}
-.pill-info{background:rgba(90,176,216,.15);color:var(--info)}
-.code{font-family:'Courier New',monospace;font-size:11px;color:var(--muted);background:rgba(255,255,255,.04);padding:1px 5px;border-radius:3px}
+/* status badges */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:3px;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
+.badge.ok{background:rgba(63,184,122,.12);color:var(--ok);border:1px solid rgba(63,184,122,.25)}
+.badge.warn{background:rgba(232,184,76,.10);color:var(--warn);border:1px solid rgba(232,184,76,.22)}
+.badge.err{background:rgba(232,76,76,.10);color:var(--err);border:1px solid rgba(232,76,76,.22)}
+.badge.pending{background:rgba(136,136,136,.10);color:var(--pending);border:1px solid rgba(136,136,136,.2)}
+.badge.info{background:rgba(90,176,216,.10);color:var(--info);border:1px solid rgba(90,176,216,.22)}
 
-/* ── Alerts panel ── */
-.alerts-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-bottom:28px}
-.alert-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
-.alert-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px}
-.alert-name{font-weight:600;font-size:13px;color:var(--text)}
-.alert-meta{font-size:11px;color:var(--muted)}
-.toggle{width:36px;height:20px;background:var(--border);border-radius:10px;position:relative;cursor:pointer;transition:background .2s;border:none;flex-shrink:0;margin-top:2px}
-.toggle.on{background:var(--gold)}
-.toggle::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .2s}
-.toggle.on::after{transform:translateX(16px)}
+/* summary cards */
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:28px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;position:relative;overflow:hidden}
+.card::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--dim)}
+.card.ok::after{background:var(--ok)}.card.warn::after{background:var(--warn)}.card.err::after{background:var(--err)}.card.pending::after{background:var(--pending)}
+.card-label{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;margin-bottom:6px}
+.card-value{font-family:var(--font-head);font-size:26px;font-weight:700;line-height:1;color:var(--text)}
+.card-value.ok{color:var(--ok)}.card-value.warn{color:var(--warn)}.card-value.err{color:var(--err)}
+.card-sub{font-size:10px;color:var(--muted);margin-top:4px}
 
-/* ── Footer ── */
-footer{border-top:1px solid var(--border);padding:18px 0;text-align:center;font-size:11px;color:var(--dim)}
-footer a{color:var(--dim);text-decoration:none}
-footer a:hover{color:var(--muted)}
+/* ndvi grid */
+.cancha-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:6px}
+.cancha-cell{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px 8px;text-align:center}
+.cancha-cell .cid{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.cancha-cell .ndvi-val{font-family:var(--font-head);font-size:20px;font-weight:700;line-height:1.1;margin:4px 0 2px}
+.cancha-cell .ndvi-src{font-size:9px;color:var(--muted)}
 
-/* ── Controls ── */
-.ctrl-row{display:flex;align-items:center;gap:8px}
-.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--radius);border:1px solid var(--border);background:transparent;color:var(--muted);font-family:var(--font-body);font-size:12px;cursor:pointer;transition:all .2s}
-.btn:hover{border-color:var(--gold-dim);color:var(--gold)}
-.btn-primary{border-color:var(--gold);color:var(--gold);background:var(--gold-glow)}
-.btn-primary:hover{background:rgba(201,168,76,.2)}
-.refresh-icon{animation:spin .8s linear infinite;display:none}
-.refreshing .refresh-icon{display:inline-block}
-@keyframes spin{to{transform:rotate(360deg)}}
+/* log */
+.log-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;font-family:monospace;font-size:11px;max-height:220px;overflow-y:auto;color:var(--muted);line-height:1.7}
+.log-box .ok{color:var(--ok)}.log-box .warn{color:var(--warn)}.log-box .err{color:var(--err)}.log-box .info{color:var(--info)}
 
-.status-bar{display:flex;align-items:center;gap:12px;font-size:11px;color:var(--muted)}
-.status-dot{width:6px;height:6px;border-radius:50%;background:var(--ok)}
-.status-dot.err{background:var(--err)}
-.status-dot.warn{background:var(--warn)}
-
-/* ── Mobile ── */
-@media(max-width:640px){
-  .header-inner{flex-direction:column;align-items:flex-start;gap:10px}
-  .charts-grid{grid-template-columns:1fr}
-  .cards-row{grid-template-columns:1fr 1fr}
-  .tbl th:nth-child(n+4),.tbl td:nth-child(n+4){display:none}
-}
+/* footer */
+footer{border-top:1px solid var(--border);padding:14px 0;font-size:10px;color:var(--muted);display:flex;justify-content:space-between;gap:8px}
 </style>
 </head>
 <body>
+<div class="shell">
 
 <header>
-  <div class="shell">
-    <div class="header-inner">
-      <div class="logo-area">
-        <h1>FARO PROTOCOL</h1>
-        <p>System Health Dashboard · Vélez Sarsfield</p>
-      </div>
-      <nav class="header-nav">
-        <a href="../" class="nav-link">Panel</a>
-        <a href="." class="nav-link active"><span class="badge-pulse"></span>&nbsp;Health</a>
-        <a href="../alerts-config/" class="nav-link">Alertas</a>
-      </nav>
-    </div>
+<div class="hdr">
+  <div class="hdr-title">
+    <h1>Faro Protocol — Control Operativo</h1>
+    <p>Vélez Sarsfield · Pipeline Status Board</p>
   </div>
+  <div class="hdr-meta">
+    <span id="refresh-dot" class="dot"></span>
+    <span id="refresh-ts">cargando...</span><br>
+    <a href="../index.html">← Panel</a> ·
+    <a href="javascript:location.reload()">Actualizar</a>
+  </div>
+</div>
 </header>
 
 <main>
-<div class="shell">
 
-  <!-- Status Row -->
-  <p class="section-title">Estado del Sistema</p>
-  <div class="cards-row" id="cards-row">
-    <div class="card" id="card-pipeline">
-      <div class="card-label">Pipeline</div>
-      <div class="card-value" id="val-pipeline">—</div>
-      <div class="card-sub" id="sub-pipeline">Consultando...</div>
-      <span class="card-icon">⚡</span>
-    </div>
-    <div class="card" id="card-ndvi">
-      <div class="card-label">NDVI Mediana</div>
-      <div class="card-value" id="val-ndvi">—</div>
-      <div class="card-sub" id="sub-ndvi">Actualización</div>
-      <span class="card-icon">🌿</span>
-    </div>
-    <div class="card" id="card-et0">
-      <div class="card-label">ET₀ mm/día</div>
-      <div class="card-value" id="val-et0">—</div>
-      <div class="card-sub" id="sub-et0">Clima</div>
-      <span class="card-icon">💧</span>
-    </div>
-    <div class="card" id="card-score">
-      <div class="card-label">Score Global</div>
-      <div class="card-value" id="val-score">—</div>
-      <div class="card-sub" id="sub-score">Canchas</div>
-      <span class="card-icon">📊</span>
-    </div>
-    <div class="card" id="card-sar">
-      <div class="card-label">SAR Antigüedad</div>
-      <div class="card-value" id="val-sar">—</div>
-      <div class="card-sub">horas desde último dato</div>
-      <span class="card-icon">📡</span>
-    </div>
-    <div class="card" id="card-errors">
-      <div class="card-label">Errores (1h)</div>
-      <div class="card-value" id="val-errors">—</div>
-      <div class="card-sub">Respuestas HTTP ≥500</div>
-      <span class="card-icon">🔴</span>
-    </div>
-  </div>
-
-  <!-- Chart Controls -->
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
-    <p class="section-title" style="margin-bottom:0">Tendencias — 30 días</p>
-    <div class="ctrl-row">
-      <div class="status-bar">
-        <span class="status-dot" id="conn-dot"></span>
-        <span id="last-update">Actualizando...</span>
-      </div>
-      <button class="btn btn-primary" id="btn-refresh" onclick="refresh()">
-        <span class="refresh-icon" id="spin">↻</span> Actualizar
-      </button>
-    </div>
-  </div>
-
-  <!-- Charts -->
-  <div class="charts-grid">
-    <div class="chart-card">
-      <h3>NDVI Mediana</h3>
-      <div class="chart-wrap"><canvas id="chart-ndvi"></canvas></div>
-    </div>
-    <div class="chart-card">
-      <h3>ET₀ mm/día</h3>
-      <div class="chart-wrap"><canvas id="chart-et0"></canvas></div>
-    </div>
-    <div class="chart-card">
-      <h3>Humedad de Suelo θ (m³/m³)</h3>
-      <div class="chart-wrap"><canvas id="chart-sm"></canvas></div>
-    </div>
-    <div class="chart-card">
-      <h3>Score Global (0–100)</h3>
-      <div class="chart-wrap"><canvas id="chart-score"></canvas></div>
-    </div>
-  </div>
-
-  <!-- Audit Log -->
-  <div class="table-card">
-    <div class="table-card-header">
-      <h3>Audit Log — Errores recientes</h3>
-      <button class="btn" onclick="loadAudit()">↻ Recargar</button>
-    </div>
-    <div style="overflow-x:auto">
-      <table class="tbl" id="audit-table">
-        <thead>
-          <tr>
-            <th>Timestamp</th>
-            <th>Método</th>
-            <th>Path</th>
-            <th>Status</th>
-            <th>Duración</th>
-            <th>IP</th>
-            <th>Error</th>
-          </tr>
-        </thead>
-        <tbody id="audit-body">
-          <tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px">Cargando...</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- Active Alerts -->
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-    <p class="section-title" style="margin-bottom:0">Alertas Activas</p>
-    <a href="../alerts-config/" class="btn btn-primary">+ Configurar</a>
-  </div>
-  <div class="alerts-grid" id="alerts-grid">
-    <p style="color:var(--muted);font-size:13px">Cargando alertas...</p>
-  </div>
-
+<!-- Summary cards -->
+<div class="cards" id="summary-cards">
+  <div class="card pending"><div class="card-label">Pipeline</div><div class="card-value pending" id="card-pipeline">—</div><div class="card-sub" id="card-pipeline-sub">cargando</div></div>
+  <div class="card pending"><div class="card-label">ET0 ERA5</div><div class="card-value" id="card-et0">—</div><div class="card-sub" id="card-et0-sub">mm/día</div></div>
+  <div class="card pending"><div class="card-label">Humedad Suelo</div><div class="card-value" id="card-hum">—</div><div class="card-sub">%</div></div>
+  <div class="card pending"><div class="card-label">Canchas NDVI</div><div class="card-value" id="card-ndvi">—</div><div class="card-sub" id="card-ndvi-sub">de 12</div></div>
+  <div class="card pending"><div class="card-label">Sectores InSAR</div><div class="card-value" id="card-insar">—</div><div class="card-sub" id="card-insar-sub">de 5</div></div>
+  <div class="card pending"><div class="card-label">Solar GHI</div><div class="card-value" id="card-solar">—</div><div class="card-sub">kWh/m²/día</div></div>
 </div>
+
+<!-- Pipeline steps -->
+<div class="section">
+  <div class="section-title">Pipeline Diario — Estado de cada paso</div>
+  <table class="ctrl-table">
+    <thead><tr>
+      <th>Paso</th><th>Horario</th><th>Última ejecución</th><th>Estado</th><th>Datos</th><th>Fuente</th>
+    </tr></thead>
+    <tbody id="pipeline-rows">
+      <tr><td colspan="6" style="color:var(--muted);padding:16px">Cargando estado del pipeline...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Sectores -->
+<div class="section">
+  <div class="section-title">Sectores — Datos reales vs pendientes</div>
+  <table class="ctrl-table">
+    <thead><tr>
+      <th>Sector</th><th>Score</th><th>Semáforo</th><th>InSAR mm</th><th>ET0 ERA5</th><th>Estado datos</th><th>Detalle</th>
+    </tr></thead>
+    <tbody id="sector-rows">
+      <tr><td colspan="7" style="color:var(--muted);padding:16px">Cargando sectores...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- NDVI Canchas -->
+<div class="section">
+  <div class="section-title">NDVI por Cancha — Villa Olímpica + Amalfitani</div>
+  <div class="cancha-grid" id="cancha-grid">
+    <div style="color:var(--muted);padding:12px;font-size:11px">Cargando NDVI...</div>
+  </div>
+</div>
+
+<!-- ERA5 Sectorial -->
+<div class="section">
+  <div class="section-title">ERA5-Land Sectorial — Últimos datos (climate_metrics_sectorial)</div>
+  <table class="ctrl-table">
+    <thead><tr>
+      <th>Sector</th><th>Fecha</th><th>ET0 mm/día</th><th>Temp °C</th><th>HR %</th><th>SM %</th><th>Fuente</th>
+    </tr></thead>
+    <tbody id="era5-rows">
+      <tr><td colspan="7" style="color:var(--muted);padding:16px">Cargando ERA5...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Log de auditoría -->
+<div class="section">
+  <div class="section-title">Log de Auditoría del Pipeline</div>
+  <div class="log-box" id="audit-log">
+    <span class="info">Inicializando...</span>
+  </div>
+</div>
+
 </main>
 
 <footer>
-  <div class="shell">
-    Faro Protocol · Sistema de Monitoreo Satelital ·
-    <a href="../">Panel Principal</a> · <a href="../alerts-config/">Alertas</a>
-  </div>
+  <span>Faro Protocol · protocolfaro@gmail.com</span>
+  <span id="footer-ts">—</span>
 </footer>
 
+</div><!-- /shell -->
+
 <script>
-(function(){
-'use strict';
+// ── Config ───────────────────────────────────────────────────────────────────
+const VD_URL   = "https://raw.githubusercontent.com/protocolfaro/faro-paneles/main/velez/velez_data.json";
+const SB_URL   = "https://uuxizkhyvucqagpclnlm.supabase.co";
+const SB_ANON  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV1eGl6a2h5dnVjcWFncGNsbmxtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMwMDQ1MzcsImV4cCI6MjA1ODU4MDUzN30.wYRIZD4XmmZy3jf8JxBUFlLrP5kVpMNEBISCFvOTr6s";
 
-var RAILWAY = 'https://faroprotocol-production-45fd.up.railway.app';
-var charts  = {};
+const SECTORES_LIST = ["estadio","canchero","solar","poli","sede","piletas"];
+const SECTOR_LABELS = {estadio:"Estadio Amalfitani",canchero:"Canchero VO",solar:"Solar Amalfitani",poli:"Polideportivo Feijóo",sede:"Sede Central",piletas:"Complejo Acuático"};
+const INSAR_TRACKED = ["estadio","poli","sede","piletas"];
+const CANCHA_IDS    = ["1fa","2fa","3fa","4fa","5fa","6fa","7fa","8fa","9fa","10fa","1fp","2fp","amalfitani"];
 
-// ── Chart defaults ─────────────────────────────────────────────────────────
-Chart.defaults.color         = '#777';
-Chart.defaults.borderColor   = '#242424';
-Chart.defaults.font.family   = "'Epilogue', system-ui, sans-serif";
-Chart.defaults.font.size     = 11;
-
-var CHART_CFG = {
-  type: 'line',
-  options: {
-    responsive: true,
-    maintainAspectRatio: false,
-    animation: { duration: 400 },
-    plugins: { legend: { display: false }, tooltip: {
-      backgroundColor: '#1e1e1e', borderColor: '#333', borderWidth: 1,
-      titleColor: '#e2e2e2', bodyColor: '#aaa', padding: 10,
-    }},
-    scales: {
-      x: { grid: { color: '#1c1c1c' }, ticks: { maxTicksLimit: 8, maxRotation: 0 }},
-      y: { grid: { color: '#1c1c1c' }},
-    },
-  }
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const log = (msg, cls="info") => {
+  const b = document.getElementById("audit-log");
+  const span = document.createElement("span");
+  span.className = cls; span.textContent = msg;
+  b.appendChild(span); b.appendChild(document.createElement("br"));
+  b.scrollTop = b.scrollHeight;
+};
+const badge = (st, label) => `<span class="badge ${st}">${label}</span>`;
+const fmt = v => v != null ? String(v) : "N/D";
+const fmtDate = s => s ? s.slice(0,10) : "N/D";
+const ageHours = ts => {
+  if (!ts) return 9999;
+  const d = new Date(ts.replace(" ","T").replace(/Z?$/,"Z"));
+  return (Date.now() - d) / 36e5;
+};
+const colorNdvi = v => {
+  if (v == null) return "var(--pending)";
+  if (v < 0.20) return "var(--err)";
+  if (v < 0.35) return "var(--warn)";
+  if (v < 0.50) return "#b0c44c";
+  return "var(--ok)";
 };
 
-function mkChart(id, label, color, yLabel) {
-  var ctx = document.getElementById(id);
-  if (!ctx) return null;
-  var cfg = JSON.parse(JSON.stringify(CHART_CFG));
-  cfg.data = { labels: [], datasets: [{ label: label, data: [], borderColor: color,
-    backgroundColor: hexAlpha(color, 0.08), borderWidth: 2, pointRadius: 0,
-    pointHoverRadius: 4, tension: 0.3, fill: true }] };
-  cfg.options.scales.y.title = { display: !!yLabel, text: yLabel || '', color: '#555' };
-  return new Chart(ctx, cfg);
+// ── Fetch helpers ─────────────────────────────────────────────────────────────
+async function fetchVD() {
+  log("Fetching velez_data.json…");
+  const r = await fetch(VD_URL + "?t=" + Date.now());
+  if (!r.ok) throw new Error("velez_data.json: " + r.status);
+  return r.json();
+}
+async function sbGet(path, params="") {
+  const r = await fetch(`${SB_URL}/rest/v1/${path}${params}`, {
+    headers: {"apikey": SB_ANON, "Authorization": "Bearer " + SB_ANON}
+  });
+  if (!r.ok) return [];
+  return r.json();
 }
 
-function hexAlpha(hex, a) {
-  var r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
-  return 'rgba('+r+','+g+','+b+','+a+')';
+// ── Render summary cards ───────────────────────────────────────────────────────
+function renderSummaryCards(vd, era5rows) {
+  const wl = vd.weather_live || {};
+  const ts = wl.timestamp || vd.updated_at;
+  const age = ageHours(ts);
+  const pipelineOk = age < 26;
+  const pipelineSt = age < 12 ? "ok" : age < 26 ? "warn" : "err";
+  setCard("card-pipeline", pipelineSt, age < 12 ? "OK" : age < 26 ? "TARDE", `hace ${age.toFixed(1)}h`);
+
+  const et0 = wl.et0_mm_dia;
+  setCard("card-et0", et0 != null ? "ok" : "pending", et0 != null ? et0 : "N/D", "mm/día");
+
+  const hum = wl.humedad_suelo_pct;
+  setCard("card-hum", hum != null ? "ok" : "pending", hum != null ? hum : "N/D", "%");
+
+  const canchas = vd.sectores?.canchero?.canchas || [];
+  const withNdvi = canchas.filter(c => c.ndvi != null).length;
+  setCard("card-ndvi", withNdvi >= 10 ? "ok" : withNdvi >= 5 ? "warn" : "err", withNdvi, `de ${canchas.length}`);
+
+  const insarCount = INSAR_TRACKED.filter(s => vd.sectores?.[s]?.insar_mm != null).length;
+  setCard("card-insar", insarCount >= 3 ? "ok" : insarCount >= 1 ? "warn" : "err", insarCount, "de " + INSAR_TRACKED.length);
+
+  // Solar from ERA5 rows or weather_live
+  const et0Era5 = era5rows.find(r => r.sector_id?.includes("amalfitani"))?.et0_mm_dia;
+  const ghi = wl.et0_semana_mm ? (wl.et0_semana_mm / 7 * 0.8).toFixed(1) : null;
+  setCard("card-solar", ghi ? "ok" : "pending", ghi || "N/D", "kWh/m²/día (est)");
+
+  // refresh dot
+  const dot = document.getElementById("refresh-dot");
+  dot.className = "dot " + pipelineSt;
+  document.getElementById("refresh-ts").textContent = ts ? "Datos: " + fmtDate(ts) : "Sin datos";
+  document.getElementById("footer-ts").textContent = "Generado " + new Date().toLocaleString("es-AR");
+}
+function setCard(id, st, val, sub) {
+  const el = document.getElementById(id);
+  if (el) { el.textContent = val; el.className = "card-value " + st; }
+  const subId = id + "-sub";
+  const subEl = document.getElementById(subId);
+  if (subEl && sub != null) subEl.textContent = sub;
+  // update card border
+  const card = el?.closest(".card");
+  if (card) { card.className = "card " + st; }
 }
 
-// ── Init charts ────────────────────────────────────────────────────────────
-charts.ndvi  = mkChart('chart-ndvi',  'NDVI',       '#4caf7d', '');
-charts.et0   = mkChart('chart-et0',   'ET₀',        '#c9a84c', 'mm/día');
-charts.sm    = mkChart('chart-sm',    'θ',          '#5ab0d8', 'm³/m³');
-charts.score = mkChart('chart-score', 'Score',      '#9b7ecf', '');
+// ── Pipeline steps table ────────────────────────────────────────────────────
+function renderPipelineRows(vd, era5rows) {
+  const wl = vd.weather_live || {};
+  const ts = wl.timestamp || vd.updated_at;
+  const age = ageHours(ts);
+  const canchas = vd.sectores?.canchero?.canchas || [];
+  const ndviCount = canchas.filter(c => c.ndvi != null).length;
+  const insarCount = INSAR_TRACKED.filter(s => vd.sectores?.[s]?.insar_mm != null).length;
+  const era5Count = era5rows.length;
+  const et0Era5 = era5rows.length > 0 ? era5rows[0].et0_mm_dia : null;
 
-// ── Data fetch ─────────────────────────────────────────────────────────────
-function apiFetch(path, cb) {
-  fetch(RAILWAY + path, { headers: { 'Accept': 'application/json' } })
-    .then(function(r){ if(!r.ok) throw new Error(r.status); return r.json(); })
-    .then(cb)
-    .catch(function(e){ console.warn('fetch', path, e); });
+  const rows = [
+    {
+      name: "Fase A — Ingesta diaria",
+      schedule: "09:00 UTC",
+      ts: ts,
+      status: age < 26 ? (age < 12 ? "ok" : "warn") : "err",
+      statusLabel: age < 12 ? "OK" : age < 26 ? "TARDÍO" : "FALLO",
+      data: `ET0=${wl.et0_mm_dia||"N/D"} mm · Hum=${wl.humedad_suelo_pct||"N/D"}%`,
+      source: (wl.et0_fuente || "nasa-power")
+    },
+    {
+      name: "Fase B — Assembler + PNGs",
+      schedule: "09:00 UTC (post A)",
+      ts: ts,
+      status: age < 26 ? "ok" : "err",
+      statusLabel: age < 26 ? "OK" : "STALE",
+      data: `${ndviCount}/12 NDVI · ${vd.roger_canchas?.length||0} acciones Roger`,
+      source: "supabase + ndvi_real"
+    },
+    {
+      name: "ERA5-Land Sectorial",
+      schedule: "12:00 UTC",
+      ts: era5rows[0]?.created_at,
+      status: era5Count >= 3 ? "ok" : era5Count > 0 ? "warn" : "err",
+      statusLabel: era5Count >= 3 ? `OK (${era5Count} sectores)` : era5Count > 0 ? `PARCIAL (${era5Count})` : "SIN DATOS",
+      data: et0Era5 != null ? `ET0=${et0Era5} mm/día` : "—",
+      source: "CDS ERA5-Land → climate_metrics_sectorial"
+    },
+    {
+      name: "InSAR Sentinel-1 (HyP3)",
+      schedule: "Lunes",
+      ts: vd.sectores?.poli?.updated_at || vd.sectores?.estadio?.updated_at,
+      status: insarCount >= 3 ? "ok" : insarCount >= 1 ? "warn" : "pending",
+      statusLabel: insarCount >= 3 ? `OK (${insarCount}/4)` : insarCount >= 1 ? `PARCIAL (${insarCount}/4)` : "PENDIENTE",
+      data: insarCount > 0 ? INSAR_TRACKED.filter(s => vd.sectores?.[s]?.insar_mm != null).map(s => `${s}:${vd.sectores[s].insar_mm}mm`).join(" · ") : "Sin datos InSAR",
+      source: "ASF HyP3 → velez_sectores"
+    },
+    {
+      name: "Emails semanales (Resend)",
+      schedule: "Lunes 10:00 UTC",
+      ts: null,
+      status: "info",
+      statusLabel: "LUNES",
+      data: "Roger · Juan · Fernando · Sebastián · Fabián · Nelson · Alberto",
+      source: "velez_scheduler.py → RESEND_API_KEY"
+    },
+    {
+      name: "DpRVIc (GCS → Supabase)",
+      schedule: "13:00 UTC",
+      ts: null,
+      status: "pending",
+      statusLabel: "EXTERNO",
+      data: "Requiere GCS_SERVICE_ACCOUNT_JSON",
+      source: "faro_dprvi_downloader.py"
+    }
+  ];
+
+  const tbody = document.getElementById("pipeline-rows");
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td><b>${r.name}</b></td>
+      <td style="color:var(--muted)">${r.schedule}</td>
+      <td style="color:var(--muted)">${r.ts ? fmtDate(r.ts) + " " + (r.ts.length>10?r.ts.slice(11,16):"") : "—"}</td>
+      <td>${badge(r.status, r.statusLabel)}</td>
+      <td style="font-size:11px;color:var(--muted)">${r.data}</td>
+      <td style="font-size:11px;color:var(--dim)">${r.source}</td>
+    </tr>
+  `).join("");
 }
 
-function fmt(d) {
-  if (!d) return '—';
-  var dt = new Date(d);
-  return (dt.getMonth()+1)+'/'+dt.getDate()+' '+dt.getHours()+':'+String(dt.getMinutes()).padStart(2,'0');
+// ── Sector rows ────────────────────────────────────────────────────────────
+function renderSectorRows(vd, era5rows) {
+  const sectores = vd.sectores || {};
+  const tbody = document.getElementById("sector-rows");
+
+  const era5BySector = {};
+  for (const r of era5rows) {
+    const sid = r.sector_id;
+    if (!era5BySector[sid] || r.created_at > era5BySector[sid].created_at)
+      era5BySector[sid] = r;
+  }
+
+  tbody.innerHTML = SECTORES_LIST.map(sk => {
+    const s = sectores[sk] || {};
+    const score = s.score != null ? s.score : null;
+    const sem = s.sem || null;
+    const insar = s.insar_mm;
+    const det = s.detalle || "";
+
+    // Find ERA5 for this sector (amalfitani, vo_bloque_a/b/c/d)
+    const era5Match = Object.values(era5BySector).find(r =>
+      r.sector_id?.includes(sk === "canchero" ? "vo_bloque" : sk === "estadio" ? "amalfitani" : sk)
+    ) || null;
+
+    const scoreOk = score != null && score > 0;
+    const insarOk = insar != null;
+    const era5Ok  = era5Match != null;
+    const dataStatus = scoreOk && (insarOk || !INSAR_TRACKED.includes(sk)) && era5Ok
+      ? "ok" : scoreOk ? "warn" : "pending";
+    const dataLabel  = dataStatus === "ok" ? "REAL" : dataStatus === "warn" ? "PARCIAL" : "PENDIENTE";
+
+    const semBadge = sem === "verde" ? badge("ok","VERDE") :
+                     sem === "amarillo" ? badge("warn","AMARILLO") :
+                     sem === "rojo" ? badge("err","ROJO") : badge("pending","—");
+
+    return `<tr>
+      <td><b>${SECTOR_LABELS[sk]||sk}</b></td>
+      <td>${score != null ? score : badge("pending","—")}</td>
+      <td>${semBadge}</td>
+      <td>${insarOk ? `${insar>0?"+":""}${insar} mm` : badge("pending","PENDIENTE")}</td>
+      <td>${era5Match ? `${era5Match.et0_mm_dia||"—"} mm` : badge("pending","—")}</td>
+      <td>${badge(dataStatus, dataLabel)}</td>
+      <td style="font-size:11px;color:var(--muted);max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${det}">${det||"—"}</td>
+    </tr>`;
+  }).join("");
 }
 
-function statusClass(h) {
-  if (h == null) return '';
-  return h < 24 ? 'ok' : h < 72 ? 'warn' : 'err';
+// ── Cancha NDVI grid ─────────────────────────────────────────────────────────
+function renderCanchaGrid(vd) {
+  const canchas = vd.sectores?.canchero?.canchas || [];
+  const byId = {};
+  for (const c of canchas) { if (c.id) byId[c.id] = c; }
+  // Also check gndvi_por_cancha
+  const gpc = vd.weather_live?.gndvi_por_cancha?.canchas || {};
+
+  const grid = document.getElementById("cancha-grid");
+  grid.innerHTML = CANCHA_IDS.map(cid => {
+    const c = byId[cid] || {};
+    const g = gpc[cid] || {};
+    const ndvi = c.ndvi ?? g.ndvi ?? null;
+    const fuente = c.ndvi_fuente || (g.ndvi != null ? "gndvi_pc" : "—");
+    const color = colorNdvi(ndvi);
+    return `<div class="cancha-cell">
+      <div class="cid">${cid.toUpperCase()}</div>
+      <div class="ndvi-val" style="color:${color}">${ndvi != null ? ndvi.toFixed(3) : "N/D"}</div>
+      <div class="ndvi-src">${fuente}</div>
+    </div>`;
+  }).join("");
 }
 
-function updateCard(id, value, sub, status) {
-  var c  = document.getElementById('card-'+id);
-  var vEl = document.getElementById('val-'+id);
-  var sEl = document.getElementById('sub-'+id);
-  if (vEl) vEl.textContent = value;
-  if (sEl && sub) sEl.textContent = sub;
-  if (c && status) {
-    c.className = 'card ' + status;
-    if (vEl) { vEl.className = 'card-value ' + status; }
+// ── ERA5 table ───────────────────────────────────────────────────────────────
+function renderEra5Table(era5rows) {
+  const tbody = document.getElementById("era5-rows");
+  if (!era5rows.length) {
+    tbody.innerHTML = `<tr><td colspan="7" style="color:var(--err);padding:12px">${badge("err","SIN DATOS")} — Verificar CDS_API_KEY y GitHub Secrets</td></tr>`;
+    return;
+  }
+  // Latest row per sector
+  const bySector = {};
+  for (const r of era5rows) {
+    if (!bySector[r.sector_id] || r.fecha > bySector[r.sector_id].fecha)
+      bySector[r.sector_id] = r;
+  }
+  tbody.innerHTML = Object.values(bySector).sort((a,b)=>a.sector_id.localeCompare(b.sector_id)).map(r => {
+    const age = ageHours(r.created_at);
+    const st  = age < 30 ? "ok" : age < 170 ? "warn" : "err";
+    return `<tr>
+      <td>${r.sector_id}</td>
+      <td>${badge(st, r.fecha||"—")}</td>
+      <td>${r.et0_mm_dia != null ? r.et0_mm_dia : badge("err","N/D")}</td>
+      <td>${r.temp_2m_c != null ? r.temp_2m_c + "°C" : "—"}</td>
+      <td>${r.rh_pct != null ? r.rh_pct + "%" : "—"}</td>
+      <td>${r.sm_0_7cm_pct != null ? r.sm_0_7cm_pct + "%" : "—"}</td>
+      <td style="font-size:10px;color:var(--muted)">${r.fuente||"era5-land"}</td>
+    </tr>`;
+  }).join("");
+}
+
+// ── Audit log ─────────────────────────────────────────────────────────────────
+function buildAuditLog(vd, era5rows) {
+  const box = document.getElementById("audit-log");
+  box.innerHTML = "";
+  const wl = vd.weather_live || {};
+  const canchas = vd.sectores?.canchero?.canchas || [];
+  const ndviCount = canchas.filter(c => c.ndvi != null).length;
+  const ndviSrc = wl.gndvi_por_cancha?.fuente || "desconocido";
+  const insarCount = INSAR_TRACKED.filter(s => vd.sectores?.[s]?.insar_mm != null).length;
+  const age = ageHours(wl.timestamp || vd.updated_at);
+
+  const lines = [
+    ["info", `[CONTROL] Faro Protocol Pipeline — ${new Date().toLocaleString("es-AR")}`],
+    ["info", "─".repeat(55)],
+    [age < 12 ? "ok" : age < 26 ? "warn" : "err",
+     `[FASE-A] Datos weather_live: ${age < 12 ? "OK" : age < 26 ? "TARDÍO" : "FALLO"} (${age.toFixed(1)}h)`],
+    [wl.et0_mm_dia != null ? "ok" : "err",
+     `[FASE-A] ET0: ${wl.et0_mm_dia ?? "N/D"} mm/día (${wl.et0_fuente || "?"})`],
+    [wl.humedad_suelo_pct != null ? "ok" : "warn",
+     `[FASE-A] Humedad suelo: ${wl.humedad_suelo_pct ?? "N/D"}%`],
+    [wl.sar_disponible ? "ok" : "warn",
+     `[FASE-A] SAR: ${wl.sar_mensaje || "no disponible"}`],
+    ["info", "─".repeat(55)],
+    [ndviCount >= 10 ? "ok" : ndviCount >= 5 ? "warn" : "err",
+     `[FASE-B] NDVI por cancha: ${ndviCount}/12 con datos (fuente: ${ndviSrc})`],
+    [vd.roger_canchas?.length > 0 ? "ok" : "warn",
+     `[FASE-B] Roger acciones: ${vd.roger_canchas?.length || 0} canchas`],
+    ["info", "─".repeat(55)],
+    [era5rows.length >= 3 ? "ok" : era5rows.length > 0 ? "warn" : "err",
+     `[ERA5]  climate_metrics_sectorial: ${era5rows.length} sectores con datos`],
+    ...(era5rows.length > 0 ? [
+      ["info", `[ERA5]  Última fecha: ${era5rows[0].fecha || "?"} · ET0=${era5rows[0].et0_mm_dia ?? "?"} mm/día`]
+    ] : [
+      ["err", "[ERA5]  SIN DATOS — verificar workflow era5_land_daily.yml"]
+    ]),
+    ["info", "─".repeat(55)],
+    [insarCount >= 3 ? "ok" : insarCount >= 1 ? "warn" : "pending",
+     `[InSAR] Sectores con datos reales: ${insarCount}/4 (poli,sede,estadio,piletas)`],
+    ...(insarCount === 0 ? [["warn", "[InSAR] Pendiente — run_insar_refresh() corre los lunes"]] : []),
+    ["info", "─".repeat(55)],
+    ...SECTORES_LIST.map(sk => {
+      const s = vd.sectores?.[sk] || {};
+      const scoreOk = (s.score ?? 0) > 0;
+      const insarOk = s.insar_mm != null;
+      const tag = scoreOk && (insarOk || !INSAR_TRACKED.includes(sk)) ? "REAL" : scoreOk ? "PARCIAL" : "PENDIENTE";
+      const cl  = tag === "REAL" ? "ok" : tag === "PARCIAL" ? "warn" : "pending";
+      return [cl, `[${sk.toUpperCase().padEnd(8)}] score=${s.score??"-"} sem=${s.sem||"-"} insar=${s.insar_mm??"-"} → [${tag}]`];
+    }),
+  ];
+
+  for (const [cls, txt] of lines) {
+    const span = document.createElement("span");
+    span.className = cls; span.textContent = txt;
+    box.appendChild(span); box.appendChild(document.createElement("br"));
+  }
+  box.scrollTop = 0;
+}
+
+// ── Main ─────────────────────────────────────────────────────────────────────
+async function main() {
+  try {
+    const [vd, era5rows] = await Promise.all([
+      fetchVD(),
+      sbGet("climate_metrics_sectorial", "?order=fecha.desc&limit=50")
+        .catch(() => [])
+    ]);
+
+    log("velez_data.json OK — ensamblando dashboard", "ok");
+    log(`ERA5 rows: ${era5rows.length}`, era5rows.length > 0 ? "ok" : "warn");
+
+    renderSummaryCards(vd, era5rows);
+    renderPipelineRows(vd, era5rows);
+    renderSectorRows(vd, era5rows);
+    renderCanchaGrid(vd);
+    renderEra5Table(era5rows);
+    buildAuditLog(vd, era5rows);
+
+    log("Dashboard listo", "ok");
+  } catch(e) {
+    log("ERROR: " + e.message, "err");
+    document.getElementById("refresh-dot").className = "dot err";
+    document.getElementById("refresh-ts").textContent = "Error al cargar datos";
   }
 }
-
-function loadSnapshot() {
-  apiFetch('/infra/health', function(d) {
-    var s = d.snapshot || {};
-    var connDot = document.getElementById('conn-dot');
-    if (connDot) connDot.className = 'status-dot ok';
-
-    // Pipeline
-    var pok  = s.pipeline_ok;
-    updateCard('pipeline', pok ? 'OK' : 'FALLO',
-      'Último ciclo diario', pok ? 'ok' : 'err');
-
-    // NDVI
-    var ndvi = s.ndvi_median;
-    var nAge = s.ndvi_age_hours;
-    var nSt  = ndvi >= 0.55 ? 'ok' : ndvi >= 0.40 ? 'warn' : 'err';
-    updateCard('ndvi', ndvi != null ? ndvi.toFixed(3) : '—',
-      nAge != null ? 'hace '+nAge+'h' : '—', nSt);
-
-    // ET0
-    var et0 = s.et0_latest;
-    updateCard('et0', et0 != null ? et0.toFixed(1) : '—',
-      'Última lectura', et0 > 5 ? 'warn' : 'ok');
-
-    // Score
-    var sc = s.score_global;
-    updateCard('score',
-      sc != null ? sc : '—',
-      (s.canchas_ok || '—') + '/' + (s.canchas_total || '—') + ' canchas OK',
-      sc >= 70 ? 'ok' : sc >= 50 ? 'warn' : sc != null ? 'err' : '');
-
-    // SAR age
-    var sar = s.sar_age_hours;
-    updateCard('sar', sar != null ? sar+'h' : '—', '',
-      statusClass(sar));
-
-    // Errors
-    var errs = s.audit_errors_1h;
-    updateCard('errors', errs != null ? errs : '—', '',
-      errs === 0 ? 'ok' : errs < 5 ? 'warn' : 'err');
-
-    // Timestamp
-    var upd = document.getElementById('last-update');
-    if (upd) upd.textContent = 'Actualizado ' + fmt(s.capturado_at);
-  });
-}
-
-function loadMetrics() {
-  apiFetch('/infra/metrics?days=30', function(d) {
-    var rows = d.data || [];
-    var labels = rows.map(function(r){ return fmt(r.capturado_at); });
-
-    function fill(ch, key) {
-      if (!ch) return;
-      ch.data.labels = labels;
-      ch.data.datasets[0].data = rows.map(function(r){ return r[key]; });
-      ch.update('none');
-    }
-    fill(charts.ndvi,  'ndvi_median');
-    fill(charts.et0,   'et0_latest');
-    fill(charts.sm,    'sm_theta_median');
-    fill(charts.score, 'score_global');
-  });
-}
-
-function loadAudit() {
-  apiFetch('/infra/audit-log?limit=30&errors_only=true', function(d) {
-    var rows = d.data || [];
-    var body = document.getElementById('audit-body');
-    if (!body) return;
-    if (!rows.length) {
-      body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--ok);padding:20px">✓ Sin errores recientes</td></tr>';
-      return;
-    }
-    body.innerHTML = rows.map(function(r) {
-      var st = r.status_code;
-      var pill = st >= 500 ? 'err' : st >= 400 ? 'warn' : 'ok';
-      return '<tr>'
-        + '<td style="white-space:nowrap;color:var(--muted)">'+escH(fmt(r.created_at))+'</td>'
-        + '<td><span class="code">'+escH(r.method||'')+'</span></td>'
-        + '<td><span class="code" title="'+escH(r.path||'')+'">'+escH((r.path||'').slice(0,40))+'</span></td>'
-        + '<td><span class="pill pill-'+pill+'">'+escH(String(st||''))+'</span></td>'
-        + '<td>'+(r.duration_ms != null ? r.duration_ms+'ms' : '—')+'</td>'
-        + '<td style="color:var(--muted)">'+escH((r.ip_addr||'').slice(0,20))+'</td>'
-        + '<td style="color:var(--err);font-size:11px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+escH(r.error_msg||'')+'">'+escH((r.error_msg||'').slice(0,80))+'</td>'
-        + '</tr>';
-    }).join('');
-  });
-}
-
-function loadAlerts() {
-  apiFetch('/infra/alerts', function(d) {
-    var alerts = d.data || [];
-    var grid   = document.getElementById('alerts-grid');
-    if (!grid) return;
-    if (!alerts.length) {
-      grid.innerHTML = '<p style="color:var(--muted);font-size:13px">Sin alertas configuradas. <a href="../alerts-config/" style="color:var(--gold)">Configurar →</a></p>';
-      return;
-    }
-    grid.innerHTML = alerts.map(function(a) {
-      var on = a.activo;
-      var fired = a.ultimo_disparo ? fmt(a.ultimo_disparo) : 'Nunca';
-      return '<div class="alert-card">'
-        + '<div class="alert-card-top">'
-        + '<div><div class="alert-name">'+escH(a.nombre)+'</div>'
-        + '<div class="alert-meta">'+escH(a.metrica)+' '+escH(a.operador||'<')+' '+escH(String(a.umbral||''))+'</div></div>'
-        + '<button class="toggle'+(on?' on':'')+'" onclick="toggleAlert('+a.id+','+(!on)+')" title="'+(on?'Desactivar':'Activar')+'"></button>'
-        + '</div>'
-        + '<div style="font-size:11px;color:var(--dim)">Canal: '+escH(a.canal)+' · Último disparo: '+escH(fired)+'</div>'
-        + '<div style="margin-top:8px;display:flex;gap:6px">'
-        + '<button class="btn" style="font-size:11px;padding:4px 10px" onclick="testAlert('+a.id+')">Test</button>'
-        + '</div>'
-        + '</div>';
-    }).join('');
-  });
-}
-
-// ── CSRF token (fetch once, store in memory) ───────────────────────────────
-var _csrf = null;
-function getCSRF(cb) {
-  if (_csrf) { cb(_csrf); return; }
-  fetch(RAILWAY + '/infra/csrf-token')
-    .then(function(r){ return r.json(); })
-    .then(function(d){ _csrf = d.csrf_token; cb(_csrf); })
-    .catch(function(){ cb(''); });
-}
-
-function toggleAlert(id, newState) {
-  getCSRF(function(tok) {
-    fetch(RAILWAY + '/infra/alerts/' + id + '/toggle', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': tok },
-      body: JSON.stringify({ activo: newState }),
-    }).then(function(){ loadAlerts(); }).catch(console.warn);
-  });
-}
-
-function testAlert(id) {
-  getCSRF(function(tok) {
-    fetch(RAILWAY + '/infra/alerts/' + id + '/test', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': tok },
-      body: JSON.stringify({}),
-    })
-    .then(function(r){ return r.json(); })
-    .then(function(d){ alert('Test dispatch: ' + (d.ok ? '✓ OK' : '✗ Falló') + '\nCanales: ' + (d.channels_fired||[]).join(', ')); })
-    .catch(console.warn);
-  });
-}
-
-function escH(s) {
-  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
-// ── Refresh flow ───────────────────────────────────────────────────────────
-function setRefreshing(v) {
-  var btn  = document.getElementById('btn-refresh');
-  var spin = document.getElementById('spin');
-  if (btn)  btn.classList[v?'add':'remove']('refreshing');
-  if (spin) spin.style.display = v ? 'inline-block' : 'none';
-}
-
-function refresh() {
-  setRefreshing(true);
-  var done = 0;
-  var total = 3;
-  function tick() { if (++done >= total) setRefreshing(false); }
-  Promise.all([
-    new Promise(function(res){ loadSnapshot(); setTimeout(res, 600); }),
-    new Promise(function(res){ loadMetrics();  setTimeout(res, 800); }),
-    new Promise(function(res){ loadAudit();    setTimeout(res, 600); }),
-  ]).then(function(){ setRefreshing(false); });
-  loadAlerts();
-}
-
-// ── Boot ───────────────────────────────────────────────────────────────────
-refresh();
-setInterval(refresh, 3 * 60 * 1000); // auto-refresh every 3 min
-
-})();
+main();
 </script>
 </body>
 </html>
