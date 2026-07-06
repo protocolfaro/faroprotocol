@@ -1491,75 +1491,22 @@ _SLUG_MAP = {
 }
 
 def _render_pngs_only(vd: dict) -> int:
-    """Regenera los 8 PNGs via gen scripts. Sin emails, sin WhatsApp.
+    """Regenera los 8 PNGs via render_reports.render_all (fuente única de verdad).
     Llamado tanto por send_all_reports como por run_refresh_only.
     Retorna cantidad de PNGs generados correctamente.
     """
     out_dir = Path(__file__).parents[4] / "reportes_velez"
     out_dir.mkdir(exist_ok=True)
     script_dir = Path(__file__).parent
-    gen_scripts = [
-        ("gen_velez_main.py",      "faro_reporte_velez.png"),
-        ("gen_velez_canchero.py",  "faro_reporte_velez_canchero.png"),
-        ("gen_velez_final.py",     "faro_reporte_velez_agro_FINAL.png"),
-        ("gen_velez_solar_v2.py",  "faro_reporte_velez_solar_v2.png"),
-        ("gen_velez_poli.py",      "faro_reporte_velez_poli.png"),
-        ("gen_velez_sede.py",      "faro_reporte_velez_sede.png"),
-        ("gen_velez_piletas.py",   "faro_reporte_velez_piletas.png"),
-        ("gen_velez_instituto.py", "faro_reporte_velez_instituto.png"),
-    ]
     rendered = 0
-    vd_tmp = None
     try:
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False, encoding="utf-8"
-        ) as tf:
-            json.dump(vd, tf, ensure_ascii=False, default=str)
-            vd_tmp = tf.name
-
-        env = {**os.environ, "FARO_VD_PATH": vd_tmp}
-        for script, png in gen_scripts:
-            script_path = script_dir / script
-            if not script_path.exists():
-                log.warning("gen script no encontrado: %s", script_path)
-                continue
-            out_png = out_dir / png
-            try:
-                proc = subprocess.run(
-                    [sys.executable, str(script_path)],
-                    env=env, capture_output=True, text=True, timeout=120,
-                )
-                if proc.returncode == 0 and out_png.exists():
-                    rendered += 1
-                    log.info("gen script OK: %s → %s", script, png)
-                else:
-                    log.warning(
-                        "gen script FAIL: %s (rc=%d)\nstderr: %s",
-                        script, proc.returncode, proc.stderr[-400:],
-                    )
-            except Exception as pe:
-                log.warning("gen script excepción [%s]: %s", script, pe)
-
-        if rendered == 0:
-            log.warning("todos los gen scripts fallaron — usando render_reports.py como fallback")
-            try:
-                sys.path.insert(0, str(script_dir))
-                from render_reports import render_all as _render_all
-                rendered = len(_render_all(vd, out_dir))
-                log.info("render_all fallback: %d PNGs generados", rendered)
-            except Exception as re_err:
-                log.warning("render_all fallback también falló: %s", re_err)
-
+        sys.path.insert(0, str(script_dir))
+        from render_reports import render_all as _render_all
+        files = _render_all(vd, out_dir)
+        rendered = len(files)
+        log.info("_render_pngs_only: %d PNGs generados via render_reports", rendered)
     except Exception as exc:
         log.warning("_render_pngs_only excepción (non-fatal): %s", exc)
-    finally:
-        if vd_tmp:
-            try:
-                os.unlink(vd_tmp)
-            except Exception:
-                pass
-
-    log.info("_render_pngs_only: %d/%d PNGs generados", rendered, len(gen_scripts))
     return rendered
 
 
