@@ -10,6 +10,7 @@ jobs:
       SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
       RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
       RAILWAY_URL: ${{ secrets.RAILWAY_URL }}
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
       NASA_EARTHDATA_USER: ${{ secrets.NASA_EARTHDATA_USER }}
       NASA_EARTHDATA_PASS: ${{ secrets.NASA_EARTHDATA_PASS }}
       MPLBACKEND: Agg
@@ -24,62 +25,71 @@ jobs:
       - name: Install deps
         run: pip install requests matplotlib pillow numpy scipy pystac-client planetary-computer rasterio earthaccess
 
-      - name: Validate Supabase data
-        continue-on-error: true
-        env:
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-        run: |
-          python - <<'EOF'
-          import requests, os, sys
-
-          url = os.environ["SUPABASE_URL"]
-          # Prefer service key (bypasses RLS); fall back to anon key with warning
-          key = os.environ.get("SUPABASE_SERVICE_KEY") or os.environ.get("SUPABASE_KEY", "")
-          if not key:
-              print("⚠️  No SUPABASE key available — skipping validation")
-              sys.exit(0)
-
-          headers = {
-              "apikey": key,
-              "Authorization": f"Bearer {key}",
-          }
-          resp = requests.get(
-              f"{url}/rest/v1/climate_metrics_sectorial",
-              headers=headers,
-              params={
-                  "fecha": "gte.2026-07-05",
-                  "select": "sector_id,fecha,et0_mm_dia,temp_2m_c,rh_pct,sm_0_7cm_pct",
-                  "order": "created_at.desc",
-              }
-          )
-          print(f"HTTP: {resp.status_code}")
-          if resp.status_code != 200:
-              print(f"⚠️  Error: {resp.text}")
-              print("Continuando sin datos validados (continue-on-error: true)")
-              sys.exit(1)
-          data = resp.json()
-          if not data:
-              print("⚠️  Sin datos para fecha >= 2026-07-05")
-              sys.exit(1)
-          print(f"✅ {len(data)} filas encontradas")
-          for row in data:
-              print(f"  {row['sector_id']} | fecha={row['fecha']} ET0={row['et0_mm_dia']} T={row['temp_2m_c']} RH={row['rh_pct']} SM={row['sm_0_7cm_pct']}")
-          EOF
-
-      - name: Generate 8 PNGs
+      # ── STEP 1: Fetch real data (NASA, Open-Meteo, Supabase, Railway) ─────────
+      - name: Fetch real data — data_refresh.py
         run: |
           cd railway-backend/sports/clients/velez
-          python gen_velez_main.py
-          python gen_velez_canchero.py
-          python gen_velez_final.py
-          python gen_velez_solar_v2.py
-          python gen_velez_poli.py
-          python gen_velez_sede.py
-          python gen_velez_piletas.py
-          python gen_velez_instituto.py
-          echo "=== PNGs generados ==="
-          ls -lh ../../../../reportes_velez/faro_reporte_*.png
+          python data_refresh.py
+          echo "=== velez_data.json actualizado ==="
+          python - <<'EOF'
+          import json, sys
+          from pathlib import Path
+          p = Path("velez/velez_data.json")
+          if not p.exists():
+              # Try repo root relative to velez dir (parents[4])
+              from pathlib import Path as P
+              p = P(__file__).parents[4] / "velez" / "velez_data.json" if False else P("../../../../velez/velez_data.json")
+          if p.exists():
+              vd = json.loads(p.read_text())
+              wl = vd.get("weather_live", {})
+              print(f"  ET0      = {wl.get('et0_mm_dia','N/D')} mm/día")
+              print(f"  Deficit  = {wl.get('deficit_hidrico_mm','N/D')} mm")
+              print(f"  Humedad  = {wl.get('humedad_suelo_pct','N/D')}%")
+              canchas = vd.get("sectores",{}).get("canchero",{}).get("canchas",[])
+              print(f"  Canchas  = {len(canchas)} con datos")
+              for c in canchas[:4]:
+                  print(f"    {c.get('id','?'):8} ndvi={c.get('ndvi','N/D')}  sem={c.get('sem','?')}")
+          else:
+              print("  velez_data.json no encontrado — render usará datos de Supabase live")
+          EOF
 
+      # ── STEP 2: Generate PNGs via render_reports.py (NO gen scripts legacy) ───
+      - name: Generate 8 PNGs — render_reports.py
+        run: |
+          python - <<'EOF'
+          import sys, json, logging
+          from pathlib import Path
+
+          logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+          sys.path.insert(0, "railway-backend/sports/clients/velez")
+
+          # Assemble real data from Railway + Supabase
+          from faro_assembler import assemble_report
+          vd = assemble_report(venue_id="amalfitani")
+
+          # Verify key fields are real (not defaults)
+          wl = vd.get("weather_live", {})
+          canchas = vd.get("sectores", {}).get("canchero", {}).get("canchas", [])
+          print(f"DATA CHECK:")
+          print(f"  ET0          = {wl.get('et0_mm_dia', 'MISSING')}")
+          print(f"  Deficit      = {wl.get('deficit_hidrico_mm', 'MISSING')} mm")
+          print(f"  NDVI canchas = {sum(1 for c in canchas if c.get('ndvi') is not None)}/{len(canchas)}")
+          print(f"  SAR VV       = {wl.get('sar_vv_db', 'MISSING')} dB")
+          print(f"  Roger canchas= {len(vd.get('roger_canchas', []))}")
+
+          # Render all 8 PNGs
+          from render_reports import render_all
+          out_dir = Path("reportes_velez")
+          files = render_all(vd, out_dir)
+          print(f"\nPNGs generados: {len(files)}/8")
+          for f in files:
+              size_kb = f.stat().st_size // 1024
+              print(f"  {f.name} ({size_kb} KB)")
+          if len(files) < 7:
+              sys.exit(1)
+          EOF
+
+      # ── STEP 3: Send Nelson test email with real PNGs ─────────────────────────
       - name: Send Nelson test email
         run: |
           python - <<'EOF'
@@ -104,17 +114,16 @@ jobs:
                       content = base64.b64encode(fh.read()).decode()
                   attachments.append({"filename": os.path.basename(f), "content": content})
                   size_kb = os.path.getsize(f) // 1024
-                  print(f"  ✅ {os.path.basename(f)} ({size_kb} KB)")
+                  print(f"  OK {os.path.basename(f)} ({size_kb} KB)")
               else:
-                  print(f"  ⚠️  no encontrado: {f}")
+                  print(f"  MISSING: {f}")
 
-          # manual_velez_nelson.pdf — si existe en repo root
           pdf_path = "manual_velez_nelson.pdf"
           if os.path.exists(pdf_path):
               with open(pdf_path, "rb") as fh:
                   content = base64.b64encode(fh.read()).decode()
               attachments.append({"filename": "manual_velez_nelson.pdf", "content": content})
-              print(f"  ✅ manual_velez_nelson.pdf adjuntado")
+              print(f"  OK manual_velez_nelson.pdf")
 
           resp = requests.post(
               "https://api.resend.com/emails",
@@ -122,10 +131,10 @@ jobs:
               json={
                   "from": "Faro Protocol <onboarding@resend.dev>",
                   "to": "protocolfaro@gmail.com",
-                  "subject": "[TEST] Faro Panel Roger — Nelson Pugliese 2026-07-06",
+                  "subject": "[TEST] Faro Panel Roger — Datos Reales 2026-07-06",
                   "html": f"""
-          <h2>Nelson Pugliese — Test Report</h2>
-          <p>Pipeline end-to-end OK · {len(attachments)} adjuntos</p>
+          <h2>Nelson Pugliese — Reporte con Datos Reales</h2>
+          <p>Pipeline completo: data_refresh → assembler → render_reports · {len(attachments)} adjuntos</p>
           <ul>{"".join(f"<li>{a['filename']}</li>" for a in attachments)}</ul>
           """,
                   "attachments": attachments,
@@ -135,7 +144,7 @@ jobs:
           print(f"Response: {resp.json()}")
           if resp.status_code not in (200, 201):
               sys.exit(1)
-          print("✅ Email enviado")
+          print("Email enviado OK")
           EOF
 
       - name: Final report
@@ -143,5 +152,5 @@ jobs:
         run: |
           echo "=== FINAL REPORT ==="
           echo "Date: $(date -u)"
-          echo "PNGs en reportes_velez/:"
+          echo "PNGs generados:"
           ls -lh reportes_velez/faro_reporte_*.png 2>/dev/null || echo "  (ninguno)"

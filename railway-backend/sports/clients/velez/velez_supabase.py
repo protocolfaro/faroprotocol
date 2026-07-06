@@ -474,7 +474,7 @@ def insert_soil_metrics(
     h_suction_cm:        float | None = None,
     fuente:              str = "",
     fecha_imagen:        str | None = None,
-    satellite_inferred:  str | None = None,
+    satellite_inferred:  str | None = None,  # accepted but not sent until migration 002 is applied
 ) -> bool:
     """
     Insert one SAR soil row into soil_metrics. Silent fallback on failure.
@@ -485,16 +485,16 @@ def insert_soil_metrics(
     if cancha_id and is_hibrido is False:
         is_hibrido = _tipo_for(cancha_id) == "hibrido"
     row = {
-        "venue_id":           venue_id,
-        "cancha_id":          cancha_id,
-        "is_hibrido":         is_hibrido,
-        "sar_vv_db":          sar_vv_db,
-        "sar_vh_db":          sar_vh_db,
-        "theta_soil":         theta_soil,
-        "h_suction_cm":       h_suction_cm,
-        "fuente":             fuente,
-        "fecha_imagen":       fecha_imagen,
-        "satellite_inferred": satellite_inferred,
+        "venue_id":     venue_id,
+        "cancha_id":    cancha_id,
+        "is_hibrido":   is_hibrido,
+        "sar_vv_db":    sar_vv_db,
+        "sar_vh_db":    sar_vh_db,
+        "theta_soil":   theta_soil,
+        "h_suction_cm": h_suction_cm,
+        "fuente":       fuente,
+        "fecha_imagen": fecha_imagen,
+        # satellite_inferred omitted: column not yet in production (migration 002 pending)
     }
     url = f"{_base()}/rest/v1/soil_metrics"
     try:
