@@ -186,6 +186,31 @@ def _fetch_latest_sector(sector_id: str, fecha: str) -> Optional[dict]:
         return None
 
 
+# ── ET0 Hargreaves-Samani (fallback cuando pev da cero) ──────────────────────
+
+def _et0_hargreaves(date: datetime, lat_deg: float,
+                    t_mean_c: float, t_max_c: float, t_min_c: float) -> float:
+    """
+    Estimación ET0 por Hargreaves-Samani (mm/día).
+    Usado cuando ERA5 pev da 0 (merge NaN) o está ausente.
+    Precisión ±15% respecto Penman-Monteith FAO-56 en clima templado-húmedo.
+    """
+    J = date.timetuple().tm_yday
+    phi = math.radians(lat_deg)
+    d_r = 1.0 + 0.033 * math.cos(2 * math.pi / 365 * J)
+    delta = 0.409 * math.sin(2 * math.pi / 365 * J - 1.39)
+    ws = math.acos(-math.tan(phi) * math.tan(delta))
+    # Ra en MJ/(m²·día) → mm/día (/2.45)
+    Ra_mj = (1440 / math.pi) * 0.082 * d_r * (
+        ws * math.sin(phi) * math.sin(delta)
+        + math.cos(phi) * math.cos(delta) * math.sin(ws)
+    )
+    Ra_mm = Ra_mj / 2.45
+    t_range = max(0.0, t_max_c - t_min_c)
+    et0 = 0.0023 * (t_mean_c + 17.8) * (t_range ** 0.5) * Ra_mm
+    return round(max(0.0, et0), 2)
+
+
 # ── Cálculo de RH desde T2m y Td2m (Magnus) ──────────────────────────────────
 
 def _rh_from_t_td(t_k: float, td_k: float) -> float:
@@ -265,11 +290,22 @@ def _download_era5_land_raw(
             extracted = os.path.join(out_dir_tmp, nc_names[0])
             os.rename(extracted, out_path)
         elif len(nc_names) > 1:
-            # Merge múltiples .nc en uno solo
+            # Merge múltiples .nc en uno solo.
+            # open_mfdataset(combine="by_coords") falla con acumuladas (pev) vs instantáneas
+            # porque el nuevo CDS API 2024+ usa valid_time distinto por variable.
+            # xr.merge(join='override') es más tolerante con coordenadas no idénticas.
             extracted_paths = [os.path.join(out_dir_tmp, n) for n in nc_names]
-            ds_merged = xr.open_mfdataset(extracted_paths, combine="by_coords")
+            _datasets = [xr.open_dataset(p) for p in extracted_paths]
+            log.info("CDS ZIP: %d archivos .nc — vars: %s", len(_datasets),
+                     [list(d.data_vars)[:3] for d in _datasets])
+            ds_merged = xr.merge(_datasets, join="override", compat="override")
             ds_merged.to_netcdf(out_path)
             ds_merged.close()
+            for _d in _datasets:
+                try:
+                    _d.close()
+                except OSError:
+                    pass
             for p in extracted_paths:
                 try:
                     os.remove(p)
@@ -366,7 +402,9 @@ def _validate_output(result: dict, sector_id: str) -> dict:
     return result
 
 
-def _aggregate(nc_path: str, sector_id: str) -> Optional[dict]:
+def _aggregate(nc_path: str, sector_id: str,
+               date: Optional[datetime] = None,
+               bbox: Optional[dict] = None) -> Optional[dict]:
     """
     Lee NetCDF ERA5-Land y calcula estadísticas diarias para el sector.
 
@@ -379,6 +417,10 @@ def _aggregate(nc_path: str, sector_id: str) -> Optional[dict]:
 
     try:
         ds = xr.open_dataset(nc_path)
+
+        # Log variables presentes para diagnóstico
+        all_vars = sorted(set(ds.data_vars) | set(ds.coords))
+        log.info("[%s] Variables en NetCDF: %s", sector_id, all_vars)
 
         # Verificar que el dataset tiene al menos una variable esperada
         expected_vars = {"pev", "t2m", "d2m", "swvl1"}
@@ -394,20 +436,29 @@ def _aggregate(nc_path: str, sector_id: str) -> Optional[dict]:
         if "pev" in ds:
             pev_vals = ds["pev"].values.flatten()
             valid_pev = pev_vals[~np.isnan(pev_vals)]
+            log.info("[%s] pev: %d valores, rango=[%.6f, %.6f]",
+                     sector_id, len(valid_pev),
+                     float(np.min(valid_pev)) if len(valid_pev) > 0 else 0,
+                     float(np.max(valid_pev)) if len(valid_pev) > 0 else 0)
             et0_m = float(np.max(np.abs(valid_pev))) if len(valid_pev) > 0 else 0.0
         else:
             et0_m = 0.0
-            log.debug("[%s] 'pev' no en dataset — ET0=0", sector_id)
+            log.warning("[%s] 'pev' no en dataset — ET0 forzado a 0", sector_id)
         et0_mm = round(et0_m * 1000, 2)
 
         # ── T2m: media diaria en °C ──────────────────────────────────────────
+        t2m_c = None
+        t2m_max_c = None
+        t2m_min_c = None
         if "t2m" in ds:
             t2m_vals = ds["t2m"].values.flatten()
             valid_t = t2m_vals[~np.isnan(t2m_vals)]
-            t2m_k = float(np.mean(valid_t)) if len(valid_t) > 0 else None
-            t2m_c = round(t2m_k - 273.15, 1) if t2m_k is not None else None
+            if len(valid_t) > 0:
+                t2m_k = float(np.mean(valid_t))
+                t2m_c = round(t2m_k - 273.15, 1)
+                t2m_max_c = round(float(np.max(valid_t)) - 273.15, 1)
+                t2m_min_c = round(float(np.min(valid_t)) - 273.15, 1)
         else:
-            t2m_c = None
             log.debug("[%s] 't2m' no en dataset", sector_id)
 
         # ── RH: calculada de T2m + Td2m, media diaria ───────────────────────
@@ -436,6 +487,17 @@ def _aggregate(nc_path: str, sector_id: str) -> Optional[dict]:
             log.debug("[%s] 'swvl1' no en dataset — SM no disponible", sector_id)
 
         ds.close()
+
+        # ── Fallback Hargreaves-Samani si pev da 0 y tenemos T ───────────────
+        if et0_mm == 0.0 and t2m_c is not None and date is not None and bbox is not None:
+            lat = (bbox.get("latitud_min", -34.6) + bbox.get("latitud_max", -34.6)) / 2
+            et0_mm = _et0_hargreaves(
+                date, lat, t2m_c,
+                t2m_max_c if t2m_max_c is not None else t2m_c + 4.0,
+                t2m_min_c if t2m_min_c is not None else t2m_c - 4.0,
+            )
+            log.warning("[%s] pev=0 → Hargreaves-Samani fallback: ET0=%.2f mm",
+                        sector_id, et0_mm)
 
         result = {
             "sector_id":     sector_id,
@@ -569,7 +631,7 @@ def process_all_sectors(
                 continue  # No fail-fast — continúa con el siguiente sector
 
             # Agregación
-            agg = _aggregate(nc, sector_id)
+            agg = _aggregate(nc, sector_id, date=target_date, bbox=sector_def.get("bbox"))
             if agg is None:
                 fail_count += 1
                 results.append({"sector_id": sector_id, "status": "aggregate_failed",
