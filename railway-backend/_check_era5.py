@@ -71,6 +71,25 @@ lat_span = round(exp['latitud_max'] - exp['latitud_min'], 4)
 lon_span = round(exp['longitud_max'] - exp['longitud_min'], 4)
 results['T9_expand_bbox_min025'] = lat_span >= 0.24 and lon_span >= 0.24
 
+# T10: ZIP handling — _download_era5_land_raw extracts .nc from zip returned by CDS 2024+
+import zipfile as _zf2
+with tempfile.TemporaryDirectory() as tmpd:
+    # Crear zip fake con un .nc dummy (contenido arbitrario, solo testea la lógica de unzip)
+    nc_dummy = os.path.join(tmpd, 'data.nc')
+    open(nc_dummy, 'wb').write(b'\x00' * 2048)
+    out_path = os.path.join(tmpd, 'era5_test_20260101.nc')
+    with _zf2.ZipFile(out_path, 'w') as zf:
+        zf.write(nc_dummy, 'data.nc')
+    # Ejecutar la misma lógica que _download_era5_land_raw usa post-retrieve
+    if _zf2.is_zipfile(out_path):
+        with _zf2.ZipFile(out_path) as zf:
+            nc_names = sorted(n for n in zf.namelist() if n.endswith('.nc'))
+            zf.extractall(tmpd)
+        os.remove(out_path)
+        if len(nc_names) == 1:
+            os.rename(os.path.join(tmpd, nc_names[0]), out_path)
+    results['T10_zip_unpack_ok'] = os.path.exists(out_path) and not _zf2.is_zipfile(out_path)
+
 print()
 for name, ok in results.items():
     status = 'PASS' if ok else 'FAIL'

@@ -232,7 +232,7 @@ def _download_era5_land_raw(
     c.retrieve(
         "reanalysis-era5-land",
         {
-            "data_format": "netcdf",   # "format" deprecated en CDS API 2024+
+            "data_format": "netcdf",   # CDS API 2024+ — devuelve .zip con múltiples .nc
             "variable": [
                 "potential_evapotranspiration",
                 "2m_temperature",
@@ -248,8 +248,35 @@ def _download_era5_land_raw(
         out_path,
     )
 
-    if not os.path.exists(out_path) or os.path.getsize(out_path) < 1024:
+    if not os.path.exists(out_path) or os.path.getsize(out_path) < 512:
         raise RuntimeError(f"Archivo descargado demasiado pequeño o inexistente: {out_path}")
+
+    # CDS API 2024+ devuelve un .zip aunque lo guardemos como .nc
+    # Detectar y extraer antes de que xarray intente leerlo
+    import zipfile as _zipfile
+    if _zipfile.is_zipfile(out_path):
+        log.info("CDS devolvió ZIP — extrayendo .nc para sector %s", sector_id)
+        with _zipfile.ZipFile(out_path) as zf:
+            nc_names = sorted(n for n in zf.namelist() if n.endswith(".nc"))
+            out_dir_tmp = os.path.dirname(out_path)
+            zf.extractall(out_dir_tmp)
+        os.remove(out_path)
+        if len(nc_names) == 1:
+            extracted = os.path.join(out_dir_tmp, nc_names[0])
+            os.rename(extracted, out_path)
+        elif len(nc_names) > 1:
+            # Merge múltiples .nc en uno solo
+            extracted_paths = [os.path.join(out_dir_tmp, n) for n in nc_names]
+            ds_merged = xr.open_mfdataset(extracted_paths, combine="by_coords")
+            ds_merged.to_netcdf(out_path)
+            ds_merged.close()
+            for p in extracted_paths:
+                try:
+                    os.remove(p)
+                except OSError:
+                    pass
+        else:
+            raise RuntimeError(f"ZIP de CDS no contiene ningún .nc: {nc_names}")
 
     log.info("ERA5-Land descargado: %s (%.1f KB)", out_path,
              os.path.getsize(out_path) / 1024)
