@@ -85,6 +85,23 @@ def _cds_key_valid(key: str) -> bool:
     """Acepta formato viejo (UID:APIkey) o nuevo UUID ECMWF 2024+ (≥32 chars sin ':')."""
     return ":" in key or len(key) >= 32
 
+
+def _expand_bbox(bbox: dict, min_span: float = 0.25) -> dict:
+    """
+    ERA5-Land resolución 0.1° — si el bbox es más chico que min_span en cualquier
+    dimensión, el servidor MARS no puede hacer crop y tira MultiAdaptorNoDataError.
+    Expande simétricamente al mínimo necesario, redondeando a la grilla 0.1°.
+    """
+    lat_c = (bbox["latitud_min"] + bbox["latitud_max"]) / 2
+    lon_c = (bbox["longitud_min"] + bbox["longitud_max"]) / 2
+    half = min_span / 2
+    return {
+        "latitud_min":  round(lat_c - half, 2),
+        "latitud_max":  round(lat_c + half, 2),
+        "longitud_min": round(lon_c - half, 2),
+        "longitud_max": round(lon_c + half, 2),
+    }
+
 # Thresholds de datos de salida para detectar valores anómalos
 _ET0_MAX_MM   = 15.0    # ET0 > 15 mm/día es sospechoso para Buenos Aires
 _RH_MIN_PCT   = 10.0    # RH < 10% es anómalo para el clima local
@@ -199,11 +216,15 @@ def _download_era5_land_raw(
     if not _cds_key_valid(_CDS_KEY):
         raise ValueError(f"CDS_API_KEY formato incorrecto (len={len(_CDS_KEY)}, sin ':' y <32 chars)")
 
-    lat_min = bbox["latitud_min"]
-    lat_max = bbox["latitud_max"]
-    lon_min = bbox["longitud_min"]
-    lon_max = bbox["longitud_max"]
+    # ERA5-Land resolución 0.1° — expandir bbox al mínimo para evitar MultiAdaptorNoDataError
+    bbox_safe = _expand_bbox(bbox, min_span=0.25)
+    lat_min = bbox_safe["latitud_min"]
+    lat_max = bbox_safe["latitud_max"]
+    lon_min = bbox_safe["longitud_min"]
+    lon_max = bbox_safe["longitud_max"]
     area = [lat_max, lon_min, lat_min, lon_max]  # [N, O, S, E]
+    log.info("ERA5 area request [%s]: N=%.2f O=%.2f S=%.2f E=%.2f",
+             sector_id, lat_max, lon_min, lat_min, lon_max)
 
     # cdsapi Client con retry interno (sleep_max=120s entre polls)
     c = cdsapi.Client(url=_CDS_URL, key=_CDS_KEY, quiet=True,
@@ -211,7 +232,7 @@ def _download_era5_land_raw(
     c.retrieve(
         "reanalysis-era5-land",
         {
-            "format":   "netcdf",
+            "data_format": "netcdf",   # "format" deprecated en CDS API 2024+
             "variable": [
                 "potential_evapotranspiration",
                 "2m_temperature",

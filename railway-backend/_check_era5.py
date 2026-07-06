@@ -63,6 +63,14 @@ results['T7_empty_sectors'] = any('sector' in e.lower() for e in errs7)
 r8 = era5.process_all_sectors(only_sector='nonexistent_sector_xyz')
 results['T8_unknown_sector_fails'] = r8['status'] == 'failed'
 
+# T9: _expand_bbox ensures minimum span for ERA5-Land 0.1° grid
+small_bbox = {'latitud_min': -34.6395, 'latitud_max': -34.6360,
+              'longitud_min': -58.5230, 'longitud_max': -58.5185}
+exp = era5._expand_bbox(small_bbox, min_span=0.25)
+lat_span = round(exp['latitud_max'] - exp['latitud_min'], 4)
+lon_span = round(exp['longitud_max'] - exp['longitud_min'], 4)
+results['T9_expand_bbox_min025'] = lat_span >= 0.24 and lon_span >= 0.24
+
 print()
 for name, ok in results.items():
     status = 'PASS' if ok else 'FAIL'
