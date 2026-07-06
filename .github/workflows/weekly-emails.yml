@@ -110,6 +110,24 @@ jobs:
           print(f"  Roger acciones:   {len(vd.get('roger_canchas', []))} canchas")
           EOF
 
+      - name: Validar JSON ensamblado (auditoría automática)
+        if: steps.fase_a.outputs.railway_ok == 'true'
+        run: |
+          python - <<'EOF'
+          import sys, json, logging
+          from pathlib import Path
+          logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(message)s")
+          sys.path.insert(0, "railway-backend/sports/clients/velez")
+          from faro_json_validator import validate, report
+          vd = json.loads(Path("velez/velez_data.json").read_text(encoding="utf-8"))
+          errors, warnings = validate(vd)
+          code = report(errors, warnings)
+          if errors:
+              print(f"BLOQUEANDO commit: {len(errors)} errores críticos en velez_data.json")
+              sys.exit(1)
+          print(f"Validación OK — {len(warnings)} advertencias (no críticas)")
+          EOF
+
       - name: Commit cambios diarios
         if: steps.fase_a.outputs.railway_ok == 'true'
         run: |
