@@ -580,7 +580,6 @@ def process_all_sectors(
             record = {
                 **agg,
                 "fecha":      fecha_str,
-                "fuente":     "ERA5-Land-hourly",
                 "created_at": datetime.now(timezone.utc).isoformat(),
             }
             saved = _upsert_sector_row(record)
