@@ -20,8 +20,8 @@ jobs:
     timeout-minutes: 90
 
     env:
-      SUPABASE_URL:    ${{ secrets.SUPABASE_URL }}
-      SUPABASE_KEY:    ${{ secrets.SUPABASE_KEY }}
+      SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       CDS_API_KEY:     ${{ secrets.CDS_API_KEY }}
       GMAIL_USER:      protocolfaro@gmail.com
       GMAIL_APP_PASS:  ${{ secrets.GMAIL_APP_PASS }}
@@ -73,11 +73,11 @@ jobs:
           fi
           echo "✅ SUPABASE_URL: ${SUPABASE_URL:0:40}..."
 
-          if [ -z "$SUPABASE_KEY" ]; then
-            echo "❌ ERROR: SUPABASE_KEY secret no configurado"
+          if [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "❌ ERROR: SUPABASE_SERVICE_ROLE_KEY secret no configurado"
             exit 1
           fi
-          echo "✅ SUPABASE_KEY presente (len=${#SUPABASE_KEY})"
+          echo "✅ SUPABASE_SERVICE_ROLE_KEY presente (len=${#SUPABASE_SERVICE_ROLE_KEY})"
 
           # Validar formato CDS_API_KEY:
           #   Formato viejo (pre-2024): UID:APIkey  → tiene ':'
@@ -211,7 +211,7 @@ jobs:
           from datetime import datetime, timedelta, timezone
 
           url = os.environ.get("SUPABASE_URL", "").rstrip("/")
-          key = os.environ.get("SUPABASE_KEY", "")
+          key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
           if not url or not key:
               print("SKIP: Supabase vars not set")
               sys.exit(0)

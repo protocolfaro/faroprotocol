@@ -19,7 +19,7 @@ Notas técnicas:
 Variables de entorno requeridas:
   CDS_API_KEY  — formato "UID:APIkey" (viejo) o UUID ECMWF 2024+ (nuevo)
   SUPABASE_URL — https://xljxpzudgwhbzcnrvylo.supabase.co
-  SUPABASE_KEY — service role key o anon key con permisos INSERT
+  SUPABASE_SERVICE_ROLE_KEY — service role key (bypasses RLS)
 """
 from __future__ import annotations
 
@@ -76,7 +76,7 @@ except ImportError:
 # ── Configuración ─────────────────────────────────────────────────────────────
 
 _SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
-_SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
+_SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
 _CDS_KEY      = os.environ.get("CDS_API_KEY", "")
 # Nueva plataforma CDS (2024+): /api — la vieja /api/v2 devuelve 404 con keys nuevas
 _CDS_URL      = "https://cds.climate.copernicus.eu/api"
@@ -478,7 +478,7 @@ def preflight_check() -> list[str]:
     if not _SUPABASE_URL:
         errors.append("SUPABASE_URL no configurada")
     if not _SUPABASE_KEY:
-        errors.append("SUPABASE_KEY no configurada")
+        errors.append("SUPABASE_SERVICE_ROLE_KEY no configurada")
 
     if not _HAS_CDS:
         errors.append("cdsapi no instalado — pip install cdsapi")
