@@ -520,8 +520,27 @@ def _render_solar(vd: dict, out: Path):
 def _render_sector(vd: dict, out: Path, key: str, title: str, icon: str = ""):
     s    = vd.get("sectores", {}).get(key, {})
     fecha = datetime.now().strftime("%d/%m/%Y")
-    score = s.get("score", 0)
+    score = s.get("score") or 0
     sem   = s.get("sem", "amarillo")
+
+    # Sector vacío o sin score real → card "Datos en proceso"
+    if not s or score == 0:
+        fig = _setup_fig(12, 7)
+        _header(fig, f"{icon} {title}".strip(), f"Faro Protocol · {fecha}")
+        ax = fig.add_axes([0.05, 0.10, 0.90, 0.82])
+        ax.set_facecolor(BG); ax.axis("off")
+        ax.set_xlim(0, 1); ax.set_ylim(0, 1)
+        ax.text(0.5, 0.58, "INTEGRANDO DATOS", color=WDIM, fontsize=22,
+                fontweight="bold", ha="center", fontfamily="monospace")
+        ax.text(0.5, 0.44, "Sentinel-1 InSAR + datos sectoriales en proceso",
+                color=WDIM, fontsize=10, ha="center")
+        ax.text(0.5, 0.32, "Disponible en próximo ciclo de pipeline",
+                color=WDIM, fontsize=9, ha="center")
+        _footer(fig, f"InSAR Sentinel-1 / Sentinel-2 · Faro Protocol · {fecha}")
+        fig.savefig(out, dpi=DPI, bbox_inches="tight", facecolor=BG)
+        plt.close(fig)
+        log.info("render: %s (sin datos — card pending)", out.name)
+        return
     col   = SEM_COL.get(sem, YELL)
 
     fig = _setup_fig(12, 7)

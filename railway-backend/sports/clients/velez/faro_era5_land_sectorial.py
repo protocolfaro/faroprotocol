@@ -141,7 +141,8 @@ def _upsert_sector_row_raw(record: dict) -> bool:
     """UPSERT en climate_metrics_sectorial — un intento, sin retry."""
     if not _supabase_ok() or not _HAS_REQ:
         return False
-    url = f"{_SUPABASE_URL}/rest/v1/climate_metrics_sectorial"
+    # ?on_conflict indica a PostgREST qué columnas usar para ON CONFLICT DO UPDATE
+    url = f"{_SUPABASE_URL}/rest/v1/climate_metrics_sectorial?on_conflict=sector_id,fecha"
     r = _req.post(url, headers=_hdrs(), json=record, timeout=15)
     if r.status_code in (200, 201):
         return True
