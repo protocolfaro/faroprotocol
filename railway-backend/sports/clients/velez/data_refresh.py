@@ -186,6 +186,7 @@ def _fetch_open_meteo() -> dict:
         f"?latitude={LAT}&longitude={LON}"
         "&hourly=precipitation_probability,precipitation,wind_speed_10m,et0_fao_evapotranspiration"
         ",soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_moisture_3_to_9cm"
+        ",soil_moisture_0_to_7cm,soil_moisture_7_to_28cm,soil_moisture_28_to_100cm,soil_moisture_100_to_255cm"
         ",soil_temperature_0cm,soil_temperature_6cm,soil_temperature_18cm"
         ",temperature_2m,relative_humidity_2m"
         "&timezone=America%2FArgentina%2FBuenos_Aires&past_days=2&forecast_days=7"
@@ -417,6 +418,15 @@ def compute_weather_live(nasa, soil, hourly_resp, ecostress, smap,
     hum3 = round(sum(sm3)/len(sm3)*100, 1) if sm3 else hum_pct
     sm9  = [v for v in (h.get("soil_moisture_3_to_9cm") or [])[:24] if v is not None]
     hum9 = round(sum(sm9)/len(sm9)*100, 1) if sm9 else hum3
+
+    def _era5_avg(key):
+        vals = [v for v in (h.get(key) or [])[:24] if v is not None]
+        return round(sum(vals)/len(vals), 4) if vals else None
+
+    era5_0_7   = _era5_avg("soil_moisture_0_to_7cm")
+    era5_7_28  = _era5_avg("soil_moisture_7_to_28cm")
+    era5_28_100= _era5_avg("soil_moisture_28_to_100cm")
+    era5_100_289=_era5_avg("soil_moisture_100_to_255cm")
     st0  = [v for v in (h.get("soil_temperature_0cm") or [])[:24] if v is not None]
     st6  = [v for v in (h.get("soil_temperature_6cm") or [])[:24] if v is not None]
     st18 = [v for v in (h.get("soil_temperature_18cm") or [])[:24] if v is not None]
@@ -474,6 +484,10 @@ def compute_weather_live(nasa, soil, hourly_resp, ecostress, smap,
         "costo_agua_ars": costo_agua,
         "lluvia_48h_mm":    lluvia_48h_mm,
         "lluvia_max_1h_mm": lluvia_max_1h_mm,
+        "era5_sm_0_7cm":    era5_0_7,
+        "era5_sm_7_28cm":   era5_7_28,
+        "era5_sm_28_100cm": era5_28_100,
+        "era5_sm_100_289cm":era5_100_289,
     }
 
 
@@ -550,6 +564,10 @@ def push_weather_update(weather_live: dict) -> str:
     estados_op     = weather_live.pop("_estados_detectados", {})
     zonas_op       = weather_live.pop("_zonas_estres", {})
     hermes_hm_raw  = weather_live.pop("_hermes_heatmaps", {})  # ResultadoAuditoria objects — not JSON-safe
+    solar_eff      = weather_live.pop("_solar_eff_pvlib", None)
+    solar_ghi      = weather_live.pop("_solar_ghi_kwh", None)
+    solar_t_cell   = weather_live.pop("_solar_t_cell", None)
+    solar_pr       = weather_live.pop("_solar_pr_pvlib", None)
 
     try:
         import velez_supabase as _vs
@@ -567,8 +585,19 @@ def push_weather_update(weather_live: dict) -> str:
     today_d = date.today()
     cfg.setdefault("meta", {})["fecha"]   = today_d.isoformat()
     cfg["meta"]["semana"] = (today_d - timedelta(days=today_d.weekday())).isoformat()
-    cfg["updated_at"] = ts
+    cfg["updated_at"]    = ts
+    cfg["_assembled_at"] = ts
     _update_tareas_dates(cfg)
+
+    # Inject solar live metrics into sectores.solar for Panel Roger
+    if solar_eff is not None:
+        cfg.setdefault("sectores", {}).setdefault("solar", {}).update({
+            "eficiencia_pct_pvlib": solar_eff,
+            "eficiencia_pct":       solar_eff,
+            "ghi_kwh_m2_real":      solar_ghi,
+            "t_cell_estimada":      solar_t_cell,
+            "pr_pvlib":             solar_pr,
+        })
 
     # Inject acciones + kpis into roger section
     roger = cfg.setdefault("usuarios", {}).setdefault("roger", {})
@@ -1141,6 +1170,13 @@ def run_refresh() -> dict:
                         "detalle":    f"{_ghi_str}Eficiencia modelo: {_eff_avg}% (NASA POWER + pvlib)",
                     }})
                     log.info("solar_metrics: velez_sectores.solar → score=%d eff=%.1f%%", _score_sol, _eff_avg)
+                    # Stash into weather for push_weather_update → velez_data.json sectores.solar
+                    _t_cells = [p["temperatura_c"] for p in _solar_panels
+                                if isinstance(p.get("temperatura_c"), (int, float))]
+                    weather["_solar_eff_pvlib"] = _eff_avg
+                    weather["_solar_ghi_kwh"]   = float(_ghi) if _ghi is not None else None
+                    weather["_solar_t_cell"]    = round(sum(_t_cells)/len(_t_cells), 1) if _t_cells else None
+                    weather["_solar_pr_pvlib"]  = round(_eff_avg / 100.0, 3)
             elif not _solar_panels:
                 log.warning("solar_metrics: GHI no disponible en NASA POWER — skip")
         except Exception as _sol_exc:
