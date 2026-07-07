@@ -147,6 +147,28 @@ ZONE_SVG: dict[str, dict] = {
     "GK_S":   {"x": 3.0,  "y": 85.5,  "w": 62.0, "h": 16.5},
 }
 
+# ── VO canchas — 3-zone model (NORTE / CENTRO / SUR) ─────────────────────────
+
+_VO_CANCHAS: frozenset = frozenset({
+    "1fa","2fa","3fa","4fa","5fa","6fa","7fa","8fa","9fa","10fa","1fp","2fp"
+})
+
+_VO_ZONE_FACTORS: dict[str, float] = {
+    "NORTE":  1.5,
+    "CENTRO": 1.0,
+    "SUR":    1.5,
+}
+_VO_ZONE_LABELS: dict[str, str] = {
+    "NORTE":  "Zona Norte",
+    "CENTRO": "Centro de Campo",
+    "SUR":    "Zona Sur",
+}
+_VO_ZONE_SVG: dict[str, dict] = {
+    "NORTE":  {"x": 3.0, "y": 3.0,  "w": 62.0, "h": 33.0},
+    "CENTRO": {"x": 3.0, "y": 36.0, "w": 62.0, "h": 33.0},
+    "SUR":    {"x": 3.0, "y": 69.0, "w": 62.0, "h": 33.0},
+}
+
 URGENCY_ORDER: dict[str, int] = {
     "HOY":            0,
     "ESTA_SEMANA":    1,
@@ -312,10 +334,43 @@ def _drainage_actions(wl: dict) -> list[dict]:
 
 # ── Zone + cancha computation ─────────────────────────────────────────────────
 
-def compute_zone(zone_id: str, ipos_score: float, wl: dict) -> dict:
-    factor   = ZONE_FACTORS.get(zone_id, 1.0)
-    label    = ZONE_LABELS.get(zone_id, zone_id)
-    svg_rect = ZONE_SVG.get(zone_id, {})
+_URGENCY_RANK: dict[str, int] = {u: i for u, i in URGENCY_ORDER.items()}
+
+
+def _apply_hysteresis(cancha_id: str, zones: dict) -> dict:
+    """Escalate urgency immediately; downgrade only after 3 consecutive cycles."""
+    try:
+        from velez_supabase import get_zone_urgency_state, upsert_zone_urgency_state
+        for zone_id, zone in zones.items():
+            new_urg    = zone.get("urgency", "OK")
+            state      = get_zone_urgency_state(cancha_id, zone_id) or {}
+            prev_urg   = state.get("urgency", "OK")
+            prev_count = int(state.get("consecutive_count", 0))
+            new_rank   = _URGENCY_RANK.get(new_urg, 4)
+            prev_rank  = _URGENCY_RANK.get(prev_urg, 4)
+
+            if new_rank <= prev_rank:
+                upsert_zone_urgency_state(cancha_id, zone_id, new_urg, 1)
+            else:
+                count = (prev_count + 1) if new_urg == prev_urg else 1
+                upsert_zone_urgency_state(cancha_id, zone_id,
+                                          new_urg if count >= 3 else prev_urg, count)
+                if count < 3:
+                    zone["urgency"] = prev_urg
+                    zone["color"]   = URGENCY_COLORS.get(prev_urg, "#22C55E")
+    except Exception as exc:
+        log.debug("hysteresis (non-fatal): %s", exc)
+    return zones
+
+
+def compute_zone(zone_id: str, ipos_score: float, wl: dict,
+                 zone_factors=None, zone_labels=None, zone_svg=None) -> dict:
+    factors  = zone_factors or ZONE_FACTORS
+    labels   = zone_labels  or ZONE_LABELS
+    svgs     = zone_svg     or ZONE_SVG
+    factor   = factors.get(zone_id, 1.0)
+    label    = labels.get(zone_id, zone_id)
+    svg_rect = svgs.get(zone_id, {})
 
     actions: list[dict] = []
     actions.extend(_aeration_actions(ipos_score, factor, wl))
@@ -348,10 +403,27 @@ def compute_zone(zone_id: str, ipos_score: float, wl: dict) -> dict:
 
 def compute_cancha(cancha_id: str, ipos_score: float, ipos_semaforo: str,
                    wl: dict, ndvi: float | None, heatmap_archivo: str | None) -> dict:
-    # Enriquecer weather_live con datos ERA5-Land del sector (per-cancha, no venue-global)
-    # Si ERA5 no disponible, wl_c == wl (degradacion graceful sin excepción)
     wl_c = _enrich_with_sector(cancha_id, wl)
-    zones = {zid: compute_zone(zid, ipos_score, wl_c) for zid in ZONE_FACTORS}
+
+    # Per-cancha IPOS from live DB (overrides static JSON value when available)
+    try:
+        from velez_supabase import compute_ipos_from_db
+        db_ipos = compute_ipos_from_db(cancha_id)
+        if db_ipos > 0:
+            ipos_score = db_ipos
+    except Exception:
+        pass
+
+    # VO canchas use 3-zone model; Amalfitani uses the full 6-zone FIFA model
+    if cancha_id in _VO_CANCHAS:
+        zones = {zid: compute_zone(zid, ipos_score, wl_c,
+                                   _VO_ZONE_FACTORS, _VO_ZONE_LABELS, _VO_ZONE_SVG)
+                 for zid in _VO_ZONE_FACTORS}
+    else:
+        zones = {zid: compute_zone(zid, ipos_score, wl_c) for zid in ZONE_FACTORS}
+
+    # Hysteresis: debounce urgency downgrades across polling cycles
+    zones = _apply_hysteresis(cancha_id, zones)
 
     worst_idx     = min(URGENCY_ORDER.get(z["urgency"], 4) for z in zones.values())
     worst_urgency = next(u for u, i in URGENCY_ORDER.items() if i == worst_idx)
@@ -435,6 +507,16 @@ def generate_prescriptions(roger_canchas: list[dict], weather_live: dict) -> dic
         # Fuentes de datos (para UI de trazabilidad)
         "et0_fuente":          wl.get("et0_fuente", "nasa_power"),
         "smith_kerns_fuente":  (wl.get("riesgo_fungosis") or {}).get("fuente", "nasa_power"),
+        # SAR source badge
+        "sar_mensaje":         wl.get("sar_mensaje"),
+        "sar_disponible":      wl.get("sar_disponible", False),
+        # NDVI freshness badge
+        "ndvi_age_days":       (wl.get("gndvi_por_cancha") or {}).get("dias_antiguedad"),
+        "ndvi_stale":          ((wl.get("gndvi_por_cancha") or {}).get("dias_antiguedad") or 0) > 10,
+        "ndvi_fecha":          (wl.get("gndvi_por_cancha") or {}).get("fecha_imagen"),
+        # ECOSTRESS ET real + SMAP soil moisture
+        "et_ecostress_mm":     wl.get("et_ecostress_mm"),
+        "smap_sm_pct":         wl.get("smap_sm_pct"),
     }
 
     return {

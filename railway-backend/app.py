@@ -788,7 +788,40 @@ def velez_pipeline_history():
         return jsonify({"ok": False, "error": str(exc)}), 500
 
 
-# /velez/log-intervencion eliminado en Panel Roger v3 — pipeline 100% automático
+@app.route("/velez/log-actividad", methods=["POST"])
+def log_actividad():
+    """Panel Roger v3: registra una intervención de campo para el IPOS rolling 7d por cancha."""
+    try:
+        from velez_supabase import insert_intervencion
+        body      = request.get_json(force=True) or {}
+        cancha_id = (body.get("cancha_id") or "").strip().lower()
+        tipo      = (body.get("tipo") or "").strip().lower()
+        horas_uso = float(body.get("horas_uso") or 1.0)
+        detalle   = body.get("detalle") or ""
+
+        if not cancha_id or not tipo:
+            return jsonify({"ok": False, "error": "cancha_id y tipo son requeridos"}), 400
+        _TIPOS_VALIDOS = {
+            "partido","entrenamiento","lluvia","aireacion",
+            "corte","resiembra","fertilizante","fungicida"
+        }
+        if tipo not in _TIPOS_VALIDOS:
+            return jsonify({"ok": False,
+                            "error": f"tipo no válido: {tipo}. Usar: {sorted(_TIPOS_VALIDOS)}"}), 400
+
+        ok = insert_intervencion(
+            cancha_id=cancha_id,
+            tipo=tipo,
+            detalle=detalle,
+            horas_uso=horas_uso,
+        )
+        return jsonify({"ok": ok}), 200 if ok else 502
+    except Exception as exc:
+        log.error("log_actividad: %s", exc)
+        return jsonify({"ok": False, "error": str(exc)}), 500
+
+
+# legacy comment — log-intervencion original endpoint retired in Panel Roger v3
 
 
 @app.route("/velez/commit_historial", methods=["POST"])

@@ -906,6 +906,20 @@ def run_refresh() -> dict:
         )
         # Override fungal risk with shadow data (compute_weather_live uses default _fungal_risk)
         hourly_h = raw["hourly"].get("hourly", {})
+
+        # ── ECOSTRESS ET real + SMAP θ soil (NASA Earthdata) ─────────────────
+        try:
+            from faro_ecostress import fetch_ecostress_et, fetch_smap_theta
+            _eco_et = fetch_ecostress_et()
+            if _eco_et is not None:
+                weather["et_ecostress_mm"] = _eco_et
+                log.info("ECOSTRESS: ET=%.3f mm/día", _eco_et)
+            _smap_th = fetch_smap_theta()
+            if _smap_th is not None:
+                weather["smap_sm_pct"] = round(_smap_th * 100, 1)
+                log.info("SMAP: θ=%.4f → %.1f%%", _smap_th, weather["smap_sm_pct"])
+        except Exception as _eco_exc:
+            log.warning("ECOSTRESS/SMAP (non-fatal): %s", _eco_exc)
         weather["riesgo_fungosis"] = _fungal_risk(hourly_h, shadow_pct_by_cancha)
 
         # ── Satélite: NDVI + pipeline con retry automático ───────────────────

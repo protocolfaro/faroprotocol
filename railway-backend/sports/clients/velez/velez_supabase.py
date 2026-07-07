@@ -870,6 +870,90 @@ def get_piletas_latest(dias: int = 7) -> list[dict]:
 
 # ── faro_v2_reports ───────────────────────────────────────────────────────────
 
+# ── IPOS desde velez_intervenciones (rolling 7d) ──────────────────────────────
+
+_IPOS_EVENT_PTS: dict[str, float] = {
+    "partido":       120.0,
+    "entrenamiento":  30.0,   # × horas_uso
+    "lluvia":         -60.0,  # or -100 if horas_uso (mm) >= 30
+    "aireacion":      -40.0,
+    "corte":          -10.0,
+    "resiembra":      -20.0,
+    "fertilizante":     0.0,
+    "fungicida":        0.0,
+}
+
+
+def compute_ipos_from_db(cancha_id: str, dias: int = 7) -> float:
+    """Rolling 7-day IPOS sum from velez_intervenciones. Returns 0.0 if no data."""
+    rows = get_intervenciones_recientes(cancha_id, dias)
+    total = 0.0
+    for row in rows:
+        tipo  = (row.get("tipo") or "").lower()
+        horas = float(row.get("horas_uso") or 1.0)
+        if tipo == "entrenamiento":
+            total += _IPOS_EVENT_PTS["entrenamiento"] * horas
+        elif tipo == "lluvia":
+            total += -100.0 if horas >= 30 else _IPOS_EVENT_PTS["lluvia"]
+        elif tipo in _IPOS_EVENT_PTS:
+            total += _IPOS_EVENT_PTS[tipo]
+    return round(max(0.0, total), 1)
+
+
+# ── zone_urgency_state (hysteresis debounce) ──────────────────────────────────
+# SQL migration (safe to re-run):
+#   CREATE TABLE IF NOT EXISTS zone_urgency_state (
+#       cancha_id TEXT NOT NULL,
+#       zone_id TEXT NOT NULL,
+#       urgency TEXT NOT NULL DEFAULT 'OK',
+#       consecutive_count INTEGER DEFAULT 1,
+#       last_updated TIMESTAMPTZ DEFAULT NOW(),
+#       PRIMARY KEY (cancha_id, zone_id)
+#   );
+#   ALTER TABLE zone_urgency_state DISABLE ROW LEVEL SECURITY;
+#   GRANT ALL ON public.zone_urgency_state TO anon;
+
+
+def get_zone_urgency_state(cancha_id: str, zone_id: str) -> dict | None:
+    """Return current debounce urgency state for a zone. None if not found."""
+    if not _ok():
+        return None
+    url = (f"{_base()}/rest/v1/zone_urgency_state"
+           f"?cancha_id=eq.{cancha_id}&zone_id=eq.{zone_id}&limit=1")
+    try:
+        r = _req.get(url, headers=_hdrs(), timeout=5)
+        if r.status_code == 200:
+            rows = r.json()
+            return rows[0] if rows else None
+        log.warning("zone_urgency_state get HTTP %s", r.status_code)
+    except Exception as exc:
+        log.warning("zone_urgency_state get: %s", exc)
+    return None
+
+
+def upsert_zone_urgency_state(cancha_id: str, zone_id: str,
+                               urgency: str, consecutive_count: int) -> bool:
+    """Upsert (merge) urgency debounce state for a zone."""
+    if not _ok():
+        return False
+    row = {
+        "cancha_id":         cancha_id,
+        "zone_id":           zone_id,
+        "urgency":           urgency,
+        "consecutive_count": consecutive_count,
+        "last_updated":      datetime.now(timezone.utc).isoformat(),
+    }
+    url = f"{_base()}/rest/v1/zone_urgency_state"
+    try:
+        r = _req.post(url,
+                      headers=_hdrs({"Prefer": "resolution=merge-duplicates,return=minimal"}),
+                      data=json.dumps(row, default=str), timeout=8)
+        return r.status_code in (200, 201, 204)
+    except Exception as exc:
+        log.warning("zone_urgency_state upsert: %s", exc)
+    return False
+
+
 def get_faro_v2_latest(venue_id: str, dias: int = 14) -> dict | None:
     """
     Retorna la fila más reciente de faro_v2_reports para el venue.
