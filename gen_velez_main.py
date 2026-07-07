@@ -13,8 +13,37 @@ from matplotlib.patches import FancyBboxPatch, Circle
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.cm import ScalarMappable
 import numpy as np
-import hashlib, os, pathlib
+import hashlib, json, os, pathlib, requests as _req
 from datetime import datetime
+
+# ─── VD LOADER (FARO_VD_PATH o Supabase) ────────────────────────────────────
+def _load_vd() -> dict:
+    path = os.environ.get("FARO_VD_PATH", "")
+    if path and os.path.exists(path):
+        try:
+            with open(path) as f:
+                return json.load(f)
+        except Exception:
+            pass
+    # fallback: leer velez_data.json desde GitHub raw
+    try:
+        url = "https://raw.githubusercontent.com/protocolfaro/faroprotocol/main/velez/velez_data.json"
+        r = _req.get(url, timeout=8)
+        if r.status_code == 200:
+            return r.json()
+    except Exception:
+        pass
+    return {}
+
+_vd   = _load_vd()
+_secs = _vd.get("sectores", {})
+
+def _insar(key: str, fallback: float = 0.0) -> float:
+    v = _secs.get(key, {}).get("insar_mm")
+    return float(v) if v is not None else fallback
+
+def _sem_insar(mm: float) -> str:
+    return 'rojo' if abs(mm) > 2.0 else ('amarillo' if abs(mm) > 1.0 else 'verde')
 
 # ─── PALETA ──────────────────────────────────────────────────────────────────
 BG    = '#06080b'
@@ -38,17 +67,24 @@ now  = datetime.now()
 CERT = hashlib.sha256(f"FARO-VELEZ-MAIN-{now.isoformat()}".encode()).hexdigest()[:28].upper()
 WEEK = now.strftime('Semana del %d de %B de %Y')
 
-# ─── DATOS AGRO ───────────────────────────────────────────────────────────────
+# ─── DATOS AGRO (InSAR live desde VD) ────────────────────────────────────────
+_i_estadio = _insar('estadio', 0.42)
+_i_poli    = _insar('poli',    1.20)
 ZONES = [
-    {'name': 'Campo\nAmalfitani', 'ndvi': 0.68, 'temp': 22.1, 'insar': 0.42, 'sem': 'verde',
+    {'name': 'Campo\nAmalfitani', 'ndvi': 0.68, 'temp': 22.1,
+     'insar': _i_estadio, 'sem': _sem_insar(_i_estadio),
      'accion': 'Aerificar porterías semana 3'},
-    {'name': 'Cancha 1',          'ndvi': 0.48, 'temp': 24.3, 'insar': 1.20, 'sem': 'amarillo',
+    {'name': 'Cancha 1',          'ndvi': 0.48, 'temp': 24.3,
+     'insar': _i_poli,    'sem': _sem_insar(_i_poli),
      'accion': 'Fungicida preventivo'},
-    {'name': 'Cancha 2',          'ndvi': 0.52, 'temp': 23.8, 'insar': 0.60, 'sem': 'amarillo',
+    {'name': 'Cancha 2',          'ndvi': 0.52, 'temp': 23.8,
+     'insar': _i_poli,    'sem': _sem_insar(_i_poli),
      'accion': 'Fertilizar 20 kg N/ha'},
-    {'name': 'Cancha 3',          'ndvi': 0.39, 'temp': 25.1, 'insar': 1.85, 'sem': 'amarillo',
+    {'name': 'Cancha 3',          'ndvi': 0.39, 'temp': 25.1,
+     'insar': _i_poli,    'sem': _sem_insar(_i_poli),
      'accion': 'Fungicida activo + resembrar'},
-    {'name': 'Cancha 4',          'ndvi': 0.24, 'temp': 27.8, 'insar': 2.80, 'sem': 'rojo',
+    {'name': 'Cancha 4',          'ndvi': 0.24, 'temp': 27.8,
+     'insar': _i_poli,    'sem': _sem_insar(_i_poli),
      'accion': '⚠ URGENTE — Drenaje + fungicida + resembrar'},
 ]
 
@@ -60,12 +96,16 @@ SOLAR = {
     'zona_alerta': 'Zona E (Arco Sur)',
 }
 
-# ─── DATOS ESTRUCTURAL ───────────────────────────────────────────────────────
+# ─── DATOS ESTRUCTURAL (InSAR live desde VD) ─────────────────────────────────
+def _trib(key, fb):
+    v = _insar(key, fb)
+    return {'insar': v, 'nivel': _sem_insar(v)}
+
 TRIBUNAS = [
-    {'name': 'Tribuna Norte',  'insar': 0.85, 'nivel': 'verde'},
-    {'name': 'Tribuna Sur',    'insar': 1.20, 'nivel': 'amarillo'},
-    {'name': 'Tribuna Este',   'insar': 0.60, 'nivel': 'verde'},
-    {'name': 'Tribuna Oeste',  'insar': 2.80, 'nivel': 'rojo'},
+    {'name': 'Tribuna Norte',  **_trib('estadio_tribuna_norte',  0.85)},
+    {'name': 'Tribuna Sur',    **_trib('estadio_tribuna_sur',    1.20)},
+    {'name': 'Tribuna Este',   **_trib('estadio_tribuna_este',   0.60)},
+    {'name': 'Tribuna Oeste',  **_trib('estadio_tribuna_oeste',  2.80)},
 ]
 
 # ─── HELPERS ─────────────────────────────────────────────────────────────────
@@ -117,7 +157,8 @@ kpis = [
     ('ZONAS ATENCIÓN', str(aten),          YELL if aten else GRNL),
     ('SOLAR EFIC.',   f'{SOLAR["eff_pct"]}%', YELL),
     ('PRODUCCIÓN',    f'{SOLAR["kwh_week"]:,}\nkWh/sem', GRNL),
-    ('TRIBUNA ALERTA','OESTE\n2.80 mm',   REDL),
+    ('TRIBUNA ALERTA', f"{max(TRIBUNAS, key=lambda t: abs(t['insar']))['name'].split()[1]}\n{max(TRIBUNAS, key=lambda t: abs(t['insar']))['insar']:.2f} mm",
+                      REDL if any(t['nivel']=='rojo' for t in TRIBUNAS) else YELL),
     ('PRÓX. ACCIÓN',  'HOY\nCancha 4',    REDL),
 ]
 for i, (lbl, val, col) in enumerate(kpis):

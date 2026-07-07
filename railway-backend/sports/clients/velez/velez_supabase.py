@@ -301,7 +301,7 @@ def upsert_sectores(sectores: dict) -> bool:
     rows = []
     for sid, s in sectores.items():
         row: dict = {"sector_id": sid, "updated_at": ts}
-        for field in ("nombre", "score", "score_prev", "sem", "detalle", "insar_mm"):
+        for field in ("nombre", "score", "score_prev", "sem", "detalle", "insar_mm", "cross_trust"):
             if field in s:
                 row[field] = s[field]
         rows.append(row)
