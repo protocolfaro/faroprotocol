@@ -568,24 +568,28 @@ def run_sar_kalman_cycle() -> dict | None:
     except Exception as _ke:
         log.debug("run_sar_kalman_cycle: Kalman (non-fatal): %s", _ke)
 
-    # SAR RVI para las 12 canchas VO (Sentinel-1 corre con nubes)
+    # SAR→NDVI calibrado para las 12 canchas VO (Sentinel-1 penetra nubes)
     try:
-        from faro_sar_polimetria import get_rvi_by_cancha
-        rvi_data = get_rvi_by_cancha()
-        if rvi_data:
-            for cid, rvi in rvi_data.items():
-                # RVI -> NDVI proxy: relación empírica para Ryegrass en invierno
-                # RVI rango [0,1] -> NDVI estimado con corrección estacional
-                ndvi_proxy = round(rvi * (0.40 if winter else 0.70), 4)
+        from faro_sar_polimetria import get_sar_by_cancha
+        from sar_ndvi_calibration import predict_ndvi as _pred_ndvi
+        sar_data = get_sar_by_cancha()
+        if sar_data:
+            for cid, sar in sar_data.items():
+                vv  = sar.get("vv_db")
+                vh  = sar.get("vh_db")
+                rvi = sar.get("rvi", 0.0)
+                ndvi_proxy = _pred_ndvi(vv, vh, month)
                 result["canchas"][cid] = {
-                    "ndvi": ndvi_proxy,
-                    "rvi": round(rvi, 4),
-                    "metodo_generacion": "SAR_RVI",
-                    "estimado": True,
+                    "ndvi":               ndvi_proxy,
+                    "rvi":                round(rvi, 4),
+                    "sar_vv_db":          vv,
+                    "sar_vh_db":          vh,
+                    "metodo_generacion":  "SAR_RIDGE",
+                    "estimado":           True,
                 }
-            log.info("run_sar_kalman_cycle: SAR RVI OK — %d canchas", len(rvi_data))
+            log.info("run_sar_kalman_cycle: SAR→NDVI Ridge OK — %d canchas", len(sar_data))
     except Exception as _se:
-        log.debug("run_sar_kalman_cycle: SAR RVI (non-fatal): %s", _se)
+        log.debug("run_sar_kalman_cycle: SAR NDVI (non-fatal): %s", _se)
 
     # Si no hay datos de ninguna fuente, generar estimados basales con GDD
     if not result["canchas"]:

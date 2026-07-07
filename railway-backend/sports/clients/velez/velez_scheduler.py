@@ -1770,6 +1770,14 @@ def run_refresh_only(force: bool = False) -> dict:
     except Exception as exc:
         log.warning("satellite_pipeline (non-fatal): %s", exc)
 
+    # VO SAR backfill — per-cancha sigma0 for all 12 Villa Olímpica canchas
+    try:
+        from sar_cancha_fetch import run_vo_sar_backfill
+        result["sar_vo"] = run_vo_sar_backfill(days=14)
+        log.info("sar_vo backfill: %s", result["sar_vo"])
+    except Exception as exc:
+        log.warning("sar_vo backfill (non-fatal): %s", exc)
+
     vd = _get_velez_data()
     result["pngs"] = _render_pngs_only(vd)
     log.info("=== run_refresh_only: done — %d PNGs ===", result["pngs"])

@@ -160,3 +160,68 @@ def _try_ost_or_fallback(vv_db: float, vh_db: float) -> tuple[float, float]:
     except ImportError:
         pass
     return compute_h_alpha(vv_db, vh_db)
+
+
+# ── Per-cancha SAR query API ──────────────────────────────────────────────────
+
+def get_sar_by_cancha(venue_id: str = "amalfitani",
+                      dias: int = 7) -> dict[str, dict]:
+    """
+    Return latest SAR data per cancha_id from soil_metrics.
+
+    Each entry: {vv_db, vh_db, rvi, fecha}
+    Only returns canchas that have SAR data within the last `dias` days.
+    """
+    try:
+        _vs = _get_vs()
+        rows = _vs.get_soil_metrics_latest(venue_id, cancha_id=None, dias=dias)
+    except Exception as exc:
+        log.warning("get_sar_by_cancha: query failed: %s", exc)
+        return {}
+
+    # Keep only the latest row per cancha_id
+    latest_by_cancha: dict[str, dict] = {}
+    for row in rows:
+        cid = row.get("cancha_id")
+        if not cid:
+            continue
+        if cid not in latest_by_cancha:
+            latest_by_cancha[cid] = row
+
+    result: dict[str, dict] = {}
+    for cid, row in latest_by_cancha.items():
+        vv = row.get("sar_vv_db")
+        vh = row.get("sar_vh_db")
+        if vv is None and vh is None:
+            continue
+        try:
+            from sar_ndvi_calibration import rvi4s1 as _rvi
+            rvi_val = _rvi(vv, vh) if vv is not None and vh is not None else 0.0
+        except Exception:
+            # Compute inline without import
+            try:
+                import math as _math
+                vv_lin = 10.0 ** (float(vv) / 10.0)
+                vh_lin = 10.0 ** (float(vh) / 10.0)
+                denom = vv_lin + vh_lin
+                rvi_val = round(min(1.0, 4.0 * vh_lin / denom), 4) if denom > 1e-12 else 0.0
+            except Exception:
+                rvi_val = 0.0
+        result[cid] = {
+            "vv_db": vv,
+            "vh_db": vh,
+            "rvi":   rvi_val,
+            "fecha": (row.get("fecha_imagen") or "")[:10],
+        }
+
+    return result
+
+
+def get_rvi_by_cancha(venue_id: str = "amalfitani",
+                      dias: int = 7) -> dict[str, float]:
+    """
+    Return RVI4S1 per cancha_id — backward-compatible wrapper for get_sar_by_cancha().
+    Used by external callers that only need the scalar RVI value.
+    """
+    sar_data = get_sar_by_cancha(venue_id, dias)
+    return {cid: entry["rvi"] for cid, entry in sar_data.items()}
