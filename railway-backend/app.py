@@ -1530,10 +1530,11 @@ def _run_startup_migrations():
     migration_path = os.path.join(_HERE, "migrations", "fix_data_lake_schema.sql")
     migration_june2026 = os.path.join(_HERE, "migrations", "add_june2026_columns.sql")
     migration_fecha_imagen = os.path.join(_HERE, "migrations", "add_fecha_imagen.sql")
+    migration_005 = os.path.join(_HERE, "migrations", "005_climate_metrics_sectorial.sql")
     try:
         from sqlalchemy import create_engine, text
         engine = create_engine(db_url, connect_args={"connect_timeout": 10})
-        for mpath in [migration_path, migration_june2026, migration_fecha_imagen]:
+        for mpath in [migration_path, migration_june2026, migration_fecha_imagen, migration_005]:
             if not os.path.exists(mpath):
                 continue
             sql = open(mpath, encoding="utf-8").read()
