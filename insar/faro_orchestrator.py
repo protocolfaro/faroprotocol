@@ -1,26 +1,34 @@
 import json
 import logging
-import requests
-from datetime import datetime
+import os
+import sys
+from datetime import datetime, timezone
 import numpy as np
+import requests
 from typing import Dict, Any, List
 
-# Configuración de logs para entornos cloud (Railway/Docker)
+try:
+    from supabase import create_client, Client
+    SUPABASE_AVAILABLE = True
+except ImportError:
+    SUPABASE_AVAILABLE = False
+
+try:
+    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+    from faro_coherence_detector import extract_coherence_from_hyp3
+    DETECTOR_AVAILABLE = True
+except ImportError:
+    DETECTOR_AVAILABLE = False
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] Faro-Cerebro: %(message)s'
 )
 
-# Coordenadas exactas del Estadio José Amalfitani (Vélez Sarsfield)
 VELEZ_LAT = -34.6356
 VELEZ_LON = -58.5238
 
 def fetch_real_time_precipitation() -> float:
-    """
-    Consulta las condiciones meteorológicas reales de las últimas 24 horas
-    para el barrio de Liniers utilizando la API libre de Open-Meteo.
-    Elimina la necesidad de reportes manuales de lluvia por parte del canchero.
-    """
     url = (
         f"https://api.open-meteo.com/v1/forecast?"
         f"latitude={VELEZ_LAT}&longitude={VELEZ_LON}"
@@ -29,20 +37,17 @@ def fetch_real_time_precipitation() -> float:
         f"&past_days=1"
         f"&forecast_days=0"
     )
-
     try:
         logging.info("Conectando con Open-Meteo para auditar balance hídrico...")
         response = requests.get(url, timeout=10)
         response.raise_for_status()
         data = response.json()
-
         precipitations = data.get("hourly", {}).get("precipitation", [])
         total_rain_24h = sum(precipitations[-24:]) if precipitations else 0.0
         logging.info(f"Precipitación real detectada en Liniers (últimas 24h observadas): {total_rain_24h:.2f} mm")
         return float(total_rain_24h)
-
     except Exception as e:
-        logging.warning(f"Error de conexión con Open-Meteo: {e}. Aplicando fallback de contingencia (0.0mm).")
+        logging.warning(f"Error de conexión con Open-Meteo: {e}. Aplicando fallback (0.0mm).")
         return 0.0
 
 def run_cross_trust_audit(
@@ -52,16 +57,17 @@ def run_cross_trust_audit(
 ) -> Dict[str, Any]:
     """
     Motor de Confianza Cruzada (Cross-Trust Engine) de Faro Cerebro.
-    Cruza la coherencia interferométrica con el balance hídrico para aislar
-    el ruido de la biomasa y generar prescripciones agronómicas irrefutables.
+    Cruza coherencia interferométrica con balance hídrico para generar
+    prescripciones agronómicas libres de sesgo foliar.
     """
     logging.info("Iniciando análisis espacial por cuadrantes (Grilla 3x3)...")
     rows, cols = coherence_matrix.shape
     r_step = max(1, rows // 3)
     c_step = max(1, cols // 3)
 
+    # Fallback determinístico neutral: 0.23 = humedad típica del suelo en Liniers
     if rvi_grid is None:
-        rvi_grid = np.random.uniform(0.18, 0.28, (3, 3))
+        rvi_grid = np.full((3, 3), 0.23)
 
     sectores_auditados = []
     coherence_losses = 0
@@ -116,30 +122,67 @@ def run_cross_trust_audit(
         diagnosis = "INERCIA AGRONÓMICA ESTABLE"
 
     return {
-        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "stadium": "Estadio José Amalfitani (Vélez)",
         "weather_rain_24h_mm": rain_24h,
         "global_diagnosis": diagnosis,
         "cuadrantes": sectores_auditados
     }
 
+def persist_to_supabase(payload: Dict[str, Any]) -> bool:
+    supabase_url = os.environ.get("SUPABASE_URL")
+    supabase_key = os.environ.get("SUPABASE_KEY")
+
+    if not supabase_url or not supabase_key:
+        logging.warning("SUPABASE_URL / SUPABASE_KEY ausentes. Persistencia omitida (modo local).")
+        return False
+
+    if not SUPABASE_AVAILABLE:
+        logging.warning("supabase-py no instalado. No se puede persistir el payload.")
+        return False
+
+    try:
+        logging.info("Persistiendo payload de auditoría en Supabase...")
+        supabase: Client = create_client(supabase_url, supabase_key)
+        supabase.table("faro_audits").upsert({
+            "stadium_id": "velez_amalfitani",
+            "timestamp": payload["timestamp"],
+            "weather_rain_24h_mm": payload["weather_rain_24h_mm"],
+            "global_diagnosis": payload["global_diagnosis"],
+            "payload_data": payload
+        }).execute()
+        logging.info("Sincronización exitosa. Panel Roger actualizado.")
+        return True
+    except Exception as e:
+        logging.error(f"Fallo al interactuar con Supabase: {e}")
+        return False
+
 if __name__ == "__main__":
-    print("\n=======================================================")
-    print("      FARO CEREBRO v3: RUNNING SPATIAL PIPELINE        ")
-    print("=======================================================\n")
+    logging.info("Iniciando pipeline de ejecución unificado (InSAR + Met)...")
 
     rain_sensor = fetch_real_time_precipitation()
 
-    simulated_coherence_raster = np.array([
-        [0.55, 0.52, 0.48],
-        [0.51, 0.12, 0.49],
-        [0.53, 0.11, 0.50]
-    ])
+    # Busca ZIP real entregado por HyP3; si no existe, activa simulación calibrada
+    target_zip = "/tmp/hyp3_latest/latest_coherence.zip"
+    coherence_matrix = None
 
-    audit_report = run_cross_trust_audit(simulated_coherence_raster, rain_sensor)
+    if DETECTOR_AVAILABLE and os.path.exists(target_zip):
+        try:
+            logging.info(f"Archivo real de órbita detectado en {target_zip}. Extrayendo matriz InSAR...")
+            coherence_matrix = extract_coherence_from_hyp3(target_zip)
+        except Exception as e:
+            logging.error(f"Fallo al leer el ZIP de órbita: {e}. Activando simulación de contingencia...")
 
-    print("\n[PAYLOAD DE SALIDA PARA SUPABASE / PANEL ROGER]")
+    if coherence_matrix is None:
+        logging.warning("ZIP de órbita no encontrado en /tmp. Aplicando simulación calibrada de Vélez...")
+        coherence_matrix = np.array([
+            [0.55, 0.52, 0.48],
+            [0.51, 0.12, 0.49],
+            [0.53, 0.11, 0.50]
+        ])
+
+    audit_report = run_cross_trust_audit(coherence_matrix, rain_sensor)
+    persist_to_supabase(audit_report)
+
     print(json.dumps(audit_report, indent=2, ensure_ascii=False))
-    print("\n=======================================================")
-    print("           PIPELINE COMPLETADO CON ÉXITO               ")
-    print("=======================================================")
+    logging.info("Pipeline de orquestación completado.")

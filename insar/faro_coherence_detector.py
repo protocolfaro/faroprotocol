@@ -24,7 +24,7 @@ def extract_coherence_from_hyp3(zip_path: str) -> np.ndarray:
     if not os.path.exists(zip_path):
         raise FileNotFoundError(f"Error: No se encontró el entregable de HyP3 en {zip_path}")
 
-    temp_extract_dir = "./temp_hyp3"
+    temp_extract_dir = "/tmp/temp_hyp3"
     os.makedirs(temp_extract_dir, exist_ok=True)
 
     # Abrimos el entregable de HyP3 para aislar el tif de correlación/coherencia
