@@ -2,7 +2,7 @@ name: Pipeline diario — Vélez Sarsfield
 
 on:
   schedule:
-    - cron: '0 9 * * *'   # Todos los días 09:00 UTC = 06:00 ART
+    - cron: '0 5 * * *'   # Todos los días 05:00 UTC = 02:00 ART
     - cron: '0 10 * * 1'  # Lunes 10:00 UTC = emails semanales
   workflow_dispatch:
     inputs:
