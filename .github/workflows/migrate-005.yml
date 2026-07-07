@@ -15,65 +15,88 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install psycopg2
-        run: pip install psycopg2-binary
+      - name: Install dependencies
+        run: pip install psycopg2-binary requests
 
       - name: Run migration 005
         env:
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_DB_PASSWORD:      ${{ secrets.SUPABASE_DB_PASSWORD }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
         run: |
           python3 - <<'EOF'
-          import os, sys
+          import os, sys, socket
 
           db_pass   = os.environ.get("SUPABASE_DB_PASSWORD", "")
           svc_key   = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
           supa_url  = os.environ.get("SUPABASE_URL", "")
+          ref       = "xljxpzudgwhbzcnrvylo"
 
           sql = open("migrations/005_climate_metrics_sectorial.sql", encoding="utf-8").read()
           stmts = [s.strip() for s in sql.split(";")
                    if s.strip() and not s.strip().startswith("--")]
 
-          # ── Intento 1: psycopg2 con SUPABASE_DB_PASSWORD ─────────────────────
+          # ── Intento 1: psycopg2 via Transaction Pooler (IPv4, port 6543) ─────
           if db_pass:
-              try:
-                  import psycopg2
-                  conn = psycopg2.connect(
-                      host    = "db.xljxpzudgwhbzcnrvylo.supabase.co",
-                      port    = 5432,
-                      dbname  = "postgres",
-                      user    = "postgres",
-                      password= db_pass,
-                      connect_timeout=10,
-                  )
-                  conn.autocommit = True
-                  cur = conn.cursor()
-                  for stmt in stmts:
-                      cur.execute(stmt)
-                      print(f"  OK: {stmt[:60]}...")
-                  cur.close(); conn.close()
-                  print("✅ Migration 005 ejecutada via psycopg2 (direct)")
-                  sys.exit(0)
-              except Exception as e:
-                  print(f"psycopg2 failed: {e} — trying REST fallback")
+              import psycopg2
+              pooler_hosts = [
+                  f"aws-0-us-east-1.pooler.supabase.com",
+                  f"aws-0-us-west-2.pooler.supabase.com",
+                  f"aws-0-eu-west-2.pooler.supabase.com",
+                  f"db.{ref}.supabase.co",
+              ]
+              for pooler_host in pooler_hosts:
+                  try:
+                      # Resolve to IPv4 only
+                      ipv4_list = [r[4][0] for r in
+                                   socket.getaddrinfo(pooler_host, 6543, socket.AF_INET)]
+                      ipv4 = ipv4_list[0] if ipv4_list else None
+                      if not ipv4:
+                          print(f"  {pooler_host}: no IPv4 → skip")
+                          continue
+                      print(f"  Trying {pooler_host} → {ipv4}:6543")
+                      conn = psycopg2.connect(
+                          host        = pooler_host,
+                          hostaddr    = ipv4,
+                          port        = 6543,
+                          dbname      = "postgres",
+                          user        = f"postgres.{ref}",
+                          password    = db_pass,
+                          connect_timeout = 15,
+                      )
+                      conn.autocommit = True
+                      cur = conn.cursor()
+                      for stmt in stmts:
+                          cur.execute(stmt)
+                          print(f"  ✅ {stmt[:80]}...")
+                      cur.close(); conn.close()
+                      print(f"✅ Migration 005 ejecutada via psycopg2 pooler ({pooler_host})")
+                      sys.exit(0)
+                  except psycopg2.OperationalError as e:
+                      err_str = str(e)
+                      if "password" in err_str.lower() or "authentication" in err_str.lower():
+                          print(f"  Auth failed ({pooler_host}): {err_str[:120]}")
+                          break   # Wrong password — no point retrying other hosts
+                      print(f"  Connect failed ({pooler_host}): {err_str[:120]}")
+                  except Exception as e:
+                      print(f"  Error ({pooler_host}): {e}")
 
-          # ── Intento 2: REST API (verifica existencia de tabla solamente) ──────
+          # ── Intento 2: REST API — verificar si tabla ya existe ────────────────
           if svc_key and supa_url:
               import requests
               hdrs = {"apikey": svc_key, "Authorization": f"Bearer {svc_key}"}
-              r = requests.get(f"{supa_url.rstrip('/')}/rest/v1/climate_metrics_sectorial?limit=1",
-                               headers=hdrs, timeout=10)
+              r = requests.get(
+                  f"{supa_url.rstrip('/')}/rest/v1/climate_metrics_sectorial?limit=1",
+                  headers=hdrs, timeout=15,
+              )
+              print(f"REST probe: HTTP {r.status_code} — {r.text[:200]}")
               if r.status_code == 200:
-                  print("✅ Tabla climate_metrics_sectorial ya existe (HTTP 200)")
+                  print("✅ Tabla climate_metrics_sectorial ya existe")
                   sys.exit(0)
-              elif r.status_code == 404 or "relation" in r.text.lower():
-                  print(f"❌ Tabla no existe (HTTP {r.status_code}): {r.text[:200]}")
-                  print("   → Ejecutar migrations/005_climate_metrics_sectorial.sql en Supabase SQL Editor")
+              elif r.status_code in (404, 400) or "relation" in r.text.lower():
+                  print("❌ Tabla no existe — psycopg2 falló y REST no puede crear tablas")
                   sys.exit(1)
-              else:
-                  print(f"REST status {r.status_code}: {r.text[:200]}")
 
-          print("❌ No hay credenciales disponibles para ejecutar la migración")
+          print("❌ No se pudo ejecutar la migración con las credenciales disponibles")
           sys.exit(1)
           EOF
