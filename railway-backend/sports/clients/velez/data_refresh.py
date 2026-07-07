@@ -738,6 +738,7 @@ _INSAR_SECTOR_MAP: dict[str, tuple[str, str]] = {
     "poli_playon_norte":      ("poli",                  "InSAR Playón Norte"),
     "sede_anexo_norte":       ("sede",                  "InSAR Anexo Norte"),
     "piletas":                ("piletas",               "InSAR Piletas"),
+    "instituto":              ("instituto",             "InSAR Instituto"),
 }
 
 
@@ -1119,10 +1120,27 @@ def run_refresh() -> dict:
             log.error("climate_metrics write FAILED: %s", _cm_exc)
         # ── Solar: persistir métricas zonales derivadas de NASA GHI ──────────
         try:
-            from velez_supabase import upsert_solar as _upsert_solar
+            from velez_supabase import upsert_solar as _upsert_solar, upsert_sectores as _upsert_sec
             _solar_panels = _calculate_solar_metrics(raw.get("nasa", {}))
             if _solar_panels and _upsert_solar(_solar_panels):
                 log.info("solar_metrics: %d zonas escritas a velez_solar", len(_solar_panels))
+                # Upsert velez_sectores.solar con score/detalle computados (reemplaza string estático)
+                _effs = [p["eficiencia_pct"] for p in _solar_panels
+                         if isinstance(p.get("eficiencia_pct"), (int, float))]
+                if _effs:
+                    _eff_avg = round(sum(_effs) / len(_effs), 1)
+                    _ghi = raw.get("nasa", {}).get("ALLSKY_SFC_SW_DWN")
+                    _ghi_str = f"GHI {_ghi:.2f} kWh/m² · " if _ghi is not None else ""
+                    _sem_sol = "verde" if _eff_avg >= 80 else ("amarillo" if _eff_avg >= 60 else "rojo")
+                    _score_sol = max(0, min(100, int(round(_eff_avg))))
+                    _upsert_sec({"solar": {
+                        "nombre":     "Sistema Solar",
+                        "score":      _score_sol,
+                        "score_prev": _score_sol,   # sin histórico local — se mantiene
+                        "sem":        _sem_sol,
+                        "detalle":    f"{_ghi_str}Eficiencia modelo: {_eff_avg}% (NASA POWER + pvlib)",
+                    }})
+                    log.info("solar_metrics: velez_sectores.solar → score=%d eff=%.1f%%", _score_sol, _eff_avg)
             elif not _solar_panels:
                 log.warning("solar_metrics: GHI no disponible en NASA POWER — skip")
         except Exception as _sol_exc:

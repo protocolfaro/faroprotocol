@@ -124,8 +124,15 @@ def _render_canchero(vd: dict, out: Path):
                           "sem": sem, "n_status": n_st})
 
     fig = _setup_fig(12, 11)
-    _header(fig, "VILLA OLÍMPICA — Estado de Canchas",
-            gndvi_d.get("fuente", "Sentinel-2 · Faro Protocol"))
+    _ndvi_age = gndvi_d.get("ndvi_age_days")
+    _ndvi_stale = gndvi_d.get("ndvi_stale", False)
+    if _ndvi_stale and _ndvi_age:
+        _hdr_sub = f"⚠ Última imagen satelital: {gndvi_d.get('fecha_imagen','?')} ({_ndvi_age}d atrás) · datos pueden no reflejar cambios recientes"
+    elif _ndvi_age:
+        _hdr_sub = f"Imagen del {gndvi_d.get('fecha_imagen','?')} ({_ndvi_age}d) · {gndvi_d.get('fuente','Sentinel-2')[:50]}"
+    else:
+        _hdr_sub = gndvi_d.get("fuente", "Sentinel-2 · Faro Protocol")
+    _header(fig, "VILLA OLÍMPICA — Estado de Canchas", _hdr_sub)
 
     # Main grid area
     ax_main = fig.add_axes([0.01, 0.07, 0.98, 0.86])
@@ -564,8 +571,13 @@ def _render_sector(vd: dict, out: Path, key: str, title: str, icon: str = ""):
     ax.add_patch(FancyBboxPatch((0.15, 0.34), 0.70*score/100, 0.042,
                                 boxstyle="round,pad=0", facecolor=col, alpha=0.5, edgecolor="none"))
 
-    # Detail
+    # Detail — añadir indicador de staleness si InSAR no tiene medición fresca
     det = s.get("detalle", "")
+    if s.get("insar_stale"):
+        age = s.get("insar_age_days", "?")
+        det = f"{det}  ⚠ medición anterior ({age}d)"
+    elif s.get("insar_mm") is None and "InSAR" in det:
+        det = det + "  (sin actualizar)"
     ax.text(0.5, 0.25, det, color=WHITE, fontsize=9, ha="center", va="center")
 
     # Score comparison

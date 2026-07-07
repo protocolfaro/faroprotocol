@@ -325,8 +325,8 @@ _NOVEDADES = {
               Para cada sector aparece el dato crudo del satélite: NDVI, mm de InSAR,
               temperatura Landsat o eficiencia real. Nada inventado.</li>
           <li><b>Solar actualizado.</b>
-              El 82.4% que aparecía antes era un valor fijo. Ahora sale del sistema real:
-              esta semana es 71%, con 13 paneles en falla identificados.</li>
+              La eficiencia solar se calcula diariamente desde GHI real (NASA POWER) con modelo pvlib.
+              El valor varía según la irradiación del día.</li>
           <li><b>Acciones recomendadas al pie.</b>
               Tres acciones priorizadas para esta semana, sacadas del análisis de esta corrida.</li>
         </ul>

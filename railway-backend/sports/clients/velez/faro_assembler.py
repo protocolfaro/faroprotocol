@@ -57,11 +57,37 @@ def _apply_supabase_overlay(vd: dict) -> None:
         # weather_live
         if overlay.get("weather_live"):
             vd["weather_live"] = overlay["weather_live"]
+        # NDVI staleness: flag gndvi_por_cancha if fecha_imagen > 5 days old
+        _now_utc = datetime.now(timezone.utc)
+        _gndvi = vd.get("weather_live", {}).get("gndvi_por_cancha", {})
+        _fi = _gndvi.get("fecha_imagen")
+        if _fi:
+            try:
+                _fi_dt = datetime.fromisoformat(str(_fi)[:10])
+                _ndvi_age = (_now_utc.date() - _fi_dt.date()).days
+                _gndvi["ndvi_age_days"] = _ndvi_age
+                if _ndvi_age > 5:
+                    _gndvi["ndvi_stale"] = True
+                    log.warning("assembler: NDVI STALE — imagen del %s (%dd atrás)", _fi, _ndvi_age)
+            except Exception:
+                pass
         # sectores
         for sid, s in overlay.get("sectores", {}).items():
             vd.setdefault("sectores", {}).setdefault(sid, {}).update(
                 {k: v for k, v in s.items() if k not in ("sector_id", "updated_at")}
             )
+            # Staleness detection: mark InSAR as stale if updated_at > 14 days
+            _upd = s.get("updated_at")
+            if _upd and s.get("insar_mm") is not None:
+                try:
+                    _upd_dt = datetime.fromisoformat(_upd.replace("Z", "+00:00"))
+                    _age_days = (_now_utc - _upd_dt).days
+                    if _age_days > 14:
+                        vd["sectores"][sid]["insar_stale"] = True
+                        vd["sectores"][sid]["insar_age_days"] = _age_days
+                        log.warning("assembler: InSAR %s STALE (%d días)", sid, _age_days)
+                except Exception:
+                    pass
         # Tribunas InSAR — sectores estadio_tribuna_* → estadio.tribunas_insar dict
         tribunas_insar: dict = {}
         for sid, s in overlay.get("sectores", {}).items():
@@ -519,7 +545,7 @@ def _parse_detalle_fields(vd: dict) -> None:
     if poli.get("techo_sem") is None:
         poli["techo_sem"] = poli.get("sem", "amarillo")
 
-    # solar: "Eficiencia: 71% · 13 paneles en falla"
+    # solar: extraer eficiencia del detalle dinámico (pipeline la actualiza cada día)
     sol = secs.get("solar", {})
     det_s = sol.get("detalle", "")
     if sol.get("eficiencia_pct") is None and det_s:

@@ -513,19 +513,40 @@ def _check_and_collect(state: dict) -> "dict | str | None":
     }
 
 
+def _find_hyp3_job(hyp3, job_name: str):
+    """
+    Lookup a HyP3 job by deterministic name. Tries find_jobs() first (SDK ≥3.x),
+    falls back to get_jobs() for older SDK versions. Returns the most-recent job or None.
+    """
+    try:
+        jobs = list(hyp3.find_jobs(name=job_name))
+        if jobs:
+            return sorted(jobs, key=lambda j: getattr(j, "request_time", ""), reverse=True)[0]
+    except (AttributeError, TypeError):
+        pass
+    try:
+        jobs = list(hyp3.get_jobs(name=job_name))
+        if jobs:
+            return sorted(jobs, key=lambda j: getattr(j, "request_time", ""), reverse=True)[0]
+    except Exception:
+        pass
+    return None
+
+
 def fetch_insar() -> Optional[dict]:
     """
-    Two-phase async InSAR pipeline.
+    Name-based async InSAR pipeline — no /tmp state, survives across GitHub Actions runs.
 
-    Fase 2 (check): si hay un job pendiente en /tmp, consulta su estado.
-      - SUCCEEDED → descarga y retorna resultados
-      - RUNNING   → retorna None (volver a intentar próximo ciclo)
-      - FAILED    → limpia y cae a Fase 1
+    Each run:
+      1. Searches ASF for the best recent S1 granule pair.
+      2. Computes deterministic job name: faro_{date1}_{date2}.
+      3. Checks HyP3 by name (persists in HyP3 backend, not in container /tmp).
+         - SUCCEEDED  → download, process, return results ✅
+         - PENDING/RUNNING → return None (next run will collect)
+         - Not found / FAILED → submit new job with that name, return None
 
-    Fase 1 (submit): busca granules S1, encuentra par 12d, submite job sin bloquear.
-      Retorna None — los resultados llegan en el siguiente ciclo (~30-60 min).
-
-    El ciclo típico: ciclo 1 submite, ciclo 2 (30-60 min después) descarga.
+    Typical cycle: run N submits → run N+1 (1-3 hrs later) collects.
+    No external state storage required.
     """
     try:
         import hyp3_sdk   # noqa — validate imports early
@@ -534,20 +555,7 @@ def fetch_insar() -> Optional[dict]:
         log.warning("insar_hyp3: missing dependency %s — skipping", exc)
         return None
 
-    # ── Fase 2: verificar job pendiente ──────────────────────────────────
-    pending = _load_pending_job()
-    if pending:
-        result = _check_and_collect(pending)
-        if result == "running":
-            log.info("insar_hyp3: job %s aún procesando — esperando próximo ciclo",
-                     pending["job_id"])
-            return None
-        _clear_pending_job()
-        if isinstance(result, dict):
-            return result   # ✅ resultados listos
-        log.info("insar_hyp3: job previo falló/expiró — submiteando nuevo job")
-
-    # ── Fase 1: buscar par y submitear ────────────────────────────────────
+    # ── Step 1: find the best S1 pair ────────────────────────────────────
     try:
         granules = _search_slc_granules(days_back=26)
     except Exception as exc:
@@ -563,19 +571,78 @@ def fetch_insar() -> Optional[dict]:
         log.warning("insar_hyp3: sin par coherente de 12 días")
         return None
 
-    g1, g2 = pair
-    date1  = (g1.get("startTime") or "")[:10]
-    date2  = (g2.get("startTime") or "")[:10]
-    log.info("insar_hyp3: par seleccionado %s → %s", date1, date2)
+    g1, g2   = pair
+    date1    = (g1.get("startTime") or "")[:10]
+    date2    = (g2.get("startTime") or "")[:10]
+    job_name = f"faro_{date1}_{date2}"
+    log.info("insar_hyp3: par seleccionado %s → %s (job=%s)", date1, date2, job_name)
 
+    # ── Step 2: check HyP3 by name ───────────────────────────────────────
     try:
-        job_id, job_name = _submit_job_nowait(g1, g2, date1, date2)
-        _save_pending_job(job_id, job_name, g1, g2, date1, date2)
-        log.info("insar_hyp3: job submiteado %s — resultados en próximo ciclo", job_id)
+        hyp3 = _hyp3_client()
+        job  = _find_hyp3_job(hyp3, job_name)
+    except Exception as exc:
+        log.warning("insar_hyp3: HyP3 lookup falló: %s — submiteando fresh", exc)
+        job = None
+
+    if job is not None:
+        status = job.status_code
+        log.info("insar_hyp3: job %s encontrado — status=%s", job_name, status)
+
+        if status in ("PENDING", "RUNNING"):
+            log.info("insar_hyp3: job %s procesando — esperando próximo ciclo", job_name)
+            return None
+
+        if status == "SUCCEEDED":
+            disp_path = amp_path = None
+            try:
+                disp_path, amp_path = _download_insar_files(job)
+                sector_mm = _read_sector_displacement(disp_path)
+            except Exception as exc:
+                log.warning("insar_hyp3: descarga/lectura falló: %s", exc)
+                return None
+            finally:
+                for _p in filter(None, [disp_path, amp_path]):
+                    try: os.remove(_p)
+                    except Exception: pass
+                if disp_path:
+                    try: os.rmdir(os.path.dirname(disp_path))
+                    except Exception: pass
+
+            if not sector_mm:
+                return None
+
+            fuente_str = f"Sentinel-1 InSAR · ASF HyP3 · par {date1}/{date2}"
+            if amp_path:
+                try:
+                    sector_bs = _read_sector_backscatter(amp_path)
+                    if sector_bs:
+                        _write_soil_metrics(sector_bs, fuente=fuente_str, fecha_imagen=date2)
+                except Exception as _be:
+                    log.debug("insar_hyp3: backscatter (non-fatal): %s", _be)
+
+            log.info("✅ InSAR name-based — par %s/%s · %d sectores · %s",
+                     date1, date2, len(sector_mm),
+                     ", ".join(f"{k}:{v:+.2f}mm" for k, v in sector_mm.items()))
+            return {
+                "fuente":         fuente_str,
+                "fecha_ref":      date1,
+                "fecha_sec":      date2,
+                "incidencia_deg": _INCIDENCE_DEG,
+                "sectores":       sector_mm,
+            }
+
+        log.warning("insar_hyp3: job %s status=%s — submiteando nuevo", job_name, status)
+
+    # ── Step 3: submit new job ────────────────────────────────────────────
+    try:
+        job_id, _ = _submit_job_nowait(g1, g2, date1, date2)
+        log.info("insar_hyp3: job submiteado %s (name=%s) — resultados en próximo ciclo",
+                 job_id, job_name)
     except Exception as exc:
         log.warning("insar_hyp3: submit falló: %s", exc)
 
-    return None  # resultados disponibles en el próximo ciclo
+    return None  # resultados disponibles en el próximo ciclo (name-based lookup)
 
 
 if __name__ == "__main__":
