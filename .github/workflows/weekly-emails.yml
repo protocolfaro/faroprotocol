@@ -35,7 +35,8 @@ jobs:
         run: |
           pip install requests matplotlib pillow numpy scipy \
                       pystac-client planetary-computer rasterio earthaccess \
-                      tenacity pvlib pandas hyp3_sdk
+                      tenacity pvlib pandas hyp3_sdk \
+                      cdsapi xarray netCDF4
 
       # ── Fase A — Ingesta satelital diaria ─────────────────────────────────
       # Corre siempre: weather, NDVI, SAR proxy, soil_metrics, solar, acciones
@@ -50,6 +51,7 @@ jobs:
           SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SUPABASE_KEY:              ${{ secrets.SUPABASE_KEY }}
+          CDS_API_KEY:               ${{ secrets.CDS_API_KEY }}
         run: |
           cd railway-backend/sports/clients/velez
           python data_refresh.py || exit 1

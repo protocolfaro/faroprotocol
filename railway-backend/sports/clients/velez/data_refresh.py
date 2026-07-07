@@ -1140,6 +1140,20 @@ def run_refresh() -> dict:
         except Exception as _pe:
             log.warning("faro_analytics_physics (non-fatal): %s", _pe)
         # ─────────────────────────────────────────────────────────────────────
+        # ── ERA5-Land Sectorial: ET₀/T/RH/SM por bloque de canchas ──────────
+        try:
+            from faro_era5_land_sectorial import process_all_sectors as _era5_sectors
+            _era5_result = _era5_sectors()   # hoy-7d por defecto (lag ~5-7 días CDS)
+            log.info(
+                "ERA5-Land sectorial: %d OK / %d falló — status=%s — fecha=%s",
+                _era5_result.get("sectors_ok",     0),
+                _era5_result.get("sectors_failed", 0),
+                _era5_result.get("status",         "?"),
+                _era5_result.get("date",           "?"),
+            )
+        except Exception as _era5_exc:
+            log.warning("ERA5-Land sectorial (non-fatal): %s", _era5_exc)
+
         # ── climate_metrics: persistir ciclo diario en Supabase ──────────────
         try:
             from velez_supabase import insert_climate_metrics as _ins_cm
