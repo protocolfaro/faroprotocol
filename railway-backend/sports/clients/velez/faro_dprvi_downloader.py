@@ -1,28 +1,25 @@
 """
-faro_dprvi_downloader.py — Descarga JSON de DpRVIc desde GCS e inserta en Supabase.
+faro_dprvi_downloader.py — Computa DpRVIc desde SAR ya en Supabase. SIN GCS.
 
-Pipeline:
-  1. Lee el JSON más reciente del bucket GCS (exportado por GEE)
-  2. Parsea dprvi_value por cuadrante/sector
-  3. INSERT/UPSERT en dprvi_metrics (Supabase)
+Pipeline (zero-cost, sin dependencias externas):
+  1. Lee VV/VH por cancha desde soil_metrics (Supabase REST API — anon key)
+  2. Promedia VV/VH por sector DpRVIc (amalfitani_central, vo_bloque_a/b/c/d)
+  3. DpRVIc = (VV_lin - VH_lin) / (VV_lin + VH_lin)  ∈ [0,1]
+  4. Crea tabla dprvi_metrics si no existe y hace UPSERT vía psycopg2
 
 Variables de entorno requeridas:
-  GCS_BUCKET                 — nombre del bucket (ej: "faro-dprvi-exports")
-  GCS_SERVICE_ACCOUNT_JSON   — contenido JSON de la service account (base64 o raw string)
-  SUPABASE_URL               — https://xljxpzudgwhbzcnrvylo.supabase.co
-  SUPABASE_KEY               — service role key con permisos INSERT en dprvi_metrics
+  SUPABASE_URL      — https://xljxpzudgwhbzcnrvylo.supabase.co
+  SUPABASE_KEY      — anon key (lectura soil_metrics)
+  SUPABASE_DB_URL   — postgresql://postgres:PASS@host:5432/postgres (escritura)
 
-Ejecutar: 13:00 UTC diariamente (1h post-ERA5)
+Ejecutar: 13:00 UTC diariamente (datos SAR disponibles desde 09:00 UTC refresh)
 """
 from __future__ import annotations
 
-import base64
-import json
 import logging
 import os
 import sys
-import tempfile
-from datetime import date, datetime, timezone
+from datetime import date, timedelta
 
 import requests
 
@@ -31,254 +28,211 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-GCS_BUCKET   = os.environ.get("GCS_BUCKET", "faro-dprvi-exports")
-GCS_SA_JSON  = os.environ.get("GCS_SERVICE_ACCOUNT_JSON", "")
-SUPA_URL     = os.environ.get("SUPABASE_URL", "https://xljxpzudgwhbzcnrvylo.supabase.co").rstrip("/")
-SUPA_KEY     = os.environ.get("SUPABASE_KEY", "")
+SUPA_URL    = os.environ.get("SUPABASE_URL", "https://xljxpzudgwhbzcnrvylo.supabase.co").rstrip("/")
+SUPA_KEY    = os.environ.get("SUPABASE_KEY", "")
+SUPA_DB_URL = os.environ.get("SUPABASE_DB_URL", "")
 
-# Mapeo cuadrante GEE → cancha_id Supabase
-CANCHA_MAP = {
-    "amalfitani_norte":   "amalfitani_central",
-    "amalfitani_sur":     "amalfitani_central",
-    "amalfitani_central": "amalfitani_central",
-    "vo_bloque_a":        "vo_bloque_a",
-    "vo_bloque_b":        "vo_bloque_b",
-    "vo_bloque_c":        "vo_bloque_c",
-    "vo_bloque_d":        "vo_bloque_d",
+# DpRVIc formula: (VV_lin - VH_lin) / (VV_lin + VH_lin)
+# Alto DpRVIc → suelo seco / baja vegetación
+# Bajo DpRVIc → vegetación densa / húmeda
+
+# Sector DpRVIc → (venue_id, [cancha_ids en ese sector])
+SECTOR_CANCHAS: dict[str, tuple[str, list[str]]] = {
+    "amalfitani_central": ("amalfitani",    []),           # venue-level, sin cancha_id específico
+    "vo_bloque_a":        ("villa_olimpica", ["1fa", "2fa", "3fa"]),
+    "vo_bloque_b":        ("villa_olimpica", ["4fa", "5fa", "6fa"]),
+    "vo_bloque_c":        ("villa_olimpica", ["7fa", "8fa", "9fa", "10fa"]),
+    "vo_bloque_d":        ("villa_olimpica", ["1fp", "2fp"]),
 }
 
+_CREATE_SQL = """
+CREATE TABLE IF NOT EXISTS public.dprvi_metrics (
+    id                   BIGSERIAL PRIMARY KEY,
+    cancha_id            VARCHAR(32)  NOT NULL,
+    fecha                DATE         NOT NULL,
+    dprvi_value          FLOAT,
+    dprvi_confidence_pct INT,
+    vh_db                FLOAT,
+    vv_db                FLOAT,
+    vh_vv_ratio          FLOAT,
+    created_at           TIMESTAMP DEFAULT NOW(),
+    CONSTRAINT unique_cancha_fecha_dprvi UNIQUE(cancha_id, fecha)
+);
+CREATE INDEX IF NOT EXISTS idx_dprvi_cancha_fecha ON public.dprvi_metrics(cancha_id, fecha DESC);
+"""
 
-# ── GCS helpers ───────────────────────────────────────────────────────────────
-
-def _gcs_token() -> str:
-    """Obtiene access token de GCS via service account JSON."""
-    import urllib.request, urllib.parse, time, hmac, hashlib
-
-    sa_json_raw = GCS_SA_JSON
-    if not sa_json_raw:
-        raise RuntimeError("GCS_SERVICE_ACCOUNT_JSON no configurado")
-
-    # Soporta base64 o raw JSON string
-    try:
-        if sa_json_raw.strip().startswith("{"):
-            sa = json.loads(sa_json_raw)
-        else:
-            sa = json.loads(base64.b64decode(sa_json_raw))
-    except Exception as e:
-        raise RuntimeError(f"GCS_SERVICE_ACCOUNT_JSON inválido: {e}") from e
-
-    try:
-        import google.oauth2.service_account as _sa
-        import google.auth.transport.requests as _tr
-        creds = _sa.Credentials.from_service_account_info(
-            sa, scopes=["https://www.googleapis.com/auth/devstorage.read_only"]
-        )
-        creds.refresh(_tr.Request())
-        return creds.token
-    except ImportError:
-        pass
-
-    # Fallback: JWT manual sin google-auth
-    now = int(time.time())
-    header  = base64.urlsafe_b64encode(json.dumps({"alg":"RS256","typ":"JWT"}).encode()).rstrip(b"=")
-    payload = base64.urlsafe_b64encode(json.dumps({
-        "iss": sa["client_email"],
-        "scope": "https://www.googleapis.com/auth/devstorage.read_only",
-        "aud": "https://oauth2.googleapis.com/token",
-        "iat": now, "exp": now + 3600,
-    }).encode()).rstrip(b"=")
-
-    from cryptography.hazmat.primitives.serialization import load_pem_private_key
-    from cryptography.hazmat.primitives.asymmetric.padding import PKCS1v15
-    from cryptography.hazmat.primitives.hashes import SHA256
-
-    key = load_pem_private_key(sa["private_key"].encode(), password=None)
-    sig_input = header + b"." + payload
-    sig = base64.urlsafe_b64encode(key.sign(sig_input, PKCS1v15(), SHA256())).rstrip(b"=")
-    jwt_token = (sig_input + b"." + sig).decode()
-
-    resp = urllib.request.urlopen(
-        urllib.request.Request(
-            "https://oauth2.googleapis.com/token",
-            data=urllib.parse.urlencode({
-                "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
-                "assertion": jwt_token,
-            }).encode(),
-            headers={"Content-Type": "application/x-www-form-urlencoded"},
-        ), timeout=15
-    )
-    return json.loads(resp.read())["access_token"]
+_UPSERT_SQL = """
+INSERT INTO public.dprvi_metrics
+    (cancha_id, fecha, dprvi_value, dprvi_confidence_pct, vh_db, vv_db, vh_vv_ratio)
+VALUES (%s, %s, %s, %s, %s, %s, %s)
+ON CONFLICT (cancha_id, fecha) DO UPDATE SET
+    dprvi_value          = EXCLUDED.dprvi_value,
+    dprvi_confidence_pct = EXCLUDED.dprvi_confidence_pct,
+    vh_db                = EXCLUDED.vh_db,
+    vv_db                = EXCLUDED.vv_db,
+    vh_vv_ratio          = EXCLUDED.vh_vv_ratio
+"""
 
 
-def _gcs_list_blobs(token: str, prefix: str) -> list[str]:
-    """Lista blobs en el bucket con el prefijo dado."""
-    url = f"https://storage.googleapis.com/storage/v1/b/{GCS_BUCKET}/o"
-    r = requests.get(url, params={"prefix": prefix, "maxResults": 50},
-                     headers={"Authorization": f"Bearer {token}"}, timeout=15)
-    r.raise_for_status()
-    return [item["name"] for item in r.json().get("items", [])]
-
-
-def _gcs_download(token: str, blob_name: str) -> dict:
-    """Descarga y parsea JSON de GCS."""
-    url = f"https://storage.googleapis.com/storage/v1/b/{GCS_BUCKET}/o/{requests.utils.quote(blob_name, safe='')}"
-    r = requests.get(url, params={"alt": "media"},
-                     headers={"Authorization": f"Bearer {token}"}, timeout=30)
-    r.raise_for_status()
-    return r.json()
-
-
-def _latest_blob(token: str) -> tuple[str, dict]:
-    """Retorna (blob_name, data) del JSON más reciente de hoy o ayer."""
-    today = datetime.now(timezone.utc).date()
-    for d in [today, date(today.year, today.month, today.day)]:
-        prefix = f"dprvi/{d.isoformat()}"
-        blobs = _gcs_list_blobs(token, prefix)
-        if blobs:
-            blob = sorted(blobs)[-1]
-            log.info("Descargando %s", blob)
-            return blob, _gcs_download(token, blob)
-    raise RuntimeError(f"No hay blobs DpRVIc para hoy ({today})")
-
-
-# ── Supabase helpers ──────────────────────────────────────────────────────────
+# ── SAR data desde Supabase ───────────────────────────────────────────────────
 
 def _sb_headers() -> dict:
-    return {
-        "apikey": SUPA_KEY,
-        "Authorization": f"Bearer {SUPA_KEY}",
-        "Content-Type": "application/json",
-        "Prefer": "resolution=merge-duplicates,return=minimal",
-    }
+    return {"apikey": SUPA_KEY, "Authorization": f"Bearer {SUPA_KEY}"}
 
 
-def _upsert_dprvi(rows: list[dict]) -> bool:
-    if not SUPA_URL or not SUPA_KEY:
-        log.error("SUPABASE_URL o SUPABASE_KEY no configurados")
-        return False
-    r = requests.post(
-        f"{SUPA_URL}/rest/v1/dprvi_metrics",
-        headers=_sb_headers(), json=rows, timeout=20,
-    )
-    if r.status_code in (200, 201, 204):
-        log.info("Upsert OK — %d filas", len(rows))
-        return True
-    log.error("Supabase upsert HTTP %d: %s", r.status_code, r.text[:300])
-    return False
-
-
-# ── Parseo GEE output ─────────────────────────────────────────────────────────
-
-def _parse_gee_json(data: dict, fecha: date) -> list[dict]:
-    """
-    Parsea el JSON exportado por el script GEE.
-
-    Formato esperado:
-    {
-      "fecha": "2026-07-01",
-      "features": [
-        {
-          "sector": "amalfitani_central",
-          "dprvi_value": 0.42,
-          "dprvi_confidence_pct": 78,
-          "vh_db": -14.3,
-          "vv_db": -8.7,
-          "vh_vv_ratio": 0.316
-        },
-        ...
-      ]
-    }
-    """
-    rows = []
-    features = data.get("features", data.get("sectors", []))
-    if not features:
-        log.warning("JSON GEE sin features: %s", list(data.keys()))
-        return rows
-
-    for f in features:
-        sector_raw = f.get("sector") or f.get("cancha_id") or f.get("id")
-        if not sector_raw:
-            continue
-        cancha_id = CANCHA_MAP.get(sector_raw, sector_raw)
-
-        dprvi_val = f.get("dprvi_value") or f.get("dprvi")
-        if dprvi_val is None:
-            log.warning("Sector %s sin dprvi_value — skip", sector_raw)
-            continue
-
-        # Confianza: usar la del GEE si viene, sino estimar por N pixeles válidos
-        confidence = f.get("dprvi_confidence_pct") or f.get("confidence_pct")
-        if confidence is None:
-            n_px = f.get("n_pixels_valid", 0)
-            confidence = min(95, max(0, int(n_px / 10)))  # heurística: 1000px → 95%
-
-        row = {
-            "cancha_id":             cancha_id,
-            "fecha":                 str(fecha),
-            "dprvi_value":           round(float(dprvi_val), 4),
-            "dprvi_confidence_pct":  int(confidence),
-            "vh_db":                 _safe_float(f.get("vh_db")),
-            "vv_db":                 _safe_float(f.get("vv_db")),
-            "vh_vv_ratio":           _safe_float(f.get("vh_vv_ratio")),
-        }
-        rows.append(row)
-
-    return rows
-
-
-def _safe_float(v) -> float | None:
+def _get_sar(venue_id: str, dias: int = 14) -> dict[str, dict]:
+    """Lee VV/VH por cancha desde soil_metrics. Retorna {cancha_id: row}."""
+    since = (date.today() - timedelta(days=dias)).isoformat()
+    url = (f"{SUPA_URL}/rest/v1/soil_metrics"
+           f"?venue_id=eq.{venue_id}"
+           f"&created_at=gte.{since}"
+           f"&order=created_at.desc&limit=300"
+           f"&select=cancha_id,sar_vv_db,sar_vh_db,fecha_imagen")
     try:
-        return round(float(v), 4) if v is not None else None
-    except (TypeError, ValueError):
+        r = requests.get(url, headers=_sb_headers(), timeout=15)
+        if r.status_code != 200:
+            log.warning("soil_metrics %s HTTP %s", venue_id, r.status_code)
+            return {}
+        latest: dict[str, dict] = {}
+        for row in r.json():
+            cid = row.get("cancha_id") or venue_id   # Amalfitani puede no tener cancha_id
+            if cid not in latest and row.get("sar_vv_db") is not None and row.get("sar_vh_db") is not None:
+                latest[cid] = row
+        return latest
+    except Exception as exc:
+        log.warning("get_sar %s: %s", venue_id, exc)
+        return {}
+
+
+# ── DpRVIc computation ────────────────────────────────────────────────────────
+
+def _dprvi(vv_db: float, vh_db: float) -> tuple[float, float, float]:
+    """
+    Returns (dprvi_value, vh_vv_ratio, confidence_pct).
+    Formula: DpRVIc = (VV_lin - VH_lin) / (VV_lin + VH_lin)
+    """
+    vv_lin = 10.0 ** (vv_db / 10.0)
+    vh_lin = 10.0 ** (vh_db / 10.0)
+    denom = vv_lin + vh_lin
+    if denom < 1e-12:
+        return 0.5, 1.0, 0
+    dprvi = max(0.0, min(1.0, (vv_lin - vh_lin) / denom))
+    ratio = round(vh_lin / vv_lin, 4)
+    return round(dprvi, 4), ratio, 82  # 82% confianza base desde SAR propio
+
+
+def _sector_vv_vh(sector_id: str, sar_cache: dict[str, dict[str, dict]]) -> tuple[float, float, str] | None:
+    """
+    Promedia VV/VH de las canchas del sector.
+    Retorna (avg_vv_db, avg_vh_db, fecha) o None si no hay datos.
+    """
+    venue_id, cancha_ids = SECTOR_CANCHAS[sector_id]
+    sar = sar_cache.get(venue_id, {})
+
+    if not cancha_ids:
+        # Amalfitani: tomar el dato del venue directamente
+        row = sar.get("amalfitani") or next(iter(sar.values()), None)
+        if row:
+            return float(row["sar_vv_db"]), float(row["sar_vh_db"]), str(row.get("fecha_imagen", ""))[:10]
         return None
+
+    vv_vals, vh_vals, fechas = [], [], []
+    for cid in cancha_ids:
+        row = sar.get(cid)
+        if row and row.get("sar_vv_db") is not None and row.get("sar_vh_db") is not None:
+            vv_vals.append(float(row["sar_vv_db"]))
+            vh_vals.append(float(row["sar_vh_db"]))
+            fechas.append(str(row.get("fecha_imagen", ""))[:10])
+
+    if not vv_vals:
+        return None
+
+    avg_vv = sum(vv_vals) / len(vv_vals)
+    avg_vh = sum(vh_vals) / len(vh_vals)
+    fecha  = max(fechas) if fechas else str(date.today())
+    return round(avg_vv, 3), round(avg_vh, 3), fecha
+
+
+# ── Supabase write via psycopg2 ───────────────────────────────────────────────
+
+def _upsert(rows: list[dict]) -> bool:
+    if not SUPA_DB_URL or "[YOUR-PASSWORD]" in SUPA_DB_URL:
+        log.error("SUPABASE_DB_URL no configurado correctamente")
+        return False
+    try:
+        import psycopg2
+        conn = psycopg2.connect(SUPA_DB_URL, connect_timeout=15, sslmode="require")
+        cur = conn.cursor()
+        cur.execute(_CREATE_SQL)
+        for r in rows:
+            cur.execute(_UPSERT_SQL, (
+                r["cancha_id"], r["fecha"],
+                r["dprvi_value"], r["dprvi_confidence_pct"],
+                r["vh_db"], r["vv_db"], r["vh_vv_ratio"],
+            ))
+        conn.commit()
+        cur.close()
+        conn.close()
+        log.info("dprvi_metrics upsert OK — %d filas", len(rows))
+        return True
+    except Exception as exc:
+        log.error("psycopg2 upsert: %s", exc)
+        return False
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main() -> int:
-    log.info("=== faro_dprvi_downloader START ===")
+    log.info("=== faro_dprvi_downloader START (SAR-native, no GCS) ===")
 
-    if not GCS_SA_JSON:
-        log.error("GCS_SERVICE_ACCOUNT_JSON no configurado — saliendo")
-        return 1
     if not SUPA_KEY:
-        log.error("SUPABASE_KEY no configurado — saliendo")
+        log.error("SUPABASE_KEY no configurado")
+        return 1
+    if not SUPA_DB_URL:
+        log.error("SUPABASE_DB_URL no configurado")
         return 1
 
-    try:
-        token = _gcs_token()
-        log.info("GCS token OK")
-    except Exception as e:
-        log.error("GCS auth error: %s", e)
-        return 1
+    # 1. Fetch SAR data por venue (2 queries)
+    sar_cache: dict[str, dict[str, dict]] = {}
+    for venue_id in ("amalfitani", "villa_olimpica"):
+        sar_cache[venue_id] = _get_sar(venue_id, dias=14)
+        log.info("SAR %s: %d canchas con datos", venue_id, len(sar_cache[venue_id]))
 
-    try:
-        blob_name, data = _latest_blob(token)
-    except Exception as e:
-        log.error("GCS download error: %s", e)
-        return 1
+    # 2. Computar DpRVIc por sector
+    rows: list[dict] = []
+    today = str(date.today())
 
-    # Extraer fecha del blob name o del JSON
-    fecha_str = data.get("fecha") or blob_name.split("/")[1] if "/" in blob_name else str(date.today())
-    try:
-        fecha = date.fromisoformat(fecha_str)
-    except ValueError:
-        fecha = date.today()
+    for sector_id in SECTOR_CANCHAS:
+        result = _sector_vv_vh(sector_id, sar_cache)
+        if result is None:
+            log.warning("Sector %s — sin datos SAR, skip", sector_id)
+            continue
+        vv_db, vh_db, fecha_sar = result
+        dprvi_val, ratio, conf = _dprvi(vv_db, vh_db)
 
-    rows = _parse_gee_json(data, fecha)
+        row = {
+            "cancha_id":             sector_id,
+            "fecha":                 today,
+            "dprvi_value":           dprvi_val,
+            "dprvi_confidence_pct":  conf,
+            "vh_db":                 vh_db,
+            "vv_db":                 vv_db,
+            "vh_vv_ratio":           ratio,
+        }
+        rows.append(row)
+        log.info("  %s → DpRVIc=%.4f (VV=%.1f dB, VH=%.1f dB, conf=%d%%)",
+                 sector_id, dprvi_val, vv_db, vh_db, conf)
+
     if not rows:
-        log.error("Sin filas parseadas desde %s", blob_name)
+        log.error("Sin sectores con datos SAR — abortando")
         return 1
 
-    log.info("Filas parseadas: %d (fecha=%s)", len(rows), fecha)
-    for r in rows:
-        log.info("  %s → dprvi=%.4f conf=%d%%", r["cancha_id"], r["dprvi_value"], r["dprvi_confidence_pct"])
-
-    ok = _upsert_dprvi(rows)
+    # 3. Upsert en dprvi_metrics
+    ok = _upsert(rows)
     if not ok:
         return 1
 
-    log.info("=== faro_dprvi_downloader OK ===")
+    log.info("=== faro_dprvi_downloader OK — %d sectores ===", len(rows))
     return 0
 
 
