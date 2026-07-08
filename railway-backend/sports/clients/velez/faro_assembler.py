@@ -411,6 +411,8 @@ def _build_roger_canchas(vd: dict) -> list:
         **{k: v for k, v in (
             vd.get("usuarios", {}).get("roger", {}).get("heatmaps", {}).get("amalfitani") or {}
         ).items() if k not in ("archivo", "detalle", "texto")},
+        # ERA5-Land sectorial + enrichment (ipos, ndre, ccci, zonas_urgencia)
+        **{k: v for k, v in estadio.items() if k.startswith("era5_") or k in ("ipos", "ndre", "ccci", "zonas_urgencia")},
         # Hermes individual
         "humedad_estimada":      amalf_hermes.get("humedad_estimada"),
         "hermes_alertas":        amalf_hermes.get("alertas", []),
@@ -431,6 +433,143 @@ def _build_roger_canchas(vd: dict) -> list:
         roger_canchas.append(entry)
 
     return roger_canchas
+
+
+def _apply_cancha_enrichment(vd: dict) -> None:
+    """IPOS + NDRE/CCCI + zone_urgency por cancha desde Supabase (bulk, 3 queries total)."""
+    try:
+        import velez_supabase as _vs
+
+        vo_canchas = vd.get("sectores", {}).get("canchero", {}).get("canchas", [])
+        vo_ids = [c["id"] for c in vo_canchas if c.get("id")]
+        all_ids = ["amalfitani"] + vo_ids
+
+        # 1 query: IPOS bulk
+        ipos_map = _vs.compute_ipos_bulk(all_ids)
+
+        # 1 query: vegetation_metrics amalfitani (ndre, ccci)
+        veg_amalf = _vs.get_vegetation_metrics_latest("amalfitani", cancha_id=None, dias=30)
+        amalf_veg = next(
+            (r for r in veg_amalf if r.get("ndre") is not None or r.get("ccci") is not None),
+            {}
+        )
+
+        # 1 query: vegetation_metrics villa_olimpica (ndre, ccci por cancha)
+        veg_vo = _vs.get_vegetation_metrics_latest("villa_olimpica", cancha_id=None, dias=30)
+        veg_by_cid: dict[str, dict] = {}
+        for row in veg_vo:
+            cid = row.get("cancha_id")
+            if cid and cid not in veg_by_cid and (row.get("ndre") is not None or row.get("ccci") is not None):
+                veg_by_cid[cid] = row
+
+        # 1 query: zone_urgency_state bulk
+        zone_bulk = _vs.get_zone_urgency_bulk(all_ids)
+
+        # Enrich estadio (Amalfitani)
+        estadio = vd.setdefault("sectores", {}).setdefault("estadio", {})
+        estadio["ipos"]           = ipos_map.get("amalfitani", 0.0)
+        estadio["ndre"]           = amalf_veg.get("ndre")
+        estadio["ccci"]           = amalf_veg.get("ccci")
+        estadio["zonas_urgencia"] = zone_bulk.get("amalfitani", {})
+
+        # Enrich each VO cancha dict in-place
+        for c in vo_canchas:
+            cid = c.get("id", "")
+            if not cid:
+                continue
+            veg = veg_by_cid.get(cid, {})
+            c["ipos"]           = ipos_map.get(cid, 0.0)
+            c["ndre"]           = veg.get("ndre")
+            c["ccci"]           = veg.get("ccci")
+            c["zonas_urgencia"] = zone_bulk.get(cid, {})
+
+    except Exception as e:
+        log.warning("assembler: cancha_enrichment (non-fatal): %s", e)
+
+
+def _apply_era5_sectorial_overlay(vd: dict) -> None:
+    """ERA5-Land sectorial → ET₀/T/RH/SM por cancha desde climate_metrics_sectorial."""
+    try:
+        _here = os.path.dirname(os.path.abspath(__file__))
+        if _here not in sys.path:
+            sys.path.insert(0, _here)
+        from faro_era5_land_sectorial import get_sector_climate as _gsc
+        from sector_mapping import all_sector_ids, CANCHA_TO_SECTOR
+
+        sector_data: dict = {}
+        for sid in all_sector_ids():
+            row = _gsc(sid)
+            if row:
+                sector_data[sid] = row
+
+        if not sector_data:
+            log.info("assembler: era5_sectorial — sin datos recientes en climate_metrics_sectorial")
+            return
+
+        vd["era5_sectorial"] = {
+            sid: {
+                "et0_mm_dia":    d.get("et0_mm_dia"),
+                "temp_2m_c":     d.get("temp_2m_c"),
+                "rh_pct":        d.get("rh_pct"),
+                "sm_0_7cm_pct":  d.get("sm_0_7cm_pct"),
+                "fecha":         d.get("fecha"),
+            }
+            for sid, d in sector_data.items()
+        }
+
+        amalf = sector_data.get("amalfitani_central")
+        if amalf:
+            wl = vd.setdefault("weather_live", {})
+            for src, dst in (
+                ("et0_mm_dia",    "era5_et0_mm_dia"),
+                ("temp_2m_c",     "era5_temp_2m_c"),
+                ("rh_pct",        "era5_rh_pct"),
+                ("sm_0_7cm_pct",  "era5_sm_0_7cm_pct"),
+            ):
+                if amalf.get(src) is not None:
+                    wl[dst] = amalf[src]
+            if amalf.get("et0_mm_dia") is not None and wl.get("et0_mm_dia") is None:
+                wl["et0_mm_dia"] = amalf["et0_mm_dia"]
+            est = vd.setdefault("sectores", {}).setdefault("estadio", {})
+            for src, dst in (
+                ("et0_mm_dia",    "era5_et0_mm_dia"),
+                ("temp_2m_c",     "era5_temp_2m_c"),
+                ("rh_pct",        "era5_rh_pct"),
+                ("sm_0_7cm_pct",  "era5_sm_0_7cm_pct"),
+            ):
+                if amalf.get(src) is not None:
+                    est[dst] = amalf[src]
+
+        cancha_list = (vd.get("sectores", {})
+                         .get("canchero", {})
+                         .get("canchas", []))
+        updated = 0
+        for c in cancha_list:
+            cid = c.get("id", "")
+            sid = CANCHA_TO_SECTOR.get(cid)
+            if not sid:
+                continue
+            d = sector_data.get(sid)
+            if not d:
+                continue
+            for src, dst in (
+                ("et0_mm_dia",    "era5_et0_mm_dia"),
+                ("temp_2m_c",     "era5_temp_2m_c"),
+                ("rh_pct",        "era5_rh_pct"),
+                ("sm_0_7cm_pct",  "era5_sm_0_7cm_pct"),
+            ):
+                if d.get(src) is not None:
+                    c[dst] = d[src]
+            c["era5_fecha"] = d.get("fecha")
+            updated += 1
+
+        log.info(
+            "assembler: era5_sectorial OK — %d sectores / %d canchas VO / Amalfitani ET₀=%.2f",
+            len(sector_data), updated,
+            float((amalf or {}).get("et0_mm_dia") or 0),
+        )
+    except Exception as e:
+        log.warning("assembler: era5_sectorial (non-fatal): %s", e)
 
 
 def _apply_faro_v2_overlay(vd: dict, venue_id: str) -> None:
@@ -650,6 +789,8 @@ def assemble_report(venue_id: str = "amalfitani") -> dict:
     _apply_surface_rules(vd)
     _apply_solar_overlay(vd)
     _apply_piletas_overlay(vd)
+    _apply_era5_sectorial_overlay(vd)       # ET₀/T/RH/SM por sector desde climate_metrics_sectorial
+    _apply_cancha_enrichment(vd)            # IPOS + NDRE/CCCI + zone_urgency por cancha (bulk)
     _apply_faro_v2_overlay(vd, venue_id)   # SAR vv/vh, GHI solar, HAND hydro desde faro_v2_reports
     _apply_solar_pvlib(vd)                 # physics-based efficiency: NOCT model + NASA POWER GHI
     _parse_detalle_fields(vd)              # extrae floats de detalle strings (fallback si v2 no tiene datos)

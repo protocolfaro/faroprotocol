@@ -900,6 +900,63 @@ def compute_ipos_from_db(cancha_id: str, dias: int = 7) -> float:
     return round(max(0.0, total), 1)
 
 
+def compute_ipos_bulk(cancha_ids: list[str], dias: int = 7) -> dict[str, float]:
+    """Bulk IPOS for multiple canchas in one query. Returns {cancha_id: ipos_pts}."""
+    if not _ok() or not cancha_ids:
+        return {}
+    from datetime import date as _d, timedelta as _td
+    since = (_d.today() - _td(days=dias)).isoformat()
+    ids_csv = ",".join(cancha_ids)
+    url = (f"{_base()}/rest/v1/velez_intervenciones"
+           f"?cancha_id=in.({ids_csv})&fecha=gte.{since}&limit=500")
+    try:
+        r = _req.get(url, headers=_hdrs(), timeout=8)
+        if r.status_code != 200:
+            log.warning("ipos_bulk HTTP %s", r.status_code)
+            return {}
+        totals: dict[str, float] = {cid: 0.0 for cid in cancha_ids}
+        for row in r.json():
+            cid   = row.get("cancha_id", "")
+            tipo  = (row.get("tipo") or "").lower()
+            horas = float(row.get("horas_uso") or 1.0)
+            if cid not in totals:
+                continue
+            if tipo == "entrenamiento":
+                totals[cid] += _IPOS_EVENT_PTS["entrenamiento"] * horas
+            elif tipo == "lluvia":
+                totals[cid] += -100.0 if horas >= 30 else _IPOS_EVENT_PTS["lluvia"]
+            elif tipo in _IPOS_EVENT_PTS:
+                totals[cid] += _IPOS_EVENT_PTS[tipo]
+        return {cid: round(max(0.0, v), 1) for cid, v in totals.items()}
+    except Exception as exc:
+        log.warning("ipos_bulk: %s", exc)
+    return {}
+
+
+def get_zone_urgency_bulk(cancha_ids: list[str]) -> dict[str, dict[str, dict]]:
+    """Bulk fetch zone_urgency_state. Returns {cancha_id: {zone_id: {urgency, consecutive_count}}}."""
+    if not _ok() or not cancha_ids:
+        return {}
+    ids_csv = ",".join(cancha_ids)
+    url = f"{_base()}/rest/v1/zone_urgency_state?cancha_id=in.({ids_csv})&limit=500"
+    try:
+        r = _req.get(url, headers=_hdrs(), timeout=8)
+        if r.status_code == 200:
+            result: dict[str, dict[str, dict]] = {}
+            for row in r.json():
+                cid = row["cancha_id"]
+                zid = row["zone_id"]
+                result.setdefault(cid, {})[zid] = {
+                    "urgency":           row.get("urgency"),
+                    "consecutive_count": row.get("consecutive_count"),
+                }
+            return result
+        log.warning("zone_urgency_bulk HTTP %s", r.status_code)
+    except Exception as exc:
+        log.warning("zone_urgency_bulk: %s", exc)
+    return {}
+
+
 # ── zone_urgency_state (hysteresis debounce) ──────────────────────────────────
 # SQL migration (safe to re-run):
 #   CREATE TABLE IF NOT EXISTS zone_urgency_state (
