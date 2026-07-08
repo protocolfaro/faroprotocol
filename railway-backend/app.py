@@ -1113,6 +1113,8 @@ def velez_panel_roger():
             "weather_live":   vd.get("weather_live", {}),
             # Hermes — consolidado venue + por cancha
             "hermes":         vd.get("hermes", {}),
+            # ERA5-Land sectorial por sector (amalfitani_central, vo_bloque_a/b/c/d)
+            "era5_sectorial": vd.get("era5_sectorial", {}),
             # Tareas semanales de Roger
             "tareas_semana":  roger.get("tareas_semana", []),
             # Metadatos de los heatmaps

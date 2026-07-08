@@ -402,7 +402,9 @@ def compute_zone(zone_id: str, ipos_score: float, wl: dict,
 
 
 def compute_cancha(cancha_id: str, ipos_score: float, ipos_semaforo: str,
-                   wl: dict, ndvi: float | None, heatmap_archivo: str | None) -> dict:
+                   wl: dict, ndvi: float | None, heatmap_archivo: str | None,
+                   sar_vv_db: float | None = None, sar_vh_db: float | None = None,
+                   sar_fecha: str | None = None) -> dict:
     wl_c = _enrich_with_sector(cancha_id, wl)
 
     # Per-cancha IPOS from live DB (overrides static JSON value when available)
@@ -441,6 +443,9 @@ def compute_cancha(cancha_id: str, ipos_score: float, ipos_semaforo: str,
         "worst_color":     URGENCY_COLORS.get(worst_urgency, "#22C55E"),
         "fungal_nivel":    fungal_nivel,
         "zones":           zones,
+        "sar_vv_db":       sar_vv_db,
+        "sar_vh_db":       sar_vh_db,
+        "sar_fecha":       sar_fecha,
     }
 
 
@@ -458,13 +463,17 @@ def generate_prescriptions(roger_canchas: list[dict], weather_live: dict) -> dic
         cid  = cancha.get("id") or cancha.get("cancha_id")
         if not cid:
             continue
-        ipos_score   = float(cancha.get("ipos_score") or cancha.get("score") or 0)
+        ipos_score   = float(cancha.get("ipos_score") or cancha.get("ipos") or cancha.get("score") or 0)
         ipos_semaforo = cancha.get("semaforo") or "verde"
         ndvi          = cancha.get("ndvi")
         hm_archivo    = cancha.get("heatmap_archivo")
+        c_sar_vv      = cancha.get("sar_vv_db")
+        c_sar_vh      = cancha.get("sar_vh_db")
+        c_sar_fecha   = cancha.get("sar_fecha") or weather_live.get("sar_fecha")
 
         canchas_out[cid] = compute_cancha(
-            cid, ipos_score, ipos_semaforo, weather_live, ndvi, hm_archivo
+            cid, ipos_score, ipos_semaforo, weather_live, ndvi, hm_archivo,
+            sar_vv_db=c_sar_vv, sar_vh_db=c_sar_vh, sar_fecha=c_sar_fecha,
         )
 
     wl = weather_live
