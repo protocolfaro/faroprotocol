@@ -421,6 +421,7 @@ def _build_roger_canchas(vd: dict) -> list:
     })
 
     # 12 canchas Villa Olímpica
+    heatmaps = vd.get("usuarios", {}).get("roger", {}).get("heatmaps", {})
     for c in vd.get("sectores", {}).get("canchero", {}).get("canchas", []):
         cid = c.get("id", "")
         c_hermes = hermes_pc.get(cid, {})
@@ -430,6 +431,15 @@ def _build_roger_canchas(vd: dict) -> list:
         entry["hermes_alertas"]   = c_hermes.get("alertas", [])
         entry["hermes_confianza"] = c_hermes.get("confianza")
         entry["heatmap_archivo"]  = f"heatmap_{cid}.png"
+        # focos_reales y pct_baja_ndvi desde heatmaps si no viene en c
+        if not entry.get("focos_reales"):
+            hm = heatmaps.get(cid, {})
+            if hm.get("focos_reales"):
+                entry["focos_reales"] = hm["focos_reales"]
+        if not entry.get("pct_baja_ndvi"):
+            hm = heatmaps.get(cid, {})
+            if hm.get("pct_baja_ndvi") is not None:
+                entry["pct_baja_ndvi"] = hm["pct_baja_ndvi"]
         roger_canchas.append(entry)
 
     return roger_canchas
@@ -796,6 +806,11 @@ def assemble_report(venue_id: str = "amalfitani") -> dict:
     _parse_detalle_fields(vd)              # extrae floats de detalle strings (fallback si v2 no tiene datos)
     # Vista unificada Roger: Amalfitani + 12 canchas VO con todos los campos científicos
     vd["roger_canchas"] = _build_roger_canchas(vd)
+    try:
+        from faro_spatial_alerts import apply_spatial_alerts
+        apply_spatial_alerts(vd)
+    except Exception as _sa_e:
+        log.warning("assembler: spatial_alerts (non-fatal): %s", _sa_e)
     for _c in vd.get("sectores", {}).get("canchero", {}).get("canchas", []):
         _cid = _c.get("id", "")
         if _cid:

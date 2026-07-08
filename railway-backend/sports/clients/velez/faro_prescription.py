@@ -404,7 +404,9 @@ def compute_zone(zone_id: str, ipos_score: float, wl: dict,
 def compute_cancha(cancha_id: str, ipos_score: float, ipos_semaforo: str,
                    wl: dict, ndvi: float | None, heatmap_archivo: str | None,
                    sar_vv_db: float | None = None, sar_vh_db: float | None = None,
-                   sar_fecha: str | None = None) -> dict:
+                   sar_fecha: str | None = None,
+                   focos_reales: list | None = None,
+                   spatial_alerts: list | None = None) -> dict:
     wl_c = _enrich_with_sector(cancha_id, wl)
 
     # Per-cancha IPOS from live DB (overrides static JSON value when available)
@@ -446,6 +448,8 @@ def compute_cancha(cancha_id: str, ipos_score: float, ipos_semaforo: str,
         "sar_vv_db":       sar_vv_db,
         "sar_vh_db":       sar_vh_db,
         "sar_fecha":       sar_fecha,
+        "focos_reales":    focos_reales or [],
+        "spatial_alerts":  spatial_alerts or [],
     }
 
 
@@ -470,10 +474,13 @@ def generate_prescriptions(roger_canchas: list[dict], weather_live: dict) -> dic
         c_sar_vv      = cancha.get("sar_vv_db")
         c_sar_vh      = cancha.get("sar_vh_db")
         c_sar_fecha   = cancha.get("sar_fecha") or weather_live.get("sar_fecha")
+        c_focos       = cancha.get("focos_reales") or []
+        c_alerts      = cancha.get("spatial_alerts") or []
 
         canchas_out[cid] = compute_cancha(
             cid, ipos_score, ipos_semaforo, weather_live, ndvi, hm_archivo,
             sar_vv_db=c_sar_vv, sar_vh_db=c_sar_vh, sar_fecha=c_sar_fecha,
+            focos_reales=c_focos, spatial_alerts=c_alerts,
         )
 
     wl = weather_live
@@ -526,6 +533,9 @@ def generate_prescriptions(roger_canchas: list[dict], weather_live: dict) -> dic
         # ECOSTRESS ET real + SMAP soil moisture
         "et_ecostress_mm":     wl.get("et_ecostress_mm"),
         "smap_sm_pct":         wl.get("smap_sm_pct"),
+        # SAR next acquisition date (Sentinel-1 repeat 12d)
+        "sar_next_fecha":           wl.get("sar_next_fecha"),
+        "sar_dias_hasta_siguiente": wl.get("sar_dias_hasta_siguiente"),
     }
 
     return {

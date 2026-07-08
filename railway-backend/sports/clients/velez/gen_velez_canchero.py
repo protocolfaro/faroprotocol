@@ -389,12 +389,12 @@ def _build_zones_from_vd(vd):
         _a_riego  = round(_deficit) if _deficit is not None else _sem_riego.get(_a_sem, 12)
         _a_hk     = _hongos_from_sk(_sk_pct) if _sk_pct is not None else _sem_hon.get(_a_sem, 'No')
         _a_comp   = _compact_label(_sc_fn({'theta_soil': _theta_g, 'sar_vv_db': _vv_g})) if _sc_fn else _sem_comp.get(_a_sem, 'Media')
-        _a_pct_baja = _estadio.get('pct_baja_ndvi')
+        _a_pct_baja = _estadio.get('pct_baja_ndvi') or _hm_vd.get('amalfitani', {}).get('pct_baja_ndvi')
         _a_res = ('No' if not isinstance(_a_pct_baja, float) or _a_pct_baja < 15
                   else f'Parcial·{round(_a_pct_baja)}%' if _a_pct_baja < 35
                   else f'Total·{round(_a_pct_baja)}%')
         _a_ndvi2d = _hm_vd.get('amalfitani', {}).get('ndvi_2d')
-        _a_focos_raw = _estadio.get('focos_reales')
+        _a_focos_raw = _estadio.get('focos_reales') or _hm_vd.get('amalfitani', {}).get('focos_reales')
         _a_focos = ([
             {'x': f['x'], 'y': f['y'], 'ndvi': f['ndvi'],
              'color': REDL if f['ndvi'] < 0.20 else YELL,
@@ -487,7 +487,7 @@ def _build_zones_from_vd(vd):
 
         # ── 2.3 Resiembra real — % píxeles NDVI<0.30 dentro del bbox ──
         # Umbral: <15% → No, 15-35% → Parcial, >35% → Total
-        _pct_baja = c.get('pct_baja_ndvi')
+        _pct_baja = c.get('pct_baja_ndvi') if isinstance(c.get('pct_baja_ndvi'), (int, float)) else _hm_vd.get(cid, {}).get('pct_baja_ndvi')
         if isinstance(_pct_baja, (int, float)):
             if _pct_baja < 15:    _res_val = 'No'
             elif _pct_baja < 35:  _res_val = f'Parcial·{round(_pct_baja)}%'
@@ -496,7 +496,7 @@ def _build_zones_from_vd(vd):
             _res_val = _sem_res.get(sem, 'No')
 
         # ── 2.5 Focos reales — posición de píxeles dañados dentro del bbox ──
-        _focos_raw = c.get('focos_reales')
+        _focos_raw = c.get('focos_reales') or _hm_vd.get(cid, {}).get('focos_reales')
         if _focos_raw:
             _focos_val = [
                 {'x': f['x'], 'y': f['y'],
