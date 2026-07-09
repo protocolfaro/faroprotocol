@@ -608,9 +608,10 @@ def _apply_faro_v2_overlay(vd: dict, venue_id: str) -> None:
             wl["sar_vv_db"] = sar["vv_gamma0_db"]
         if sar.get("vh_gamma0_db") is not None and wl.get("sar_vh_db") is None:
             wl["sar_vh_db"] = sar["vh_gamma0_db"]
-        # θ_soil SAR → humedad_suelo_pct si hermes no lo proveyó
-        if sar.get("theta_soil") is not None and wl.get("humedad_suelo_pct") is None:
+        # θ_soil SAR sobreescribe Open-Meteo: SAR C-band mide humedad superficial real
+        if sar.get("theta_soil") is not None:
             wl["humedad_suelo_pct"] = round(float(sar["theta_soil"]) * 100, 1)
+            wl["humedad_suelo_fuente"] = "SAR-theta"
 
         # ── Solar GHI + ET₀ ──────────────────────────────────────────────────
         # gen_velez_solar_v2 lee sectores.solar.ghi_kwh_m2 para el panel ejecutivo

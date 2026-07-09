@@ -298,7 +298,8 @@ def _build_zones_from_vd(vd):
 
     # ── 1.2 Hongos real — Dollar Spot pressure via Smith-Kerns (ventana 5d T/RH) ──
     # Umbral: <30% → verde "No", 30-60% → amarillo "Preventivo", >60% → rojo "Activos"
-    _sk_pct = _wl.get('riesgo_dollar_spot_pct')
+    # Clave prioritaria: smith_kerns_pct (assembler ERA5); fallback alias: riesgo_dollar_spot_pct (data_refresh)
+    _sk_pct = _wl.get('smith_kerns_pct') or _wl.get('riesgo_dollar_spot_pct')
 
     def _hongos_from_sk(pct):
         if pct < 30:  return f'No ({pct:.0f}%)'
@@ -307,9 +308,11 @@ def _build_zones_from_vd(vd):
 
     # ── 1.5 Compactación real — score_compactacion_fisica (θ_soil + SAR VV C-band) ──
     # Umbral: <25 → Baja, 25-50 → Media, 50-70 → Alta, >70 → Crítica
+    # Sin SAR VV real → None (no se inventa)
     _hm_vd  = vd.get('usuarios', {}).get('roger', {}).get('heatmaps', {})
-    _theta_g = max(0.01, min(0.50, float(_wl.get('humedad_suelo_pct') or 20.0) / 100.0))
-    _vv_g    = float(_wl.get('sar_vv_db') or -14.0)
+    _hum_raw = _wl.get('humedad_suelo_pct')
+    _theta_g = max(0.01, min(0.50, float(_hum_raw) / 100.0)) if _hum_raw is not None else None
+    _vv_g    = _wl.get('sar_vv_db')  # None si no hay SAR real — nunca usar -14 dB inventado
     _sc_fn   = None
     try:
         from faro_compactacion_ml import score_compactacion_fisica as _sc_fn
@@ -317,6 +320,7 @@ def _build_zones_from_vd(vd):
         pass
 
     def _compact_label(s):
+        if s is None: return 'Sin dato SAR'
         if s < 25:  return f'Baja·{s:.0f}'
         if s < 50:  return f'Media·{s:.0f}'
         if s < 70:  return f'Alta·{s:.0f}'
@@ -386,11 +390,16 @@ def _build_zones_from_vd(vd):
         _a_ccci  = _estadio.get('ccci')
         _a_ccci_label = f'CCCI {_a_ccci:.3f}·sin hist' if isinstance(_a_ccci, float) else 'Sin histórico'
         _a_accion = (_a_det.split('·')[1].strip() if '·' in _a_det else _a_det) or 'Monitoreo rutinario'
-        _a_riego  = round(_deficit) if _deficit is not None else _sem_riego.get(_a_sem, 12)
-        _a_hk     = _hongos_from_sk(_sk_pct) if _sk_pct is not None else _sem_hon.get(_a_sem, 'No')
-        _a_comp   = _compact_label(_sc_fn({'theta_soil': _theta_g, 'sar_vv_db': _vv_g})) if _sc_fn else _sem_comp.get(_a_sem, 'Media')
+        _a_riego  = round(_deficit) if _deficit is not None else None  # None = sin dato ET0
+        _a_hk     = _hongos_from_sk(_sk_pct) if _sk_pct is not None else 'Sin dato'
+        # Compactación: requiere θ_soil Y SAR VV reales — sin ambos no se calcula
+        if _sc_fn is not None and _theta_g is not None and _vv_g is not None:
+            _a_comp = _compact_label(_sc_fn({'theta_soil': _theta_g, 'sar_vv_db': float(_vv_g)}))
+        else:
+            _a_comp = 'Sin dato SAR'
         _a_pct_baja = _estadio.get('pct_baja_ndvi') or _hm_vd.get('amalfitani', {}).get('pct_baja_ndvi')
-        _a_res = ('No' if not isinstance(_a_pct_baja, float) or _a_pct_baja < 15
+        _a_res = (None if not isinstance(_a_pct_baja, (int, float))
+                  else 'No' if _a_pct_baja < 15
                   else f'Parcial·{round(_a_pct_baja)}%' if _a_pct_baja < 35
                   else f'Total·{round(_a_pct_baja)}%')
         _a_ndvi2d = _hm_vd.get('amalfitani', {}).get('ndvi_2d')
@@ -400,12 +409,12 @@ def _build_zones_from_vd(vd):
              'color': REDL if f['ndvi'] < 0.20 else YELL,
              'label': f'NDVI\n{f["ndvi"]:.2f}', 'size': 0.09}
             for f in _a_focos_raw
-        ] if _a_focos_raw else _focos_map.get(_a_sem, _focos_verde))
+        ] if _a_focos_raw else [])  # sin imagen = sin focos, nunca sintéticos
         zones.append({
             'name': 'Amalfitani', 'sem': _a_sem,
             'estado': _sem_estado.get(_a_sem, 'ÓPTIMO'),
             'accion': _a_accion,
-            'ndvi': _a_ndvi, 'ndre': _a_ndre, 'n_kg': _sem_n.get(_a_sem, 0),
+            'ndvi': _a_ndvi, 'ndre': _a_ndre, 'n_kg': None,  # requiere CCCI baseline real
             'ccci': _a_ccci_label, 'riego': _a_riego,
             'resiembra': _a_res, 'hongos': _a_hk, 'compact': _a_comp,
             'drenaje': _a_dren,
@@ -430,21 +439,19 @@ def _build_zones_from_vd(vd):
                         else detalle.split('·')[1].strip() if '·' in detalle
                         else detalle)
 
-        # 1.1 riego: déficit semanal mm (real) o fallback semáforo
-        _riego_val = (round(_deficit) if _deficit is not None
-                      else _sem_riego.get(sem, 18))
+        # 1.1 riego: déficit semanal mm (real); None = sin dato ET0 — nunca inventar
+        _riego_val = round(_deficit) if _deficit is not None else None
 
-        # 1.2 hongos: Smith-Kerns (real) o fallback semáforo
-        _hongos_val = (_hongos_from_sk(_sk_pct) if _sk_pct is not None
-                       else _sem_hon.get(sem, 'No'))
+        # 1.2 hongos: Smith-Kerns (real ERA5 T/RH); sin dato = Sin dato
+        _hongos_val = (_hongos_from_sk(_sk_pct) if _sk_pct is not None else 'Sin dato')
 
-        # 1.5 compact: score físico (real) o fallback semáforo
-        if _sc_fn is not None:
-            _vv_c = float(_hm_vd.get(cid, {}).get('sar_vv_db') or _vv_g)
-            _cs   = _sc_fn({'theta_soil': _theta_g, 'sar_vv_db': _vv_c})
+        # 1.5 compact: score físico requiere θ_soil + SAR VV reales — sin ambos = Sin dato SAR
+        _vv_c_raw = _hm_vd.get(cid, {}).get('sar_vv_db') or _vv_g
+        if _sc_fn is not None and _theta_g is not None and _vv_c_raw is not None:
+            _cs  = _sc_fn({'theta_soil': _theta_g, 'sar_vv_db': float(_vv_c_raw)})
             _compact_val = _compact_label(_cs)
         else:
-            _compact_val = _sem_comp.get(sem, 'Media')
+            _compact_val = 'Sin dato SAR'
 
         # ── 2.1 NDRE real — B05 RedEdge (Sentinel-2) via satellite pipeline ──
         # Umbral N: <0.15 → deficiencia severa, 0.15-0.25 → moderada, >0.25 → OK
@@ -482,8 +489,8 @@ def _build_zones_from_vd(vd):
                 _ccci_label = f'{_sign}{_dev}% vs hist·{_season[:3]}'
             else:
                 _ccci_label = f'CCCI {_ccci_raw:.3f}·sin hist'
-        # n_kg falls back to semáforo lookup until CCCI baseline is established
-        _n_kg_val = _sem_n.get(sem, 0)
+        # n_kg requiere CCCI baseline real acumulado — sin histórico no se prescribe dosis
+        _n_kg_val = None
 
         # ── 2.3 Resiembra real — % píxeles NDVI<0.30 dentro del bbox ──
         # Umbral: <15% → No, 15-35% → Parcial, >35% → Total
@@ -493,20 +500,18 @@ def _build_zones_from_vd(vd):
             elif _pct_baja < 35:  _res_val = f'Parcial·{round(_pct_baja)}%'
             else:                  _res_val = f'Total·{round(_pct_baja)}%'
         else:
-            _res_val = _sem_res.get(sem, 'No')
+            _res_val = None  # sin imagen satelital no se prescribe resiembra
 
         # ── 2.5 Focos reales — posición de píxeles dañados dentro del bbox ──
+        # Sin imagen limpia de S2 → lista vacía, nunca focos sintéticos
         _focos_raw = c.get('focos_reales') or _hm_vd.get(cid, {}).get('focos_reales')
-        if _focos_raw:
-            _focos_val = [
-                {'x': f['x'], 'y': f['y'],
-                 'ndvi': f['ndvi'],      # conservado para overlay en heatmap panel
-                 'color': REDL if f['ndvi'] < 0.20 else YELL,
-                 'label': f'NDVI\n{f["ndvi"]:.2f}', 'size': 0.09}
-                for f in _focos_raw
-            ]
-        else:
-            _focos_val = _focos_map.get(sem, _focos_amari)
+        _focos_val = ([
+            {'x': f['x'], 'y': f['y'],
+             'ndvi': f['ndvi'],
+             'color': REDL if f['ndvi'] < 0.20 else YELL,
+             'label': f'NDVI\n{f["ndvi"]:.2f}', 'size': 0.09}
+            for f in _focos_raw
+        ] if _focos_raw else [])
 
         # ── 4.2 ndvi_2d — matriz satelital 2D para panel heatmap ──────────────
         # Lista-de-listas float16 normalizada [0,1] (vmin=0.10, vmax=0.65).
@@ -548,21 +553,43 @@ def _build_zones_from_vd(vd):
 import os as _os, json as _json
 _vd_path = _os.environ.get("FARO_VD_PATH")
 _insar_sectors: dict | None = None   # 1.4: sector InSAR mm values from JSON
-if _vd_path:
+
+def _load_vd_data():
+    """Carga VelezReport: desde FARO_VD_PATH si existe, si no desde el assembler en vivo."""
+    if _vd_path:
+        try:
+            with open(_vd_path, encoding="utf-8") as _f:
+                return _json.load(_f)
+        except Exception as _e:
+            print(f"FARO_VD_PATH canchero: {_e} — intentando assembler en vivo")
+    # Sin archivo: ensamblar desde Supabase en tiempo real
     try:
-        with open(_vd_path, encoding="utf-8") as _f:
-            _vd_data = _json.load(_f)
-        _zones_real = _build_zones_from_vd(_vd_data)
-        if _zones_real:
-            ZONES = _zones_real
-        # 1.4: extract InSAR sector displacements (pushed by run_insar_refresh)
-        _secs = _vd_data.get("sectores", {})
-        _ins_check = {k: _secs.get(k, {}).get("insar_mm")
-                      for k in ("estadio", "poli", "sede", "piletas")}
-        if any(v is not None for v in _ins_check.values()):
-            _insar_sectors = _ins_check
-    except Exception as _e:
-        print(f"FARO_VD_PATH canchero: {_e} — usando datos hardcodeados")
+        import sys as _sys_a, pathlib as _pl_a
+        _here_a = str(_pl_a.Path(__file__).resolve().parent)
+        if _here_a not in _sys_a.path:
+            _sys_a.path.insert(0, _here_a)
+        from faro_assembler import assemble_report as _ar
+        _vd = _ar("amalfitani")
+        if _vd:
+            print("gen_velez_canchero: assembler en vivo OK")
+            return _vd
+    except Exception as _e2:
+        print(f"gen_velez_canchero: assembler fallido: {_e2}")
+    return None  # sin datos reales: ZONES queda vacío, no se usan hardcodeados
+
+_vd_data = _load_vd_data()
+if _vd_data is not None:
+    _zones_real = _build_zones_from_vd(_vd_data)
+    if _zones_real:
+        ZONES = _zones_real
+    # 1.4: extract InSAR sector displacements (pushed by run_insar_refresh)
+    _secs = _vd_data.get("sectores", {})
+    _ins_check = {k: _secs.get(k, {}).get("insar_mm")
+                  for k in ("estadio", "poli", "sede", "piletas")}
+    if any(v is not None for v in _ins_check.values()):
+        _insar_sectors = _ins_check
+else:
+    print("gen_velez_canchero: sin datos reales disponibles — panel no renderizable")
 _out_path = _os.environ.get("FARO_OUT_PATH")
 
 # Test hook: FARO_DUMP_ZONES=1 → imprime zones como JSON y sale antes del rendering.
@@ -1146,8 +1173,8 @@ if _insar_sectors is not None:
     labels_ins = [lbl for lbl, v in _ins_valid] if _ins_valid else ['Estadio', 'Poli', 'Sede', 'Piletas']
     vals_ins   = [v   for lbl, v in _ins_valid] if _ins_valid else [0.0, 0.0, 0.0, 0.0]
 else:
-    labels_ins = ['Norte', 'Sur', 'Este', 'Oeste']
-    vals_ins   = [0.85, 1.20, 0.60, 2.80]
+    labels_ins = ['Estadio', 'Poli', 'Sede', 'Piletas']
+    vals_ins   = [0.0, 0.0, 0.0, 0.0]
 colors_ins = [REDL if v >= 2.0 else (YELL if v >= 1.0 else GRNL) for v in vals_ins]
 x_pos_ins  = np.arange(len(labels_ins))
 

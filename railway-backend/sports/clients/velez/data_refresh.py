@@ -266,17 +266,37 @@ def _penman_monteith(tmax, tmin, rh, ws2m, allsky_kwh, doy):
 
 
 def _gndvi_per_cancha():
+    """Lee GNDVI/NDVI per-cancha desde Supabase (velez_canchas). Sin datos reales → vacío."""
     def _n(g):
         if g < 0.30: return "grave",      "Fertilizar URGENTE — deficiencia N grave"
         if g < 0.38: return "bajo",       "Fertilizar esta semana — déficit N moderado"
         if g < 0.45: return "borderline", "Fertilización preventiva recomendable"
         return          "ok",             "Nitrógeno adecuado"
-    canchas = {}
-    for cid, ndvi in _CANCHA_NDVI.items():
-        gndvi = round(max(0, ndvi * _GNDVI_K[cid] - 0.01), 2)
-        nst, nrec = _n(gndvi)
-        canchas[cid] = {"gndvi": gndvi, "n_status": nst, "n_rec": nrec}
-    return {"fuente": "estimado-ndvi", "canchas": canchas}
+    canchas: dict = {}
+    try:
+        import sys as _sys_gn, pathlib as _pl_gn
+        _here_gn = str(_pl_gn.Path(__file__).resolve().parent)
+        if _here_gn not in _sys_gn.path:
+            _sys_gn.path.insert(0, _here_gn)
+        import velez_supabase as _vs_gn
+        cancha_map = _vs_gn.get_canchas()  # {cancha_id: row} from velez_canchas
+        fecha = None
+        for cid, row in cancha_map.items():
+            gndvi = row.get("gndvi")
+            ndvi  = row.get("ndvi")
+            if fecha is None:
+                fecha = row.get("fecha_imagen")
+            if gndvi is not None:
+                nst, nrec = _n(float(gndvi))
+                canchas[cid] = {"gndvi": round(float(gndvi), 3),
+                                 "ndvi":  round(float(ndvi), 3) if ndvi is not None else None,
+                                 "n_status": nst, "n_rec": nrec}
+        if canchas:
+            return {"fuente": "sentinel2-real", "fecha_imagen": fecha, "canchas": canchas}
+    except Exception as _e:
+        log.warning("_gndvi_per_cancha supabase: %s", _e)
+    # Sin datos reales: estructura vacía — el assembler completará desde velez_canchas
+    return {"fuente": "sin-datos", "canchas": {}}
 
 
 def _fungal_risk(h: dict, shadow_pct_by_cancha: dict = None) -> dict:
