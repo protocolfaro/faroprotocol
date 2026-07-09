@@ -100,10 +100,18 @@ def _get_sectores() -> dict:
 # ── WhatsApp (CallMeBot) ──────────────────────────────────────────────────────
 
 _WA_ALERT_USERS = [
-    {"nombre": "Roger Bernal",      "slug": "roger",    "phone": "541124642616", "env_key": "CALLMEBOT_KEY_ROGER",    "sectores": ["canchero"]},
-    {"nombre": "Juan González",     "slug": "juan",     "phone": "541151073109", "env_key": "CALLMEBOT_KEY_JUAN",     "sectores": ["canchero","agro","poli"]},
-    {"nombre": "Fernando Banchero", "slug": "banchero", "phone": "541167096384", "env_key": "CALLMEBOT_KEY_BANCHERO", "sectores": ["estadio","agro","solar","canchero","sede","poli","piletas"]},
-    {"nombre": "Nelson Pugliese",   "slug": "nelson",   "phone": "541156417353", "env_key": "CALLMEBOT_KEY_NELSON",   "sectores": ["estadio","agro","solar","canchero","sede","poli","piletas"]},
+    {"nombre": "Roger Bernal",      "slug": "roger",    "phone": "541124642616",
+     "env_key": "CALLMEBOT_KEY_ROGER",    "env_key_alt": "VELEZ_WHATSAPP_CANCHERO",
+     "sectores": ["canchero"]},
+    {"nombre": "Juan González",     "slug": "juan",     "phone": "541151073109",
+     "env_key": "CALLMEBOT_KEY_JUAN",     "env_key_alt": "VELEZ_WHATSAPP_INTENDENTE",
+     "sectores": ["canchero","agro","poli"]},
+    {"nombre": "Fernando Banchero", "slug": "banchero", "phone": "541167096384",
+     "env_key": "CALLMEBOT_KEY_BANCHERO", "env_key_alt": None,
+     "sectores": ["estadio","agro","solar","canchero","sede","poli","piletas"]},
+    {"nombre": "Nelson Pugliese",   "slug": "nelson",   "phone": "541156417353",
+     "env_key": "CALLMEBOT_KEY_NELSON",   "env_key_alt": "VELEZ_WHATSAPP_NELSON",
+     "sectores": ["estadio","agro","solar","canchero","sede","poli","piletas"]},
 ]
 
 
@@ -176,10 +184,12 @@ def send_whatsapp_alerts(vd: dict = None) -> dict:
     fecha_str = datetime.now(_ART).strftime("%d/%m/%Y")
     results   = {}
     for user in _WA_ALERT_USERS:
-        api_key = _env(user["env_key"])
+        api_key = _env(user["env_key"]) or (
+            _env(user["env_key_alt"]) if user.get("env_key_alt") else ""
+        )
         if not api_key:
-            log.info("WhatsApp: %s sin key configurada — omitido hasta que se cargue %s en Railway",
-                     user["nombre"], user["env_key"])
+            log.info("WhatsApp: %s sin key — configurar %s o %s en Railway",
+                     user["nombre"], user["env_key"], user.get("env_key_alt", ""))
             results[user["nombre"]] = None
             continue
         msg = _build_wa_message(user, sectores, fecha_str, vd=vd)
@@ -1880,7 +1890,7 @@ def route_test_whatsapp():
     users  = [u for u in _WA_ALERT_USERS if not nombre or u["nombre"] == nombre]
     results = {}
     for u in users:
-        api_key = _env(u["env_key"])
+        api_key = _env(u["env_key"]) or (_env(u["env_key_alt"]) if u.get("env_key_alt") else "")
         msg = f"Faro Protocol · TEST desde Railway · {datetime.now(_ART).strftime('%d/%m %H:%M')}"
         results[u["nombre"]] = send_whatsapp(u["phone"], msg, api_key) if api_key else None
     return jsonify({"status": "ok", "results": results})
