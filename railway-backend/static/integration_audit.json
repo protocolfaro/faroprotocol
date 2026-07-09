@@ -1,0 +1,271 @@
+{
+  "audit_version": "1.0",
+  "audited_at": "2026-07-05T15:30:00+00:00",
+  "railway_url": "https://faroprotocol-production-45fd.up.railway.app",
+  "commit_sha": "07c70f867cb0b0c976c9e78ecb994d5ad752399e",
+  "flow_status": "DEGRADED",
+  "overall_score": "7/12 components OK",
+
+  "components": [
+    {
+      "name": "Railway /health",
+      "status": "ok",
+      "latency_ms": 8120,
+      "detail": "HTTP 200 · status=ok · service=velez-ipos · commit=07c70f867c"
+    },
+    {
+      "name": "/api/health/status — ERA5-Land",
+      "status": "ok",
+      "latency_ms": 1601,
+      "detail": "lag_hours=3 · ET0=1.66 mm/day · threshold warn=12h err=24h"
+    },
+    {
+      "name": "/api/health/status — DpRVIc",
+      "status": "unknown",
+      "latency_ms": null,
+      "detail": "dprvi_metrics table empty — no acquisitions in DB · lag=null"
+    },
+    {
+      "name": "/api/health/status — Kalman",
+      "status": "error",
+      "latency_ms": null,
+      "detail": "lag_hours=148 (6.2 days) · threshold err=96h · last ndvi_syn=0.314 · gap-fill not running",
+      "fix": "Check faro_kalman_gapfill.py integration in satellite_pipeline.py daily job"
+    },
+    {
+      "name": "/api/health/status — SAR/S1",
+      "status": "ok_but_buggy",
+      "latency_ms": null,
+      "detail": "Status=ok · lag_hours=15 · REPORTED sar_vv_db=-0.82 dB (WRONG — bug in health endpoint reading created_at DESC without IS NOT NULL filter) · REAL last acquisition 2026-06-29 at VV=-15.19 dB from panel-data",
+      "fix": "Add sar_vv_db=not.is.null to _sar_status() Supabase query in routes/health.py:145"
+    },
+    {
+      "name": "/velez/prescriptions",
+      "status": "ok",
+      "latency_ms": 18103,
+      "detail": "HTTP 200 · 80838b · generated_at=2026-07-05T15:24:35 · per-cancha data present (dict keyed by cancha_id) · sar_vv_db=-15.19 · sar_fecha=2026-06-29 · ET0=1.66 mm/day · fungal=bajo · smith_kerns=1.4%"
+    },
+    {
+      "name": "/velez/panel-data?timeseries=true",
+      "status": "ok",
+      "latency_ms": 497,
+      "detail": "HTTP 200 · 1304b · 35 SAR acquisitions · last: 2026-06-29 VV=-15.19 dB VH=-26.5 dB · sar_vv_change_6d=+4.23 dB (HIGH — review) · theta_soil latest=null (Kalman offline)"
+    },
+    {
+      "name": "/static/dashboard.html",
+      "status": "ok",
+      "latency_ms": 278,
+      "detail": "HTTP 200 · 14105b · dark-theme dashboard · Cormorant Garamond + Epilogue fonts"
+    },
+    {
+      "name": "GET /api/health/audit-log",
+      "status": "warn",
+      "latency_ms": 446,
+      "detail": "HTTP 200 · count=0 · audit_log table EXISTS but is EMPTY — no production code writes to it"
+    },
+    {
+      "name": "POST /api/health/intervention-log",
+      "status": "error",
+      "latency_ms": null,
+      "detail": "HTTP 500 · Internal Server Error · Supabase returns error on INSERT · CAUSE: intervention_log table in prod DB has schema from infra_002_intervention_log.sql (uses tenant_id, valor_antes, delta_json) but code in routes/health.py:252 inserts venue_id + delta_ndvi + delta_sar_vv_db + estado_antes/despues — schema mismatch",
+      "fix": "Run migration 002_intervention_log.sql on Supabase prod to create correct schema, OR run infra_005_multi_tenant_rls.sql which recreates the table with proper columns"
+    },
+    {
+      "name": "/velez/diag-supabase (DB connectivity)",
+      "status": "ok",
+      "latency_ms": null,
+      "detail": "All 4 core tables INSERT OK: soil_metrics (id=908) · climate_metrics (id=73) · vegetation_metrics (id=343) · velez_intervenciones (id=18) · Supabase connectivity confirmed"
+    },
+    {
+      "name": "/scheduler/status",
+      "status": "warn",
+      "latency_ms": null,
+      "detail": "17 jobs registered · daily_sar_cascade next 2026-07-06T09:30 · weekly_report next 2026-07-06T10:00 · faro_cerebro interval 1h · WARN: jobstore=in-memory (persistent=false) — job history resets on Railway redeploy"
+    }
+  ],
+
+  "database_schema": {
+    "soil_metrics": {
+      "status": "warn",
+      "detail": "Table accessible · INSERT OK · MISSING: satellite_inferred column (migration 002_radiometric_correction_factors.sql not applied to prod) · MISSING: UNIQUE(cancha_id,fecha_imagen) constraint (duplicates possible)",
+      "fix": "Run railway-backend/migrations/002_radiometric_correction_factors.sql in Supabase SQL Editor"
+    },
+    "climate_metrics": {
+      "status": "ok",
+      "detail": "Table accessible · INSERT OK · ET0 data fresh (lag 3h)"
+    },
+    "vegetation_metrics": {
+      "status": "warn",
+      "detail": "Table accessible · INSERT OK · ndvi_sintetico (Kalman) lag=148h — exceeds 96h error threshold"
+    },
+    "audit_log": {
+      "status": "warn",
+      "detail": "Table EXISTS and queryable · count=0 · No production code path writes to it · health.py routes/audit-log reads 001_audit_log.sql schema (venue_id, action_type, source) but nothing inserts"
+    },
+    "intervention_log": {
+      "status": "error",
+      "detail": "Table EXISTS · POST INSERT fails HTTP 500 · Schema mismatch: DB has tenant_id schema, code sends venue_id + typed deltas",
+      "fix": "Apply migration 002_intervention_log.sql to Supabase prod SQL Editor"
+    },
+    "dprvi_metrics": {
+      "status": "warn",
+      "detail": "Table accessible (no error) · count=0 (empty) · DpRVIc acquisitions never ran or data not persisted"
+    }
+  },
+
+  "pipeline_connectivity": {
+    "era5_land": {
+      "status": "ok",
+      "env_var": "CDS_API_KEY",
+      "target_table": "climate_metrics_sectorial",
+      "last_write_lag_h": 3,
+      "note": "CDS_API_KEY present in Railway vars · NOT present in GitHub Actions secrets (weekly-emails.yml) — ERA5 in CI depends on cached data"
+    },
+    "sar_backfill": {
+      "status": "ok",
+      "env_var": "COPERNICUS_USER + COPERNICUS_PASS (CDSE) / public (PC)",
+      "target_table": "soil_metrics",
+      "last_acquisition": "2026-06-29",
+      "satellite": "S1A (last) — S1C/D expected from daily_sar_cascade 09:30 UTC",
+      "note": "satellite_inferred column missing from DB — backfill code ready but migration not applied"
+    },
+    "prescription_engine": {
+      "status": "ok",
+      "detail": "faro_prescription.py reads pre-assembled weather_live dict (NOT hermes_diagnostico directly) · pure computation · no DB writes · prescriptions generated fresh 15:24 UTC"
+    },
+    "kalman_gapfill": {
+      "status": "error",
+      "detail": "lag_hours=148 · last ndvi_syn=0.314 · Kalman not running in daily pipeline — satellite_pipeline.py may not call gap_fill_today()",
+      "fix": "Verify daily_scientific_enrichment job (09:15 UTC) calls faro_kalman_gapfill.gap_fill_today() and inserts to vegetation_metrics"
+    }
+  },
+
+  "panel_roger": {
+    "file": "velez/admin-roger/index.html",
+    "endpoint": "https://faroprotocol-production-45fd.up.railway.app/velez/prescriptions",
+    "poll_interval": "POLL_MS=5*60*1000 (5 min) — single unified timer (not 3min health + 10min prescriptions as spec states)",
+    "sar_cards": "present — SAR VV, cambio 6d, InSAR desplazamiento",
+    "sector_grid": "zone_labels present (6 zones: AREA_N, AREA_S, GK_N, GK_S, MID_N, MID_S) with zone_colors (HOY, PROXIMA_SEMANA, ESTA_SEMANA, MONITOREAR, OK)",
+    "viewport": "width=device-width initial-scale=1.0 maximum-scale=1.0 user-scalable=no",
+    "localStorage": "not found in file — tab state not persisted",
+    "softRefresh": "pollLoop() function handles update — full re-render via innerHTML, not soft DOM update",
+    "status": "warn",
+    "note": "Panel loads correctly · data fresh · but spec claims separate 3min/10min timers and softRefresh() — neither implemented, single 5min pollLoop()"
+  },
+
+  "weekly_emails": {
+    "trigger_cron": ["0 9 * * * (daily 09:00 UTC)", "0 10 * * 1 (Monday 10:00 UTC)"],
+    "scheduler_job": "weekly_report · next: 2026-07-06T10:00 UTC (tomorrow) ✅",
+    "fase_a": "data_refresh.py — ERA5 + SAR + Kalman (runs daily)",
+    "fase_b": "render_reports.py — 6 PNGs generation (only if railway_ok=true)",
+    "fase_c": "velez_scheduler.py — emails via Resend (only on Mondays)",
+    "distribution": "roger, juan, banchero/fernando, pait/sebastian, berlanga, nelson, aveleyra (7 recipients)",
+    "resend_api_key": "in GitHub Secrets ✅",
+    "cds_api_key": "NOT in GitHub Secrets ⚠️ — ERA5 in CI may fail if no cached data",
+    "status": "ok",
+    "note": "No silent fail on missing RESEND_API_KEY — velez_scheduler.py calls resend.Emails.create() which raises exception on missing key"
+  },
+
+  "alerts_monitoring": {
+    "slack_webhook": {
+      "status": "unknown",
+      "detail": "SLACK_WEBHOOK_FARO_ALERTS not found in railway_vars.txt — check Railway Variables dashboard"
+    },
+    "health_dashboard": {
+      "status": "ok",
+      "url": "/static/dashboard.html · refreshes every 30s (based on HTML JS)",
+      "detail": "HTTP 200 · 14KB dark-theme dashboard"
+    },
+    "scheduler_alerts": {
+      "status": "ok",
+      "detail": "alert_system_30min job active · infra_alert_eval every 5min · infra_health_snapshot every 15min"
+    }
+  },
+
+  "bugs": [
+    {
+      "id": "BUG-001",
+      "severity": "medium",
+      "component": "routes/health.py:_sar_status()",
+      "description": "SAR VV reads created_at DESC without IS NOT NULL filter — picks up diag test rows or corrupt rows, shows -0.82 dB instead of real -15.19 dB",
+      "fix": "Add 'sar_vv_db': 'not.is.null' and 'fecha_imagen': 'not.is.null' to params in _sar_status()"
+    },
+    {
+      "id": "BUG-002",
+      "severity": "high",
+      "component": "POST /api/health/intervention-log",
+      "description": "HTTP 500 on all POSTs — intervention_log table schema in prod DB does not match code expectations (schema mismatch: tenant_id vs venue_id, delta_json vs typed delta columns)",
+      "fix": "Run migrations/002_intervention_log.sql in Supabase SQL Editor to create correct schema"
+    },
+    {
+      "id": "BUG-003",
+      "severity": "high",
+      "component": "Kalman gap-fill pipeline",
+      "description": "ndvi_sintetico lag=148h (6.2 days) — Kalman not producing synthetic NDVI. Daily job daily_scientific_enrichment (09:15 UTC) likely not calling gap_fill_today() or output not persisted",
+      "fix": "Check faro_pipeline_runner.py or satellite_pipeline.py — verify gap_fill_today() called and insert_vegetation_metrics() receives result"
+    },
+    {
+      "id": "BUG-004",
+      "severity": "medium",
+      "component": "soil_metrics schema",
+      "description": "satellite_inferred column missing from production Supabase — migration 002_radiometric_correction_factors.sql not applied. Backfill code tries to insert satellite_inferred but column doesn't exist yet.",
+      "fix": "Run migrations/002_radiometric_correction_factors.sql in Supabase SQL Editor"
+    },
+    {
+      "id": "BUG-005",
+      "severity": "low",
+      "component": "audit_log",
+      "description": "Table exists but is empty (count=0). No production code path writes to it. Health endpoint reads from it but finds nothing.",
+      "fix": "Wire audit_log INSERTs in velez_supabase.py at critical operations (SAR insert, prescription generation, weekly email)"
+    },
+    {
+      "id": "BUG-006",
+      "severity": "low",
+      "component": "APScheduler jobstore",
+      "description": "jobstore=in-memory (persistent=false) — all job history and state resets on Railway redeploy/restart",
+      "fix": "Configure APScheduler with PostgreSQL jobstore using SUPABASE_DB_URL for persistence across restarts"
+    },
+    {
+      "id": "BUG-007",
+      "severity": "info",
+      "component": "Panel Roger timers",
+      "description": "Single POLL_MS=5min unified timer — spec says separate 3min health + 10min prescriptions. Functionally fine (5min is reasonable) but mismatched with spec.",
+      "fix": "No action required unless spec compliance is mandatory"
+    },
+    {
+      "id": "BUG-008",
+      "severity": "info",
+      "component": "SAR sar_vv_change_6d",
+      "description": "panel-data reports sar_vv_change_6d=+4.23 dB (large positive shift, last 2026-06-29). Normal change is <2 dB. May indicate wet soil condition or sensor transition artifact near S1A EOL.",
+      "fix": "Monitor next S1C acquisition — if change persists, investigate soil moisture event or apply change-point alert"
+    }
+  ],
+
+  "actions_required": [
+    {
+      "priority": 1,
+      "action": "Run migrations/002_radiometric_correction_factors.sql in Supabase SQL Editor",
+      "reason": "Adds satellite_inferred column + UNIQUE constraint + deduplication. Required for S1C/D data pipeline."
+    },
+    {
+      "priority": 2,
+      "action": "Run migrations/002_intervention_log.sql in Supabase SQL Editor",
+      "reason": "Fixes HTTP 500 on POST /api/health/intervention-log — schema mismatch"
+    },
+    {
+      "priority": 3,
+      "action": "Fix routes/health.py:_sar_status() — add sar_vv_db=not.is.null filter",
+      "reason": "Health endpoint shows wrong VV value (-0.82 vs real -15.19 dB)"
+    },
+    {
+      "priority": 4,
+      "action": "Investigate Kalman gap-fill pipeline — check daily_scientific_enrichment job",
+      "reason": "Kalman lag 148h (error threshold 96h) — synthetic NDVI not updating"
+    },
+    {
+      "priority": 5,
+      "action": "Add CDS_API_KEY to GitHub Actions secrets",
+      "reason": "weekly-emails.yml runs ERA5 in CI but CDS_API_KEY not in secrets — risk of ERA5 failure in CI pipeline"
+    }
+  ]
+}

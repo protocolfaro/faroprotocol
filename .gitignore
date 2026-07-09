@@ -45,3 +45,52 @@ velez/screenshots/
 faro_cert_*.png
 faro_report_*.png
 faro_reporte_fusion_*.png
+
+# Temp diagnostic/debug scripts (prefixed __ o nombres de sesión)
+__*.py
+check_*.py
+mockup_*.py
+null_*.py
+test_*.py
+get_gmail_token.py
+gee_dprvi_script.js
+machina_gis_server.py
+machina_gis_claude_desktop.json
+
+# Raw data dumps y JSON de sesión en raíz
+berlanga_debug.json
+vd_estadio.json
+vd_toplevel.json
+vd_all_none.json
+clima_metrics_validation.txt
+railway_logs_last_run.txt
+railway_vars_check.txt
+requirements_gis.txt
+test_machina_gis.py
+nelson_pugliese_brief.html
+nelson_pugliese_v2.html
+preview_berlanga.html
+preview_berlanga_railway.html
+nelson_pugliese_brief.png
+nelson_pugliese_v2_full.png
+nelson_pugliese_v2_p1.png
+nelson_pugliese_v2_p2.png
+nelson_pugliese_v2_page2_crop.png
+sar_continuity.png
+
+# Cache y modelos generados por dale-play
+railway-backend/events/clients/dale-play/cache/
+railway-backend/events/clients/dale-play/models/storage/
+
+# Reportes locales (imágenes)
+reportes_velez/*.png
+velez/reportes/*.png
+railway-backend/sports/clients/velez/sar_continuity.png
+
+# Archivo run result dale-play
+UsersUsuarioDesktopFaro-indexrailway-backenddale-playmodelsrailway_run_result.json
+.claudeignore
+
+# Otros temporales
+check_order.py
+check_order_ready.py
