@@ -78,7 +78,7 @@ def _enrich_with_sector(cancha_id: str, wl: dict) -> dict:
     """
     era5 = _get_era5_for_cancha(cancha_id)
     if not era5:
-        return wl
+        return dict(wl)  # always return a copy so mutations stay local
 
     wl2 = dict(wl)
 
@@ -283,27 +283,50 @@ def _fungal_actions(wl: dict) -> list[dict]:
 
 def _fertilizer_actions(wl: dict) -> list[dict]:
     gdd_rate = float(wl.get("gdd_rate_diario") or 0)
-    gndvi_d  = wl.get("gndvi_por_cancha") or {}
-    canchas  = gndvi_d.get("canchas") or {}
 
-    vals = [c.get("gndvi") for c in canchas.values() if c.get("gndvi") is not None]
-    avg_gndvi = sum(vals) / len(vals) if vals else 0.42
+    # GNDVI: per-cancha value injected by compute_cancha (NIR/Green, chlorophyll-sensitive)
+    if wl.get("_cancha_gndvi") is not None:
+        gndvi = float(wl["_cancha_gndvi"])
+    else:
+        gndvi_d = wl.get("gndvi_por_cancha") or {}
+        canchas = gndvi_d.get("canchas") or {}
+        vals = [c.get("gndvi") for c in canchas.values() if c.get("gndvi") is not None]
+        gndvi = sum(vals) / len(vals) if vals else 0.42
 
-    if avg_gndvi < 0.30 and gdd_rate > 0.8:
+    # NDRE: Red-edge index (Sentinel-2 B08/B05) — detects N stress 7-14 days earlier than GNDVI.
+    # Thresholds for turfgrass: healthy >0.60, mild stress 0.45-0.60, moderate 0.30-0.45, severe <0.30
+    ndre = wl.get("_cancha_ndre")
+
+    # NDRE + GNDVI cross-confirmation = highest confidence signal
+    if ndre is not None and ndre < 0.35 and gndvi < 0.38 and gdd_rate > 0.8:
         return [{"type": "FERTILIZAR", "urgency": "HOY",
-                 "detail": f"GNDVI {avg_gndvi:.2f} — deficiencia N grave. Fertilizar urgente.",
-                 "metric": f"GNDVI={avg_gndvi:.2f} · GDD/día={gdd_rate:.1f}",
-                 "razon":  f"GNDVI {avg_gndvi:.2f} < 0.30 con crecimiento activo ({gdd_rate:.1f}°C/d)"}]
-    if avg_gndvi < 0.38 and gdd_rate > 0.8:
+                 "detail": f"NDRE {ndre:.2f} + GNDVI {gndvi:.2f} — estrés N severo. Fertilizar urgente.",
+                 "metric": f"NDRE={ndre:.2f} · GNDVI={gndvi:.2f} · GDD/día={gdd_rate:.1f}",
+                 "razon":  f"Doble señal: NDRE {ndre:.2f}<0.35 + GNDVI {gndvi:.2f}<0.38 en crecimiento activo"}]
+
+    if ndre is not None and ndre < 0.45 and gdd_rate > 0.8:
         return [{"type": "FERTILIZAR", "urgency": "ESTA_SEMANA",
-                 "detail": f"GNDVI {avg_gndvi:.2f} — déficit N moderado. Fertilizar esta semana.",
-                 "metric": f"GNDVI={avg_gndvi:.2f} · GDD/día={gdd_rate:.1f}",
-                 "razon":  f"GNDVI {avg_gndvi:.2f} bajo umbral 0.38 · GDD {gdd_rate:.1f}°C/d"}]
-    if avg_gndvi < 0.45:
+                 "detail": f"NDRE {ndre:.2f} — déficit N temprano detectado. Fertilizar esta semana.",
+                 "metric": f"NDRE={ndre:.2f} · GNDVI={gndvi:.2f} · GDD/día={gdd_rate:.1f}",
+                 "razon":  f"NDRE {ndre:.2f}<0.45 (estrés N pre-visual) · GDD {gdd_rate:.1f}°C/d"}]
+
+    # GNDVI solo (sin NDRE disponible o NDRE normal)
+    if gndvi < 0.30 and gdd_rate > 0.8:
+        return [{"type": "FERTILIZAR", "urgency": "HOY",
+                 "detail": f"GNDVI {gndvi:.2f} — deficiencia N grave. Fertilizar urgente.",
+                 "metric": f"GNDVI={gndvi:.2f} · GDD/día={gdd_rate:.1f}",
+                 "razon":  f"GNDVI {gndvi:.2f} < 0.30 con crecimiento activo ({gdd_rate:.1f}°C/d)"}]
+    if gndvi < 0.38 and gdd_rate > 0.8:
+        return [{"type": "FERTILIZAR", "urgency": "ESTA_SEMANA",
+                 "detail": f"GNDVI {gndvi:.2f} — déficit N moderado. Fertilizar esta semana.",
+                 "metric": f"GNDVI={gndvi:.2f} · GDD/día={gdd_rate:.1f}",
+                 "razon":  f"GNDVI {gndvi:.2f} bajo umbral 0.38 · GDD {gdd_rate:.1f}°C/d"}]
+    if gndvi < 0.45 or (ndre is not None and ndre < 0.55):
+        ndre_str = f" · NDRE={ndre:.2f}" if ndre is not None else ""
         return [{"type": "FERTILIZAR", "urgency": "MONITOREAR",
-                 "detail": f"GNDVI {avg_gndvi:.2f} — N en límite. Monitorear crecimiento.",
-                 "metric": f"GNDVI={avg_gndvi:.2f}",
-                 "razon":  f"GNDVI {avg_gndvi:.2f} próximo al umbral mínimo 0.45"}]
+                 "detail": f"GNDVI {gndvi:.2f} — N en límite. Monitorear crecimiento.",
+                 "metric": f"GNDVI={gndvi:.2f}{ndre_str}",
+                 "razon":  f"GNDVI {gndvi:.2f} próximo al umbral mínimo 0.45{ndre_str}"}]
     return []
 
 
@@ -406,8 +429,28 @@ def compute_cancha(cancha_id: str, ipos_score: float, ipos_semaforo: str,
                    sar_vv_db: float | None = None, sar_vh_db: float | None = None,
                    sar_fecha: str | None = None,
                    focos_reales: list | None = None,
-                   spatial_alerts: list | None = None) -> dict:
+                   spatial_alerts: list | None = None,
+                   gndvi: float | None = None,
+                   ndre: float | None = None,
+                   sar_vv_change: float | None = None) -> dict:
     wl_c = _enrich_with_sector(cancha_id, wl)
+
+    # GNDVI (NIR/Green) is more sensitive to chlorophyll/nitrogen than NDVI (NIR/Red).
+    # Priority: explicit gndvi param → gndvi_por_cancha lookup → ndvi as last resort.
+    cancha_slot = (wl.get("gndvi_por_cancha") or {}).get("canchas", {}).get(cancha_id, {})
+    gndvi_val = gndvi if gndvi is not None else cancha_slot.get("gndvi")
+    if gndvi_val is not None:
+        wl_c["_cancha_gndvi"] = float(gndvi_val)
+    elif ndvi is not None:
+        wl_c["_cancha_gndvi"] = ndvi  # NDVI as proxy when GNDVI unavailable
+
+    # NDRE (Red-edge) detects early N stress before GNDVI shows it
+    if ndre is not None:
+        wl_c["_cancha_ndre"] = float(ndre)
+
+    # Per-cancha SAR VV change overrides the global estimate
+    if sar_vv_change is not None:
+        wl_c["sar_vv_change_6d"] = float(sar_vv_change)
 
     # Per-cancha IPOS from live DB (overrides static JSON value when available)
     try:
@@ -470,10 +513,13 @@ def generate_prescriptions(roger_canchas: list[dict], weather_live: dict) -> dic
         ipos_score   = float(cancha.get("ipos_score") or cancha.get("ipos") or cancha.get("score") or 0)
         ipos_semaforo = cancha.get("semaforo") or "verde"
         ndvi          = cancha.get("ndvi")
+        gndvi         = cancha.get("gndvi")   # NIR/Green — chlorophyll/nitrogen
+        ndre          = cancha.get("ndre")    # Red-edge — early N stress
         hm_archivo    = cancha.get("heatmap_archivo")
         c_sar_vv      = cancha.get("sar_vv_db")
         c_sar_vh      = cancha.get("sar_vh_db")
         c_sar_fecha   = cancha.get("sar_fecha") or weather_live.get("sar_fecha")
+        c_sar_change  = cancha.get("sar_vv_change_6d")  # per-cancha SAR delta
         c_focos       = cancha.get("focos_reales") or []
         c_alerts      = cancha.get("spatial_alerts") or []
 
@@ -481,6 +527,7 @@ def generate_prescriptions(roger_canchas: list[dict], weather_live: dict) -> dic
             cid, ipos_score, ipos_semaforo, weather_live, ndvi, hm_archivo,
             sar_vv_db=c_sar_vv, sar_vh_db=c_sar_vh, sar_fecha=c_sar_fecha,
             focos_reales=c_focos, spatial_alerts=c_alerts,
+            gndvi=gndvi, ndre=ndre, sar_vv_change=c_sar_change,
         )
 
     wl = weather_live

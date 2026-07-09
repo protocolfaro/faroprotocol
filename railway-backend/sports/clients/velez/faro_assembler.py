@@ -664,6 +664,49 @@ def _apply_faro_v2_overlay(vd: dict, venue_id: str) -> None:
         log.warning("assembler: faro_v2_overlay (non-fatal): %s", e)
 
 
+def _compute_sar_change_6d(vd: dict, venue_id: str) -> None:
+    """
+    Calcula sar_vv_change_6d (dB) comparando SAR VV actual vs ~6 días atrás.
+    Sentinel-1 tiene ciclo de revisita de 6 días — el delta detecta secado/humectación.
+    Escribe weather_live.sar_vv_change_6d (global) y c["sar_vv_change_6d"] por cancha.
+    """
+    try:
+        import velez_supabase as _vs
+        rows = _vs.get_soil_metrics_latest(venue_id, dias=14)
+        if not rows:
+            return
+
+        rows.sort(key=lambda r: r.get("created_at", ""), reverse=True)
+
+        # Global delta: rows sin cancha_id (lecturas de venue completo)
+        global_rows = [r for r in rows if not r.get("cancha_id") and r.get("sar_vv_db") is not None]
+        if len(global_rows) >= 2:
+            delta = float(global_rows[0]["sar_vv_db"]) - float(global_rows[-1]["sar_vv_db"])
+            vd.setdefault("weather_live", {})["sar_vv_change_6d"] = round(delta, 2)
+            log.info("assembler: sar_change_6d global=%.2f dB (%d rows)", delta, len(global_rows))
+
+        # Per-cancha delta
+        by_cid: dict[str, list] = {}
+        for r in rows:
+            cid = r.get("cancha_id")
+            if cid and r.get("sar_vv_db") is not None:
+                by_cid.setdefault(cid, []).append(r)
+
+        cancha_list = vd.get("sectores", {}).get("canchero", {}).get("canchas", [])
+        updated = 0
+        for c in cancha_list:
+            cid = c.get("id", "")
+            c_rows = by_cid.get(cid, [])
+            if len(c_rows) >= 2:
+                delta = float(c_rows[0]["sar_vv_db"]) - float(c_rows[-1]["sar_vv_db"])
+                c["sar_vv_change_6d"] = round(delta, 2)
+                updated += 1
+        if updated:
+            log.info("assembler: sar_change_6d per-cancha OK — %d canchas", updated)
+    except Exception as e:
+        log.warning("assembler: sar_change_6d (non-fatal): %s", e)
+
+
 def _parse_detalle_fields(vd: dict) -> None:
     """
     Extrae campos numéricos de los strings 'detalle' de sectores estáticos.
@@ -802,6 +845,7 @@ def assemble_report(venue_id: str = "amalfitani") -> dict:
     _apply_era5_sectorial_overlay(vd)       # ET₀/T/RH/SM por sector desde climate_metrics_sectorial
     _apply_cancha_enrichment(vd)            # IPOS + NDRE/CCCI + zone_urgency por cancha (bulk)
     _apply_faro_v2_overlay(vd, venue_id)   # SAR vv/vh, GHI solar, HAND hydro desde faro_v2_reports
+    _compute_sar_change_6d(vd, venue_id)  # delta SAR VV 6d → activa lógica secado/humectación
     _apply_solar_pvlib(vd)                 # physics-based efficiency: NOCT model + NASA POWER GHI
     _parse_detalle_fields(vd)              # extrae floats de detalle strings (fallback si v2 no tiene datos)
     # Vista unificada Roger: Amalfitani + 12 canchas VO con todos los campos científicos
