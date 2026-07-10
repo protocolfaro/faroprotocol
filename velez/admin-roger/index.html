@@ -146,6 +146,30 @@ body{background:var(--bg);color:var(--whi);font-family:'Epilogue',sans-serif;wid
     .text-stadium{display:none;}
     .sar-chart-wrap{height:120px;}
 }
+.spatial-alert-section{flex-shrink:0;padding:8px 16px;border-bottom:1px solid rgba(255,255,255,0.04);}
+.sat-alert-title{font-size:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;}
+.sat-next-badge{font-size:7px;font-weight:700;padding:2px 6px;border-radius:3px;background:rgba(201,168,76,0.12);color:var(--gold);letter-spacing:0.3px;}
+.alert-chip-row{display:flex;flex-wrap:wrap;gap:4px;}
+.alert-chip{display:inline-flex;flex-direction:column;align-items:flex-start;padding:4px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.08);min-width:80px;}
+.alert-chip-tipo{font-size:7px;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;}
+.alert-chip-sub{font-size:6.5px;color:rgba(255,255,255,0.5);margin-top:1px;}
+.alert-chip-conf{font-size:6px;color:rgba(255,255,255,0.35);margin-top:2px;}
+.dx-section{flex-shrink:0;padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.04);}
+.dx-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;}
+.dx-title{font-size:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);}
+.dx-summary{font-size:7.5px;font-weight:700;margin-top:2px;}
+.dx-sar-badge{font-size:7px;font-weight:700;padding:2px 6px;border-radius:3px;background:rgba(201,168,76,0.12);color:var(--gold);letter-spacing:0.3px;white-space:nowrap;flex-shrink:0;}
+.dx-list{display:flex;flex-direction:column;gap:5px;}
+.dx-item{display:flex;gap:7px;align-items:flex-start;padding:7px 8px;border-radius:4px;border-left:2px solid;}
+.dx-num{width:15px;height:15px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:7.5px;font-weight:700;flex-shrink:0;margin-top:0;}
+.dx-body{flex:1;min-width:0;}
+.dx-row{display:flex;justify-content:space-between;align-items:flex-start;gap:4px;}
+.dx-tipo{font-size:8px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;}
+.dx-zona{font-size:7px;color:rgba(255,255,255,0.45);margin-top:1px;}
+.dx-ev{font-size:7px;color:var(--dim);margin-top:3px;line-height:1.4;}
+.dx-conf{font-size:6.5px;color:var(--dim2);margin-top:1px;}
+.dx-accion{font-size:7.5px;font-weight:700;margin-top:4px;}
+.dx-urg{font-size:7px;font-weight:700;padding:2px 5px;border-radius:2px;letter-spacing:0.4px;color:#fff;flex-shrink:0;}
 </style>
 </head>
 <body>
@@ -216,7 +240,7 @@ const ACTION_COL={AEREAR:'#f59e0b',REGAR:'#22d3ee',FUNGICIDA:'#a855f7',FERTILIZA
 const URG_BG={HOY:'rgba(239,68,68,0.14)',ESTA_SEMANA:'rgba(245,158,11,0.10)',PROXIMA_SEMANA:'rgba(59,130,246,0.10)',MONITOREAR:'rgba(107,114,128,0.07)',OK:'rgba(34,197,94,0.06)'};
 const ZONE_SHORT={GK_N:'GK N',AREA_N:'AREA N',MID_N:'MEDIO N',MID_S:'MEDIO S',AREA_S:'AREA S',GK_S:'GK S',NORTE:'NORTE',CENTRO:'CENTRO',SUR:'SUR'};
 const ZONE_FULL={GK_N:'Porteria Norte',AREA_N:'Area Penal Norte',MID_N:'Mediocampo Norte',MID_S:'Mediocampo Sur',AREA_S:'Area Penal Sur',GK_S:'Porteria Sur',NORTE:'Zona Norte',CENTRO:'Centro de Campo',SUR:'Zona Sur'};
-const ZONE_COORDS={GK_N:{x:3,y:3,w:62,h:16.5},AREA_N:{x:3,y:19.5,w:62,h:13.5},MID_N:{x:3,y:33,w:62,h:19.5},MID_S:{x:3,y:52.5,w:62,h:19.5},AREA_S:{x:3,y:72,w:62,h:13.5},GK_S:{x:3,y:85.5,w:62,h:16.5}};
+const ZONE_COORDS={GK_N:{x:3,y:3,w:62,h:16.5},AREA_N:{x:3,y:19.5,w:62,h:13.5},MID_N:{x:3,y:33,w:62,h:19.5},MID_S:{x:3,y:52.5,w:62,h:19.5},AREA_S:{x:3,y:72,w:62,h:13.5},GK_S:{x:3,y:85.5,w:62,h:16.5},NORTE:{x:3,y:3,w:62,h:33},CENTRO:{x:3,y:36,w:62,h:33},SUR:{x:3,y:69,w:62,h:33}};
 function hex(u){return({HOY:'#ef4444',ESTA_SEMANA:'#f59e0b',PROXIMA_SEMANA:'#3b82f6',MONITOREAR:'#6b7280',OK:'#22c55e'})[u]||'#22c55e';}
 function fmt1(v){return v!=null?parseFloat(v).toFixed(1):'-';}
 function fmt0(v){return v!=null?Math.round(parseFloat(v)):'-';}
@@ -243,7 +267,8 @@ async function renderHeatmap(file){
     const dpr=window.devicePixelRatio||1,cssW=canvas.offsetWidth||400,cssH=canvas.offsetHeight||600;
     canvas.width=cssW*dpr;canvas.height=cssH*dpr;canvas.style.width=cssW+'px';canvas.style.height=cssH+'px';
     const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);ctx.clearRect(0,0,cssW,cssH);
-    const url=`https://raw.githubusercontent.com/protocolfaro/faroprotocol/main/velez/heatmaps/${file}`;
+    const fname=(file||'').split('/').pop();  // strip prefix path — archivo tiene "heatmaps/heatmap_X.png"
+    const url=`https://raw.githubusercontent.com/protocolfaro/faroprotocol/main/velez/heatmaps/${fname}`;
     return new Promise(res=>{
         const img=new Image();img.crossOrigin='anonymous';
         img.onload=()=>{ctx.save();ctx.translate(cssW,0);ctx.rotate(Math.PI/2);ctx.drawImage(img,0,0,736,484,0,0,cssH,cssW);ctx.restore();canvas.style.opacity=_hmVisible?'0.55':'0';res();};
@@ -257,12 +282,145 @@ function toggleHeatmap(){
     if(btn){btn.textContent=_hmVisible?'NDVI ON':'NDVI OFF';btn.className='hm-toggle'+(_hmVisible?' on':'');}
 }
 window.addEventListener('resize',()=>{if(_hmFile&&_hmVisible)renderHeatmap(_hmFile);});
+// ── Diagnóstico unificado: construye lista de hallazgos con dato/acción/solución ──
+function _buildHallazgos(cancha,wl){
+    const FX=3,FY=3,FW=62,FH=99;
+    const h=[];
+    const cid=cancha?.id||_activeCanchaId;
+    // Focos: Railway primero, fallback a velez_data.json (siempre hay dato)
+    const vdHm=_vd?.usuarios?.roger?.heatmaps?.[cid]||{};
+    const focos=cancha?.focos_reales||vdHm.focos_reales||[];
+    // Dormancia invernal: GDD=0 en mayo-agosto → NDVI bajo es NORMAL, no emergencia
+    const _mo=new Date().getMonth()+1;
+    const _isDormancia=(_mo>=5&&_mo<=8)||((wl?.gdd_rate_diario??1)===0&&_mo>=4&&_mo<=9);
+    const _ndviUrgencia=(ndvi)=>{
+        if(_isDormancia) return ndvi<0.10?'ESTA_SEMANA':'MONITOREAR'; // dormancia: umbral mucho más bajo
+        return ndvi<0.25?'HOY':ndvi<0.40?'ESTA_SEMANA':'MONITOREAR';
+    };
+    // Alertas satelitales: Railway primero; si vacío, sintetizar desde focos
+    let satAlerts=cancha?.spatial_alerts||[];
+    if(!satAlerts.length&&focos.length){
+        satAlerts=focos.filter(f=>(f.ndvi??1)<0.50).map(f=>{
+            const ndvi=f.ndvi??0;
+            return{x_frac:f.x,y_frac:f.y,radius_frac:0.05,tipo:'NDVI_BAJO',
+                label:`NDVI ${ndvi.toFixed(2)}`,sub_label:'',
+                urgencia:_ndviUrgencia(ndvi),color:_isDormancia?'#f59e0b':'#ef4444',
+                confianza_pct:55,fuentes:['ndvi'],dias_activo:0};
+        });
+    } else if(satAlerts.length&&_isDormancia){
+        // Corregir urgencia de alertas Railway en dormancia — HOY no aplica si pasto duerme
+        satAlerts=satAlerts.map(a=>{
+            if(a.tipo!=='NDVI_BAJO'&&a.tipo!=='STRESS_COMBO')return a;
+            const ndvi=parseFloat((a.label||'0').replace('NDVI ',''))||0;
+            return{...a,urgencia:_ndviUrgencia(ndvi),color:_isDormancia?'#f59e0b':a.color};
+        });
+    }
+
+    // Zone bounds helpers (north=y_frac 1, south=0 — mismo convenio que satellite_pipeline)
+    const _zBounds=zid=>{
+        const zc=ZONE_COORDS[zid];if(!zc)return null;
+        return{yMin:1-(zc.y+zc.h-FY)/FH,yMax:1-(zc.y-FY)/FH,
+               xMin:(zc.x-FX)/FW,xMax:(zc.x+zc.w-FX)/FW};
+    };
+    const _inZone=(xf,yf,b)=>b&&yf>=b.yMin&&yf<=b.yMax&&xf>=b.xMin&&xf<=b.xMax;
+
+    // 1. Alertas satelitales — posición pixel exacta (fuente primaria)
+    const acMap={
+        NDVI_BAJO: _isDormancia?'Dormancia activa — monitorear recuperación primaveral':'REGAR · Monitorear cobertura verde',
+        STRESS_COMBO:'REGAR + AEREAR — estrés multiespectral',
+        COMPACTACION:'AEREAR · Subsolado preventivo',
+        STRESS_HIDRICO:'REGAR · Déficit hídrico detectado',
+    };
+    satAlerts.forEach(a=>{
+        const lbl=a.label||'';
+        const sub=a.sub_label||'';
+        const datoStr=sub&&sub!==lbl?`${lbl} · ${sub}`:lbl; // evitar "NDVI 0.12 · NDVI 0.12"
+        h.push({
+            tipo:a.tipo||'ALERTA SAT.',
+            zona_label:_isDormancia?'Posición satelital · dormancia invernal':'Posición satelital real',
+            cx:FX+(a.x_frac||0.5)*FW, cy:FY+(1-(a.y_frac||0.5))*FH,
+            r:Math.max(2.2,(a.radius_frac||0.05)*FW),
+            color:a.color||'#ef4444',urgencia:a.urgencia||'ESTA_SEMANA',
+            dato:datoStr,
+            accion:acMap[a.tipo]||a.tipo,
+            razon:a.confianza_pct!=null?`Confianza ${a.confianza_pct}% · Fuentes: ${(a.fuentes||[]).join(' + ')||'?'}${a.dias_activo?` · Activo ${a.dias_activo}d`:''}`:null,
+            source:'satellite',
+        });
+    });
+
+    // 2. Prescripciones por zona — solo tipos NO cubiertos por satélite
+    // Si el satélite ya marcó NDVI bajo → los círculos ①②③ SON las posiciones de riego/fertilización.
+    // Agregar "REGAR campo completo" encima sería repetir lo mismo sin precisión.
+    // Solo se muestran prescripciones que el satélite NO cubre: DRENAR, AEREAR (sin sat), FUNGICIDA.
+    const hasAnyNdviSat=satAlerts.some(a=>a.tipo==='NDVI_BAJO'||a.tipo==='STRESS_COMBO'||a.tipo==='STRESS_HIDRICO');
+    const NDVI_TYPES=new Set(['REGAR','FERTILIZAR']); // cubiertos por círculos satélite si hay NDVI
+    const allZoneIds=Object.keys(cancha?.zones||{});
+    const prescGroups={};
+    Object.entries(cancha?.zones||{}).forEach(([zid,zone])=>{
+        if((zone.urgency||'OK')==='OK')return;
+        const acts=(zone.actions||[]).filter(a=>{
+            if(!a.type||a.type==='OK'||!ACTION_COL[a.type])return false;
+            // Suprimir REGAR/FERTILIZAR si el satélite ya los cubre con posición exacta
+            if(hasAnyNdviSat&&NDVI_TYPES.has(a.type))return false;
+            return true;
+        });
+        if(!acts.length)return;
+        const bounds=_zBounds(zid);
+        const zFocos=focos.filter(f=>_inZone(f.x??0.5,f.y??0.5,bounds)).sort((a,b)=>a.ndvi-b.ndvi);
+        acts.forEach(act=>{
+            const key=`${act.type}|${act.metric||''}|${act.detail||''}`;
+            if(!prescGroups[key]){
+                let cx=null,cy=null,r=null;
+                if(act.type==='AEREAR'){
+                    // Solo posición si hay foco y no hay sat COMPACTACION
+                    const zCompact=satAlerts.find(a=>a.tipo==='COMPACTACION'&&_inZone(a.x_frac??0.5,a.y_frac??0.5,bounds));
+                    if(!zCompact&&zFocos.length){const f=zFocos[0];cx=FX+(f.x??0.5)*FW;cy=FY+(1-(f.y??0.5))*FH;r=2.8;}
+                }
+                prescGroups[key]={act,urgencia:act.urgency||zone.urgency||'ESTA_SEMANA',zids:[zid],cx,cy,r};
+            } else {
+                prescGroups[key].zids.push(zid);
+                const urgOrd2=['HOY','ESTA_SEMANA','PROXIMA_SEMANA','MONITOREAR','OK'];
+                const cur=prescGroups[key].urgencia,nw=act.urgency||zone.urgency||'ESTA_SEMANA';
+                if(urgOrd2.indexOf(nw)<urgOrd2.indexOf(cur))prescGroups[key].urgencia=nw;
+            }
+        });
+    });
+    Object.values(prescGroups).forEach(({act,urgencia,zids,cx,cy,r})=>{
+        const zona_label=zids.length>=allZoneIds.length-1
+            ?'Campo completo'
+            :(zids.length>2?`${zids.length} zonas`:zids.map(z=>ZONE_SHORT[z]||z).join(' · '));
+        h.push({tipo:act.type,zona_label,cx,cy,r,
+            color:ACTION_COL[act.type]||'#6b7280',urgencia,
+            dato:act.metric||'',accion:act.detail||act.type,razon:act.razon||null,source:'prescription'});
+    });
+
+    // 3. Riesgo fungal global — solo en el informe, sin círculo en campo
+    const hasFungicida=h.some(x=>x.tipo==='FUNGICIDA');
+    const fNivel=wl?.fungal_nivel||'bajo';
+    if(!hasFungicida&&(fNivel==='alto'||fNivel==='medio')){
+        h.push({tipo:'RIESGO FUNGAL',zona_label:'Campo global — modelo Smith-Kerns',
+            cx:null,cy:null,r:null,color:fNivel==='alto'?'#ef4444':'#a855f7',
+            urgencia:fNivel==='alto'?'HOY':'ESTA_SEMANA',
+            dato:wl?.fungal_desc||`Nivel: ${fNivel.toUpperCase()}`,
+            accion:'Aplicar FUNGICIDA preventivo',razon:wl?.fungal_accion||null,source:'climate'});
+    }
+
+    const urgOrd=['HOY','ESTA_SEMANA','PROXIMA_SEMANA','MONITOREAR','OK'];
+    h.sort((a,b)=>(urgOrd.indexOf(a.urgencia)<0?99:urgOrd.indexOf(a.urgencia))-(urgOrd.indexOf(b.urgencia)<0?99:urgOrd.indexOf(b.urgencia)));
+    return h;
+}
 function renderZones(cancha){
     const svg=document.getElementById('prescSvg');if(!svg||!cancha?.zones)return;
     svg.innerHTML='';const NS='http://www.w3.org/2000/svg';
+    // Si el satélite ya marcó NDVI bajo, no mostrar pills REG/FER en las zonas — los círculos ①②③ son la precisión
+    const _satAlerts=cancha?.spatial_alerts||[];
+    const _vdHm=_vd?.usuarios?.roger?.heatmaps?.[cancha?.id||_activeCanchaId]||{};
+    const _focos=cancha?.focos_reales||_vdHm.focos_reales||[];
+    const _hasNdviSat=_satAlerts.some(a=>a.tipo==='NDVI_BAJO'||a.tipo==='STRESS_COMBO'||a.tipo==='STRESS_HIDRICO')
+        ||(_satAlerts.length===0&&_focos.some(f=>(f.ndvi??1)<0.50));
     Object.entries(cancha.zones).forEach(([zid,zone])=>{
         const rc=zone.svg_rect||ZONE_COORDS[zid]||{},u=zone.urgency||'OK',color=hex(u);
-        const isHoy=u==='HOY',isOK=u==='OK',opBase=isOK?0.09:isHoy?0.42:0.28,isActive=_activeZoneId===zid;
+        const isHoy=u==='HOY',isOK=u==='OK',acN=zone.actions?.length||0,opBase=isOK?0.06:isHoy?0.42:acN>1?0.38:0.20,isActive=_activeZoneId===zid;
         const g=document.createElementNS(NS,'g');g.style.cursor='pointer';
         const rect=document.createElementNS(NS,'rect');
         rect.setAttribute('x',rc.x);rect.setAttribute('y',rc.y);rect.setAttribute('width',rc.w);rect.setAttribute('height',rc.h);
@@ -272,11 +430,88 @@ function renderZones(cancha){
         if(isActive){const br=document.createElementNS(NS,'rect');br.setAttribute('x',rc.x+0.3);br.setAttribute('y',rc.y+0.3);br.setAttribute('width',rc.w-0.6);br.setAttribute('height',rc.h-0.6);br.setAttribute('fill','none');br.setAttribute('stroke','rgba(255,255,255,0.85)');br.setAttribute('stroke-width','0.4');g.appendChild(br);}
         if(!isOK){
             const cx=rc.x+rc.w/2,cy=rc.y+rc.h/2;
-            const lbl=document.createElementNS(NS,'text');lbl.setAttribute('x',cx);lbl.setAttribute('y',cy-1.6);lbl.setAttribute('text-anchor','middle');lbl.setAttribute('font-family','Epilogue,sans-serif');lbl.setAttribute('font-size','3.0');lbl.setAttribute('font-weight','700');lbl.setAttribute('fill','#fff');lbl.setAttribute('fill-opacity','0.85');lbl.textContent=ZONE_SHORT[zid]||zid;g.appendChild(lbl);
-            const pt=zone.primary||{};
-            if(pt.type&&pt.type!=='OK'){const sub=document.createElementNS(NS,'text');sub.setAttribute('x',cx);sub.setAttribute('y',cy+2.4);sub.setAttribute('text-anchor','middle');sub.setAttribute('font-family','Epilogue,sans-serif');sub.setAttribute('font-size','2.4');sub.setAttribute('font-weight','700');sub.setAttribute('fill','#fff');sub.setAttribute('fill-opacity','0.65');sub.textContent=pt.type;g.appendChild(sub);}
+            // Nombre de zona
+            const lbl=document.createElementNS(NS,'text');lbl.setAttribute('x',cx);lbl.setAttribute('y',cy-2.4);lbl.setAttribute('text-anchor','middle');lbl.setAttribute('font-family','Epilogue,sans-serif');lbl.setAttribute('font-size','3.0');lbl.setAttribute('font-weight','700');lbl.setAttribute('fill','#fff');lbl.setAttribute('fill-opacity','0.85');lbl.textContent=ZONE_SHORT[zid]||zid;g.appendChild(lbl);
+            // Pills de acción — omitir REG/FER si el satélite ya los cubre con círculos exactos
+            const actActs=(zone.actions||[]).filter(a=>{
+                if(!a.type||a.type==='OK'||!ACTION_COL[a.type])return false;
+                if(_hasNdviSat&&(a.type==='REGAR'||a.type==='FERTILIZAR'))return false;
+                return true;
+            });
+            if(actActs.length){
+                const pillW=9,pillH=3.2,pillGap=1.0,pillR=0.8;
+                const totalW=actActs.length*(pillW+pillGap)-pillGap;
+                const pillX0=cx-totalW/2;
+                actActs.forEach((act,ai)=>{
+                    const px=pillX0+ai*(pillW+pillGap);
+                    const py=cy+0.8;
+                    const pill=document.createElementNS(NS,'rect');
+                    pill.setAttribute('x',px);pill.setAttribute('y',py);
+                    pill.setAttribute('width',pillW);pill.setAttribute('height',pillH);
+                    pill.setAttribute('rx',pillR);
+                    pill.setAttribute('fill',ACTION_COL[act.type]||'#6b7280');
+                    pill.setAttribute('fill-opacity',act.urgency==='HOY'?'0.80':'0.55');
+                    g.appendChild(pill);
+                    const ACT_SHORT2={AEREAR:'AER',REGAR:'REG',FUNGICIDA:'FUN',FERTILIZAR:'FER',DRENAR:'DRE'};
+                    const pt2=document.createElementNS(NS,'text');
+                    pt2.setAttribute('x',px+pillW/2);pt2.setAttribute('y',py+pillH-0.7);
+                    pt2.setAttribute('text-anchor','middle');pt2.setAttribute('font-family','Epilogue,sans-serif');
+                    pt2.setAttribute('font-size','2.2');pt2.setAttribute('font-weight','700');
+                    pt2.setAttribute('fill','#000');pt2.setAttribute('fill-opacity','0.85');
+                    pt2.textContent=ACT_SHORT2[act.type]||act.type.slice(0,3);
+                    g.appendChild(pt2);
+                });
+            }
         }
         g.addEventListener('click',()=>selectZone(zid));svg.appendChild(g);
+    });
+    renderSpatialAlerts(cancha);
+}
+function renderSpatialAlerts(cancha){
+    const svg=document.getElementById('prescSvg');
+    if(!svg)return;
+    svg.querySelectorAll('.faro-spatial').forEach(el=>el.remove());
+    const NS='http://www.w3.org/2000/svg';
+    const wl=_data?.weather_summary||{};
+    const hallazgos=_buildHallazgos(cancha,wl);
+    hallazgos.forEach((h,idx)=>{
+        if(h.cx==null||h.cy==null||h.r==null)return; // sin posición SVG (ej: riesgo climático global)
+        const n=idx+1,{cx,cy,r,color,urgencia,source}=h;
+        const g=document.createElementNS(NS,'g');
+        g.classList.add('faro-spatial');
+        // Anillo de pulso para HOY
+        if(urgencia==='HOY'){
+            const ring=document.createElementNS(NS,'circle');
+            ring.setAttribute('cx',cx);ring.setAttribute('cy',cy);ring.setAttribute('r',r*1.8);
+            ring.setAttribute('fill','none');ring.setAttribute('stroke',color);
+            ring.setAttribute('stroke-width','0.25');ring.setAttribute('stroke-opacity','0.38');
+            const anim=document.createElementNS(NS,'animate');
+            anim.setAttribute('attributeName','r');anim.setAttribute('values',`${r*0.9};${r*2.5};${r*0.9}`);
+            anim.setAttribute('dur','2s');anim.setAttribute('repeatCount','indefinite');
+            ring.appendChild(anim);g.appendChild(ring);
+        }
+        // Círculo principal: satélite=sólido, prescripción=tenue
+        const circ=document.createElementNS(NS,'circle');
+        circ.setAttribute('cx',cx);circ.setAttribute('cy',cy);circ.setAttribute('r',r);
+        if(source==='satellite'){
+            circ.setAttribute('fill',color);circ.setAttribute('fill-opacity','0.72');
+            circ.setAttribute('stroke','#fff');circ.setAttribute('stroke-width','0.2');
+        } else {
+            circ.setAttribute('fill',color);circ.setAttribute('fill-opacity','0.15');
+            circ.setAttribute('stroke',color);circ.setAttribute('stroke-width','0.55');
+        }
+        g.appendChild(circ);
+        // Número del hallazgo en el centro
+        const txt=document.createElementNS(NS,'text');
+        txt.setAttribute('x',cx);txt.setAttribute('y',cy+0.8);
+        txt.setAttribute('text-anchor','middle');
+        txt.setAttribute('font-family','Epilogue,sans-serif');
+        txt.setAttribute('font-size','2.6');txt.setAttribute('font-weight','700');
+        txt.setAttribute('fill',source==='satellite'?'#fff':color);
+        txt.setAttribute('fill-opacity','0.95');
+        txt.textContent=String(n);
+        g.appendChild(txt);
+        svg.appendChild(g);
     });
 }
 function selectZone(zid){
@@ -301,12 +536,20 @@ function renderPanel(cid){
     const fNivel=wl.fungal_nivel||'bajo',fPct=fNivel==='alto'?80:fNivel==='medio'?45:12,fColor=fNivel==='alto'?'#ef4444':fNivel==='medio'?'#a855f7':'#22c55e';
     const _amalOrder=['GK_N','AREA_N','MID_N','MID_S','AREA_S','GK_S'];
     const zoneOrder=Object.keys(cancha.zones||{}).length?Object.keys(cancha.zones):_amalOrder;
-    const zGrid=zoneOrder.map(zid=>{const z=cancha.zones?.[zid]||{},u=z.urgency||'OK',pt=z.primary||{},bg=`rgba(${hexRgb(hex(u))},${u==='OK'?0.07:0.18})`,sel=_activeZoneId===zid;return `<div class="zone-tile${sel?' selected':''}" data-zone="${zid}" onclick="selectZone('${zid}')" style="background:${bg};border-color:${u!=='OK'?hex(u):'rgba(255,255,255,0.06)'}"><div class="zone-tile-label">${ZONE_SHORT[zid]||zid}</div><div class="zone-tile-urgency" style="color:${hex(u)}">${UL[u]||u}</div><div class="zone-tile-type" style="color:${ACTION_COL[pt.type]||'#6b7280'}">${pt.type&&pt.type!=='OK'?pt.type:'OK'}</div></div>`;}).join('');
-    const et0=fmt1(wl.et0_mm_dia),et0Sem=fmt1(wl.et0_acumulado_7d||wl.et0_semana_mm),defi=fmt1(wl.deficit_hidrico_mm||wl.deficit_mm),defHigh=parseFloat(defi)>5,hum=fmt0(wl.humedad_suelo_pct),lluvia=fmt1(wl.lluvia_48h_mm),hora=wl.hora_riego_optima||'-',corte=wl.dias_proximo_corte||'-',gdd7=fmt1(wl.gdd_acumulado_7d),gddR=fmt1(wl.gdd_rate_diario);
-    // ── SAR section ──────────────────────────────────────────────────────────
-    const sarVV=wl.sar_vv_db,sarInsar=wl.insar_mm,sarFecha=wl.sar_fecha||'',sarChange=wl.sar_vv_change_6d,vhVv=wl.vh_vv_ratio;
-    const vvCls=sarVV!=null?(sarVV>-7.5?'alert':sarVV>-9.5?'':'warn'):'';
-    const vvLbl=sarVV!=null?(sarVV>-7.5?'COMPACTACIÓN ALTA':sarVV>-9.5?'NORMAL':'SUELO SUELTO'):'—';
+    const zGrid=zoneOrder.map(zid=>{const z=cancha.zones?.[zid]||{},u=z.urgency||'OK',pt=z.primary||{},acCnt=z.actions?.length||0,bg=`rgba(${hexRgb(hex(u))},${u==='OK'?0.06:acCnt>1?0.22:0.13})`,sel=_activeZoneId===zid;return `<div class="zone-tile${sel?' selected':''}" data-zone="${zid}" onclick="selectZone('${zid}')" style="background:${bg};border-color:${u!=='OK'?hex(u):'rgba(255,255,255,0.06)'}"><div class="zone-tile-label" style="display:flex;justify-content:space-between;align-items:center">${ZONE_SHORT[zid]||zid}${acCnt>1?`<span style="background:rgba(255,255,255,0.15);border-radius:2px;padding:0 3px;font-size:6px">${acCnt}</span>`:''}</div><div class="zone-tile-urgency" style="color:${hex(u)}">${UL[u]||u}</div><div class="zone-tile-type" style="color:${ACTION_COL[pt.type]||'#6b7280'}">${pt.type&&pt.type!=='OK'?pt.type:'OK'}</div></div>`;}).join('');
+    const et0=fmt1(wl.et0_mm_dia),et0Sem=fmt1(wl.et0_acumulado_7d||wl.et0_semana_mm),defi=fmt1(wl.deficit_hidrico_mm||wl.deficit_mm),defHigh=parseFloat(defi)>5,hum=fmt0(wl.humedad_suelo_pct),lluvia=fmt1(wl.lluvia_48h_mm),hora=wl.hora_riego_optima||'-',gdd7=fmt1(wl.gdd_acumulado_7d),gddR=fmt1(wl.gdd_rate_diario);
+    // NDVI: usar fuente más confiable — gndvi_por_cancha de S2 si disponible, sino cancha.ndvi
+    const _vdNdvi=_vd?.weather_live?.gndvi_por_cancha?.canchas?.[cid]?.ndvi;
+    const cNdvi=_vdNdvi!=null?parseFloat(_vdNdvi):(cancha.ndvi!=null?parseFloat(cancha.ndvi):null);
+    const _ndviSrc=_vdNdvi!=null?'S2':'hm';
+    const ndviStr=cNdvi!=null?cNdvi.toFixed(3):'-';
+    const ndviCol=cNdvi==null?'var(--dim)':cNdvi>0.55?'var(--green)':cNdvi<0.35?'#f59e0b':'var(--whi)';
+    // ── SAR section — per-cancha VV/VH, global for change/insar ─────────────
+    // SAR proxy (Van Genuchten) usa escala diferente — no comparar con umbrales Sentinel-1 reales
+    const _sarIsProxy=!wl.sar_disponible||(wl.sar_mensaje||'').includes('proxy')||(wl.sar_mensaje||'').includes('Van Genuchten');
+    const sarVV=cancha.sar_vv_db??(!_sarIsProxy?wl.sar_vv_db:null),sarInsar=wl.insar_mm,sarFecha=cancha.sar_fecha||wl.sar_fecha||'',sarChange=wl.sar_vv_change_6d,vhVv=cancha.sar_vh_db!=null?(cancha.sar_vh_db-sarVV):wl.vh_vv_ratio;
+    const vvCls=sarVV!=null?(_sarIsProxy?'warn':sarVV>-7.5?'alert':sarVV>-9.5?'':'warn'):'';
+    const vvLbl=sarVV!=null?(_sarIsProxy?'PROXY SM':'':sarVV>-7.5?'COMPACTACIÓN ALTA':sarVV>-9.5?'NORMAL':'SUELO SUELTO'):'—';
     const chgCls=sarChange!=null?(sarChange<-1.5?'alert':sarChange>1.0?'warn':''):'';
     const chgLbl=sarChange!=null?(sarChange<-1.5?'MAS SECO':sarChange<-0.5?'SECANDO':sarChange<0.5?'ESTABLE':'HUMEDO'):'—';
     const insarAbs=sarInsar!=null?Math.abs(sarInsar):0,insarCls=sarInsar!=null?(insarAbs>5?'alert':insarAbs>2?'warn':''):'';
@@ -315,11 +558,40 @@ function renderPanel(cid){
     const era5Html=`<div class="era5-section"><div class="era5-title">ERA5-LAND — HUMEDAD POR CAPA <span style="font-weight:400;opacity:0.6">(ECMWF · 12 km · ref. regional)</span></div><div class="era5-grid"><div class="era5-cell"><div class="era5-label">0–7 cm</div><div class="era5-value">${era5_0_7!=null?Math.round(era5_0_7*100):'—'}<span class="era5-unit"> %</span></div></div><div class="era5-cell"><div class="era5-label">7–28 cm</div><div class="era5-value">${era5_7_28!=null?Math.round(era5_7_28*100):'—'}<span class="era5-unit"> %</span></div></div><div class="era5-cell"><div class="era5-label">28–100 cm</div><div class="era5-value">${era5_28_100!=null?Math.round(era5_28_100*100):'—'}<span class="era5-unit"> %</span></div></div><div class="era5-cell"><div class="era5-label">100–289 cm</div><div class="era5-value">${era5_100_289!=null?Math.round(era5_100_289*100):'—'}<span class="era5-unit"> %</span></div></div></div></div>`;
     const sarMsg=wl.sar_mensaje||'';const sarReal=wl.sar_disponible===true;
     const sarHtml=(sarVV!=null||sarInsar!=null)?`<div class="sar-section"><div class="sar-title">RADAR SAR — SENTINEL-1 C-BAND <span class="sar-date">${sarFecha?'img '+sarFecha:''}</span>${sarMsg?`<span class="sar-src-badge" style="background:${sarReal?'rgba(34,197,94,0.12)':'rgba(245,158,11,0.12)'};color:${sarReal?'#22c55e':'#f59e0b'};font-size:7px;padding:1px 5px;border-radius:3px;margin-left:6px;letter-spacing:0.5px">${sarMsg}</span>`:''}</div><div class="sar-grid"><div class="sar-cell ${vvCls}"><div class="sar-cell-label">COMPACT. VV</div><div class="sar-cell-val">${sarVV!=null?sarVV.toFixed(1):'—'}<span class="sar-cell-unit"> dB</span></div><div class="sar-cell-status" style="color:${_sarCellColor(vvCls)}">${vvLbl}</div></div><div class="sar-cell ${chgCls}"><div class="sar-cell-label">CAMBIO 6d</div><div class="sar-cell-val">${sarChange!=null?(sarChange>=0?'+':'')+sarChange.toFixed(1):'—'}<span class="sar-cell-unit"> dB</span></div><div class="sar-cell-status" style="color:${_sarCellColor(chgCls)}">${chgLbl}</div></div><div class="sar-cell ${insarCls}"><div class="sar-cell-label">INSAR DESPL.</div><div class="sar-cell-val">${sarInsar!=null?(sarInsar>=0?'+':'')+sarInsar.toFixed(1):'—'}<span class="sar-cell-unit"> mm</span></div><div class="sar-cell-status" style="color:${_sarCellColor(insarCls)}">${insarLbl}</div></div></div></div>`:'';
+    // ── Diagnóstico radiográfico — hallazgos numerados con dato/acción/solución ─
+    const hallazgos=_buildHallazgos(cancha,wl);
+    const nextSarFecha=wl.sar_next_fecha;
+    const nextSarDias=wl.sar_dias_hasta_siguiente;
+    let nextSarLabel='';
+    if(nextSarFecha){
+        const nd=new Date(nextSarFecha);
+        const dow=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'][nd.getDay()];
+        const dd=String(nd.getDate()).padStart(2,'0');
+        const mm=String(nd.getMonth()+1).padStart(2,'0');
+        nextSarLabel=nextSarDias!=null?(nextSarDias<=0?'HOY/AYER':`${dow} ${dd}/${mm} (${nextSarDias}d)`):`${dow} ${dd}/${mm}`;
+    }
+    const maxUrg=hallazgos.length?hallazgos[0].urgencia:'OK';
+    // SVG counter — only hallazgos with position get a number on the field
+    let _svgN=0;
+    const dxItemsHtml=hallazgos.map((h)=>{
+        const hasSvg=h.cx!=null;
+        const isSat=h.source==='satellite';
+        const badge=hasSvg?(++_svgN):'⚠';
+        // Satellite: solid fill badge. Prescription-with-position: outline badge. Climate: dim badge.
+        const badgeStyle=hasSvg
+            ?(isSat?`background:${h.color};color:#fff`:`background:transparent;color:${h.color};border:1.5px solid ${h.color}`)
+            :'background:rgba(255,255,255,0.10);color:var(--whi)';
+        const bg=URG_BG[h.urgencia]||'rgba(255,255,255,0.03)';
+        const zonaNote=!hasSvg?'<span style="color:var(--dim2);font-size:6px;margin-left:4px">· zona</span>'
+            :(!isSat?'<span style="color:var(--dim2);font-size:6px;margin-left:4px">· foco NDVI</span>':'');
+        return `<div class="dx-item" style="background:${bg};border-left-color:${h.color}"><div class="dx-num" style="${badgeStyle}">${badge}</div><div class="dx-body"><div class="dx-row"><div><div class="dx-tipo" style="color:${h.color}">${h.tipo}</div><div class="dx-zona">${h.zona_label}${zonaNote}</div></div><div class="dx-urg" style="background:${hex(h.urgencia)}">${UL[h.urgencia]||h.urgencia}</div></div>${h.dato?`<div class="dx-ev">Dato: ${h.dato}</div>`:''}${h.accion?`<div class="dx-accion" style="color:${h.color}">→ ${h.accion}</div>`:''}${h.razon?`<div class="dx-conf">Por qué: ${h.razon}</div>`:''}</div></div>`;
+    }).join('');
+    const spatHtml=hallazgos.length?`<div class="dx-section"><div class="dx-header"><div><div class="dx-title">DIAGNÓSTICO DE CAMPO</div><div class="dx-summary" style="color:${hex(maxUrg)}">${hallazgos.length} hallazgo${hallazgos.length!==1?'s':''} · urgencia máx: ${UL[maxUrg]||maxUrg}</div></div>${nextSarLabel?`<div class="dx-sar-badge">Próx. SAR: ${nextSarLabel}</div>`:''}</div><div class="dx-list">${dxItemsHtml}</div></div>`:(nextSarLabel?`<div class="dx-section"><div class="dx-header"><div class="dx-title">ESTADO CAMPO</div><div class="dx-sar-badge">Próx. SAR: ${nextSarLabel}</div></div><div style="font-size:8px;color:var(--dim)">Sin hallazgos activos · campo en parámetros normales.</div></div>`:'');
     // ── GDD dormancy note (winter May–Aug in Argentina) ──────────────────────
     const _mo=new Date().getMonth()+1;
     const gddNote=(_mo>=5&&_mo<=8)?`<div style="font-size:7.5px;color:#6b7280;margin-top:5px;padding:3px 6px;background:rgba(107,114,128,0.06);border-radius:3px">Dormancia invernal activa — GDD bajo esperado (May–Ago)</div>`:'';
     // ── Render ───────────────────────────────────────────────────────────────
-    body.innerHTML=`<div class="cancha-head"><div class="cancha-name">${canName(cid)}</div><div class="urgency-badge" style="background:${hex(worstU)}">${UL[worstU]||worstU}</div></div><div class="zone-grid">${zGrid}</div><div class="zone-detail" id="zoneDetailSection"><div style="color:var(--dim);font-size:9px;line-height:1.5;">Selecciona una zona del mapa para ver las acciones recomendadas.</div></div><div class="metrics-section"><div class="metrics-title">ESTADO DEL CAMPO</div><div class="metrics-grid"><div class="metric-cell"><div class="metric-label">ET₀ HOY</div><div class="metric-value">${et0}<span class="metric-unit"> mm/d</span></div></div><div class="metric-cell"><div class="metric-label">ET₀ ACUM 7d</div><div class="metric-value" style="color:${parseFloat(et0Sem)>40?'#f59e0b':'var(--whi)'}">${et0Sem}<span class="metric-unit"> mm</span></div></div><div class="metric-cell"><div class="metric-label">DÉFICIT</div><div class="metric-value" style="color:${defHigh?'#f59e0b':'var(--whi)'}">${defi}<span class="metric-unit"> mm</span></div></div><div class="metric-cell"><div class="metric-label">LLUVIA 48H</div><div class="metric-value">${lluvia}<span class="metric-unit"> mm</span></div></div><div class="metric-cell"><div class="metric-label">RIEGO ÓPTIMO</div><div class="metric-value" style="font-size:10px">${hora}</div></div><div class="metric-cell"><div class="metric-label">CORTE</div><div class="metric-value" style="font-size:10px">${corte}<span class="metric-unit"> dias</span></div></div></div></div>${sarHtml}${era5Html}<div class="gdd-section"><div class="gdd-item"><div class="gdd-label">GDD Acum. 7 dias</div><div class="gdd-value">${gdd7}<span class="gdd-unit"> C</span></div></div><div class="gdd-sep"></div><div class="gdd-item"><div class="gdd-label">GDD por dia</div><div class="gdd-value">${gddR}<span class="gdd-unit"> C</span></div></div>${gddNote}</div><div class="fungal-section"><div class="fungal-header"><span class="fungal-label">RIESGO HONGOS (Smith-Kerns)</span><span class="fungal-badge" style="background:${fColor}">${fNivel.toUpperCase()}</span></div><div class="fungal-bar-bg"><div class="fungal-bar-fill" style="width:${fPct}%;background:${fColor}"></div></div><div class="fungal-desc">${wl.fungal_desc||wl.fungal_accion||'Sin datos de riesgo fungico.'}</div></div><div class="ipos-section"><div class="ipos-header"><span class="ipos-label">CARGA IPOS</span><span class="ipos-value">${Math.round(ipos)} pts</span></div><div class="ipos-bar-bg"><div class="ipos-bar-fill" style="width:${iposPct}%;background:${iposColor}"></div></div><div class="ipos-tiers"><span>0</span><span>100</span><span>200</span><span>300</span><span>400+</span></div><button onclick="openLogActividad('${cid}')" style="margin-top:6px;width:100%;padding:5px 0;background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.25);border-radius:3px;color:#c9a84c;font-size:7.5px;font-weight:700;letter-spacing:1px;cursor:pointer;font-family:inherit">+ REGISTRAR ACTIVIDAD</button></div>`;
+    body.innerHTML=`<div class="cancha-head"><div class="cancha-name">${canName(cid)}</div><div class="urgency-badge" style="background:${hex(worstU)}">${UL[worstU]||worstU}</div></div><div class="zone-grid">${zGrid}</div><div class="zone-detail" id="zoneDetailSection"><div style="color:var(--dim);font-size:9px;line-height:1.5;">Selecciona una zona del mapa para ver las acciones recomendadas.</div></div><div class="metrics-section"><div class="metrics-title">ESTADO DEL CAMPO</div><div class="metrics-grid"><div class="metric-cell"><div class="metric-label">ET₀ HOY</div><div class="metric-value">${et0}<span class="metric-unit"> mm/d</span></div></div><div class="metric-cell"><div class="metric-label">ET₀ ACUM 7d</div><div class="metric-value" style="color:${parseFloat(et0Sem)>40?'#f59e0b':'var(--whi)'}">${et0Sem}<span class="metric-unit"> mm</span></div></div><div class="metric-cell"><div class="metric-label">DÉFICIT</div><div class="metric-value" style="color:${defHigh?'#f59e0b':'var(--whi)'}">${defi}<span class="metric-unit"> mm</span></div></div><div class="metric-cell"><div class="metric-label">LLUVIA 48H</div><div class="metric-value">${lluvia}<span class="metric-unit"> mm</span></div></div><div class="metric-cell"><div class="metric-label">RIEGO ÓPTIMO</div><div class="metric-value" style="font-size:10px">${hora}</div></div><div class="metric-cell"><div class="metric-label">NDVI CANCHA</div><div class="metric-value" style="font-size:11px;color:${ndviCol}">${ndviStr}</div></div></div></div>${sarHtml}${spatHtml}${era5Html}<div class="gdd-section"><div class="gdd-item"><div class="gdd-label">GDD Acum. 7 dias</div><div class="gdd-value">${gdd7}<span class="gdd-unit"> C</span></div></div><div class="gdd-sep"></div><div class="gdd-item"><div class="gdd-label">GDD por dia</div><div class="gdd-value">${gddR}<span class="gdd-unit"> C</span></div></div>${gddNote}</div><div class="fungal-section"><div class="fungal-header"><span class="fungal-label">RIESGO HONGOS (Smith-Kerns)</span><span class="fungal-badge" style="background:${fColor}">${fNivel.toUpperCase()}</span></div><div class="fungal-bar-bg"><div class="fungal-bar-fill" style="width:${fPct}%;background:${fColor}"></div></div><div class="fungal-desc">${wl.fungal_desc||wl.fungal_accion||'Sin datos de riesgo fungico.'}</div></div><div class="ipos-section"><div class="ipos-header"><span class="ipos-label">CARGA IPOS</span><span class="ipos-value">${Math.round(ipos)} pts</span></div><div class="ipos-bar-bg"><div class="ipos-bar-fill" style="width:${iposPct}%;background:${iposColor}"></div></div><div class="ipos-tiers"><span>0</span><span>100</span><span>200</span><span>300</span><span>400+</span></div><button onclick="openLogActividad('${cid}')" style="margin-top:6px;width:100%;padding:5px 0;background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.25);border-radius:3px;color:#c9a84c;font-size:7.5px;font-weight:700;letter-spacing:1px;cursor:pointer;font-family:inherit">+ REGISTRAR ACTIVIDAD</button></div>`;
     renderZoneDetail(cancha,_activeZoneId);
 }
 let _sarChart=null;
@@ -395,8 +667,9 @@ function toggleGrid3x3(){
 }
 function activateCancha(cid){
     _activeCanchaId=cid;const cancha=_data?.canchas?.[cid];
-    renderPanel(cid);renderZones(cancha);updateSatBadge(cancha);
-    if(cancha?.heatmap_archivo)renderHeatmap(cancha.heatmap_archivo);
+    renderPanel(cid);renderZones(cancha);renderSpatialAlerts(cancha);updateSatBadge(cancha);
+    const hmFile=cancha?.heatmap_archivo||_vd?.usuarios?.roger?.heatmaps?.[cid]?.archivo;
+    if(hmFile)renderHeatmap(hmFile);
     renderZoneDetail(cancha,_activeZoneId);
     // SAR chart + Grid 3×3 solo visibles para Amalfitani
     const isAmal=cid==='amalfitani';
