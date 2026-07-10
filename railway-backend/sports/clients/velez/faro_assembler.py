@@ -74,7 +74,8 @@ def _apply_supabase_overlay(vd: dict) -> None:
         # sectores
         for sid, s in overlay.get("sectores", {}).items():
             vd.setdefault("sectores", {}).setdefault(sid, {}).update(
-                {k: v for k, v in s.items() if k not in ("sector_id", "updated_at")}
+                {k: v for k, v in s.items()
+                 if k not in ("sector_id", "updated_at") and v is not None}
             )
             # Staleness detection: mark InSAR as stale if updated_at > 14 days
             _upd = s.get("updated_at")
