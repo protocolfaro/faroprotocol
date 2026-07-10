@@ -174,7 +174,7 @@ def validate(vd: dict) -> tuple[list, list]:
         import re as _re
         for sv in _SYNTHETIC_INSAR:
             # Match only when followed by " mm" to avoid matching NDVI values like 0.61
-            if _re.search(rf"\b{sv}\s*mm", det):
+            if det and _re.search(rf"\b{sv}\s*mm", det):
                 _warn(f"Sector {sk}: detalle contiene valor InSAR sospechoso ({sv}mm): '{det[:60]}'")
 
     # ── 6. Solar ─────────────────────────────────────────────────────────────
