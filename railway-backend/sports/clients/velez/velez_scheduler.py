@@ -45,8 +45,6 @@ MANUAL_PATHS: dict = {
 
 _SEM_COLOR = {"verde": "#27ae60", "amarillo": "#f0b429", "rojo": "#e74c3c"}
 _SEM_LABEL = {"verde": "ÓPTIMO",  "amarillo": "ATENCIÓN", "rojo": "CRÍTICO"}
-_SEM_EMOJI = {"verde": "✅",       "amarillo": "⚠️",        "rojo": "🚨"}
-_SEM_ORDER = {"verde": 0,          "amarillo": 1,           "rojo": 2}
 
 NDVI_ALERT  = 0.35
 INSAR_ALERT = 3.0
@@ -97,109 +95,6 @@ def _get_sectores() -> dict:
     return _get_velez_data().get("sectores", {})
 
 
-# ── WhatsApp (CallMeBot) ──────────────────────────────────────────────────────
-
-_WA_ALERT_USERS = [
-    {"nombre": "Roger Bernal",      "slug": "roger",    "phone": "541124642616",
-     "env_key": "CALLMEBOT_KEY_ROGER",    "env_key_alt": "VELEZ_WHATSAPP_CANCHERO",
-     "sectores": ["canchero"]},
-    {"nombre": "Juan González",     "slug": "juan",     "phone": "541151073109",
-     "env_key": "CALLMEBOT_KEY_JUAN",     "env_key_alt": "VELEZ_WHATSAPP_INTENDENTE",
-     "sectores": ["canchero","agro","poli"]},
-    {"nombre": "Fernando Banchero", "slug": "banchero", "phone": "541167096384",
-     "env_key": "CALLMEBOT_KEY_BANCHERO", "env_key_alt": None,
-     "sectores": ["estadio","agro","solar","canchero","sede","poli","piletas"]},
-    {"nombre": "Nelson Pugliese",   "slug": "nelson",   "phone": "541156417353",
-     "env_key": "CALLMEBOT_KEY_NELSON",   "env_key_alt": "VELEZ_WHATSAPP_NELSON",
-     "sectores": ["estadio","agro","solar","canchero","sede","poli","piletas"]},
-]
-
-
-def send_whatsapp(phone: str, message: str, api_key: str) -> bool:
-    if not phone or not api_key:
-        return False
-    try:
-        r = requests.get("https://api.callmebot.com/whatsapp.php",
-                         params={"phone": phone, "text": message, "apikey": api_key},
-                         timeout=15)
-        ok = r.status_code == 200
-        log.info("WhatsApp %s -> %s", phone[:8] + "***", "OK" if ok else f"FAIL {r.status_code}")
-        return ok
-    except Exception as e:
-        log.error("WhatsApp %s: %s", phone[:8] + "***", e)
-        return False
-
-
-def _build_wa_message(user: dict, sectores: dict, fecha: str, vd: dict = None) -> str:
-    nombre_short = user["nombre"].split()[0]
-    user_sects   = [sectores[k] for k in user["sectores"] if k in sectores]
-    scores       = [s["score"] for s in user_sects if isinstance(s.get("score"), (int, float))]
-    avg          = round(sum(scores) / len(scores)) if scores else 0
-    worst        = max(user_sects, key=lambda s: _SEM_ORDER.get(s.get("sem","verde"), 0), default={})
-    worst_sem    = worst.get("sem", "verde") if worst else "verde"
-    criticos     = [s for s in user_sects if s.get("sem") == "rojo"]
-    atencion     = [s for s in user_sects if s.get("sem") == "amarillo"]
-
-    lines = [
-        "*Faro Protocol — Vélez Sarsfield*",
-        f"Semana {fecha}", "",
-        f"Hola {nombre_short}, tu resumen:",
-        f"{_SEM_EMOJI[worst_sem]} Score: *{avg}/100*", "",
-    ]
-    if criticos:
-        lines.append("🚨 *Acción urgente:*")
-        for s in criticos:
-            lines.append(f"  • {s.get('nombre','?')} ({s.get('score','?')}/100)")
-            lines.append(f"    {s.get('detalle','')}")
-        lines.append("")
-    if atencion and len(user["sectores"]) > 1:
-        lines.append("⚠️ *En atención:*")
-        for s in atencion[:2]:
-            lines.append(f"  • {s.get('nombre','?')} ({s.get('score','?')}/100)")
-        lines.append("")
-    # Satellite data age warning
-    if vd:
-        meta = (vd.get("usuarios", {}).get("roger", {})
-                   .get("heatmaps_meta", {}))
-        semana = meta.get("semana", "")
-        if semana:
-            try:
-                from datetime import date as _date
-                img_d = datetime.strptime(semana, "%Y-%m-%d").date()
-                age = (datetime.now(_ART).date() - img_d).days
-                if age > 7:
-                    lines.append(f"⚠ _Imagen satelital de hace {age} días ({img_d.strftime('%d/%m')}) — sin imagen nueva disponible_")
-                    lines.append("")
-            except Exception:
-                pass
-    lines.append(f"📱 {PANEL_BASE_URL}#{user['slug']}")
-    return "\n".join(lines)
-
-
-def send_whatsapp_alerts(vd: dict = None) -> dict:
-    """Send weekly WhatsApp summary. Silently skips users without a configured key."""
-    if vd is None:
-        vd = _get_velez_data()
-    sectores  = vd.get("sectores", {})
-    fecha_str = datetime.now(_ART).strftime("%d/%m/%Y")
-    results   = {}
-    for user in _WA_ALERT_USERS:
-        api_key = _env(user["env_key"]) or (
-            _env(user["env_key_alt"]) if user.get("env_key_alt") else ""
-        )
-        if not api_key:
-            log.info("WhatsApp: %s sin key — configurar %s o %s en Railway",
-                     user["nombre"], user["env_key"], user.get("env_key_alt", ""))
-            results[user["nombre"]] = None
-            continue
-        msg = _build_wa_message(user, sectores, fecha_str, vd=vd)
-        results[user["nombre"]] = send_whatsapp(user["phone"], msg, api_key)
-
-    sent = sum(1 for v in results.values() if v is True)
-    skip = sum(1 for v in results.values() if v is None)
-    fail = sum(1 for v in results.values() if v is False)
-    log.info("WhatsApp semanal: %d enviados · %d sin key · %d fallidos", sent, skip, fail)
-    return results
 
 
 # ── Email ─────────────────────────────────────────────────────────────────────
@@ -1678,26 +1573,17 @@ def run_weekly_job() -> dict:
         log.warning("satellite_pipeline weekly fallback (non-fatal): %s", _se)
 
     config = load_config()
-    vd     = _get_velez_data()   # fetch once — shared by WhatsApp + email
+    vd     = _get_velez_data()
 
-    wa_results    = {}
     email_results = {}
-
-    try:
-        wa_results = send_whatsapp_alerts(vd=vd)
-    except Exception as e:
-        log.error("WhatsApp alerts failed: %s", e)
-
     try:
         email_results = send_all_reports(config, vd=vd)
     except Exception as e:
         log.error("Email send failed: %s", e)
 
     _last_weekly = {
-        "ran_at":        datetime.utcnow().isoformat(),
-        "whatsapp_sent": sum(1 for v in wa_results.values() if v is True),
-        "whatsapp_skip": sum(1 for v in wa_results.values() if v is None),
-        "emails_sent":   sum(1 for v in email_results.values() if v is True),
+        "ran_at":      datetime.utcnow().isoformat(),
+        "emails_sent": sum(1 for v in email_results.values() if v is True),
     }
     log.info("=== Weekly job done: %s ===", _last_weekly)
     return _last_weekly
@@ -1882,18 +1768,6 @@ def route_debug_vd():
         "hermes":       hermes_diag,
         "roger_canchas_count": len(vd.get("roger_canchas", [])),
     })
-
-
-def route_test_whatsapp():
-    from flask import request, jsonify
-    nombre = (request.get_json(silent=True) or {}).get("nombre")
-    users  = [u for u in _WA_ALERT_USERS if not nombre or u["nombre"] == nombre]
-    results = {}
-    for u in users:
-        api_key = _env(u["env_key"]) or (_env(u["env_key_alt"]) if u.get("env_key_alt") else "")
-        msg = f"Faro Protocol · TEST desde Railway · {datetime.now(_ART).strftime('%d/%m %H:%M')}"
-        results[u["nombre"]] = send_whatsapp(u["phone"], msg, api_key) if api_key else None
-    return jsonify({"status": "ok", "results": results})
 
 
 def route_smtp_diag():
