@@ -3,7 +3,7 @@ app.py — Flask backend: Vélez IPOS + heatmap pipeline + daily weather refresh
 Faro Protocol · Railway-ready · v2026-05-20
 """
 from __future__ import annotations
-import base64, hashlib, json, logging, os, sys, threading, traceback
+import base64, gc, hashlib, json, logging, os, sys, threading, traceback
 import requests as _requests
 from datetime import datetime, timezone
 
@@ -102,6 +102,33 @@ def health():
         "service": "velez-ipos",
         "commit": os.environ.get("RAILWAY_GIT_COMMIT_SHA", "unknown"),
     })
+
+
+@app.route("/debug/memory")
+def debug_memory():
+    try:
+        import psutil
+        proc = psutil.Process(os.getpid())
+        mi   = proc.memory_info()
+        tile_cache_entries = 0
+        tile_cache_kb      = 0
+        try:
+            import tiles_blueprint as _tb
+            tile_cache_entries = len(_tb._TILE_CACHE)
+            tile_cache_kb      = sum(len(v[0]) for v in _tb._TILE_CACHE.values()) // 1024
+        except Exception:
+            pass
+        return jsonify({
+            "timestamp":          datetime.now(timezone.utc).isoformat(),
+            "rss_mb":             round(mi.rss / 1024 / 1024, 1),
+            "vms_mb":             round(mi.vms / 1024 / 1024, 1),
+            "memory_percent":     round(proc.memory_percent(), 2),
+            "num_threads":        proc.num_threads(),
+            "tile_cache_entries": tile_cache_entries,
+            "tile_cache_kb":      tile_cache_kb,
+        })
+    except ImportError:
+        return jsonify({"error": "psutil no disponible"}), 500
 
 
 @app.route("/metrics")
@@ -1446,7 +1473,9 @@ def _daily_enrichment():
         except Exception as exc:
             results[mod_name] = {"error": str(exc)}
             log.warning("enrichment: %s (non-fatal): %s", mod_name, exc)
-    log.info("=== Cron: enrichment cycle done — %d módulos ===", len(modules))
+    freed = gc.collect()
+    log.info("=== Cron: enrichment cycle done — %d módulos · GC liberó %d objetos ===",
+             len(modules), freed)
     return results
 
 
@@ -1597,6 +1626,14 @@ def _start_scheduler():
         _weekly_insar_refresh,
         CronTrigger(day_of_week="mon", hour=10, minute=0, timezone="UTC"),
         id="weekly_insar_refresh",
+        replace_existing=True,
+    )
+    # GC cada hora — libera memoria acumulada entre jobs satelitales
+    scheduler.add_job(
+        lambda: gc.collect(),
+        "interval",
+        hours=1,
+        id="hourly_gc",
         replace_existing=True,
     )
     scheduler.start()

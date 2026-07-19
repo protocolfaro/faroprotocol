@@ -14,7 +14,7 @@ Query params (ambos endpoints):
   vv=<url>                               — URL COG directa (SAR, anula CMR search)
   opacity=0-255                          — transparencia SAR (default 102 ≈ 40%)
 
-Cache: 6h en memoria, max 512 tiles. AWS_NO_SIGN_REQUEST=YES (buckets públicos).
+Cache: 1h en memoria, max 64 tiles. AWS_NO_SIGN_REQUEST=YES (buckets públicos).
 """
 from __future__ import annotations
 
@@ -33,8 +33,8 @@ tiles_bp = Blueprint("tiles", __name__, url_prefix="/tiles")
 
 # ── Cache en memoria ───────────────────────────────────────────────────────────
 _TILE_CACHE: dict[str, tuple[bytes, float]] = {}
-_CACHE_TTL   = 6 * 3600     # 6 horas
-_CACHE_MAX   = 512           # entradas máximo
+_CACHE_TTL   = 3600          # 1 hora
+_CACHE_MAX   = 64            # entradas máximo (reducido para bajar RSS)
 
 # Scene URL cache — evita llamar STAC search en cada tile del mismo viewport
 _SCENE_CACHE: dict[str, tuple] = {}  # key → (result, timestamp)
