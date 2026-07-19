@@ -22,6 +22,10 @@ jobs:
         env:
           TOKEN: ${{ secrets.PANELES_DEPLOY_TOKEN }}
         run: |
+          if [ -z "${TOKEN}" ]; then
+            echo "ERROR: PANELES_DEPLOY_TOKEN no configurado — panel no se sincronizará"
+            exit 1
+          fi
           git clone "https://x-access-token:${TOKEN}@github.com/protocolfaro/faro-paneles.git" /tmp/faro-paneles
       - name: Sync velez/ y pasaporte/
         run: |

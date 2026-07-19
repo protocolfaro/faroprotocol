@@ -57,9 +57,15 @@ class AlertSystem:
     def __init__(self):
         self._cooldowns: dict[str, float] = {}
         self._lock = threading.Lock()
+        # Marca de arranque: no emitir alertas en los primeros 30 min post-restart
+        # (cooldowns locales se pierden en cada reinicio de Railway)
+        self._startup = time.monotonic()
 
-    def _cooled_down(self, key: str, seconds: int = 1800) -> bool:
+    def _cooled_down(self, key: str, seconds: int = 7200) -> bool:
         now = time.monotonic()
+        # Grace period 30 min post-restart para evitar spam por pérdida de cooldowns
+        if now - self._startup < 1800:
+            return False
         with self._lock:
             last = self._cooldowns.get(key, 0)
             if now - last >= seconds:

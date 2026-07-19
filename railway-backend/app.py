@@ -22,7 +22,6 @@ from apscheduler.triggers.cron import CronTrigger
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import ipos as ipos_mod
-import heatmap_gen
 import github_push
 import data_refresh
 import velez_scheduler
@@ -260,6 +259,7 @@ def horarios():
         ipos_results.setdefault(k, v)  # compute_ipos result takes precedence if sessions were submitted
 
     try:
+        import heatmap_gen
         png_bytes, verify_hashes = heatmap_gen.generate_all(ipos_results, sem_label)
     except Exception as e:
         log.error(traceback.format_exc())

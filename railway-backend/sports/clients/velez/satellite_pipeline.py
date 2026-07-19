@@ -378,6 +378,11 @@ def run_satellite_cycle(ndvi_data: dict = None, force: bool = False) -> dict:
     # 5b. Hermes — solo cuando hay datos SAR reales (pipeline NDVI-only lo omite)
     # En Railway el ciclo óptico diario no produce SAR → Hermes no aplica aquí.
 
+    # Helper: venue_id correcto por cancha (previene mezcla de datos entre venues)
+    _VO_CANCHAS = {"1fa","2fa","3fa","4fa","5fa","6fa","7fa","8fa","9fa","10fa","1fp","2fp"}
+    def _venue_for(cid: str) -> str:
+        return "villa_olimpica" if cid in _VO_CANCHAS else "amalfitani"
+
     # 6. Actualizar velez_data.json (NDVI real + semana)
     commit_ndvi = ""
     try:
@@ -399,7 +404,7 @@ def run_satellite_cycle(ndvi_data: dict = None, force: bool = False) -> dict:
                 _conf_pct = int(round(_pc * 100))
             _metodo = _cd.get("metodo_generacion") or ndvi_data.get("metodo_generacion", "SENTINEL_DIRECTO")
             _vs_vm.insert_vegetation_metrics(
-                venue_id="amalfitani",
+                venue_id=_venue_for(_cid),
                 cancha_id=_cid,
                 fecha_imagen=img_date,
                 ndvi=_cd.get("ndvi"),
@@ -593,15 +598,26 @@ def run_sar_kalman_cycle() -> dict | None:
 
     # Si no hay datos de ninguna fuente, generar estimados basales con GDD
     if not result["canchas"]:
-        log.info("run_sar_kalman_cycle: sin SAR ni Kalman — estimado basal por GDD")
-        # NDVI basal invernal para Ryegrass en BsAs (histórico Kalman 2020-2026)
-        ndvi_basal = 0.08 if winter else 0.35
-        canchas_ids = ["amalfitani","1fa","2fa","3fa","4fa","5fa","6fa","7fa","8fa","9fa","10fa","1fp","2fp"]
-        for cid in canchas_ids:
-            result["canchas"][cid] = {
-                "ndvi": ndvi_basal,
-                "metodo_generacion": "BASAL_GDD",
-                "estimado": True,
-            }
+        log.info("run_sar_kalman_cycle: sin SAR ni Kalman — sin datos reales disponibles")
+
+    # Persistir en vegetation_metrics — evita que check_pipeline_freshness alarme
+    # durante períodos nublados (invierno BsAs puede no tener imagen óptica >7 días).
+    if result["canchas"]:
+        try:
+            import velez_supabase as _vs_sar
+            _VO = {"1fa","2fa","3fa","4fa","5fa","6fa","7fa","8fa","9fa","10fa","1fp","2fp"}
+            for _cid, _cd in result["canchas"].items():
+                _vs_sar.insert_vegetation_metrics(
+                    venue_id="villa_olimpica" if _cid in _VO else "amalfitani",
+                    cancha_id=_cid,
+                    fecha_imagen=today,
+                    ndvi=_cd.get("ndvi"),
+                    margen_error_kalman=_cd.get("margen_error_kalman"),
+                    metodo_generacion=_cd.get("metodo_generacion", "SAR_KALMAN"),
+                    fuente=result.get("fuente", "SAR+Kalman"),
+                )
+            log.info("run_sar_kalman_cycle: vegetation_metrics insertados (%d canchas)", len(result["canchas"]))
+        except Exception as _vm_e:
+            log.warning("run_sar_kalman_cycle: vegetation_metrics write (non-fatal): %s", _vm_e)
 
     return result if result["canchas"] else None

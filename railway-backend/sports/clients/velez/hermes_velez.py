@@ -61,8 +61,9 @@ _DEFAULT_POLYGON = [
     [_VELEZ_LON - 0.001, _VELEZ_LAT + 0.001],
 ]
 
-# Un motor por cancha, reutilizado durante toda la vida del proceso Railway.
+# Un motor por cancha. Max 8 entries (LRU) para limitar RSS en Railway.
 _motor_cache: dict[str, HermesMotor] = {}
+_MOTOR_CACHE_MAX = 8
 _RNG_SEED = 42
 
 
@@ -72,16 +73,19 @@ def _hermes_superficie(cancha_id: str) -> str:
 
 
 def _get_motor(cancha_id: str) -> HermesMotor:
-    if cancha_id not in _motor_cache:
-        sup = _hermes_superficie(cancha_id)
-        contract = TenantContract(
-            tenant_id=f"velez_{cancha_id}",
-            vertical="faro_sports",
-            client_name=f"Vélez Sarsfield — {cancha_id.upper()}",
-            polygon_gps=_DEFAULT_POLYGON,
-            tipo_superficie=sup,
-        )
-        _motor_cache[cancha_id] = HermesMotor(contract)
+    if cancha_id in _motor_cache:
+        return _motor_cache[cancha_id]
+    if len(_motor_cache) >= _MOTOR_CACHE_MAX:
+        _motor_cache.pop(next(iter(_motor_cache)))
+    sup = _hermes_superficie(cancha_id)
+    contract = TenantContract(
+        tenant_id=f"velez_{cancha_id}",
+        vertical="faro_sports",
+        client_name=f"Vélez Sarsfield — {cancha_id.upper()}",
+        polygon_gps=_DEFAULT_POLYGON,
+        tipo_superficie=sup,
+    )
+    _motor_cache[cancha_id] = HermesMotor(contract)
     return _motor_cache[cancha_id]
 
 

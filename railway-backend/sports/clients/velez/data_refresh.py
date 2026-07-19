@@ -21,23 +21,13 @@ log = logging.getLogger(__name__)
 LAT, LON, ELEV_M = -34.6375, -58.5215, 25
 API_TIMEOUT = 12
 
-# Fallback estimates used when Sentinel-2 fetch fails; overridden by ndvi_real on success
-_CANCHA_NDVI = {
-    "1fa": 0.48, "2fa": 0.52, "3fa": 0.38, "4fa": 0.31,
-    "5fa": 0.40, "6fa": 0.35, "7fa": 0.38, "8fa": 0.36, "9fa": 0.33, "10fa": 0.45,
-    "1fp": 0.55, "2fp": 0.52,
-    "amalfitani": 0.60, "poli_f11": 0.45, "poli_f8a": 0.42,
-    "poli_f8b": 0.42, "poli_hockey": 0.38,
-}
-_GNDVI_K = {
-    "1fa": 0.91, "2fa": 0.93, "3fa": 0.88, "4fa": 0.84,
-    "5fa": 0.89, "6fa": 0.87, "7fa": 0.88, "8fa": 0.87, "9fa": 0.86, "10fa": 0.90,
-    "1fp": 0.92, "2fp": 0.91,
-    "amalfitani": 0.92, "poli_f11": 0.90, "poli_f8a": 0.89,
-    "poli_f8b": 0.89, "poli_hockey": 0.88,
-}
-# All cancha IDs — used for dynamic fungal risk lists
-_ALL_CANCHA_IDS = list(_CANCHA_NDVI.keys())
+# Cancha IDs del venue Vélez — sin valores hardcodeados, todo dato viene de Supabase/Sentinel
+_ALL_CANCHA_IDS = [
+    "amalfitani",
+    "1fa", "2fa", "3fa", "4fa", "5fa", "6fa", "7fa", "8fa", "9fa", "10fa",
+    "1fp", "2fp",
+    "poli_f11", "poli_f8a", "poli_f8b", "poli_hockey",
+]
 
 
 # ── Fetch helpers ─────────────────────────────────────────────────────────────
@@ -1300,20 +1290,22 @@ def run_refresh() -> dict:
             from paperclip import analyze_venue as _pc_analyze
             _precip24 = float(raw.get("nasa", {}).get("PRECTOTCORR", 0.0))
             _wind_ms  = float(raw.get("nasa", {}).get("WS2M", 0.0))
-            _c_ndvi   = (weather.get("gndvi_por_cancha", {})
-                                .get("canchas", {})
-                                .get("amalfitani", {})
-                                .get("gndvi")) or _CANCHA_NDVI.get("amalfitani", 0.60)
-            _pc_analyze(
-                venue       = {"venue_id": "amalfitani", "nombre": "Estadio Amalfitani",
-                               "lat": LAT, "lon": LON},
-                weather_ctx = {"precipitation_24h": _precip24, "wind_max": _wind_ms * 3.6},
-                ndvi_ctx    = {"baseline_ndvi": 0.60, "current_ndvi": _c_ndvi,
-                               "drop": round(0.60 - _c_ndvi, 3)},
-                sar_ctx     = {"sar_fuente": weather.get("sar_mensaje", "proxy"),
-                               "is_egms_proxy": True},
-            )
-            log.info("paperclip: análisis completado para amalfitani")
+            _c_ndvi = (weather.get("gndvi_por_cancha", {})
+                              .get("canchas", {})
+                              .get("amalfitani", {})
+                              .get("ndvi"))
+            if _c_ndvi is not None:
+                _pc_analyze(
+                    venue       = {"venue_id": "amalfitani", "nombre": "Estadio Amalfitani",
+                                   "lat": LAT, "lon": LON},
+                    weather_ctx = {"precipitation_24h": _precip24, "wind_max": _wind_ms * 3.6},
+                    ndvi_ctx    = {"current_ndvi": _c_ndvi},
+                    sar_ctx     = {"sar_fuente": weather.get("sar_mensaje", "proxy"),
+                                   "is_egms_proxy": True},
+                )
+                log.info("paperclip: análisis completado para amalfitani")
+            else:
+                log.info("paperclip: sin NDVI real disponible — análisis omitido")
         except Exception as _pce:
             log.warning("paperclip (non-fatal): %s", _pce)
         # ─────────────────────────────────────────────────────────────────────

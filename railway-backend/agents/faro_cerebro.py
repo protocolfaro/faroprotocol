@@ -91,6 +91,12 @@ CB_RESET_MIN    = 30
 # ── ZONA HORARIA ──────────────────────────────────────────────────────────────
 _ART = timezone(timedelta(hours=-3))
 
+# ── STARTUP GRACE PERIOD ──────────────────────────────────────────────────────
+# Evita flood de emails MEDIA en el primer ciclo post-restart (Railway reinicia
+# el contenedor y los cooldowns locales se pierden).
+_STARTUP_TIME = datetime.now(timezone.utc)
+_STARTUP_GRACE_MIN = 30   # minutos sin escalar MEDIA tras arrancar
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # SUPABASE HELPERS
@@ -140,6 +146,9 @@ def _sb_query(table: str, filters: str) -> Optional[list]:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 _local_cooldowns: dict[str, datetime] = {}
+
+# Cache diario para hermes_diagnostico — evita acumular 240+ filas/día (5 sectores × 24 ciclos)
+_diagnostico_daily: dict[str, str] = {}   # key: "cancha:fecha" → fuente insertada
 
 
 def _cooldown_active(fp: str, hours: int) -> bool:
@@ -378,16 +387,19 @@ def get_dprvi_confidence(cancha_id: str, fecha) -> dict:
         "nota":            nota,
     }
 
-    # ── Escribir en hermes_diagnostico ────────────────────────────────────────
-    _sb_insert("hermes_diagnostico", {
-        "cancha_id":             cancha_id,
-        "fecha":                 fecha_str,
-        "humedad_estimada_m3m3": hum_m3m3,
-        "humedad_confianza_pct": confianza,
-        "humedad_fuente":        fuente,
-        "riego_detectado":       riego_detectado,
-        "nota_calidad_texto":    nota,
-    })
+    # ── Escribir en hermes_diagnostico (una vez por día por cancha) ──────────
+    _diag_key = f"{cancha_id}:{fecha_str}"
+    if _diagnostico_daily.get(_diag_key) != fuente:
+        _sb_insert("hermes_diagnostico", {
+            "cancha_id":             cancha_id,
+            "fecha":                 fecha_str,
+            "humedad_estimada_m3m3": hum_m3m3,
+            "humedad_confianza_pct": confianza,
+            "humedad_fuente":        fuente,
+            "riego_detectado":       riego_detectado,
+            "nota_calidad_texto":    nota,
+        })
+        _diagnostico_daily[_diag_key] = fuente
 
     log.info(
         "get_dprvi_confidence(%s, %s) → fuente=%s conf=%d%% riego=%s",
@@ -515,7 +527,9 @@ def _fn_pipeline_freshness() -> tuple[bool, str]:
     horas = (datetime.now(timezone.utc) - t).total_seconds() / 3600
     cancha = r.get("cancha_id", "?")
     fecha  = r.get("fecha_imagen", "?")
-    ok = horas < 48
+    # 168h = 7 días = ciclo completo Sentinel-2; en invierno BsAs puede no haber imagen
+    # óptica por >5 días, el SAR+Kalman cycle cubre pero puede tardar hasta una semana.
+    ok = horas < 168
     return ok, f"{'OK' if ok else 'STALE'} — {horas:.0f}h — cancha={cancha} fecha_imagen={fecha}"
 
 
@@ -552,9 +566,9 @@ def _run_check_with_retry(name: str, fn, retries: int = 2, delay: int = 30) -> t
             if attempt < retries:
                 time.sleep(delay)
             else:
-                _consecutive[name] = _consecutive.get(name, 0) + 1
+                _consecutive[name] = min(_consecutive.get(name, 0) + 1, 10)
                 return False, msg
-    _consecutive[name] = _consecutive.get(name, 0) + 1
+    _consecutive[name] = min(_consecutive.get(name, 0) + 1, 10)
     return False, msg
 
 
@@ -654,10 +668,10 @@ SEVERITY_RULES: dict = {
         "checks": ["check_pngs_lento", "check_supabase_warning"],
         "cooldown_horas": None,
     },
-    # MEDIA — falla 2+ veces seguidas, email cada 12h máximo
+    # MEDIA — falla 2+ veces seguidas, email cada 24h máximo
     "media": {
         "checks": ["check_json_freshness", "check_pngs", "check_panel", "check_pipeline_freshness"],
-        "cooldown_horas": 12,
+        "cooldown_horas": 24,
         "min_fallos_consecutivos": 2,
     },
     # CRÍTICA — falla el servidor o lleva +24h sin actualizar — email inmediato sin cooldown
@@ -689,6 +703,13 @@ def _procesar_alerta(check_name: str, mensaje: str, fallos_consecutivos: int) ->
 
     if severidad == "leve":
         return
+
+    # Grace period post-restart: no escalar MEDIA en los primeros N minutos
+    if severidad == "media":
+        uptime_min = (datetime.now(timezone.utc) - _STARTUP_TIME).total_seconds() / 60
+        if uptime_min < _STARTUP_GRACE_MIN:
+            log.info("Cerebro: MEDIA suprimida — grace period (%.0f/%d min)", uptime_min, _STARTUP_GRACE_MIN)
+            return
 
     cooldown_h = SEVERITY_RULES[severidad]["cooldown_horas"]
     fingerprint = f"{severidad}_{check_name}"

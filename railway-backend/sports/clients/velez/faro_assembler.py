@@ -199,7 +199,8 @@ def _apply_poli_overlay(vd: dict) -> None:
         if _here not in sys.path:
             sys.path.insert(0, _here)
         import velez_supabase as _vs
-        veg_rows = _vs.get_vegetation_metrics_latest("amalfitani", None, dias=15)
+        # poli_* canchas pertenecen al Polideportivo Feijóo (villa_olimpica), no a amalfitani
+        veg_rows = _vs.get_vegetation_metrics_latest("villa_olimpica", None, dias=15)
         veg_by: dict = {}
         for r in veg_rows:
             cid = r.get("cancha_id", "")

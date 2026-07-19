@@ -55,15 +55,17 @@ jobs:
           python3 << 'PYEOF'
           import subprocess, sys
           from datetime import datetime, timezone, timedelta
+          # velez/reportes/ es el path que commitea el pipeline (weekly-emails.yml:190)
+          # reportes_velez/ se genera localmente pero nunca se commitea a git
           PNGS = [
-              'reportes_velez/faro_reporte_velez.png',
-              'reportes_velez/faro_reporte_velez_canchero.png',
-              'reportes_velez/faro_reporte_velez_agro_FINAL.png',
-              'reportes_velez/faro_reporte_velez_solar_v2.png',
-              'reportes_velez/faro_reporte_velez_poli.png',
-              'reportes_velez/faro_reporte_velez_piletas.png',
-              'reportes_velez/faro_reporte_velez_sede.png',
-              'reportes_velez/faro_reporte_velez_instituto.png',
+              'velez/reportes/faro_reporte_velez.png',
+              'velez/reportes/faro_reporte_velez_canchero.png',
+              'velez/reportes/faro_reporte_velez_agro_FINAL.png',
+              'velez/reportes/faro_reporte_velez_solar_v2.png',
+              'velez/reportes/faro_reporte_velez_poli.png',
+              'velez/reportes/faro_reporte_velez_piletas.png',
+              'velez/reportes/faro_reporte_velez_sede.png',
+              'velez/reportes/faro_reporte_velez_instituto.png',
           ]
           now        = datetime.now(timezone.utc)
           week_start = (now - timedelta(days=now.weekday())).replace(

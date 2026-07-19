@@ -35,7 +35,7 @@ _SCORE_MIN, _SCORE_MAX = 0, 100
 # Valores sintéticos conocidos (hardcodeados en gen scripts legacy)
 _SYNTHETIC_INSAR = {0.85, 1.20, 0.60, 2.80}
 _SYNTHETIC_SOLAR = {82.4}
-_SYNTHETIC_NDVI  = {0.24, 0.31, 0.38, 0.45}  # _CANCHA_NDVI fallback values
+_SYNTHETIC_NDVI  = {0.24, 0.31, 0.38, 0.45}  # valores de fallback legacy (eliminados de data_refresh.py — detector de regresión)
 
 ERRORS   = []   # bloquean
 WARNINGS = []   # informativos
