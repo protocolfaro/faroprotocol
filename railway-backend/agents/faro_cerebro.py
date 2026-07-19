@@ -492,8 +492,9 @@ def _fn_dprvi_fusion() -> tuple[bool, str]:
         partes.append(f"conflictos={conflictos}")
     resumen = " | ".join(partes) if partes else "OK"
 
-    if sin_datos:
-        return False, f"Sin datos: {sin_datos}"
+    if sin_datos and not conflictos and not resueltos_om:
+        # sin_datos es normal: Sentinel-1 revisita cada 6-12 días
+        return True, f"Sin paso S1 hoy — {len(sin_datos)} sectores sin datos (normal)"
     if conflictos:
         return True, f"Conflictos sin resolver: {resumen}"
     return True, f"Fusión DpRVIc+ERA5+OM OK — {len(SECTORES)} sectores | {resumen}"
@@ -626,9 +627,9 @@ def _apply_inhibition(raw: dict[str, tuple[bool, str]]) -> dict[str, str]:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _trigger_refresh() -> tuple[bool, str]:
-    """POST /velez/run-refresh — datos y PNGs. NUNCA emails."""
+    """POST /velez/refresh — datos y PNGs, sin PIN (endpoint interno Railway)."""
     try:
-        r = requests.post(f"{INTERNAL_URL}/velez/run-refresh", timeout=30)
+        r = requests.post(f"{INTERNAL_URL}/velez/refresh", timeout=30)
         return r.ok, f"HTTP {r.status_code}"
     except Exception as e:
         return False, str(e)

@@ -345,9 +345,9 @@ def capture_health_snapshot() -> dict:
         return v[len(v) // 2] if v else None
 
     try:
-        # Vegetation (NDVI)
+        # Vegetation (NDVI) — sin filtro venue_id: los datos Vélez usan
+        # "amalfitani" y "villa_olimpica", no el _TENANT_ID genérico "velez"
         veg = _sb_select("vegetation_metrics", {
-            "venue_id": f"eq.{_TENANT_ID}",
             "order": "created_at.desc",
             "limit": "100",
         })
@@ -355,9 +355,9 @@ def capture_health_snapshot() -> dict:
             snap["ndvi_median"]   = _median([r.get("ndvi") for r in veg])
             snap["ndvi_age_hours"] = _age_hours(veg[0].get("created_at", ""))
 
-        # Climate (ET0)
+        # Climate (ET0) — venue_ids reales son "amalfitani"/"villa_olimpica"
         clim = _sb_select("climate_metrics", {
-            "venue_id": f"eq.{_TENANT_ID}",
+            "venue_id": "in.(amalfitani,villa_olimpica)",
             "order": "created_at.desc",
             "limit": "1",
         })
