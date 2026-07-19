@@ -5,17 +5,18 @@ Pipeline (zero-cost, sin dependencias externas):
   1. Lee VV/VH por cancha desde soil_metrics (Supabase REST API — anon key)
   2. Promedia VV/VH por sector DpRVIc (amalfitani_central, vo_bloque_a/b/c/d)
   3. DpRVIc = (VV_lin - VH_lin) / (VV_lin + VH_lin)  ∈ [0,1]
-  4. Crea tabla dprvi_metrics si no existe y hace UPSERT vía psycopg2
+  4. UPSERT vía Supabase REST API (service_role key)
 
 Variables de entorno requeridas:
-  SUPABASE_URL      — https://xljxpzudgwhbzcnrvylo.supabase.co
-  SUPABASE_KEY      — anon key (lectura soil_metrics)
-  SUPABASE_DB_URL   — postgresql://postgres:PASS@host:5432/postgres (escritura)
+  SUPABASE_URL              — https://xljxpzudgwhbzcnrvylo.supabase.co
+  SUPABASE_KEY              — anon key (lectura soil_metrics)
+  SUPABASE_SERVICE_ROLE_KEY — service role key (escritura dprvi_metrics)
 
 Ejecutar: 13:00 UTC diariamente (datos SAR disponibles desde 09:00 UTC refresh)
 """
 from __future__ import annotations
 
+import json
 import logging
 import os
 import sys
@@ -28,9 +29,9 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-SUPA_URL    = os.environ.get("SUPABASE_URL", "https://xljxpzudgwhbzcnrvylo.supabase.co").rstrip("/")
-SUPA_KEY    = os.environ.get("SUPABASE_KEY", "")
-SUPA_DB_URL = os.environ.get("SUPABASE_DB_URL", "")
+SUPA_URL     = os.environ.get("SUPABASE_URL", "https://xljxpzudgwhbzcnrvylo.supabase.co").rstrip("/")
+SUPA_KEY     = os.environ.get("SUPABASE_KEY", "")
+SUPA_SVC_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
 
 # DpRVIc formula: (VV_lin - VH_lin) / (VV_lin + VH_lin)
 # Alto DpRVIc → suelo seco / baja vegetación
@@ -45,32 +46,20 @@ SECTOR_CANCHAS: dict[str, tuple[str, list[str]]] = {
     "vo_bloque_d":        ("villa_olimpica", ["1fp", "2fp"]),
 }
 
-_CREATE_SQL = """
-CREATE TABLE IF NOT EXISTS public.dprvi_metrics (
-    id                   BIGSERIAL PRIMARY KEY,
-    cancha_id            VARCHAR(32)  NOT NULL,
-    fecha                DATE         NOT NULL,
-    dprvi_value          FLOAT,
-    dprvi_confidence_pct INT,
-    vh_db                FLOAT,
-    vv_db                FLOAT,
-    vh_vv_ratio          FLOAT,
-    created_at           TIMESTAMP DEFAULT NOW(),
-    CONSTRAINT unique_cancha_fecha_dprvi UNIQUE(cancha_id, fecha)
-);
-CREATE INDEX IF NOT EXISTS idx_dprvi_cancha_fecha ON public.dprvi_metrics(cancha_id, fecha DESC);
-"""
-
-_UPSERT_SQL = """
-INSERT INTO public.dprvi_metrics
-    (cancha_id, fecha, dprvi_value, dprvi_confidence_pct, vh_db, vv_db, vh_vv_ratio)
-VALUES (%s, %s, %s, %s, %s, %s, %s)
-ON CONFLICT (cancha_id, fecha) DO UPDATE SET
-    dprvi_value          = EXCLUDED.dprvi_value,
-    dprvi_confidence_pct = EXCLUDED.dprvi_confidence_pct,
-    vh_db                = EXCLUDED.vh_db,
-    vv_db                = EXCLUDED.vv_db,
-    vh_vv_ratio          = EXCLUDED.vh_vv_ratio
+# DDL para crear la tabla manualmente en Supabase SQL Editor (una sola vez):
+# CREATE TABLE IF NOT EXISTS public.dprvi_metrics (
+#     id                   BIGSERIAL PRIMARY KEY,
+#     cancha_id            VARCHAR(32)  NOT NULL,
+#     fecha                DATE         NOT NULL,
+#     dprvi_value          FLOAT,
+#     dprvi_confidence_pct INT,
+#     vh_db                FLOAT,
+#     vv_db                FLOAT,
+#     vh_vv_ratio          FLOAT,
+#     created_at           TIMESTAMP DEFAULT NOW(),
+#     CONSTRAINT unique_cancha_fecha_dprvi UNIQUE(cancha_id, fecha)
+# );
+# CREATE INDEX IF NOT EXISTS idx_dprvi_cancha_fecha ON public.dprvi_metrics(cancha_id, fecha DESC);
 """
 
 
@@ -153,30 +142,28 @@ def _sector_vv_vh(sector_id: str, sar_cache: dict[str, dict[str, dict]]) -> tupl
     return round(avg_vv, 3), round(avg_vh, 3), fecha
 
 
-# ── Supabase write via psycopg2 ───────────────────────────────────────────────
+# ── Supabase write via REST API ───────────────────────────────────────────────
 
 def _upsert(rows: list[dict]) -> bool:
-    if not SUPA_DB_URL or "[YOUR-PASSWORD]" in SUPA_DB_URL:
-        log.error("SUPABASE_DB_URL no configurado correctamente")
+    if not SUPA_SVC_KEY:
+        log.error("SUPABASE_SERVICE_ROLE_KEY no configurado")
         return False
+    url  = f"{SUPA_URL}/rest/v1/dprvi_metrics"
+    hdrs = {
+        "apikey":        SUPA_SVC_KEY,
+        "Authorization": f"Bearer {SUPA_SVC_KEY}",
+        "Content-Type":  "application/json",
+        "Prefer":        "resolution=merge-duplicates,return=minimal",
+    }
     try:
-        import psycopg2
-        conn = psycopg2.connect(SUPA_DB_URL, connect_timeout=15, sslmode="require")
-        cur = conn.cursor()
-        cur.execute(_CREATE_SQL)
-        for r in rows:
-            cur.execute(_UPSERT_SQL, (
-                r["cancha_id"], r["fecha"],
-                r["dprvi_value"], r["dprvi_confidence_pct"],
-                r["vh_db"], r["vv_db"], r["vh_vv_ratio"],
-            ))
-        conn.commit()
-        cur.close()
-        conn.close()
-        log.info("dprvi_metrics upsert OK — %d filas", len(rows))
-        return True
+        r = requests.post(url, headers=hdrs, data=json.dumps(rows), timeout=15)
+        if r.status_code in (200, 201, 204):
+            log.info("dprvi_metrics upsert OK — %d filas", len(rows))
+            return True
+        log.error("dprvi_metrics upsert HTTP %s: %s", r.status_code, r.text[:200])
+        return False
     except Exception as exc:
-        log.error("psycopg2 upsert: %s", exc)
+        log.error("dprvi_metrics upsert: %s", exc)
         return False
 
 
@@ -188,8 +175,8 @@ def main() -> int:
     if not SUPA_KEY:
         log.error("SUPABASE_KEY no configurado")
         return 1
-    if not SUPA_DB_URL:
-        log.error("SUPABASE_DB_URL no configurado")
+    if not SUPA_SVC_KEY:
+        log.error("SUPABASE_SERVICE_ROLE_KEY no configurado")
         return 1
 
     # 1. Fetch SAR data por venue (2 queries)

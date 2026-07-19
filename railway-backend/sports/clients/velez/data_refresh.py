@@ -588,6 +588,10 @@ def push_weather_update(weather_live: dict) -> str:
     solar_ghi      = weather_live.pop("_solar_ghi_kwh", None)
     solar_t_cell   = weather_live.pop("_solar_t_cell", None)
     solar_pr       = weather_live.pop("_solar_pr_pvlib", None)
+    weather_live.pop("_temporal_eye",   None)  # internal analysis — not for Supabase
+    weather_live.pop("_ventana_corte",  None)
+    weather_live.pop("_altura_corte_mm", None)
+    weather_live.pop("_riego_min_final", None)
 
     try:
         import velez_supabase as _vs

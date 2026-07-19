@@ -82,7 +82,7 @@ Migration notes:
   ALTER TABLE soil_metrics ADD COLUMN IF NOT EXISTS sm_cygnss_m3m3 NUMERIC;
 """
 from __future__ import annotations
-import json, logging, os, time
+import json, logging, math, os, time
 from datetime import datetime, timedelta, timezone
 
 import requests as _req
@@ -334,6 +334,27 @@ def get_sectores() -> dict:
 
 # ── velez_weather_live ────────────────────────────────────────────────────────
 
+def _sanitize_json(obj):
+    """Recursively replace float NaN/Inf (invalid JSON) with None."""
+    if isinstance(obj, dict):
+        return {k: _sanitize_json(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_sanitize_json(v) for v in obj]
+    if isinstance(obj, float) and not math.isfinite(obj):
+        return None
+    try:
+        import numpy as _np
+        if isinstance(obj, _np.floating):
+            return None if not math.isfinite(float(obj)) else float(obj)
+        if isinstance(obj, _np.integer):
+            return int(obj)
+        if isinstance(obj, _np.ndarray):
+            return obj.tolist()
+    except ImportError:
+        pass
+    return obj
+
+
 def upsert_weather_live(weather: dict) -> bool:
     """
     Upsert the single weather_live row (id='current') in velez_weather_live.
@@ -345,7 +366,7 @@ def upsert_weather_live(weather: dict) -> bool:
     hdrs = _hdrs({"Prefer": "resolution=merge-duplicates,return=minimal"})
     row  = {
         "id":         "current",
-        "data":       weather,
+        "data":       _sanitize_json(weather),
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
     try:

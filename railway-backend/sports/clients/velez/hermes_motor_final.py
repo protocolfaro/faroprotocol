@@ -1,3 +1,4 @@
+import math
 import numpy as np
 from scipy.stats import lognorm
 from pydantic import BaseModel, field_validator
@@ -135,6 +136,10 @@ class HermesMotor:
 
         shape, loc, scale = lognorm.fit(hist_estres)
         umbral = lognorm.ppf(target_pod, shape, loc, scale)
+
+        # Guard: overflow in lognorm produces inf/nan — fall back immediately
+        if not math.isfinite(float(umbral)):
+            return float(np.median(hist_sano) - 1.645 * np.std(hist_sano))
 
         falsas = np.sum(hist_sano < umbral)
         total = falsas + np.sum(hist_estres < umbral)

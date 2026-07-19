@@ -10,10 +10,9 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      GCS_BUCKET:                ${{ secrets.GCS_BUCKET }}
-      GCS_SERVICE_ACCOUNT_JSON:  ${{ secrets.GCS_SERVICE_ACCOUNT_JSON }}
       SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
       SUPABASE_KEY:              ${{ secrets.SUPABASE_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
     steps:
       - uses: actions/checkout@v3
@@ -25,7 +24,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install requests google-auth google-auth-httplib2 cryptography
+          pip install requests
 
       - name: Download DpRVIc from GCS and upsert Supabase
         run: |
