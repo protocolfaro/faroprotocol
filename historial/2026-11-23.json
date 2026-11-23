@@ -41,7 +41,7 @@
     ],
     "semana": "2026-11-23"
   },
-  "updated_at": "2026-11-23T10:02:56Z",
+  "updated_at": "2026-11-23T13:15:44Z",
   "weather_live": {
     "timestamp": "2026-11-23T09:00:00",
     "fuentes": [
@@ -4621,7 +4621,7 @@
       "heatmaps_meta": {
         "fuente": "kalman_gapfill",
         "semana": "2026-11-23",
-        "updated_at": "2026-11-23T10:02:56Z"
+        "updated_at": "2026-11-23T13:15:44Z"
       }
     },
     "juan": {
@@ -5178,7 +5178,7 @@
   "_assembled_at": "2026-11-23T09:02:26Z",
   "historial_meta": {
     "semana": "2026-11-23",
-    "committed_at": "2026-11-23T10:03:12Z",
+    "committed_at": "2026-11-23T13:16:00Z",
     "fuente": "Faro Protocol · Railway auto-commit"
   }
 }
